@@ -4,7 +4,8 @@ import GlasspadKit
 import Testing
 @testable import GlasspadMacCore
 
-private let wordURL = URL(fileURLWithPath: "/Applications/Microsoft Word.app")
+// isDirectory: true so the URL is the same whether or not Word is installed on the test machine.
+private let wordURL = URL(fileURLWithPath: "/Applications/Microsoft Word.app", isDirectory: true)
 
 nonisolated(unsafe) private let sample: [[String: Any]] = [
     ["tile-data": ["bundle-identifier": "com.microsoft.Word", "file-label": "Microsoft Word",
@@ -151,7 +152,7 @@ nonisolated(unsafe) private let sample: [[String: Any]] = [
 
     @Test func appOutsideApplicationsIsFoundAndStaleDockURLSkipped() {
         let ws = FakeWorkspace()
-        let stale = URL(fileURLWithPath: "/Applications/Old Word.app")
+        let stale = URL(fileURLWithPath: "/Applications/Old Word.app", isDirectory: true)
         let home = URL(fileURLWithPath: "/Users/me/Applications/Microsoft Word.app")
         ws.existing = [stale.path, home.path]
         ws.bundleIDs = [stale.path: "com.microsoft.Word.old", home.path: "com.microsoft.Word"]
@@ -162,7 +163,7 @@ nonisolated(unsafe) private let sample: [[String: Any]] = [
 
     @Test func failedLaunchFallsBackToTheNextCopyThenReportsWhy() {
         let ws = FakeWorkspace()
-        let a = URL(fileURLWithPath: "/Applications/Microsoft Word.app")
+        let a = URL(fileURLWithPath: "/Applications/Microsoft Word.app", isDirectory: true)
         let b = URL(fileURLWithPath: "/Volumes/Apps/Microsoft Word.app")
         ws.existing = [a.path, b.path]
         ws.lsURLs = ["com.microsoft.Word": [a, b]]
