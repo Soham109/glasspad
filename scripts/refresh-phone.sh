@@ -17,7 +17,8 @@ source "$STATE"
 AGE_DAYS=$(( ( $(date +%s) - GLASSPAD_INSTALLED_AT ) / 86400 ))
 [ "${1:-}" = "--now" ] || [ "$AGE_DAYS" -ge 5 ] || exit 0
 
-if ! xcrun devicectl list devices 2>/dev/null | grep "$GLASSPAD_DEVICE" | grep -qE "available|connected"; then
+# The same states install-phone.sh accepts. A plain "available" would also match "unavailable".
+if ! xcrun devicectl list devices 2>/dev/null | grep "$GLASSPAD_DEVICE" | grep -qE 'available \(paired\)| connected '; then
   echo "$(date) iPhone not reachable (install is $AGE_DAYS days old); will retry next hour"
   [ "$AGE_DAYS" -ge 6 ] && notify "Glasspad expires soon. Bring your iPhone onto this Mac's Wi-Fi so it can renew."
   exit 0

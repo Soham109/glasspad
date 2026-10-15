@@ -203,17 +203,24 @@ enum ClipboardReader {
         }
     }
 
+    /// PNG no larger than `maxImageSide` and `ClipboardContent.maxImageBytes` (a photo PNG at
+    /// 3000 points is often 12 to 15 MB, over the one-message limit once base64 encoded).
     static func pngData(from data: Data) -> Data? {
         guard let image = UIImage(data: data) else { return nil }
         let side = max(image.size.width, image.size.height)
-        guard side > maxImageSide else { return image.pngData() }
-        let scale = maxImageSide / side
-        let size = CGSize(width: (image.size.width * scale).rounded(), height: (image.size.height * scale).rounded())
+        if side <= maxImageSide, let png = image.pngData(), png.count <= ClipboardContent.maxImageBytes { return png }
+        var scale = min(1, maxImageSide / side)
         let format = UIGraphicsImageRendererFormat.default()
         format.scale = 1
-        return UIGraphicsImageRenderer(size: size, format: format).pngData { _ in
-            image.draw(in: CGRect(origin: .zero, size: size))
+        for _ in 0..<6 {
+            let size = CGSize(width: max(1, (image.size.width * scale).rounded()), height: max(1, (image.size.height * scale).rounded()))
+            let png = UIGraphicsImageRenderer(size: size, format: format).pngData { _ in
+                image.draw(in: CGRect(origin: .zero, size: size))
+            }
+            if png.count <= ClipboardContent.maxImageBytes { return png }
+            scale *= 0.7
         }
+        return nil
     }
 }
 

@@ -1,3 +1,4 @@
+import GlasspadKit
 import SwiftUI
 
 @main
@@ -73,6 +74,14 @@ struct RootView: View {
             PresenterCover()
                 .environment(\.palette, palette)
         }
+        .alert(router.pairingRequest.map { "Pair with \($0.macName)?" } ?? "Pair with this Mac?",
+               isPresented: Binding(get: { router.pairingRequest != nil }, set: { if !$0 { router.pairingRequest = nil } }),
+               presenting: router.pairingRequest) { payload in
+            Button("Pair") { router.pair(payload) }
+            Button("Cancel", role: .cancel) { router.pairingRequest = nil }
+        } message: { _ in
+            Text("Only pair with a code your own Mac is showing. This iPhone will then control that Mac, and what you type goes to it.")
+        }
     }
 
     @ViewBuilder
@@ -82,7 +91,7 @@ struct RootView: View {
             modeContent
                 .id(router.mode)
                 .transition(.opacity)
-            if router.mode == .trackpad {
+            if router.mode == .trackpad && !filmActive {
                 TrackpadStatus()
             }
             if router.mode == .present && router.isDimmed {
@@ -93,7 +102,11 @@ struct RootView: View {
                     .transition(.opacity)
                     .accessibilityLabel("Screen dimmed. Double tap to wake.")
             }
+            #if DEBUG
+            ModeSwitcher().id(FilmDirector.shared.switcherID)
+            #else
             ModeSwitcher()
+            #endif
             if session.isWarm {
                 WarmNotice()
             }
@@ -103,6 +116,15 @@ struct RootView: View {
         .persistentSystemOverlays(focus ? .hidden : .automatic)
         .defersSystemGestures(on: router.mode == .trackpad ? .all : [])
         .simultaneousGesture(TapGesture().onEnded { router.noteActivity() }, including: router.mode == .present ? .all : .subviews)
+    }
+
+    /// Debug film scenes (DemoScript.swift) hide the trackpad's connection status.
+    private var filmActive: Bool {
+        #if DEBUG
+        FilmDirector.shared.active
+        #else
+        false
+        #endif
     }
 
     @ViewBuilder private var modeContent: some View {
@@ -195,6 +217,7 @@ private struct WarmNotice: View {
 ///   -GPTheme / -GPThemeLater <paper|graphite|system>  set the theme at launch, or two seconds later
 ///   -GPDemo <icon folder>               fill the screens with sample Mac data (no Mac needed)
 ///   -GPActionsPage <library|front|folder|clipboard|present>  open that Actions sheet or tool; -GPEdit starts editing
+///   -GPFilm <trackpad|menu|actions|media>  play a scripted scene for the demo film (DemoScript.swift)
 enum DebugLaunch {
     @MainActor static func apply() {
         let args = ProcessInfo.processInfo.arguments
@@ -214,7 +237,7 @@ enum DebugLaunch {
             }
         }
         if args.contains("-GPOnboarding") { PhoneSettings.shared.hasOnboarded = false }
-        if let pair = value("-GPPair"), let url = URL(string: pair) { AppRouter.shared.open(url) }
+        if let pair = value("-GPPair"), let payload = PairingParser.parse(pair) { AppRouter.shared.pair(payload) }
         if let mode = value("-GPMode"), let target = AppMode(rawValue: mode) {
             PhoneSettings.shared.hasOnboarded = true
             AppRouter.shared.show(target)
@@ -229,6 +252,7 @@ enum DebugLaunch {
             if page == "present" { AppRouter.shared.openTool(.present) }
         }
         if args.contains("-GPEdit") { demoEditing = true }
+        if let scene = value("-GPFilm") { FilmDirector.shared.start(scene: scene, iconFolder: value("-GPDemo")) }
     }
     @MainActor static var showMenuAtLaunch = false
     /// `library`, `front` or `folder`: the Actions sheet (or Pinned folder) to open.

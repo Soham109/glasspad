@@ -739,6 +739,48 @@ struct StuckButtonTests {
         #expect(s.r.fingerCount == 1)
     }
 
+    /// The client stamps a resent resting snapshot with the time it sends it, while the app's
+    /// frames carry the touch's own (earlier) time. A lift delivered just after a resend is
+    /// therefore older than the last frame. Dropping it as a late packet lost the tap.
+    @Test func liftStampedBeforeAResendStillCounts() {
+        let s = Script { $0.tapToClick = true }
+        s.down(1, 200, 400)
+        s.advance(0.03)
+        s.send([:])                     // resend at the client's clock
+        let lift = TouchFrame(seq: 0, timestamp: s.t - 0.004, touches: [Touch(id: 1, phase: .ended, x: 200, y: 400)],
+                              surface: s.surface)
+        s.events += s.r.process(lift, receivedAt: s.t + 0.001)
+        #expect(s.r.fingerCount == 0)
+        s.wait(0.6)
+        #expect(s.buttons == leftClick(1))
+        #expect(!s.events.contains { if case .forceClick = $0 { return true }; return false })
+    }
+
+    /// A late lift for a finger that is already gone changes nothing (no ghost fingers).
+    @Test func lateLiftOfAGoneFingerIsIgnored() {
+        let s = Script { $0.tapToClick = true }
+        s.down([1: (100, 400), 2: (200, 400)])
+        s.advance(0.03)
+        s.up(2)
+        let late = TouchFrame(seq: 0, timestamp: s.t - 0.004,
+                              touches: [Touch(id: 1, phase: .stationary, x: 100, y: 400), Touch(id: 2, phase: .ended, x: 200, y: 400)],
+                              surface: s.surface)
+        #expect(s.r.process(late, receivedAt: s.t).isEmpty)
+        #expect(s.r.fingerCount == 1)
+    }
+
+    /// The "ended" packet was lost; the empty snapshot the client sends after the last lift
+    /// still lifts the finger, and the tap clicks.
+    @Test func emptySnapshotAfterALostLiftClicks() {
+        let s = Script { $0.tapToClick = true }
+        s.down(1, 200, 400)
+        s.rest(0.06)
+        s.fingers = [:]
+        s.send([:])
+        #expect(s.r.fingerCount == 0)
+        #expect(s.buttons == leftClick(1))
+    }
+
     @Test func phoneClockRestartCancels() {
         let s = startDrag()
         let fresh = TouchFrame(seq: 0, timestamp: 5, touches: [], surface: s.surface)

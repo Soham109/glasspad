@@ -66,6 +66,17 @@ public final class GlasspadClient: @unchecked Sendable {
     private var udp: NWConnection?
     private var seq: UInt32 = 0
     private var lastSnapshot: TouchFrame?
+    /// After the last finger lifts, an empty snapshot is resent this many more times, so a lost
+    /// "ended" packet still lifts the finger on the Mac (resends only cover fingers still down).
+    private var liftResends = 0
+    private var liftSurface: CGSize = .zero
+    /// Timestamp for the empty resends: the lift's, or the last resend's if that was later, so
+    /// they are never older than what the Mac has (it drops late frames) nor newer than the
+    /// app's next touch.
+    private var liftTime: TimeInterval = 0
+    /// Timestamp of the last touch frame sent.
+    private var lastFrameTime: TimeInterval = 0
+    static let liftResendCount = 2
     private var lastAppFrame: TimeInterval = 0
     private var lastSend: TimeInterval = 0
     private var lastTouchActivity: TimeInterval = 0
@@ -147,6 +158,13 @@ public final class GlasspadClient: @unchecked Sendable {
             var f = frame
             f.touches = Array(f.touches.prefix(TouchCodec.maxTouches))
             let active = f.touches.filter { $0.phase.isActive }
+            if active.isEmpty, lastSnapshot != nil || !f.touches.isEmpty {
+                liftResends = Self.liftResendCount
+                liftSurface = f.surface
+                liftTime = max(f.timestamp, lastFrameTime)
+            } else if !active.isEmpty {
+                liftResends = 0
+            }
             lastSnapshot = active.isEmpty ? nil : TouchFrame(seq: 0, timestamp: f.timestamp, touches: active, surface: f.surface)
             sendTouches(f)
         }
@@ -418,6 +436,7 @@ public final class GlasspadClient: @unchecked Sendable {
         phase = nil
         crypto = nil
         lastSnapshot = nil
+        liftResends = 0
     }
 
     // MARK: Sending
@@ -436,6 +455,7 @@ public final class GlasspadClient: @unchecked Sendable {
         var f = f
         seq &+= 1
         f.seq = seq
+        lastFrameTime = f.timestamp
         sendDatagram(TouchCodec.encode(f))
     }
 
@@ -477,6 +497,9 @@ public final class GlasspadClient: @unchecked Sendable {
             snap.timestamp = now
             snap.touches = snap.touches.map { var t = $0; t.phase = .stationary; return t }
             sendTouches(snap)
+        } else if liftResends > 0 {
+            liftResends -= 1
+            sendTouches(TouchFrame(seq: 0, timestamp: liftTime, touches: [], surface: liftSurface))
         } else if heartbeatsEnabled, now - lastTouchActivity < GlasspadService.heartbeatIdleTimeout {
             seq &+= 1
             sendDatagram(TouchCodec.heartbeat(seq: seq, timestamp: now))

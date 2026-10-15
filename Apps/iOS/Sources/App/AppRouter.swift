@@ -1,4 +1,5 @@
 import Foundation
+import GlasspadKit
 import Observation
 import UIKit
 
@@ -21,6 +22,10 @@ final class AppRouter {
             ScreenAwake.update()
         }
     }
+    /// A pairing link that arrived from outside the app (the Camera app, a web page, another
+    /// app), waiting for the user to confirm it. Applying it unasked would let any link switch
+    /// this iPhone to another Mac, or replace the key of the paired one.
+    var pairingRequest: PairingPayload?
     /// The trackpad and Present screens dim after the idle delay; a touch wakes them.
     private(set) var isDimmed = false
     /// Last time anything touched a screen that dims. Not observed: it changes on every touch.
@@ -66,13 +71,7 @@ final class AppRouter {
         guard url.scheme == "glasspad" else { return }
         switch url.host() {
         case "pair":
-            if let payload = PairingParser.parse(url.absoluteString) {
-                let mac = PairingStore.shared.add(payload)
-                PhoneSettings.shared.hasOnboarded = true
-                MacSession.shared.didPair(mac)
-                show(.trackpad)
-                Haptics.shared.play(.snap)
-            }
+            if let payload = PairingParser.parse(url.absoluteString) { pairingRequest = payload }
         case "trackpad":
             show(.trackpad)
         case "mode":
@@ -82,6 +81,16 @@ final class AppRouter {
         default:
             break
         }
+    }
+
+    /// Pairs with the Mac in a code the user scanned or confirmed.
+    func pair(_ payload: PairingPayload) {
+        pairingRequest = nil
+        let mac = PairingStore.shared.add(payload)
+        PhoneSettings.shared.hasOnboarded = true
+        MacSession.shared.didPair(mac)
+        show(.trackpad)
+        Haptics.shared.play(.snap)
     }
 
     // MARK: Idle dimming

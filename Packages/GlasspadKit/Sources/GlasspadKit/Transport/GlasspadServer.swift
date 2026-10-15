@@ -100,6 +100,9 @@ public final class GlasspadServer: @unchecked Sendable {
         let channel: ControlChannel
         var phase = Phase.awaitingHello
         var crypto: SessionCrypto?
+        /// A known phone while the QR code is up: the session keys from the pending key, tried
+        /// when the stored key fails (the phone scanned the QR code again and replaced its key).
+        var pendingCrypto: (crypto: SessionCrypto, key: Data)?
         var phone: PairedPhone?
         var isNewPairing = false
         var udp: NWConnection?
@@ -251,12 +254,19 @@ public final class GlasspadServer: @unchecked Sendable {
         case .awaitingHello:
             handleHello(data, from: s)
         case .awaitingConfirm:
-            guard var c = s.crypto, let plain = try? c.openTCP(data), plain == handshakeConfirmToken else {
+            let alt = s.pendingCrypto
+            s.pendingCrypto = nil
+            if var c = s.crypto, let plain = try? c.openTCP(data), plain == handshakeConfirmToken {
+                s.crypto = c
+            } else if var c = alt?.crypto, let key = alt?.key, let plain = try? c.openTCP(data), plain == handshakeConfirmToken {
+                s.crypto = c
+                s.phone?.pairKey = key
+                s.isNewPairing = true
+            } else {
                 statsBox.mutate { $0.authFailures += 1 }
                 s.channel.close("key confirmation failed")
                 return
             }
-            s.crypto = c
             s.phase = .authenticated
             guard let phone = s.phone else { return }
             if s.isNewPairing {
@@ -316,6 +326,9 @@ public final class GlasspadServer: @unchecked Sendable {
         s.crypto = SessionCrypto(pairKey: key, phoneNonce: hello.nonce, macNonce: macNonce, role: .mac)
         s.phone = PairedPhone(phoneID: hello.phoneID, phoneName: hello.phoneName, pairKey: key)
         s.isNewPairing = isNew
+        if !isNew, let pend = pendingKey.get(), pend != key {
+            s.pendingCrypto = (SessionCrypto(pairKey: pend, phoneNonce: hello.nonce, macNonce: macNonce, role: .mac), pend)
+        }
         s.phase = .awaitingConfirm
         if active == nil { setState(.connecting) }
         if let json = try? JSONEncoder().encode(MacHello(nonce: macNonce, udpPort: udpPort)) {

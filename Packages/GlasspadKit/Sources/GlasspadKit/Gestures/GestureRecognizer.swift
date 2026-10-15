@@ -199,7 +199,18 @@ public final class GestureRecognizer {
             if lt - t > GestureTuning.clockJumpTolerance {
                 ev += cancelAll()        // the phone's clock restarted
             } else {
-                return []                // late, reordered packet: drop
+                // Late, reordered packet: drop it, except a lift. The client stamps a resent
+                // resting snapshot with its send time, so a lift delivered just after one is
+                // older than it; dropping that lift lost the tap (or held a drag until the
+                // stale guard). Apply only the lift, at the last frame's time.
+                let lifts = frame.touches.filter { !$0.phase.isActive && touches[$0.id] != nil }
+                guard !lifts.isEmpty else { return [] }
+                let lifted = Set(lifts.map(\.id))
+                let staying = touches.filter { !lifted.contains($0.key) }.map { id, tr in
+                    Touch(id: id, phase: .stationary, x: tr.cur.x, y: tr.cur.y, majorRadius: tr.radii.last?.r ?? 0)
+                }
+                return process(TouchFrame(seq: frame.seq, timestamp: lt, touches: lifts + staying, surface: frame.surface),
+                               receivedAt: local)
             }
         }
         updateOffset(frameTime: t, local: local)

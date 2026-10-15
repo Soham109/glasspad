@@ -389,3 +389,23 @@ private extension ModeMessage {
         #expect(sent().last == .frontmostApp(bundleID: "com.apple.Safari"))
     }
 }
+
+@Suite @MainActor struct LiveDeckRunTests {
+    /// A tool that prints more than a pipe holds (64 KB) used to block on its write, because
+    /// the output was only read after it exited: the button then failed with "Timed out".
+    @Test func chattyToolFinishesWithItsOutput() async {
+        let env = LiveDeckEnvironment(keys: KeysMode(poster: CapturingEventPoster()))
+        let r = await env.run(executable: "/bin/sh", arguments: ["-c", "yes x | head -c 200000"], timeout: 5)
+        #expect(r.ok)
+        #expect(r.output.count == 200_000)
+    }
+}
+
+@Suite struct DeckLogTests {
+    /// The unified log entry for a button run is public; it must not carry what a button types.
+    @Test func logLabelLeavesOutTypedTextAndScripts() {
+        #expect(!DeckMode.logLabel(.typeText("hunter2")).contains("hunter2"))
+        #expect(!DeckMode.logLabel(.shellScript("echo secret")).contains("secret"))
+        #expect(DeckMode.logLabel(.openApp(bundleID: "com.apple.Safari")).contains("com.apple.Safari"))
+    }
+}

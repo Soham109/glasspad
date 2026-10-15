@@ -203,6 +203,10 @@ public struct DeckButton: Codable, Equatable, Sendable, Hashable, Identifiable {
 public enum ClipboardContent: Codable, Equatable, Sendable {
     case text(String)
     case imagePNG(Data)
+
+    /// Largest image that fits in one control message: JSON carries it as base64 (4/3 the
+    /// size), and the whole frame must stay under `GlasspadService.maxFrameLength`.
+    public static let maxImageBytes = 11 << 20
 }
 
 /// Messages for the extra modes, carried inside `ControlMessage.mode`.

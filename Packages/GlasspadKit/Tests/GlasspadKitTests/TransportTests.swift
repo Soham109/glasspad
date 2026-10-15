@@ -137,6 +137,27 @@ struct TransportTests {
         #expect(resent.allSatisfy { $0.touches.count == 1 && $0.touches[0].id == 1 })
     }
 
+    /// Resends only cover fingers still down. After the last lift an empty snapshot follows, so
+    /// a lost "ended" packet does not leave the finger down on the Mac (a lost tap, or a drag
+    /// held until the stale guard).
+    @Test func lastLiftIsFollowedByEmptySnapshots() async throws {
+        let key = self.key
+        let (server, srec, port) = try await makeServer { _ in key }
+        defer { server.stop() }
+        let (client, _) = makeClient()
+        defer { client.disconnect() }
+        client.connect(host: "127.0.0.1", port: port)
+        #expect(await waitUntil { client.state.isConnected && server.state.isConnected })
+        let surface = CGSize(width: 390, height: 844)
+        client.send(frame: TouchFrame(seq: 0, timestamp: 1, touches: [Touch(id: 1, phase: .began, x: 5, y: 5)], surface: surface))
+        client.send(frame: TouchFrame(seq: 0, timestamp: 1.05, touches: [Touch(id: 1, phase: .ended, x: 5, y: 5)], surface: surface))
+        #expect(await waitUntil { srec.frames.filter { $0.touches.isEmpty }.count >= GlasspadClient.liftResendCount })
+        try await Task.sleep(nanoseconds: 200_000_000)
+        let afterLift = srec.frames.drop { $0.touches.first?.phase != .ended }.dropFirst()
+        #expect(afterLift.count == GlasspadClient.liftResendCount)
+        #expect(afterLift.allSatisfy { $0.touches.isEmpty && $0.surface == surface })
+    }
+
     @Test func pendingPairingAcceptsNewPhoneOnce() async throws {
         let (server, _, port) = try await makeServer { _ in nil }
         defer { server.stop() }
@@ -150,6 +171,41 @@ struct TransportTests {
         #expect(await waitUntil { paired.phones.count == 1 })
         #expect(paired.phones.first == PairedPhone(phoneID: "new-phone", phoneName: "Test Phone", pairKey: key))
         #expect(server.pendingPairKey == nil)
+    }
+
+    /// A phone that is already paired scans the Mac's QR code again (the phone replaces its key
+    /// for that Mac). The Mac still holds the old key, so it must accept the pending one.
+    @Test func pairedPhoneCanPairAgainWithNewQRCode() async throws {
+        let oldKey = PairingPayload.generateKey()
+        let (server, _, port) = try await makeServer { $0 == "phone-1" ? oldKey : nil }
+        defer { server.stop() }
+        let paired = PairedBox()
+        server.onPaired = { paired.add($0) }
+        server.pendingPairKey = key
+        let (client, _) = makeClient(phoneID: "phone-1")
+        defer { client.disconnect() }
+        client.connect(host: "127.0.0.1", port: port)
+        #expect(await waitUntil { client.state.isConnected && server.state.isConnected })
+        #expect(await waitUntil { paired.phones.count == 1 })
+        #expect(paired.phones.first == PairedPhone(phoneID: "phone-1", phoneName: "Test Phone", pairKey: key))
+        #expect(server.pendingPairKey == nil)
+    }
+
+    /// While the QR code is up, a known phone with its old key still connects as before.
+    @Test func pairedPhoneKeepsOldKeyWhilePairingIsOpen() async throws {
+        let key = self.key
+        let (server, _, port) = try await makeServer { $0 == "phone-1" ? key : nil }
+        defer { server.stop() }
+        let paired = PairedBox()
+        server.onPaired = { paired.add($0) }
+        let pending = PairingPayload.generateKey()
+        server.pendingPairKey = pending
+        let (client, _) = makeClient(phoneID: "phone-1")
+        defer { client.disconnect() }
+        client.connect(host: "127.0.0.1", port: port)
+        #expect(await waitUntil { client.state.isConnected && server.state.isConnected })
+        #expect(paired.phones.isEmpty)
+        #expect(server.pendingPairKey == pending)
     }
 
     @Test func unknownPhoneIsRejectedWithoutRetry() async throws {
@@ -201,6 +257,39 @@ struct TransportTests {
         #expect(await waitUntil { client.state.isConnected })
         client.send(message: .mode(.presentNext))
         #expect(await waitUntil { srec.messages.contains(.mode(.presentNext)) })
+    }
+
+    /// A message too big for the peer's frame limit (a large clipboard image, base64 in JSON)
+    /// must be dropped by the sender, not sent and answered with a closed connection.
+    @Test func oversizedMessageIsDroppedAndSessionSurvives() async throws {
+        let key = self.key
+        let (server, srec, port) = try await makeServer { _ in key }
+        defer { server.stop() }
+        let (client, crec) = makeClient()
+        defer { client.disconnect() }
+        client.connect(host: "127.0.0.1", port: port)
+        #expect(await waitUntil { client.state.isConnected && server.state.isConnected })
+        let big = Data(repeating: 0x5A, count: GlasspadService.maxFrameLength * 3 / 4 + 1024)
+        server.send(.mode(.clipboardContent(.imagePNG(big))))
+        client.send(message: .mode(.clipboardPush(.imagePNG(big))))
+        try await Task.sleep(nanoseconds: 1_500_000_000)
+        server.send(.haptic(.snap))
+        client.send(message: .mode(.presentNext))
+        #expect(await waitUntil { crec.messages.contains(.haptic(.snap)) })
+        #expect(await waitUntil { srec.messages.contains(.mode(.presentNext)) })
+        // The session was never closed and reopened.
+        #expect(!srec.states.drop { !$0.isConnected }.contains(.searching))
+        #expect(crec.states.filter { $0 == .connecting }.count == 1)
+    }
+
+    /// The clipboard image budget leaves room for base64, the JSON around it and the seal.
+    @Test func clipboardImageBudgetFitsOneFrame() throws {
+        // Random bytes, like a real PNG: about one base64 character in 64 is a "/", which JSON escapes.
+        var rng = SystemRandomNumberGenerator()
+        let image = Data((0..<ClipboardContent.maxImageBytes).map { _ in UInt8.random(in: 0...255, using: &rng) })
+        for m in [ControlMessage.mode(.clipboardContent(.imagePNG(image))), .mode(.clipboardPush(.imagePNG(image)))] {
+            #expect(try m.jsonData().count + 8 + 16 <= GlasspadService.maxFrameLength)
+        }
     }
 
     @Test func garbageDatagramsAreCounted() async throws {

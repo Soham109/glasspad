@@ -284,11 +284,20 @@ public final class DeckMode {
         if button.needsConfirmation && !confirmed {
             return [.deckResult(id: id, ok: false, message: "Confirm on the phone first.")]
         }
-        GPLog.log("deck: run \(button.title) \(button.action)")
+        GPLog.log("deck: run \(button.title) \(Self.logLabel(button.action))")
         let outcome = await perform(button.action)
         var out: [ModeMessage] = [.deckResult(id: id, ok: outcome.ok, message: outcome.ok ? nil : outcome.message)]
         if let image = outcome.image { out.append(.deckImage(id: id, imageData: image.data, destination: image.destination)) }
         return out
+    }
+
+    /// The action for the log, without typed text or a script: the log is public and kept.
+    nonisolated static func logLabel(_ action: DeckAction) -> String {
+        switch action {
+        case .typeText: "typeText"
+        case .shellScript: "shellScript"
+        default: "\(action)"
+        }
     }
 
     public struct Outcome: Equatable, Sendable {

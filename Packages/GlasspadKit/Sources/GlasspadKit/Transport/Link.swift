@@ -215,6 +215,12 @@ final class ControlChannel: @unchecked Sendable {
 
     func send(_ payload: Data) {
         guard !closed else { return }
+        // The peer closes the connection on a frame over the limit; dropping this one message
+        // keeps the session (and anything held, like a drag) alive.
+        guard payload.count <= GlasspadService.maxFrameLength else {
+            GPLog.log("tcp: dropped a \(payload.count) byte message, over the \(GlasspadService.maxFrameLength) byte limit")
+            return
+        }
         connection.send(content: FrameAccumulator.wrap(payload), completion: .contentProcessed { [weak self] e in
             if let e { self?.close("send failed: \(e)") }
         })

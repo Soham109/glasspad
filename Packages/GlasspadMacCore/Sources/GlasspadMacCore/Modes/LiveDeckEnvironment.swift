@@ -39,11 +39,17 @@ public final class LiveDeckEnvironment: DeckEnvironment {
         p.standardError = pipe
         return await withCheckedContinuation { c in
             let once = ResumeOnce()
+            // Read while it runs: a tool that prints more than the pipe holds (64 KB) would
+            // otherwise block on its write until the timeout.
+            let drain = PipeDrain()
             p.terminationHandler = { proc in
-                let out = String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+                let out = String(data: drain.wait(), encoding: .utf8) ?? ""
                 if once.claim() { c.resume(returning: (proc.terminationStatus == 0, out)) }
             }
-            do { try p.run() } catch {
+            do {
+                try p.run()
+                drain.start(pipe.fileHandleForReading)
+            } catch {
                 if once.claim() { c.resume(returning: (false, error.localizedDescription)) }
                 return
             }
@@ -178,6 +184,22 @@ public final class LiveDeckEnvironment: DeckEnvironment {
         let r = await run(executable: "/usr/bin/shortcuts", arguments: ["list"], timeout: 10)
         guard r.ok else { return [] }
         return r.output.split(separator: "\n").map { String($0).trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+    }
+}
+
+/// Reads a pipe to its end on a background thread.
+private final class PipeDrain: @unchecked Sendable {
+    private let done = DispatchSemaphore(value: 0)
+    private var data = Data()
+    func start(_ handle: FileHandle) {
+        DispatchQueue.global().async {
+            self.data = handle.readDataToEndOfFile()
+            self.done.signal()
+        }
+    }
+    func wait() -> Data {
+        done.wait()
+        return data
     }
 }
 

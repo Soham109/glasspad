@@ -81,6 +81,28 @@ func tempURL(_ name: String) -> URL {
         clip.push(.imagePNG(png))
         if case .imagePNG(let d) = clip.pull() { #expect(d == png) } else { Issue.record("expected image") }
     }
+
+    /// A big screenshot on the Mac clipboard used to go out whole: over the phone's frame limit,
+    /// so pulling it dropped the connection. It is scaled down until it fits one message.
+    @Test func largeImageIsScaledToFitOneMessage() throws {
+        let pb = NSPasteboard(name: NSPasteboard.Name("glasspad-test-\(UUID().uuidString)"))
+        defer { pb.releaseGlobally() }
+        // Noise does not compress: 3 bytes per pixel, so 2100 x 2100 is about 13 MB.
+        let side = 2100
+        let rep = try #require(NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: side, pixelsHigh: side, bitsPerSample: 8,
+                                                samplesPerPixel: 3, hasAlpha: false, isPlanar: false, colorSpaceName: .deviceRGB,
+                                                bytesPerRow: 0, bitsPerPixel: 0))
+        let bytes = try #require(rep.bitmapData)
+        arc4random_buf(bytes, rep.bytesPerRow * side)
+        let big = try #require(rep.representation(using: .png, properties: [:]))
+        #expect(big.count > ClipboardContent.maxImageBytes)
+        pb.clearContents()
+        pb.setData(big, forType: .png)
+        guard case .imagePNG(let d) = ClipboardMode(pasteboard: pb).pull() else { Issue.record("expected image"); return }
+        #expect(d.count <= ClipboardContent.maxImageBytes)
+        let out = try #require(NSBitmapImageRep(data: d))
+        #expect(out.pixelsWide < side && out.pixelsWide > 0)
+    }
 }
 
 @Suite struct PairingStoreTests {
