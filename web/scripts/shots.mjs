@@ -14,10 +14,10 @@ for (const [name, vp, touch] of [["desktop", { width: 1440, height: 900 }, false
   await page.goto(url, { waitUntil: "networkidle" });
   await page.waitForTimeout(1400);
   await page.screenshot({ path: `${out}${name}-0-hero.png` });
-  const ids = ["try", "settings", "modes", "macros", "privacy", "safety", "get"];
+  const ids = ["how", "try", "settings", "modes", "macros", "privacy", "safety", "get"];
   for (const [i, id] of ids.entries()) {
     await page.evaluate(id => document.getElementById(id).scrollIntoView({ block: "start" }), id);
-    await page.waitForTimeout(id === "try" ? 2600 : 1300);
+    await page.waitForTimeout(id === "try" || id === "how" ? 2600 : 1300);
     await page.screenshot({ path: `${out}${name}-${i + 1}-${id}.png` });
   }
   await page.evaluate(() => scrollTo(0, document.body.scrollHeight));

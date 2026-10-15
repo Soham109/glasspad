@@ -1,5 +1,4 @@
 import { clamp, reducedMotion, sleep } from "./spring";
-import screens from "./screens.json";
 
 const reduce = reducedMotion();
 
@@ -20,16 +19,42 @@ export function initReveals() {
   els.forEach(e => io.observe(e));
 }
 
-/* ---------- Nav: hairline after scrolling, dark over dark sections ---------- */
+/* ---------- Nav: floating glass pill ---------- */
 export function initNav() {
   const nav = document.getElementById("nav")!;
+  const ind = document.getElementById("navInd")!;
+  const links = Array.from(document.querySelectorAll<HTMLAnchorElement>("#navLinks a"));
   const darks = Array.from(document.querySelectorAll<HTMLElement>(".dark"));
-  const update = () => {
-    nav.classList.toggle("scrolled", scrollY > 8);
-    const y = 28;
-    nav.classList.toggle("on-dark", darks.some(d => { const r = d.getBoundingClientRect(); return r.top <= y && r.bottom >= y; }));
+  const targets = links.map(a => document.querySelector<HTMLElement>(a.getAttribute("href")!));
+  const menu = document.getElementById("navMenu")!, sheet = document.getElementById("navSheet")!;
+  let active = -1;
+  const place = () => {
+    if (active < 0) { ind.style.opacity = "0"; return; }
+    const a = links[active];
+    ind.style.opacity = "1"; ind.style.width = a.offsetWidth + "px"; ind.style.transform = `translateX(${a.offsetLeft}px)`;
   };
-  addEventListener("scroll", update, { passive: true });
+  const update = () => {
+    nav.classList.toggle("scrolled", scrollY > 24);
+    const mid = 38;
+    const dark = darks.some(d => { const r = d.getBoundingClientRect(); return r.top <= mid && r.bottom >= mid; });
+    nav.classList.toggle("on-dark", dark);
+    sheet.classList.toggle("on-dark", dark);
+    let a = -1; const line = innerHeight * 0.4;
+    targets.forEach((t, i) => { if (t && t.getBoundingClientRect().top <= line) a = i; });
+    if (a >= 0 && targets[a]!.getBoundingClientRect().bottom < line) a = -1;
+    if (a !== active) { active = a; links.forEach((l, i) => l.setAttribute("aria-current", String(i === a))); place(); }
+  };
+  let ticking = false;
+  addEventListener("scroll", () => { if (!ticking) { ticking = true; requestAnimationFrame(() => { ticking = false; update(); }); } }, { passive: true });
+  addEventListener("resize", place);
+  const close = () => { sheet.classList.remove("open"); menu.setAttribute("aria-expanded", "false"); menu.textContent = "Menu"; };
+  menu.addEventListener("click", () => {
+    const open = !sheet.classList.contains("open");
+    sheet.classList.toggle("open", open); menu.setAttribute("aria-expanded", String(open)); menu.textContent = open ? "Close" : "Menu";
+    if (open) (sheet.querySelector("a") as HTMLElement).focus();
+  });
+  sheet.addEventListener("click", e => { if ((e.target as HTMLElement).closest("a")) close(); });
+  addEventListener("keydown", e => { if (e.key === "Escape" && sheet.classList.contains("open")) { close(); menu.focus(); } });
   update();
 }
 
@@ -57,65 +82,6 @@ export function initScrollLinked() {
   };
   addEventListener("scroll", () => { if (!ticking) { ticking = true; requestAnimationFrame(update); } }, { passive: true });
   update();
-}
-
-/* ---------- Modes: sticky phone follows the list ---------- */
-const MODE_TILES: Record<string, [number, number]> = {
-  intro: [0, 0], dock: [1, 0], keys: [2, 0], media: [3, 0], deck: [0, 1], macros: [1, 1], clipboard: [2, 1], present: [3, 1],
-};
-export function initModes() {
-  const list = Array.from(document.querySelectorAll<HTMLElement>(".mode"));
-  const views = document.getElementById("modeViews")!;
-  const pill = document.getElementById("pill")!;
-  const phone = document.getElementById("modePhone")!;
-  const real = (screens as string[]).includes("modes.png");
-
-  if (real) {
-    // Real screenshots: one composite of 4 x 2 phones (each 340 x 739 at x 68 + 388i, y 70 + 787j in a 1640 x 1666 image)
-    phone.classList.add("has-shots");
-    for (const m of list) {
-      const [i, j] = MODE_TILES[m.dataset.mode!];
-      const v = document.createElement("div");
-      v.className = "mv shot-tile"; v.dataset.mode = m.dataset.mode;
-      v.style.backgroundPosition = `${((68 + 388 * i) / (1640 - 340) * 100).toFixed(4)}% ${((70 + 787 * j) / (1666 - 739) * 100).toFixed(4)}%`;
-      views.appendChild(v);
-    }
-    // on narrow screens each mode carries its own screenshot
-    for (const m of list) {
-      const [i, j] = MODE_TILES[m.dataset.mode!];
-      const t = document.createElement("div");
-      t.className = "mode-shot shot-tile"; t.setAttribute("aria-hidden", "true");
-      t.style.backgroundPosition = `${((68 + 388 * i) / (1640 - 340) * 100).toFixed(4)}% ${((70 + 787 * j) / (1666 - 739) * 100).toFixed(4)}%`;
-      m.appendChild(t);
-    }
-    new IntersectionObserver(([e], o) => { if (e.isIntersecting) { document.getElementById("modeList")!.classList.add("load"); o.disconnect(); } }, { rootMargin: "600px" }).observe(document.getElementById("modeList")!);
-    // load the image only when the section comes near
-    new IntersectionObserver(([e], o) => { if (e.isIntersecting) { phone.classList.add("load"); o.disconnect(); } }, { rootMargin: "600px" }).observe(phone);
-  } else {
-    for (const m of list) {
-      const v = document.createElement("div");
-      v.className = "mv mv-icon"; v.dataset.mode = m.dataset.mode;
-      v.innerHTML = `<svg width="72" height="72"><use href="#i-${m.dataset.mode}"/></svg>`;
-      views.appendChild(v);
-    }
-  }
-
-  let current = "";
-  const show = (mode: string) => {
-    if (mode === current) return;
-    current = mode;
-    list.forEach(m => m.classList.toggle("active", m.dataset.mode === mode));
-    views.querySelectorAll<HTMLElement>(".mv").forEach(v => v.classList.toggle("on", v.dataset.mode === mode));
-    const item = list.find(m => m.dataset.mode === mode)!;
-    pill.innerHTML = `<svg width="14" height="14"><use href="#i-${mode}"/></svg><span>${item.querySelector("h3")!.textContent}</span>`;
-    if (!reduce) { pill.classList.remove("swap"); void pill.offsetWidth; pill.classList.add("swap"); }
-  };
-  show("dock");
-  // the item crossing the middle of the screen is the active one
-  const io = new IntersectionObserver(entries => {
-    for (const e of entries) if (e.isIntersecting) show((e.target as HTMLElement).dataset.mode!);
-  }, { rootMargin: "-50% 0px -50% 0px" });
-  list.forEach(m => io.observe(m));
 }
 
 /* ---------- Per-app button sets (the starter sets that ship in GlasspadMacros) ---------- */

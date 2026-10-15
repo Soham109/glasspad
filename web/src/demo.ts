@@ -62,7 +62,7 @@ export function initDemo() {
   let W = 300, H = 650, DS = 34, VW = 400, VH = 240, docH = 800, winH = 160;
   const measure = () => {
     W = surface.clientWidth; H = surface.clientHeight;
-    DS = Math.round(W * 0.113);
+    DS = Math.round(Math.min(W, H) * 0.11);
     surface.style.setProperty("--ds", DS + "px");
     trails.setAttribute("viewBox", `0 0 ${W} ${H}`);
     VW = viewport.clientWidth; VH = viewport.clientHeight;
@@ -443,7 +443,7 @@ export function initDemo() {
     };
     const up = () => { set([]); };
     const row = (n: number, cx: number, cy: number) =>
-      Array.from({ length: n }, (_, i) => ({ x: cx + (i - (n - 1) / 2) * 0.15, y: cy + [0.012, -0.014, 0, 0.018][i % 4] }));
+      Array.from({ length: n }, (_, i) => ({ x: cx + (i - (n - 1) / 2) * (DS * 1.5) / W, y: cy + [0.03, -0.035, 0, 0.04][i % 4] }));
     const shift = (p: Pt[], dx: number, dy: number) => p.map(q => ({ x: q.x + dx, y: q.y + dy }));
 
     try {
