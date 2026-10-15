@@ -488,7 +488,8 @@ public final class GlasspadServer: @unchecked Sendable {
             if n == 1 || n % 200 == 0 { GPLog.log("server: \(n) touch frames received") }
             delegateQueue.async { [weak self] in self?.delegate?.link(didReceive: frame) }
         case .heartbeat:
-            statsBox.mutate { $0.heartbeatsReceived += 1 }
+            let n = statsBox.mutate { st -> Int in st.heartbeatsReceived += 1; return st.heartbeatsReceived }
+            if n == 1 || n % 500 == 0 { GPLog.log("server: \(n) heartbeats received") }
         case nil:
             statsBox.mutate { $0.malformed += 1 }
         }

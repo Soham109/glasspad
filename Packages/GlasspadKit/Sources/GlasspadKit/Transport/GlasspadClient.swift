@@ -138,7 +138,7 @@ public final class GlasspadClient: @unchecked Sendable {
     /// Sends one touch snapshot over UDP. Dropped while not connected.
     public func send(frame: TouchFrame) {
         queue.async { [self] in
-            guard case .connected = phase else { return }
+            guard case .connected = phase else { GPLog.log("send(frame): dropped, phase \(phase)"); return }
             let now = uptime()
             lastAppFrame = now
             lastTouchActivity = now
@@ -421,10 +421,16 @@ public final class GlasspadClient: @unchecked Sendable {
     }
 
     private func sendDatagram(_ plain: Data) {
-        guard let udp, crypto != nil, let sealed = try? crypto!.sealUDP(plain) else { return }
-        udp.send(content: sealed, completion: .idempotent)
+        guard let udp, crypto != nil, let sealed = try? crypto!.sealUDP(plain) else {
+            GPLog.log("udp: datagram dropped (udp \(self.udp == nil ? "missing" : "ok"), crypto \(crypto == nil ? "missing" : "ok"))")
+            return
+        }
+        udp.send(content: sealed, completion: .contentProcessed { err in
+            if let err { GPLog.log("udp: send error \(err)") }
+        })
         lastSend = uptime()
-        sentBox.mutate { $0 += 1 }
+        let n = sentBox.mutate { c -> Int in c += 1; return c }
+        if n == 1 || n % 500 == 0 { GPLog.log("udp: \(n) datagrams sent") }
     }
 
     private func startKeepalive() {

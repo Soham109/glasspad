@@ -104,6 +104,7 @@ final class MacSession {
 
     /// The trackpad surface appeared or disappeared. Heartbeats only run while it is visible.
     func setTrackpadVisible(_ visible: Bool) {
+        GPLog.log("trackpad visible: \(visible), client \(client == nil ? "nil" : "ok")")
         trackpadVisible = visible
         applyHeartbeats()
         if visible { Haptics.shared.warmUp() } else { Haptics.shared.coolDown() }
@@ -210,6 +211,7 @@ final class MacSession {
 
     /// One touch snapshot from the surface. Called for every sample, on the main thread.
     func send(frame: TouchFrame) {
+        if client == nil { GPLog.log("send(frame): no client") }
         client?.send(frame: frame)
     }
 
