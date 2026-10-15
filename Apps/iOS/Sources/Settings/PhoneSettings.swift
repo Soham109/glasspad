@@ -21,13 +21,22 @@ final class PhoneSettings {
     /// The name the Mac shows for this phone. iOS no longer tells apps the device's own name.
     var phoneName: String { didSet { defaults.set(phoneName, forKey: Key.phoneName) } }
     var lastMode: AppMode { didSet { defaults.set(lastMode.rawValue, forKey: Key.lastMode) } }
+    /// Applies to every screen. The trackpad is the reason it exists: held sideways, the
+    /// phone is the shape of a real trackpad.
+    var orientation: OrientationChoice {
+        didSet {
+            guard orientation != oldValue else { return }
+            defaults.set(orientation.rawValue, forKey: Key.orientation)
+            OrientationLock.apply()
+        }
+    }
 
     private let defaults: UserDefaults
 
     private enum Key {
         static let theme = "theme", hapticStrength = "hapticStrength", showDots = "showDots"
         static let leftHanded = "leftHanded", dimDelay = "dimDelay", hasOnboarded = "hasOnboarded"
-        static let phoneName = "phoneName", lastMode = "lastMode"
+        static let phoneName = "phoneName", lastMode = "lastMode", orientation = "orientation"
     }
 
     init(defaults: UserDefaults = .standard) {
@@ -41,5 +50,6 @@ final class PhoneSettings {
         hasOnboarded = defaults.bool(forKey: Key.hasOnboarded)
         phoneName = defaults.string(forKey: Key.phoneName) ?? "iPhone"
         lastMode = AppMode(rawValue: defaults.string(forKey: Key.lastMode) ?? "") ?? .trackpad
+        orientation = OrientationChoice(rawValue: defaults.string(forKey: Key.orientation) ?? "") ?? .automatic
     }
 }

@@ -10,6 +10,8 @@ struct ModeSwitcher: View {
     @Environment(\.accessibilityVoiceOverEnabled) private var voiceOver
     var router = AppRouter.shared
     var session = MacSession.shared
+    var settings = PhoneSettings.shared
+    var store = PairingStore.shared
 
     @State private var visible = true
     @State private var expanded = false
@@ -110,6 +112,8 @@ struct ModeSwitcher: View {
 
     // MARK: Menu
 
+    private var locked: Bool { settings.orientation != .automatic }
+
     private var menu: some View {
         let modes = AppMode.allCases
         return VStack(spacing: 6) {
@@ -148,22 +152,82 @@ struct ModeSwitcher: View {
                 }
             }
             Divider().padding(.horizontal, 8).padding(.vertical, 2)
-            Button {
-                close()
-                router.showSettings = true
-                ScreenAwake.update()
-            } label: {
-                Label("Settings", systemImage: "gearshape")
-                    .font(.subheadline.weight(.medium))
-                    .foregroundStyle(palette.inkColor)
-                    .frame(maxWidth: .infinity, minHeight: 40)
-                    .contentShape(Rectangle())
+            if store.macs.count > 1 { macPicker }
+            HStack(spacing: 6) {
+                Button {
+                    Haptics.shared.tap()
+                    OrientationLock.toggle()
+                } label: {
+                    Label(locked ? "Rotation Locked" : "Lock Rotation",
+                          systemImage: locked ? "lock.rotation" : "rotate.right")
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(palette.inkColor)
+                        .contentTransition(.symbolEffect(.replace))
+                        .frame(maxWidth: .infinity, minHeight: 40)
+                        .background {
+                            if locked {
+                                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                    .fill(palette.inkColor.opacity(0.08))
+                            }
+                        }
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(TileStyle())
+                .accessibilityLabel("Lock rotation")
+                .accessibilityValue(locked ? settings.orientation.title : "Off")
+                .accessibilityHint(locked ? "Lets the screen turn with the phone again" : "Holds the screen the way it is now")
+
+                Button {
+                    close()
+                    router.showSettings = true
+                    ScreenAwake.update()
+                } label: {
+                    Label("Settings", systemImage: "gearshape")
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(palette.inkColor)
+                        .frame(maxWidth: .infinity, minHeight: 40)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(TileStyle())
             }
-            .buttonStyle(TileStyle())
         }
         .padding(10)
         .frame(width: 330)
         .glassPanel(cornerRadius: 28)
+    }
+
+    /// Only with two or more paired Macs. Picking one connects to it; the choice is remembered.
+    private var macPicker: some View {
+        Menu {
+            ForEach(store.macs) { mac in
+                Button {
+                    Haptics.shared.tap()
+                    session.select(mac)
+                    close()
+                } label: {
+                    if mac.macID == store.selected?.macID {
+                        Label(mac.name, systemImage: "checkmark")
+                    } else {
+                        Text(mac.name)
+                    }
+                }
+            }
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: "laptopcomputer")
+                Text(store.selected?.name ?? "Choose a Mac")
+                    .lineLimit(1)
+                Image(systemName: "chevron.up.chevron.down")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(palette.inkSoftColor)
+            }
+            .font(.subheadline.weight(.medium))
+            .foregroundStyle(palette.inkColor)
+            .frame(maxWidth: .infinity, minHeight: 40)
+            .contentShape(Rectangle())
+        }
+        .accessibilityLabel("Mac")
+        .accessibilityValue(store.selected?.name ?? "None")
     }
 
     // MARK: Timing
@@ -218,6 +282,7 @@ struct ConnectionDot: View {
         switch state {
         case .connected: Color(hex: 0x34C759)
         case .searching, .connecting: Color(hex: 0xFF9F0A)
+        case .failed where state.isReplaced: Color.gray
         case .failed: Color(hex: 0xFF453A)
         case .idle: Color.gray
         }
@@ -241,9 +306,22 @@ struct ModeOfflineMessage: View {
                     .controlSize(.large)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else if session.isReplaced {
+            VStack(spacing: 16) {
+                QuietMessage(symbol: "iphone", title: session.state.statusText,
+                             detail: "\(session.macName ?? "Your Mac") follows one iPhone at a time.")
+                    .frame(maxHeight: 180)
+                LinkActions()
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
-            QuietMessage(symbol: mode.symbol, title: session.state.statusText,
-                         detail: "\(mode.title) works once \(session.macName ?? "your Mac") is connected. Keep both on the same Wi-Fi with Glasspad open on the Mac.")
+            VStack(spacing: 16) {
+                QuietMessage(symbol: mode.symbol, title: session.state.statusText,
+                             detail: "Keep both on the same Wi-Fi with Glasspad open on \(session.macName ?? "your Mac").")
+                    .frame(maxHeight: 180)
+                LinkActions()
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
 }

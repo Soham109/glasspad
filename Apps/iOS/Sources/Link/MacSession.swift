@@ -1,10 +1,12 @@
 import Foundation
 import GlasspadKit
+import Network
 import Observation
 import UIKit
 
 /// The phone's one connection to its selected Mac, and everything the Mac has told it.
-/// Owns the `GlasspadClient`; views and App Intents talk to the Mac only through here.
+/// Owns GlasspadKit's `MacConnector` (one client at a time, last used Mac first); views and
+/// App Intents talk to the Mac only through here.
 @MainActor
 @Observable
 final class MacSession {
@@ -21,6 +23,8 @@ final class MacSession {
     private(set) var isWarm = false
 
     var isConnected: Bool { if case .connected = state { true } else { false } }
+    /// Another iPhone took this Mac. The link waits for the user instead of retrying.
+    var isReplaced: Bool { state.isReplaced }
     var macName: String? { PairingStore.shared.selected?.name }
 
     // MARK: Mode data
@@ -46,7 +50,8 @@ final class MacSession {
 
     // MARK: Private
 
-    @ObservationIgnored private var client: GlasspadClient?
+    @ObservationIgnored private var connector: MacConnector?
+    private var client: GlasspadClient? { connector?.client }
     @ObservationIgnored private let bridge = LinkBridge()
     @ObservationIgnored private var foreground = false
     @ObservationIgnored private var backgroundUsers = 0
@@ -105,9 +110,37 @@ final class MacSession {
     }
 
     func select(_ mac: PairedMac) {
-        guard PairingStore.shared.selectedID != mac.macID || client == nil else { return }
-        PairingStore.shared.selectedID = mac.macID
+        guard connector?.activeMacID != mac.macID || client == nil else { return }
+        PairingStore.shared.select(mac.macID)
+        resetModeData()
         reconnect()
+    }
+
+    /// A code was just scanned. Always starts a fresh session: even for a Mac paired before,
+    /// the key is new.
+    func didPair(_ mac: PairedMac) {
+        PairingStore.shared.select(mac.macID)
+        resetModeData()
+        reconnect()
+    }
+
+    /// After another iPhone took the Mac: take it back, once, because the user asked.
+    func useHere() {
+        guard let client else { return reconnect() }
+        client.connect()
+    }
+
+    enum WakeResult { case sent, noAddress, failed }
+
+    /// Sends a Wake-on-LAN magic packet to the selected Mac's last address. Unicast only: the
+    /// broadcast copy needs the multicast networking entitlement, which this app does not have.
+    func wakeMac() async -> WakeResult {
+        guard let target = PairingStore.shared.selected?.wakeTarget,
+              let packet = WakeOnLAN.magicPacket(macAddress: target.macAddress),
+              let ip = target.lastIPv4 else { return .noAddress }
+        let sent = await UnicastWake.send(packet, to: ip, port: target.port)
+        if sent { connector?.reconnectNow() }
+        return sent ? .sent : .failed
     }
 
     func forget(_ mac: PairedMac) {
@@ -131,26 +164,40 @@ final class MacSession {
             setState(.idle)
             return
         }
-        if let client, client.pairing.macID == mac.macID,
-           client.phoneName == PhoneSettings.shared.phoneName {
-            if case .failed = client.state { client.connect() }
+        if let connector, let client = connector.client, connector.activeMacID == mac.macID,
+           connector.phoneName == PhoneSettings.shared.phoneName {
+            switch client.state {
+            case .failed(let reason) where reason == GlasspadService.replacedFailure:
+                // Another iPhone has the Mac. Taking it back is the user's call, not a loop.
+                break
+            case .failed:
+                client.connect()
+            default:
+                // Back from the background: skip any backoff wait and replace a dead socket.
+                connector.reconnectNow()
+            }
             return
         }
         disconnect()
-        let new = GlasspadClient(phoneID: PairingStore.shared.phoneID.uuidString,
-                                 phoneName: PhoneSettings.shared.phoneName,
-                                 pairing: mac.payload)
+        let new = MacConnector(store: PairingStore.shared.known,
+                               phoneID: PairingStore.shared.phoneID.uuidString,
+                               phoneName: PhoneSettings.shared.phoneName)
         new.delegate = bridge
-        client = new
+        connector = new
+        new.connect(to: mac.macID)
+        // Same store update the connector does, plus a refresh of what the views show.
+        let macID = mac.macID
+        new.client?.onWakeTarget = { target in
+            MainActor.assumeIsolated { PairingStore.shared.setWakeTarget(target, for: macID) }
+        }
         applyHeartbeats()
-        new.connect()
     }
 
     private func disconnect() {
         if laserOn { laserOff() }
-        client?.delegate = nil
-        client?.disconnect()
-        client = nil
+        connector?.delegate = nil
+        connector?.disconnect()
+        connector = nil
         setState(.idle)
     }
 
@@ -240,6 +287,8 @@ final class MacSession {
     fileprivate func linkStateChanged(_ new: LinkState) {
         setState(new)
         if case .connected = new {
+            // The connector marked this Mac as last used; show it.
+            PairingStore.shared.reload()
             send(.modeSelected(AppRouter.shared.mode.wireMode))
             // Refresh whatever the current screen shows.
             switch AppRouter.shared.mode {
@@ -433,10 +482,11 @@ final class MacSession {
     // MARK: Background use (Siri and Shortcuts)
 
     enum SessionError: LocalizedError {
-        case notPaired, unreachable(String)
+        case notPaired, unreachable(String), replaced(String)
         var errorDescription: String? {
             switch self {
             case .notPaired: "Glasspad is not paired with a Mac yet. Open Glasspad to pair."
+            case .replaced(let name): "Another iPhone is using \(name). Open Glasspad to use it on this iPhone."
             case .unreachable(let name): "Glasspad could not reach \(name). Check that it is on and on the same Wi-Fi."
             }
         }
@@ -452,7 +502,10 @@ final class MacSession {
             releaseBackgroundOrDisconnect()
         }
         connectIfNeeded()
-        guard await waitUntilConnected(timeout: timeout) else { throw SessionError.unreachable(mac.name) }
+        if isReplaced { throw SessionError.replaced(mac.name) }
+        guard await waitUntilConnected(timeout: timeout) else {
+            throw isReplaced ? SessionError.replaced(mac.name) : SessionError.unreachable(mac.name)
+        }
         try await body(self)
         try? await Task.sleep(for: .milliseconds(400))
     }
@@ -506,13 +559,54 @@ private final class LinkBridge: GlasspadLinkDelegate {
 }
 
 extension LinkState {
+    var isReplaced: Bool {
+        if case .failed(let reason) = self { reason == GlasspadService.replacedFailure } else { false }
+    }
+
     var statusText: String {
         switch self {
         case .idle: "Not connected"
         case .searching: "Looking for your Mac"
         case .connecting: "Connecting"
         case .connected: "Connected"
+        case .failed where isReplaced: "Another iPhone is using this Mac"
         case .failed(let reason): "Could not connect: \(reason)"
         }
+    }
+}
+
+/// One UDP datagram to one address, over the Network framework.
+enum UnicastWake {
+    static func send(_ packet: Data, to host: String, port: UInt16) async -> Bool {
+        guard let nwPort = NWEndpoint.Port(rawValue: port) else { return false }
+        let connection = NWConnection(host: NWEndpoint.Host(host), port: nwPort, using: .udp)
+        let done = Once()
+        return await withCheckedContinuation { continuation in
+            connection.stateUpdateHandler = { state in
+                switch state {
+                case .ready:
+                    connection.send(content: packet, completion: .contentProcessed { error in
+                        if done.claim() { continuation.resume(returning: error == nil) }
+                        connection.cancel()
+                    })
+                case .failed, .cancelled:
+                    if done.claim() { continuation.resume(returning: false) }
+                default:
+                    break
+                }
+            }
+            connection.start(queue: .global(qos: .userInitiated))
+            DispatchQueue.global().asyncAfter(deadline: .now() + 3) {
+                if done.claim() { continuation.resume(returning: false) }
+                connection.cancel()
+            }
+        }
+    }
+
+    /// Lets exactly one of several racing callbacks resume the continuation.
+    private final class Once: @unchecked Sendable {
+        private let lock = NSLock()
+        private var used = false
+        func claim() -> Bool { lock.withLock { defer { used = true }; return !used } }
     }
 }

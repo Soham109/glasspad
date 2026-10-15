@@ -3,13 +3,13 @@
 <p align="center"><b>Your iPhone, as a Mac trackpad</b></p>
 
 <p align="center">
-A wireless trackpad with haptics, plus a dock, keyboard, media controls, shortcut deck, macros, clipboard and presenter remote. Private, free and open source.
+A wireless trackpad you can feel, plus seven more modes. Private, free and open source.
 </p>
 
 <p align="center">
   <img alt="license" src="https://img.shields.io/badge/license-MIT-blue.svg">
   <img alt="platform" src="https://img.shields.io/badge/macOS-14%2B-lightgrey">
-  <img alt="platform" src="https://img.shields.io/badge/iOS-17%2B-lightgrey">
+  <img alt="platform" src="https://img.shields.io/badge/iOS-18%2B-lightgrey">
   <img alt="status" src="https://img.shields.io/badge/status-0.1.0%20unreleased-orange">
 </p>
 
@@ -17,112 +17,91 @@ A wireless trackpad with haptics, plus a dock, keyboard, media controls, shortcu
   <img src="docs/brand/icon.png" alt="Glasspad icon" width="160">
 </p>
 
-<!-- SCREENSHOT: docs/img/hero.png (phone showing the trackpad next to a Mac, 1640 px wide) -->
 <p align="center">
-  <img src="docs/img/hero.png" alt="Glasspad on an iPhone controlling a Mac" width="820">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/img/hero-dark.png">
+    <source media="(prefers-color-scheme: light)" srcset="docs/img/hero-light.png">
+    <img src="docs/img/hero-light.png" alt="An iPhone held sideways as a trackpad next to a MacBook: two fingers moving up scroll the window on the Mac" width="820">
+  </picture>
 </p>
-
-<p align="center"><sub>One soft surface · a dot under each finger · nothing else until you ask</sub></p>
 
 ---
 
-## What is Glasspad?
+## What it is
 
-Glasspad turns your iPhone into a trackpad for your Mac over Wi-Fi. The phone screen is a plain surface with a soft dot under each finger. When you tap, press or swipe, your Mac reacts as if you used its own trackpad, and the phone gives you a small vibration (a haptic) so it feels like something clicked.
+Your iPhone becomes a wireless trackpad for your Mac, with a small tap you can feel on every click. Two apps on the same Wi-Fi: a menu bar app on the Mac and the trackpad app on the phone.
 
-It is two small apps that talk to each other on your local network:
+- **Private.** No accounts, no servers, no tracking. Nothing leaves your network.
+- **Free and open source.** MIT licensed. No subscription.
+- **Built from source.** That is what lets the Mac side do real Mission Control and Spaces swipes.
 
-| Component | What it does |
+## Trackpad
+
+- Move, click, right click, drag, scroll with momentum, pinch, rotate, smart zoom.
+- Swipe between pages and Spaces, Mission Control, App Exposé, Launchpad, Show Desktop.
+- Hold still for a force click (a phone cannot sense pressure).
+- Upright or sideways, with a rotation lock in the mode menu.
+- Gestures and speed follow your Mac's own trackpad settings.
+
+## Modes
+
+Tap the pill at the top of the phone to switch.
+
+| Mode | |
 | --- | --- |
-| **Mac app** | Lives in the menu bar. Shows a QR code to pair, receives touches, and moves the pointer, clicks, scrolls and gestures. Reads your real trackpad settings. |
-| **iPhone app** | The trackpad surface and the extra modes (Dock, Keys, Media, Deck, Macros, Clipboard, Present). Plays haptics. |
-| **GlasspadKit** | A shared Swift package with the message format, encryption and gesture logic used by both apps. |
+| **Dock** | Open or switch Mac apps. |
+| **Keys** | Type and dictate on the phone; arrows and shortcuts. |
+| **Media** | Now playing, volume, brightness. |
+| **Deck** | Your own buttons: apps, links, Shortcuts, keystrokes, scripts. |
+| **Macros** | Record and replay. Follows the front app. |
+| **Clipboard** | Copy between phone and Mac. |
+| **Present** | Next, previous, timer, laser dot. |
 
-## Why Glasspad
-
-- **Private.** Everything stays on your network. There are no accounts, no servers and no tracking.
-- **Free.** No subscription and no in-app purchases.
-- **No App Store.** You build it yourself, which is what lets the Mac side do things the App Store does not allow, such as native Mission Control and Spaces swipes.
-- **Open source.** MIT licensed. Read it, change it, fork it.
-
-## Features
-
-**Trackpad**
-- Move, tap to click, two finger right click, drag, two finger scroll with momentum, pinch to zoom, rotate, smart zoom.
-- Swipe between pages and Spaces, Mission Control, App Exposé, Launchpad and Show Desktop, with the animation following your fingers.
-- Press and hold for a force click. An iPhone cannot feel how hard you press, so a still hold of a moment stands in for it.
-
-**Modes** (switch with the small pill at the top of the phone)
-
-| Mode | What it does |
-| --- | --- |
-| **Dock** | Your Mac's Dock apps and running apps as a grid. Tap to open or switch. |
-| **Keys** | Type on the phone and it appears on the Mac. Arrow keys, Esc, Tab and Command shortcuts in a row. Dictation works. |
-| **Media** | Now playing title and artwork, play, pause, next, previous, volume and brightness. |
-| **Deck** | A grid of your own buttons: open an app or URL, run an Apple Shortcut, send a keystroke, run a script. |
-| **Macros** | Record a sequence of actions and replay it. Run Apple Shortcuts. Per-app profiles switch automatically when you change the front app on your Mac. |
-| **Clipboard** | Send what is copied on your phone to the Mac, or pull the Mac's clipboard to the phone (text and images). |
-| **Present** | Big next and previous buttons, a timer, and a laser dot you move on the Mac screen. |
-
-<!-- SCREENSHOTS: docs/img/modes.png (the seven modes side by side), docs/img/menubar.png (Mac popover), docs/img/pairing.png (QR code on Mac) -->
 <p align="center">
-  <img src="docs/img/modes.png" alt="Glasspad modes" width="820">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/img/modes-dark.png">
+    <source media="(prefers-color-scheme: light)" srcset="docs/img/modes-light.png">
+    <img src="docs/img/modes-light.png" alt="The mode menu and the Dock, Keys, Media, Deck, Macros, Clipboard and Present screens" width="820">
+  </picture>
 </p>
-
-## Gestures follow your Mac
-
-Glasspad reads your trackpad settings from macOS while it runs, so you do not set anything up twice. Tracking speed, natural scrolling, tap to click, secondary click, three finger drag, Look Up, swipe between pages and Spaces, Mission Control, App Exposé, Launchpad, Show Desktop and click firmness all come from System Settings. Change one on the Mac and the phone follows.
-
-One difference: a phone cannot be pressed down, so a tap always clicks, even if tap to click is off on your Mac. Glasspad shows this in its settings.
+<p align="center"><sub>Simulator screenshots against a stand-in Mac. The album art is a placeholder.</sub></p>
 
 ## Security
 
-Glasspad can control your Mac, so it is locked down by default.
+- Pair by scanning a QR code. The key lives in the Keychain on both devices.
+- Every message is encrypted (ChaCha20-Poly1305) with a fresh key per connection, and replays are rejected.
+- Remove a phone from the Mac menu to revoke it.
 
-- **QR pairing.** The Mac shows a QR code that holds a random secret key. Your phone scans it with the camera and keeps the key in the iOS Keychain (Apple's encrypted storage for secrets). The Mac keeps its copy in its own Keychain. No key, no connection.
-- **Encryption.** Every message after the first hello is encrypted and authenticated with ChaCha20-Poly1305 (a widely used encryption method). Each connection derives a fresh session key from the paired secret.
-- **Replay protection.** Recorded packets cannot be played back later. The Mac rejects repeats.
-- **Revoking.** Remove a phone in the Mac menu and its key stops working.
-
-Details are in [SECURITY.md](SECURITY.md) and [ARCHITECTURE.md](ARCHITECTURE.md).
-
-## Phone safety
-
-Glasspad is careful with your phone. It uses only public iOS interfaces. The screen dims after a minute of no touch, it never forces full brightness, and if the phone gets warm it pauses haptics and background traffic and shows a calm notice. The screen is only kept awake while the trackpad is on screen.
+More in [SECURITY.md](SECURITY.md) and [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ## Install
 
-Glasspad is built from source. You need a Mac with Xcode 16 or newer and an iPhone running iOS 17 or newer.
+You need Xcode 26 and an iPhone on iOS 18 or newer.
 
 ```bash
 git clone https://github.com/Soham109/glasspad.git
 cd glasspad
-brew install xcodegen      # makes the Xcode project from project.yml
-xcodegen generate
+brew install xcodegen && xcodegen generate
 open Glasspad.xcodeproj
 ```
 
-1. In Xcode, pick the **Glasspad Mac** scheme and run it. Allow Accessibility access when asked (macOS needs this before any app can move the pointer).
-2. Plug in your iPhone, pick the **Glasspad iOS** scheme, choose your phone and run it. Sign in with your Apple ID under Signing and Capabilities.
-3. Click the Glasspad icon in the Mac menu bar, choose Pair, and scan the QR code with the iPhone app.
+1. Run the **Glasspad Mac** scheme. Allow Accessibility when asked.
+2. Run the **Glasspad iOS** scheme on your iPhone (set your Apple ID under Signing).
+3. In the Mac menu bar, choose Pair and scan the code with the phone.
 
-**Free Apple ID note.** Apps signed with a free Apple ID stop opening after 7 days. Run it from Xcode again to refresh. A paid developer account lasts a year. Optionally, [AltStore](https://altstore.io) can re-sign the app for you automatically while your Mac is on.
-
-Mac only, without Xcode: `scripts/build-mac.sh` builds `build/Glasspad.app`.
+With a free Apple ID the phone app expires after 7 days; run it from Xcode again. Mac app without Xcode: `scripts/build-mac.sh`.
 
 ## FAQ
 
-**Does it work over the internet?** No. The phone and Mac need to be on the same Wi-Fi network, or the phone can connect directly to the Mac.
+**Over the internet?** No. Same Wi-Fi only.
 
-**Is it as fast as a real trackpad?** It is built for low delay, but no numbers are published yet. Latency is measured, not guessed, and results will be added here once measured on real devices.
+**How fast is it?** Built for low delay. Numbers will be published once measured on real devices.
 
-**Why is it not on the App Store?** The Mac app uses private macOS interfaces for real gesture support, which the App Store does not allow. Each one has a public fallback, and the app checks at launch which ones work.
+**Why not the App Store?** Real gestures need private macOS interfaces. Each has a public fallback.
 
-**Does it work on iPad or Windows?** Not yet. iPhone to Mac only.
+**Can others on my Wi-Fi use it?** Not without the key from your QR code.
 
-**Can someone else on my Wi-Fi control my Mac?** Not without the key from your QR code. Unpaired devices are ignored.
-
-**Why does the Mac ask for Accessibility access?** Moving the pointer and sending clicks on behalf of another device requires it.
+**More than one Mac or iPhone?** Pair several Macs and pick one from the mode menu. A Mac follows one iPhone at a time.
 
 ## Roadmap
 

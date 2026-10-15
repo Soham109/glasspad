@@ -6,6 +6,7 @@ import GlasspadKit
 /// is read from the field after iOS has inserted it, whichever way it got there.
 struct KeysMode: View {
     @Environment(\.palette) private var palette
+    @Environment(\.verticalSizeClass) private var verticalSize
     @Bindable var settings = PhoneSettings.shared
     var session = MacSession.shared
     private let accent = AppMode.keys.accent(.paper)
@@ -15,15 +16,41 @@ struct KeysMode: View {
     @State private var focusToken = 0
 
     var body: some View {
-        VStack(spacing: 14) {
-            Spacer(minLength: 64)
-            echoArea
-            modifierRow
-            shortcutRow
-            navigationRow
+        Group {
+            if verticalSize == .compact {
+                // Sideways the keyboard takes most of the height, so the extra keys fold
+                // into two rows and the echo shrinks to one line.
+                VStack(spacing: 10) {
+                    Spacer(minLength: 22)
+                    echoLine
+                    HStack(spacing: 8) {
+                        if settings.leftHanded {
+                            arrowKeys(compact: true)
+                            sideKeys
+                            modifierRow
+                        } else {
+                            modifierRow
+                            sideKeys
+                            arrowKeys(compact: true)
+                        }
+                    }
+                    .frame(height: 44)
+                    shortcutRow
+                }
+                .padding(.horizontal, 20)
+                .padding(.bottom, 8)
+            } else {
+                VStack(spacing: 14) {
+                    Spacer(minLength: 64)
+                    echoArea
+                    modifierRow
+                    shortcutRow
+                    navigationRow
+                }
+                .padding(.horizontal, 16)
+                .padding(.bottom, 10)
+            }
         }
-        .padding(.horizontal, 16)
-        .padding(.bottom, 10)
         .background {
             // The real input field sits under everything; it owns the keyboard.
             StreamingTextField(modifiers: $modifiers, echo: $echo, focusToken: focusToken) { output in
@@ -60,6 +87,47 @@ struct KeysMode: View {
         }
         .frame(maxHeight: .infinity)
         .accessibilityElement(children: .combine)
+    }
+
+    private var echoLine: some View {
+        HStack(spacing: 10) {
+            Text(echo.isEmpty ? "Start typing" : echo)
+                .font(.headline.weight(.regular))
+                .foregroundStyle(echo.isEmpty ? palette.inkSoftColor : palette.inkColor)
+                .lineLimit(1)
+                .truncationMode(.head)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            Text(modifiers.isEmpty ? "Text goes straight to your Mac" : "Next key: \(modifiers.symbols)")
+                .font(.footnote)
+                .foregroundStyle(modifiers.isEmpty ? palette.inkSoftColor : accent)
+                .contentTransition(.numericText())
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    private var sideKeys: some View {
+        HStack(spacing: 8) {
+            key("esc", .escape, "Escape")
+            key("tab", .tab, "Tab")
+            key("delete.left", .delete, "Delete", symbol: true)
+        }
+    }
+
+    /// Portrait stacks up over down between left and right; sideways all four sit in a row.
+    @ViewBuilder private func arrowKeys(compact: Bool) -> some View {
+        HStack(spacing: 6) {
+            key("arrow.left", .left, "Left arrow", symbol: true)
+            if compact {
+                key("arrow.up", .up, "Up arrow", symbol: true)
+                key("arrow.down", .down, "Down arrow", symbol: true)
+            } else {
+                VStack(spacing: 6) {
+                    key("arrow.up", .up, "Up arrow", symbol: true)
+                    key("arrow.down", .down, "Down arrow", symbol: true)
+                }
+            }
+            key("arrow.right", .right, "Right arrow", symbol: true)
+        }
     }
 
     private var modifierRow: some View {
@@ -111,25 +179,12 @@ struct KeysMode: View {
 
     private var navigationRow: some View {
         HStack(spacing: 8) {
-            let side = HStack(spacing: 8) {
-                key("esc", .escape, "Escape")
-                key("tab", .tab, "Tab")
-                key("delete.left", .delete, "Delete", symbol: true)
-            }
-            let arrows = HStack(spacing: 6) {
-                key("arrow.left", .left, "Left arrow", symbol: true)
-                VStack(spacing: 6) {
-                    key("arrow.up", .up, "Up arrow", symbol: true)
-                    key("arrow.down", .down, "Down arrow", symbol: true)
-                }
-                key("arrow.right", .right, "Right arrow", symbol: true)
-            }
             if settings.leftHanded {
-                arrows
-                side
+                arrowKeys(compact: false)
+                sideKeys
             } else {
-                side
-                arrows
+                sideKeys
+                arrowKeys(compact: false)
             }
         }
         .frame(height: 96)

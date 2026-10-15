@@ -40,6 +40,22 @@ struct QRScannerView: UIViewRepresentable {
 
         required init?(coder: NSCoder) { fatalError("init(coder:) is not used") }
 
+        override func layoutSubviews() {
+            super.layoutSubviews()
+            // Keep the camera picture upright when the interface turns.
+            guard let connection = previewLayer.connection,
+                  let orientation = window?.windowScene?.effectiveGeometry.interfaceOrientation else { return }
+            let angle: CGFloat = switch orientation {
+            case .landscapeRight: 0
+            case .landscapeLeft: 180
+            case .portraitUpsideDown: 270
+            default: 90
+            }
+            if connection.isVideoRotationAngleSupported(angle), connection.videoRotationAngle != angle {
+                connection.videoRotationAngle = angle
+            }
+        }
+
         func start() {
             let session = self.session
             sessionQueue.async { [weak self] in

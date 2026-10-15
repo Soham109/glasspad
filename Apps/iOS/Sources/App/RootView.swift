@@ -2,6 +2,7 @@ import SwiftUI
 
 @main
 struct GlasspadApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @Environment(\.scenePhase) private var scenePhase
 
     init() {
@@ -128,21 +129,25 @@ private struct TrackpadStatus: View {
                     .controlSize(.large)
             }
         } else if !session.isConnected {
-            VStack(spacing: 6) {
-                Text(session.state.statusText)
-                    .font(.subheadline.weight(.medium))
-                    .foregroundStyle(palette.inkSoftColor)
-                if let name = session.macName {
-                    Text(name)
-                        .font(.footnote)
-                        .foregroundStyle(palette.inkSoftColor.opacity(0.8))
+            VStack(spacing: 16) {
+                VStack(spacing: 6) {
+                    Text(session.state.statusText)
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(palette.inkSoftColor)
+                    if let name = session.macName {
+                        Text(name)
+                            .font(.footnote)
+                            .foregroundStyle(palette.inkSoftColor.opacity(0.8))
+                    }
                 }
+                .multilineTextAlignment(.center)
+                .allowsHitTesting(false)
+                .accessibilityElement(children: .combine)
+                // The only touchable part; the surface keeps every other touch.
+                LinkActions()
             }
-            .multilineTextAlignment(.center)
             .padding(.horizontal, 40)
-            .allowsHitTesting(false)
             .transition(.opacity)
-            .accessibilityElement(children: .combine)
         }
     }
 }
@@ -174,12 +179,16 @@ private struct WarmNotice: View {
 ///   -GPMode <trackpad|dock|...>         open that mode
 ///   -GPOnboarding                       show onboarding again
 ///   -GPSettings / -GPMenu / -GPPairSheet open Settings, the mode menu or the pair sheet
+///   -GPOrientation <automatic|portrait|landscape>  set the orientation choice (it is saved)
 enum DebugLaunch {
     @MainActor static func apply() {
         let args = ProcessInfo.processInfo.arguments
         func value(_ flag: String) -> String? {
             guard let i = args.firstIndex(of: flag), i + 1 < args.count else { return nil }
             return args[i + 1]
+        }
+        if let o = value("-GPOrientation"), let choice = OrientationChoice(rawValue: o) {
+            PhoneSettings.shared.orientation = choice
         }
         if args.contains("-GPOnboarding") { PhoneSettings.shared.hasOnboarded = false }
         if let pair = value("-GPPair"), let url = URL(string: pair) { AppRouter.shared.open(url) }

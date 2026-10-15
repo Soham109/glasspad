@@ -18,6 +18,7 @@ struct SettingsView: View {
                 clickingNote
                 look
                 feel
+                trackpad
                 screen
                 macs
                 fromMac
@@ -128,6 +129,21 @@ struct SettingsView: View {
         .listRowBackground(palette.raisedColor)
     }
 
+    private var trackpad: some View {
+        Section {
+            Picker("Orientation", selection: $settings.orientation) {
+                ForEach(OrientationChoice.allCases) { choice in
+                    Text(choice.title).tag(choice)
+                }
+            }
+        } header: {
+            Text("Trackpad")
+        } footer: {
+            Text("Sideways, your iPhone is the shape of a Mac trackpad. Portrait and Landscape hold the screen still in every mode. You can also lock it from the mode menu.")
+        }
+        .listRowBackground(palette.raisedColor)
+    }
+
     private var screen: some View {
         Section {
             Picker("Dim after", selection: $settings.dimDelay) {
@@ -171,6 +187,11 @@ struct SettingsView: View {
                 .contextMenu {
                     Button("Forget", systemImage: "trash", role: .destructive) { macToForget = mac }
                 }
+            }
+            if !session.isConnected, store.selected?.wakeTarget != nil {
+                LinkActions()
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 4)
             }
             Button {
                 showPair = true

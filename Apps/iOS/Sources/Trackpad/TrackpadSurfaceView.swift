@@ -58,9 +58,21 @@ final class TrackpadSurfaceView: UIView {
 
     required init?(coder: NSCoder) { fatalError("init(coder:) is not used") }
 
+    /// The size the fingers on screen were measured against.
+    private var surfaceSize: CGSize = .zero
+
     override func layoutSubviews() {
         super.layoutSubviews()
         dimView.frame = bounds
+        guard bounds.size != surfaceSize else { return }
+        // The surface turned (or resized) under the fingers. Their coordinates no longer
+        // mean the same thing, so lift them all, measured against the old size, and ignore
+        // those touches until they leave the glass. The next touch starts clean.
+        if !fingers.isEmpty {
+            cancelAllTouches()
+            swallowing = true
+        }
+        surfaceSize = bounds.size
     }
 
     private func applyPalette() {
@@ -119,6 +131,8 @@ final class TrackpadSurfaceView: UIView {
     }
 
     private func process(_ samples: [Sample]) {
+        // Coordinates are in this view's space, which UIKit keeps upright in every
+        // orientation: toward the top of the phone as held is always negative y.
         let size = bounds.size
         for sample in samples {
             let id: UInt8
@@ -174,7 +188,8 @@ final class TrackpadSurfaceView: UIView {
         for id in fingers.keys { fingers[id]?.touch.phase = .cancelled }
         seq &+= 1
         let list = fingers.values.map(\.touch).sorted { $0.id < $1.id }
-        onFrame?(TouchFrame(seq: seq, timestamp: ProcessInfo.processInfo.systemUptime, touches: list, surface: bounds.size))
+        let size = surfaceSize == .zero ? bounds.size : surfaceSize
+        onFrame?(TouchFrame(seq: seq, timestamp: ProcessInfo.processInfo.systemUptime, touches: list, surface: size))
         removeAllDots()
         fingers = [:]
         idsByTouch = [:]

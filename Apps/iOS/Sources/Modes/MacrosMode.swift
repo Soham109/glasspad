@@ -10,7 +10,14 @@ struct MacrosMode: View {
 
     @State private var showAll = false
 
-    private let columns = [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)]
+    @Environment(\.verticalSizeClass) private var verticalSize
+
+    /// Three across in portrait; sideways, as many as fit so a profile usually sits in one row.
+    private var columns: [GridItem] {
+        verticalSize == .compact
+            ? [GridItem(.adaptive(minimum: 150), spacing: 12)]
+            : Array(repeating: GridItem(.flexible(), spacing: 12), count: 3)
+    }
 
     private var macros: [MacroSummary]? {
         showAll ? session.allMacros : session.macroProfile?.macros

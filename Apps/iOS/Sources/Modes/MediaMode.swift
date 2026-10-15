@@ -5,6 +5,7 @@ import GlasspadKit
 struct MediaMode: View {
     @Environment(\.palette) private var palette
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.verticalSizeClass) private var verticalSize
     var session = MacSession.shared
     private let accent = AppMode.media.accent(.paper)
 
@@ -31,52 +32,74 @@ struct MediaMode: View {
         .onChange(of: session.media) { syncSliders() }
     }
 
-    private var content: some View {
-        VStack(spacing: 0) {
-            Spacer(minLength: 72)
-            artwork
-                .padding(.horizontal, 36)
-            VStack(spacing: 4) {
-                Text(state.title ?? "Nothing playing")
-                    .font(.title3.weight(.semibold))
-                    .foregroundStyle(palette.inkColor)
-                Text(subtitle)
-                    .font(.body)
-                    .foregroundStyle(palette.inkSoftColor)
-            }
-            .lineLimit(1)
-            .padding(.horizontal, 28)
-            .padding(.top, 26)
-            .accessibilityElement(children: .combine)
-
-            progress
-                .padding(.horizontal, 32)
-                .padding(.top, 18)
-
-            transport
-                .padding(.top, 18)
-
-            Spacer(minLength: 16)
-
-            VStack(spacing: 18) {
-                LevelSlider(value: $volume, low: "speaker.fill", high: "speaker.wave.3.fill",
-                            label: "Volume", enabled: state.volume != nil, accent: accent) { editing in
-                    editingVolume = editing
-                } onChange: { value in
-                    // Values the Mac just reported are not echoed back to it.
-                    guard abs(value - (state.volume ?? -1)) > 0.001 else { return }
-                    throttle.send("volume", value) { session.send(.mediaSetVolume($0)) }
+    @ViewBuilder private var content: some View {
+        if verticalSize == .compact {
+            // Sideways: artwork on the left, everything you touch on the right.
+            HStack(spacing: 36) {
+                artwork
+                    .frame(maxHeight: .infinity)
+                VStack(spacing: 0) {
+                    titles
+                    progress.padding(.top, 14)
+                    transport.padding(.top, 6)
+                    sliders.padding(.top, 10)
                 }
-                LevelSlider(value: $brightness, low: "sun.min.fill", high: "sun.max.fill",
-                            label: "Brightness", enabled: state.brightness != nil, accent: accent) { editing in
-                    editingBrightness = editing
-                } onChange: { value in
-                    guard abs(value - (state.brightness ?? -1)) > 0.001 else { return }
-                    throttle.send("brightness", value) { session.send(.mediaSetBrightness($0)) }
-                }
+                .frame(maxWidth: 420)
             }
-            .padding(.horizontal, 28)
-            .padding(.bottom, 28)
+            .padding(.top, 44)
+            .padding(.bottom, 20)
+            .padding(.horizontal, 24)
+        } else {
+            VStack(spacing: 0) {
+                Spacer(minLength: 72)
+                artwork
+                    .padding(.horizontal, 36)
+                titles
+                    .padding(.horizontal, 28)
+                    .padding(.top, 26)
+                progress
+                    .padding(.horizontal, 32)
+                    .padding(.top, 18)
+                transport
+                    .padding(.top, 18)
+                Spacer(minLength: 16)
+                sliders
+                    .padding(.horizontal, 28)
+                    .padding(.bottom, 28)
+            }
+        }
+    }
+
+    private var titles: some View {
+        VStack(spacing: 4) {
+            Text(state.title ?? "Nothing playing")
+                .font(.title3.weight(.semibold))
+                .foregroundStyle(palette.inkColor)
+            Text(subtitle)
+                .font(.body)
+                .foregroundStyle(palette.inkSoftColor)
+        }
+        .lineLimit(1)
+        .accessibilityElement(children: .combine)
+    }
+
+    private var sliders: some View {
+        VStack(spacing: verticalSize == .compact ? 12 : 18) {
+            LevelSlider(value: $volume, low: "speaker.fill", high: "speaker.wave.3.fill",
+                        label: "Volume", enabled: state.volume != nil, accent: accent) { editing in
+                editingVolume = editing
+            } onChange: { value in
+                // Values the Mac just reported are not echoed back to it.
+                guard abs(value - (state.volume ?? -1)) > 0.001 else { return }
+                throttle.send("volume", value) { session.send(.mediaSetVolume($0)) }
+            }
+            LevelSlider(value: $brightness, low: "sun.min.fill", high: "sun.max.fill",
+                        label: "Brightness", enabled: state.brightness != nil, accent: accent) { editing in
+                editingBrightness = editing
+            } onChange: { value in
+                guard abs(value - (state.brightness ?? -1)) > 0.001 else { return }
+                throttle.send("brightness", value) { session.send(.mediaSetBrightness($0)) }
+            }
         }
     }
 

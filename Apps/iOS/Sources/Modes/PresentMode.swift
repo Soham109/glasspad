@@ -6,6 +6,7 @@ import GlasspadKit
 struct PresentMode: View {
     @Environment(\.palette) private var palette
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.verticalSizeClass) private var verticalSize
     @Bindable var settings = PhoneSettings.shared
     var session = MacSession.shared
     private let accent = AppMode.present.accent(.paper)
@@ -13,23 +14,29 @@ struct PresentMode: View {
     @State private var timer = PresentTimer()
 
     var body: some View {
+        Group {
+            if verticalSize == .compact { landscape } else { portrait }
+        }
+        .overlay {
+            if !session.isConnected { ModeOfflineMessage(mode: .present).background(palette.backgroundColor) }
+        }
+        .onDisappear { session.laserOff() }
+    }
+
+    private var portrait: some View {
         VStack(spacing: 14) {
             timerBar
                 .padding(.top, 64)
-            LaserPad(accent: accent) { point in
-                session.laser(at: point)
-            } onEnd: {
-                session.laserOff()
-            }
-            .frame(maxWidth: .infinity)
-            .aspectRatio(16 / 10, contentMode: .fit)
+            laserPad
+                .frame(maxWidth: .infinity)
+                .aspectRatio(16 / 10, contentMode: .fit)
 
             HStack(spacing: 12) {
                 if settings.leftHanded {
                     nextButton
-                    previousButton
+                    previousButton.frame(width: 104)
                 } else {
-                    previousButton
+                    previousButton.frame(width: 104)
                     nextButton
                 }
             }
@@ -37,10 +44,39 @@ struct PresentMode: View {
         }
         .padding(.horizontal, 16)
         .padding(.bottom, 16)
-        .overlay {
-            if !session.isConnected { ModeOfflineMessage(mode: .present).background(palette.backgroundColor) }
+    }
+
+    /// Sideways: the laser pad takes the wide side, the buttons sit under the thumb.
+    private var landscape: some View {
+        HStack(spacing: 16) {
+            let pad = laserPad
+                .aspectRatio(16 / 10, contentMode: .fit)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            let controls = VStack(spacing: 12) {
+                timerBar
+                nextButton
+                previousButton.frame(height: 72)
+            }
+            .frame(width: 250)
+            if settings.leftHanded {
+                controls
+                pad
+            } else {
+                pad
+                controls
+            }
         }
-        .onDisappear { session.laserOff() }
+        .padding(.top, 40)
+        .padding(.horizontal, 16)
+        .padding(.bottom, 16)
+    }
+
+    private var laserPad: some View {
+        LaserPad(accent: accent) { point in
+            session.laser(at: point)
+        } onEnd: {
+            session.laserOff()
+        }
     }
 
     private var timerBar: some View {
@@ -94,7 +130,6 @@ struct PresentMode: View {
         }
         .glassButton()
         .buttonBorderShape(.roundedRectangle(radius: 30))
-        .frame(width: 104)
         .accessibilityLabel("Previous slide")
     }
 

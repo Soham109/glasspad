@@ -15,6 +15,7 @@ enum PairingParser {
 /// Used by onboarding and by "Pair a Mac" in Settings.
 struct PairingScanner: View {
     @Environment(\.palette) private var palette
+    @Environment(\.verticalSizeClass) private var verticalSize
     var onPaired: (PairedMac) -> Void
 
     @State private var cameraStatus = CameraAccess.status
@@ -24,7 +25,7 @@ struct PairingScanner: View {
     @State private var scannerKey = 0
 
     var body: some View {
-        VStack(spacing: 18) {
+        VStack(spacing: verticalSize == .compact ? 10 : 18) {
             ZStack {
                 RoundedRectangle(cornerRadius: 28, style: .continuous)
                     .fill(palette.raisedColor)
@@ -34,7 +35,8 @@ struct PairingScanner: View {
                     .strokeBorder(palette.lineColor, lineWidth: 1)
             }
             .aspectRatio(1, contentMode: .fit)
-            .frame(maxWidth: 320)
+            // Sideways the square gives up height so the paste box still fits below it.
+            .frame(maxWidth: 320, maxHeight: verticalSize == .compact ? 210 : .infinity)
 
             Text(errorText ?? " ")
                 .font(.footnote)
@@ -114,7 +116,9 @@ struct PairingScanner: View {
         }
         errorText = nil
         Haptics.shared.play(.snap)
-        onPaired(PairingStore.shared.add(payload))
+        let mac = PairingStore.shared.add(payload)
+        MacSession.shared.didPair(mac)
+        onPaired(mac)
     }
 }
 
@@ -143,42 +147,74 @@ private struct ScanFrame: View {
 struct PairSheet: View {
     @Environment(\.palette) private var palette
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.verticalSizeClass) private var verticalSize
     @State private var paired: PairedMac?
 
     var body: some View {
-        VStack(spacing: 22) {
-            VStack(spacing: 8) {
-                Text(paired == nil ? "Pair a Mac" : "Paired")
-                    .font(.title2.bold())
-                    .foregroundStyle(palette.inkColor)
-                Text(paired.map { "Glasspad now controls \($0.name)." }
-                     ?? "On your Mac, open the Glasspad menu and choose Pair. Then point the camera at the code.")
-                    .font(.subheadline)
-                    .multilineTextAlignment(.center)
-                    .foregroundStyle(palette.inkSoftColor)
-                    .padding(.horizontal, 24)
-            }
-            .padding(.top, 32)
-            if let paired {
-                PairedBadge(name: paired.name)
-                    .frame(maxHeight: .infinity)
-                Button {
-                    dismiss()
-                } label: {
-                    Text("Done").font(.headline).frame(maxWidth: .infinity).padding(.vertical, 6)
+        Group {
+            if verticalSize == .compact {
+                // Sideways: words on the left, the camera or the result on the right.
+                HStack(spacing: 32) {
+                    VStack(alignment: .leading, spacing: 18) {
+                        heading(alignment: .leading)
+                        if paired != nil { doneButton }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    Group {
+                        if let paired {
+                            PairedBadge(name: paired.name)
+                        } else {
+                            PairingScanner { mac in withAnimation(.snappy) { paired = mac } }
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
                 }
-                .glassButton(prominent: true)
-                .controlSize(.large)
-                    .padding(.horizontal, 24)
-                    .padding(.bottom, 12)
+                .padding(.horizontal, 32)
+                .padding(.vertical, 20)
             } else {
-                PairingScanner { mac in withAnimation(.snappy) { paired = mac } }
-                    .padding(.horizontal, 24)
-                Spacer(minLength: 0)
+                VStack(spacing: 22) {
+                    heading(alignment: .center)
+                        .padding(.horizontal, 24)
+                        .padding(.top, 32)
+                    if let paired {
+                        PairedBadge(name: paired.name)
+                            .frame(maxHeight: .infinity)
+                        doneButton
+                            .padding(.horizontal, 24)
+                            .padding(.bottom, 12)
+                    } else {
+                        PairingScanner { mac in withAnimation(.snappy) { paired = mac } }
+                            .padding(.horizontal, 24)
+                        Spacer(minLength: 0)
+                    }
+                }
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(palette.backgroundColor.ignoresSafeArea())
+    }
+
+    private func heading(alignment: HorizontalAlignment) -> some View {
+        VStack(alignment: alignment, spacing: 8) {
+            Text(paired == nil ? "Pair a Mac" : "Paired")
+                .font(.title2.bold())
+                .foregroundStyle(palette.inkColor)
+            Text(paired.map { "Glasspad now controls \($0.name)." }
+                 ?? "On your Mac, open the Glasspad menu and choose Pair. Then point the camera at the code.")
+                .font(.subheadline)
+                .multilineTextAlignment(alignment == .center ? .center : .leading)
+                .foregroundStyle(palette.inkSoftColor)
+        }
+    }
+
+    private var doneButton: some View {
+        Button {
+            dismiss()
+        } label: {
+            Text("Done").font(.headline).frame(maxWidth: .infinity).padding(.vertical, 6)
+        }
+        .glassButton(prominent: true)
+        .controlSize(.large)
     }
 }
 

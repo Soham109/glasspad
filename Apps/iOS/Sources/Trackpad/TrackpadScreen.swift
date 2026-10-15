@@ -146,7 +146,8 @@ private final class DisplayLinkTarget: NSObject {
 
 #if DEBUG
 /// Debug builds only: a scripted two finger scroll, then two fingers held still, so a
-/// simulator run sends real frames to the Mac and shows the dots.
+/// simulator run sends real frames to the Mac and shows the dots. With -GPDemoRotate the
+/// screen then turns under the held fingers.
 @MainActor
 private enum DemoTouches {
     static func run(on view: TrackpadSurfaceView) {
@@ -155,10 +156,18 @@ private enum DemoTouches {
             try? await Task.sleep(for: .seconds(1.5))
             let w = view.bounds.width, h = view.bounds.height
             for step in 0...40 {
-                let y = h * 0.62 - CGFloat(step) * 6
+                // Travels 30% of the height, so it reads the same in either orientation.
+                let y = h * 0.62 - CGFloat(step) * h * 0.3 / 40
                 let phase: TouchPhase = step == 0 ? .began : .moved
                 view.debugInject([(a, CGPoint(x: w * 0.38, y: y), phase), (b, CGPoint(x: w * 0.62, y: y + 18), phase)])
                 try? await Task.sleep(for: .milliseconds(8))
+            }
+            // -GPDemoRotate: turn the screen while both fingers are still down, to check
+            // that the Mac sees them cancelled instead of stuck.
+            if ProcessInfo.processInfo.arguments.contains("-GPDemoRotate") {
+                try? await Task.sleep(for: .seconds(1))
+                let settings = PhoneSettings.shared
+                settings.orientation = OrientationLock.current.isLandscape ? .portrait : .landscape
             }
         }
     }

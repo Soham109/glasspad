@@ -43,7 +43,7 @@ final class AppRouter {
             if let payload = PairingParser.parse(url.absoluteString) {
                 let mac = PairingStore.shared.add(payload)
                 PhoneSettings.shared.hasOnboarded = true
-                MacSession.shared.select(mac)
+                MacSession.shared.didPair(mac)
                 show(.trackpad)
                 Haptics.shared.play(.snap)
             }

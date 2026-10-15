@@ -3,6 +3,7 @@ import SwiftUI
 /// Three calm screens: what Glasspad is, get the Mac ready, scan the code.
 struct OnboardingView: View {
     @Environment(\.palette) private var palette
+    @Environment(\.verticalSizeClass) private var verticalSize
     var onFinish: () -> Void
 
     @State private var page = 0
@@ -18,9 +19,11 @@ struct OnboardingView: View {
             .tabViewStyle(.page(indexDisplayMode: .never))
             .animation(.snappy, value: page)
 
-            footer
-                .padding(.horizontal, 24)
-                .padding(.bottom, 16)
+            Group {
+                if verticalSize == .compact { compactFooter } else { footer }
+            }
+            .padding(.horizontal, 24)
+            .padding(.bottom, 16)
         }
         .background(palette.backgroundColor.ignoresSafeArea())
     }
@@ -41,18 +44,45 @@ struct OnboardingView: View {
         }
     }
 
-    private var scan: some View {
+    private func scanHeading(alignment: HorizontalAlignment) -> some View {
+        VStack(alignment: alignment, spacing: 10) {
+            Text(paired == nil ? "Scan the code" : "You are set")
+                .font(.largeTitle.bold())
+                .foregroundStyle(palette.inkColor)
+            Text(paired == nil ? "Point the camera at the code on your Mac." : "Glasspad will connect whenever this Mac is nearby.")
+                .font(.body)
+                .foregroundStyle(palette.inkSoftColor)
+                .multilineTextAlignment(alignment == .center ? .center : .leading)
+        }
+    }
+
+    @ViewBuilder private var scan: some View {
+        if verticalSize == .compact {
+            HStack(spacing: 40) {
+                scanHeading(alignment: .leading)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                Group {
+                    if let paired {
+                        PairedBadge(name: paired.name)
+                    } else if page == 2 {
+                        PairingScanner { mac in withAnimation(.snappy) { paired = mac } }
+                    } else {
+                        Color.clear
+                    }
+                }
+                .frame(maxWidth: .infinity)
+            }
+            .padding(.horizontal, 40)
+            .padding(.top, 16)
+        } else {
+            scanPortrait
+        }
+    }
+
+    private var scanPortrait: some View {
         VStack(spacing: 26) {
             Spacer(minLength: 12)
-            VStack(spacing: 10) {
-                Text(paired == nil ? "Scan the code" : "You are set")
-                    .font(.largeTitle.bold())
-                    .foregroundStyle(palette.inkColor)
-                Text(paired == nil ? "Point the camera at the code on your Mac." : "Glasspad will connect whenever this Mac is nearby.")
-                    .font(.body)
-                    .foregroundStyle(palette.inkSoftColor)
-                    .multilineTextAlignment(.center)
-            }
+            scanHeading(alignment: .center)
             if let paired {
                 PairedBadge(name: paired.name)
                     .frame(maxHeight: .infinity)
@@ -71,15 +101,7 @@ struct OnboardingView: View {
 
     private var footer: some View {
         VStack(spacing: 18) {
-            HStack(spacing: 7) {
-                ForEach(0..<3) { i in
-                    Capsule()
-                        .fill(i == page ? palette.inkColor : palette.inkColor.opacity(0.18))
-                        .frame(width: i == page ? 20 : 7, height: 7)
-                }
-            }
-            .animation(.snappy, value: page)
-            .accessibilityHidden(true)
+            pageDots
 
             Button {
                 if page < 2 { page += 1 } else { onFinish() }
@@ -101,6 +123,43 @@ struct OnboardingView: View {
         }
     }
 
+    /// Sideways: one row, so the page above keeps the height.
+    private var compactFooter: some View {
+        HStack(spacing: 18) {
+            pageDots
+            Spacer()
+            if page == 2 && paired == nil {
+                Button("Pair later") { onFinish() }
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(palette.inkSoftColor)
+            } else {
+                Button {
+                    if page < 2 { page += 1 } else { onFinish() }
+                } label: {
+                    Text(buttonTitle)
+                        .font(.headline)
+                        .frame(width: 220)
+                        .padding(.vertical, 4)
+                }
+                .glassButton(prominent: true)
+                .controlSize(.large)
+            }
+        }
+        .frame(height: 52)
+    }
+
+    private var pageDots: some View {
+        HStack(spacing: 7) {
+            ForEach(0..<3) { i in
+                Capsule()
+                    .fill(i == page ? palette.inkColor : palette.inkColor.opacity(0.18))
+                    .frame(width: i == page ? 20 : 7, height: 7)
+            }
+        }
+        .animation(.snappy, value: page)
+        .accessibilityHidden(true)
+    }
+
     private var buttonTitle: String {
         switch page {
         case 0: "Get started"
@@ -112,11 +171,35 @@ struct OnboardingView: View {
 
 private struct OnboardingPage<Art: View>: View {
     @Environment(\.palette) private var palette
+    @Environment(\.verticalSizeClass) private var verticalSize
     let title: String
     let detail: String
     @ViewBuilder var art: Art
 
     var body: some View {
+        if verticalSize == .compact {
+            // Sideways: picture on the left, words on the right.
+            HStack(spacing: 48) {
+                art.frame(width: 300, height: 260)
+                VStack(alignment: .leading, spacing: 14) {
+                    Text(title)
+                        .font(.largeTitle.bold())
+                        .foregroundStyle(palette.inkColor)
+                    Text(detail)
+                        .font(.body)
+                        .foregroundStyle(palette.inkSoftColor)
+                        .frame(maxWidth: 340, alignment: .leading)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .padding(.horizontal, 48)
+            .padding(.top, 12)
+        } else {
+            portrait
+        }
+    }
+
+    private var portrait: some View {
         VStack(spacing: 34) {
             Spacer()
             art.frame(height: 260)
