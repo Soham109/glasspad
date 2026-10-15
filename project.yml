@@ -1,0 +1,157 @@
+# XcodeGen project for both Glasspad apps. Generate with `xcodegen generate`.
+# The Xcode project itself is not committed (see .gitignore).
+name: Glasspad
+
+options:
+  bundleIdPrefix: com.soham109
+  deploymentTarget:
+    iOS: "18.0"
+    macOS: "14.0"
+  createIntermediateGroups: true
+  groupSortPosition: top
+  generateEmptyDirectories: false
+
+settings:
+  base:
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    SWIFT_VERSION: "6.0"
+    SWIFT_STRICT_CONCURRENCY: complete
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+    DEAD_CODE_STRIPPING: YES
+    ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS: YES
+
+packages:
+  GlasspadKit:
+    path: Packages/GlasspadKit
+  GlasspadMacCore:
+    path: Packages/GlasspadMacCore
+  GlasspadMacros:
+    path: Packages/GlasspadMacros
+
+targets:
+
+  # iPhone app: trackpad surface, modes, pairing, settings, App Intents.
+  Glasspad iOS:
+    type: application
+    platform: iOS
+    deploymentTarget: "18.0"
+    sources:
+      - path: Apps/iOS/Sources
+      - path: Apps/iOS/Shared
+      - path: Apps/iOS/Resources
+    dependencies:
+      - package: GlasspadKit
+      - target: Glasspad Widgets
+        embed: true
+        codeSign: false
+    settings:
+      base:
+        PRODUCT_NAME: Glasspad
+        PRODUCT_BUNDLE_IDENTIFIER: com.soham109.glasspad.ios
+        TARGETED_DEVICE_FAMILY: "1"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS: NO
+        SUPPORTS_MACCATALYST: NO
+        SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: NO
+        SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD: NO
+    info:
+      path: Apps/iOS/Info.plist
+      properties:
+        CFBundleDisplayName: Glasspad
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        LSRequiresIPhoneOS: true
+        ITSAppUsesNonExemptEncryption: false
+        UIRequiresFullScreen: true
+        UIStatusBarHidden: true
+        UIViewControllerBasedStatusBarAppearance: true
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+        UILaunchScreen:
+          UIColorName: LaunchBackground
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+        NSLocalNetworkUsageDescription: Glasspad finds your paired Mac on this Wi-Fi network and sends your touches to it.
+        NSBonjourServices: [_glasspad._tcp]
+        NSCameraUsageDescription: Glasspad uses the camera only to scan the pairing code your Mac shows.
+        NSSupportsLiveActivities: true
+        CFBundleURLTypes:
+          - CFBundleURLName: com.soham109.glasspad.ios
+            CFBundleURLSchemes: [glasspad]
+
+  # Control Center control, Lock Screen widget and the connection Live Activity.
+  Glasspad Widgets:
+    type: app-extension
+    platform: iOS
+    deploymentTarget: "18.0"
+    sources:
+      - path: Apps/iOS/Widgets
+      - path: Apps/iOS/Shared
+    settings:
+      base:
+        PRODUCT_NAME: GlasspadWidgets
+        PRODUCT_BUNDLE_IDENTIFIER: com.soham109.glasspad.ios.widgets
+        TARGETED_DEVICE_FAMILY: "1"
+        SKIP_INSTALL: YES
+        APPLICATION_EXTENSION_API_ONLY: YES
+        SWIFT_ACTIVE_COMPILATION_CONDITIONS: $(inherited) GLASSPAD_WIDGET
+    info:
+      path: Apps/iOS/Widgets/Info.plist
+      properties:
+        CFBundleDisplayName: Glasspad
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+
+  # Menu bar Mac app. Sources are owned by the Mac side; this file only references them.
+  Glasspad Mac:
+    type: application
+    platform: macOS
+    deploymentTarget: "14.0"
+    sources:
+      - path: Apps/Mac/Sources
+        excludes:
+          - "**/Info.plist"
+      - path: Apps/Mac/Resources
+    dependencies:
+      - package: GlasspadKit
+      - package: GlasspadMacCore
+      - package: GlasspadMacros
+    settings:
+      base:
+        PRODUCT_NAME: Glasspad
+        PRODUCT_BUNDLE_IDENTIFIER: com.soham109.glasspad
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ENABLE_HARDENED_RUNTIME: NO
+        COMBINE_HIDPI_IMAGES: YES
+    info:
+      path: Config/Mac/Info.plist
+      properties:
+        CFBundleDisplayName: Glasspad
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        LSUIElement: true
+        LSApplicationCategoryType: public.app-category.utilities
+        NSHumanReadableCopyright: Copyright 2026 Soham Aggarwal. MIT licensed.
+        NSLocalNetworkUsageDescription: Glasspad listens on this network so your paired iPhone can find and control this Mac.
+        NSBonjourServices: [_glasspad._tcp]
+
+schemes:
+  Glasspad iOS:
+    build:
+      targets:
+        Glasspad iOS: all
+        Glasspad Widgets: all
+    run:
+      config: Debug
+    archive:
+      config: Release
+  Glasspad Mac:
+    build:
+      targets:
+        Glasspad Mac: all
+    run:
+      config: Debug
+    archive:
+      config: Release

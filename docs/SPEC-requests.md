@@ -5,38 +5,12 @@ done (with the shipped names) when it lands.
 
 ## 1. Macros mode messages (from: iPhone app, to: GlasspadKit)
 
-The iPhone app has a Macros screen and Siri / Shortcuts actions ("Run macro") but
-`ModeMessage` has no macro cases yet. Requested additions:
+Superseded by `docs/SPEC-macros.md` section 6 (`case macro(MacroMessage)`). The iPhone app
+builds against that shape. One addition is still needed: `GlasspadMode.macros`, so the phone
+can send `modeSelected(.macros)` like every other screen.
 
-```swift
-public enum GlasspadMode { ...; case macros }
-
-/// One macro as the phone shows it. Steps stay on the Mac.
-public struct MacroSummary: Codable, Equatable, Sendable, Hashable, Identifiable {
-    public var id: UUID
-    public var name: String
-    public var symbol: String        // SF Symbol name
-    public var color: String?        // "#RRGGBB", optional accent
-    public var stepCount: Int
-    public init(id: UUID, name: String, symbol: String, color: String?, stepCount: Int)
-}
-
-public enum ModeMessage {
-    /// Phone -> Mac: send the macros for the current front app profile.
-    case macrosRequest
-    /// Mac -> phone: macros in display order, plus the active profile's name
-    /// (e.g. "Safari"), nil for the default profile. Sent on request and whenever the
-    /// front app changes the profile while Macros is shown.
-    case macrosList(profile: String?, macros: [MacroSummary])
-    /// Phone -> Mac: run this macro.
-    case macrosRun(id: UUID)
-    /// Mac -> phone: outcome of `macrosRun`; `message` is shown on failure.
-    case macrosResult(id: UUID, ok: Bool, message: String?)
-}
-```
-
-Until these exist the iPhone app leaves the Macros screen and the "Run macro" action out
-rather than shipping a screen that cannot work.
+Until `MacroMessage` exists in GlasspadKit the iPhone app leaves the Macros screen and the
+"Run macro" action out, rather than shipping a screen that cannot work.
 
 ## 2. Mac side notes (from: GlasspadMacCore, to: GlasspadKit and coordinator)
 
@@ -56,3 +30,11 @@ rather than shipping a screen that cannot work.
   `GLASSPAD_BUILD_ROOT`). The repo sits in an iCloud-synced Desktop, which tags bundles with
   Finder info, and codesign then refuses the test bundle. `scripts/test.sh` also runs every
   package before failing, instead of stopping at the first failure.
+
+## 3. Copy pairing link (from: iPhone app, to: Mac app)
+
+The phone's pair screen accepts a pasted `glasspad://pair?...` link when there is no camera
+(simulator, or camera access denied). A "Copy pairing link" item next to the QR code in the
+Mac popover would make that path usable without a terminal. Scanning the QR with the
+iPhone's own Camera app already works: it opens Glasspad through the `glasspad://` URL scheme
+and pairs.
