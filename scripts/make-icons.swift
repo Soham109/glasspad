@@ -42,14 +42,33 @@ func render(px: Int, theme: Theme, mac: Bool) -> Data {
     theme.surface.setFill(); sp.fill()
     theme.edge.setStroke(); sp.lineWidth = 4 * k; sp.stroke()
 
-    // Two finger dots (y is flipped from the SVG)
-    func dot(_ x: CGFloat, _ yTop: CGFloat) {
-        let r = 72 * k
-        let c = CGPoint(x: body.minX + x * k, y: body.minY + (1024 - yTop) * k)
-        theme.dot.setFill()
+    // One finger: a solid dot with two faint ripple rings (a tap with haptic feedback)
+    let design = ProcessInfo.processInfo.environment["DESIGN"] ?? "trail"
+    func pt(_ x: CGFloat, _ yTop: CGFloat) -> CGPoint { CGPoint(x: body.minX + x * k, y: body.minY + (1024 - yTop) * k) }
+    func disc(_ c: CGPoint, _ r: CGFloat, _ alpha: CGFloat) {
+        theme.dot.withAlphaComponent(alpha * 0.62).setFill()
         NSBezierPath(ovalIn: CGRect(x: c.x - r, y: c.y - r, width: 2 * r, height: 2 * r)).fill()
     }
-    dot(415, 465); dot(625, 565)
+    func ring(_ c: CGPoint, _ r: CGFloat, _ w: CGFloat, _ alpha: CGFloat) {
+        let p = NSBezierPath(ovalIn: CGRect(x: c.x - r, y: c.y - r, width: 2 * r, height: 2 * r))
+        p.lineWidth = w; theme.dot.withAlphaComponent(alpha).setStroke(); p.stroke()
+    }
+    if design == "trail" {
+        let from = pt(300, 610), to = pt(660, 440)
+        for i in 0..<24 {
+            let t = CGFloat(i) / 24
+            let c = CGPoint(x: from.x + (to.x - from.x) * t, y: from.y + (to.y - from.y) * t)
+            disc(c, (26 + 46 * t) * k, 0.03 + 0.22 * t * t)
+        }
+        theme.surface.setFill()
+        NSBezierPath(ovalIn: CGRect(x: to.x - 74 * k, y: to.y - 74 * k, width: 148 * k, height: 148 * k)).fill()
+        disc(to, 74 * k, 1)
+    } else {
+        let c = pt(512, 512)
+        ring(c, 230 * k, 5 * k, 0.25)
+        ring(c, 160 * k, 5 * k, 0.45)
+        disc(c, 76 * k, 1)
+    }
     if mac { cg.restoreGState() }
     NSGraphicsContext.current = nil
     return rep.representation(using: .png, properties: [:])!
@@ -63,12 +82,18 @@ func menuBar(px: Int) -> Data {
     NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
     let u = CGFloat(px) / 18
     NSColor.black.setStroke(); NSColor.black.setFill()
-    let r = CGRect(x: 1.75 * u, y: 3 * u, width: 14.5 * u, height: 12 * u).insetBy(dx: 0.0, dy: 0)
-    let p = NSBezierPath(roundedRect: r, xRadius: 3.6 * u, yRadius: 3.6 * u)
+    let r = CGRect(x: 1.5 * u, y: 3.5 * u, width: 15 * u, height: 11 * u)
+    let p = NSBezierPath(roundedRect: r, xRadius: 3.2 * u, yRadius: 3.2 * u)
     p.lineWidth = 1.3 * u; p.stroke()
-    for c in [CGPoint(x: 7 * u, y: 9.6 * u), CGPoint(x: 11 * u, y: 8 * u)] {
-        NSBezierPath(ovalIn: CGRect(x: c.x - 1.35 * u, y: c.y - 1.35 * u, width: 2.7 * u, height: 2.7 * u)).fill()
+    for i in 0..<3 {
+        let t = CGFloat(i) / 3
+        let c = CGPoint(x: (4.6 + 3.2 * t) * u, y: (7.2 + 1.9 * t) * u)
+        let rr = (0.45 + 0.35 * t) * u
+        NSColor.black.withAlphaComponent(0.3 + 0.5 * t).setFill()
+        NSBezierPath(ovalIn: CGRect(x: c.x - rr, y: c.y - rr, width: 2 * rr, height: 2 * rr)).fill()
     }
+    NSColor.black.setFill()
+    NSBezierPath(ovalIn: CGRect(x: 11.2 * u - 1.7 * u, y: 10.6 * u - 1.7 * u, width: 3.4 * u, height: 3.4 * u)).fill()
     NSGraphicsContext.current = nil
     return rep.representation(using: .png, properties: [:])!
 }
@@ -126,4 +151,5 @@ write(render(px: 512, theme: paper, mac: true), "docs/brand/preview-mac-paper.pn
 write(render(px: 512, theme: graphite, mac: true), "docs/brand/preview-mac-graphite.png")
 write(render(px: 512, theme: paper, mac: false), "docs/brand/preview-ios-paper.png")
 write(render(px: 1024, theme: paper, mac: true), "docs/brand/icon.png")
+if let d = ProcessInfo.processInfo.environment["PREVIEW_DIR"] { write(render(px: 512, theme: paper, mac: true), d + "/paper.png") }
 print("done")
