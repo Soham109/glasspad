@@ -1,0 +1,7 @@
+node_modules/
+out/
+.env
+.env.*
+voice/work/
+public/*.wav
+*.mp4

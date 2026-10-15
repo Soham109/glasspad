@@ -1,0 +1,131 @@
+{
+  "engine": "ElevenLabs Eric (Smooth, Trustworthy) / eleven_multilingual_v2",
+  "lines": [
+    {
+      "id": "intro",
+      "f": 200,
+      "text": "Glasspad turns your iPhone into a wireless trackpad for your Mac.",
+      "seconds": 3.24
+    },
+    {
+      "id": "lay",
+      "f": 560,
+      "text": "Lay it down, and touch the glass.",
+      "seconds": 1.58
+    },
+    {
+      "id": "move",
+      "f": 760,
+      "text": "The pointer follows your finger.",
+      "seconds": 1.29
+    },
+    {
+      "id": "click",
+      "f": 960,
+      "text": "Tap to click, and feel a small tap back.",
+      "seconds": 1.96
+    },
+    {
+      "id": "scroll",
+      "f": 1160,
+      "text": "Two fingers scroll.",
+      "seconds": 1.05
+    },
+    {
+      "id": "speed",
+      "f": 1360,
+      "text": "Touches reach your Mac hundreds of times a second.",
+      "seconds": 2.27
+    },
+    {
+      "id": "spaces",
+      "f": 1600,
+      "text": "Three fingers slide between Spaces, and the screen follows your hand.",
+      "seconds": 3.2
+    },
+    {
+      "id": "mission",
+      "f": 1840,
+      "text": "Swipe up for Mission Control.",
+      "seconds": 1.54
+    },
+    {
+      "id": "settings",
+      "f": 2040,
+      "text": "It follows your Mac's own trackpad settings, so you never set anything up twice.",
+      "seconds": 4.53
+    },
+    {
+      "id": "menu",
+      "f": 2400,
+      "text": "Touch the top, and it becomes something else.",
+      "seconds": 1.85
+    },
+    {
+      "id": "dock",
+      "f": 2580,
+      "text": "Your Dock.",
+      "seconds": 0.65
+    },
+    {
+      "id": "keys",
+      "f": 2740,
+      "text": "A keyboard.",
+      "seconds": 0.62
+    },
+    {
+      "id": "media",
+      "f": 2900,
+      "text": "Now playing.",
+      "seconds": 0.66
+    },
+    {
+      "id": "deck",
+      "f": 3060,
+      "text": "Buttons that act on your Mac.",
+      "seconds": 1.38
+    },
+    {
+      "id": "macros",
+      "f": 3220,
+      "text": "Buttons for whichever app is in front.",
+      "seconds": 1.82
+    },
+    {
+      "id": "clipboard",
+      "f": 3380,
+      "text": "Your clipboard, both ways.",
+      "seconds": 1.35
+    },
+    {
+      "id": "present",
+      "f": 3540,
+      "text": "And a clicker for your slides.",
+      "seconds": 1.36
+    },
+    {
+      "id": "pair",
+      "f": 3720,
+      "text": "Pair once, with a QR code.",
+      "seconds": 1.37
+    },
+    {
+      "id": "encrypt",
+      "f": 3840,
+      "text": "Every message is encrypted.",
+      "seconds": 1.3
+    },
+    {
+      "id": "local",
+      "f": 3960,
+      "text": "It stays on your network, with no accounts.",
+      "seconds": 1.88
+    },
+    {
+      "id": "end",
+      "f": 4200,
+      "text": "Glasspad. Free, and open source.",
+      "seconds": 1.75
+    }
+  ]
+}

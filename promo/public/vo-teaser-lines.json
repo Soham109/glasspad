@@ -1,0 +1,17 @@
+{
+  "engine": "ElevenLabs Eric (Smooth, Trustworthy) / eleven_multilingual_v2",
+  "lines": [
+    {
+      "id": "intro",
+      "f": 340,
+      "text": "Glasspad turns your iPhone into a wireless trackpad for your Mac.",
+      "seconds": 3.24
+    },
+    {
+      "id": "end",
+      "f": 1340,
+      "text": "Glasspad. Free, and open source.",
+      "seconds": 1.75
+    }
+  ]
+}

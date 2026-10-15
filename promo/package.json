@@ -1,0 +1,36 @@
+{
+  "name": "glasspad-promo",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "studio": "remotion studio src/index.ts",
+    "voice:list": "node scripts/vo-list.ts",
+    "voice:samples": "node scripts/vo-samples.ts",
+    "voice": "node scripts/make-voice.ts",
+    "music:try": "node scripts/music-try.ts",
+    "mix": "esbuild scripts/mix.ts --bundle --platform=node --format=esm --outfile=voice/work/mix.mjs --log-level=warning && node voice/work/mix.mjs",
+    "verify": "esbuild scripts/verify-sync.ts --bundle --platform=node --format=esm --outfile=voice/work/verify-sync.mjs --log-level=warning && node voice/work/verify-sync.mjs",
+    "stills": "node scripts/stills.mjs",
+    "render": "remotion render src/index.ts GlasspadDemo out/glasspad-demo.mp4 && scripts/remux.sh out/glasspad-demo.mp4 public/mix-film-vo.wav",
+    "render:novo": "scripts/remux-copy.sh out/glasspad-demo.mp4 public/mix-film-novo.wav out/glasspad-demo-no-vo.mp4",
+    "render:teaser": "remotion render src/index.ts GlasspadTeaser out/glasspad-teaser-vertical.mp4 && scripts/remux.sh out/glasspad-teaser-vertical.mp4 public/mix-teaser.wav",
+    "render:all": "pnpm voice && pnpm mix && pnpm verify && pnpm render && pnpm render:novo && pnpm render:teaser",
+    "typecheck": "tsc -p ."
+  },
+  "dependencies": {
+    "@remotion/bundler": "4.0.529",
+    "@remotion/cli": "4.0.529",
+    "@remotion/fonts": "4.0.529",
+    "@remotion/renderer": "4.0.529",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "remotion": "4.0.529"
+  },
+  "devDependencies": {
+    "@fontsource/inter": "5.1.0",
+    "@types/react": "18.3.12",
+    "esbuild": "0.25.0",
+    "typescript": "5.6.3"
+  }
+}
