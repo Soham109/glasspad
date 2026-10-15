@@ -1,0 +1,291 @@
+# Glasspad: build spec
+
+Glasspad turns an iPhone into a wireless Mac trackpad with haptics, plus a set of
+extra modes (Dock, Keys, Media, Deck, Clipboard, Present). Open source, MIT.
+This file is the contract every part is built against. If you change an
+interface here, change it everywhere.
+
+## 1. Principles
+
+- Feels like the Mac's own trackpad. Gestures follow the user's real macOS
+  trackpad settings, read live from `defaults`.
+- Lowest possible latency over Wi-Fi. Measure it, never guess it.
+- Minimal UI. The trackpad screen is a plain soft-white (or graphite) surface
+  with a dot under each finger. Nothing else unless asked for.
+- Safe for the phone. Only public iOS APIs on the phone. Dims after idle,
+  backs off when the phone is warm, never forces max brightness.
+- Private macOS APIs are allowed on the Mac side (not an App Store app), but
+  every private call has a public fallback and a runtime self-check.
+- Secure by default: it controls the Mac, so every packet is encrypted and
+  authenticated with a key that only a paired phone has.
+
+## 2. Repo layout
+
+```
+glasspad/
+  Packages/GlasspadKit/          shared Swift package (iOS 17+, macOS 14+)
+    Sources/GlasspadKit/
+      Protocol/                  wire messages + binary codec
+      Crypto/                    pairing payload, session keys, AEAD framing
+      Transport/                 Bonjour discovery, TCP control, UDP touch link
+      Gestures/                  touch model, TrackpadSettings, GestureRecognizer
+    Tests/GlasspadKitTests/
+  Packages/GlasspadMacCore/      Mac-only logic as a package (macOS 14+)
+    Sources/GlasspadMacCore/
+      Settings/                  reads macOS trackpad prefs -> TrackpadSettings
+      Synth/                     CGEvent pointer/click/scroll + private gestures
+      Server/                    NWListener, pairing store, session handling
+      Modes/                     Dock, Media, Keys, Deck, Clipboard, Present
+    Tests/GlasspadMacCoreTests/
+  Apps/Mac/                      menu bar app (SwiftUI + AppKit), thin shell
+  Apps/iOS/                      iPhone app (SwiftUI + UIKit touch view), thin shell
+  project.yml                    XcodeGen project for both apps
+  scripts/                       test.sh, build-mac.sh (SwiftPM + ad-hoc .app)
+  docs/                          SPEC, ARCHITECTURE, screenshots, site
+```
+
+Build without Xcode (Mac side only): `scripts/test.sh` and `scripts/build-mac.sh`.
+Command line tools need extra flags for swift-testing; `scripts/test.sh` adds them:
+`-Xswiftc -F$F -Xlinker -F$F -Xlinker -rpath -Xlinker $F` with
+`F=/Library/Developer/CommandLineTools/Library/Developer/Frameworks`.
+Tests use swift-testing (`import Testing`), not XCTest.
+
+## 3. Pairing and crypto (GlasspadKit/Crypto)
+
+- Mac generates once: `macID` (UUID) and per-phone `pairKey` (32 random bytes).
+- Mac shows a QR code: `glasspad://pair?v=1&id=<macID>&name=<urlenc name>&k=<base64url pairKey>`.
+- Phone scans it (camera) and stores `{macID, name, pairKey}` in Keychain.
+  Mac stores `{phoneID, phoneName, pairKey}` in its Keychain. Mac can revoke.
+- Session: on each connect both sides send a 16-byte random nonce in Hello.
+  `sessionKey = HKDF-SHA256(ikm: pairKey, salt: phoneNonce || macNonce, info: "glasspad v1 session", 32 bytes)`.
+- AEAD: ChaCha20-Poly1305 (CryptoKit). Nonce (12 bytes) = 4-byte direction
+  tag (`"P2M\0"` phone to Mac, `"M2P\0"` Mac to phone) + 8-byte big-endian counter.
+  Separate counters for TCP and UDP (UDP uses tags `"P2MU"`/`"M2PU"`).
+- Replay: TCP counters must strictly increase. UDP accepts a sliding window of
+  64 behind the highest counter seen and rejects duplicates.
+- Wrong key or bad tag: drop silently, count it, surface in the Mac debug view.
+
+Public API:
+```swift
+public struct PairingPayload: Codable, Equatable, Sendable {
+  public var macID: UUID; public var macName: String; public var pairKey: Data
+  public init(macID: UUID, macName: String, pairKey: Data)
+  public var url: URL                       // glasspad://pair?...
+  public init?(url: URL)
+}
+public struct SessionCrypto: Sendable {
+  public enum Role: Sendable { case phone, mac }
+  public init(pairKey: Data, phoneNonce: Data, macNonce: Data, role: Role)
+  public mutating func sealTCP(_ plaintext: Data) throws -> Data
+  public mutating func openTCP(_ sealed: Data) throws -> Data
+  public mutating func sealUDP(_ plaintext: Data) throws -> Data
+  public mutating func openUDP(_ sealed: Data) throws -> Data   // replay window
+}
+```
+Sealed format: `counter(8, BE) || ciphertext || tag(16)`.
+
+## 4. Transport (GlasspadKit/Transport)
+
+- Mac advertises Bonjour `_glasspad._tcp` with TXT `id=<macID>`, `v=1`.
+- Phone browses (`NWBrowser`), finds the paired macID, opens TCP (control).
+  TCP: `noDelay = true`, frames are `UInt32 BE length || sealed`.
+- TCP handshake (Hello is the only plaintext message, JSON):
+  phone -> `{"t":"hello","v":1,"phoneID":..,"phoneName":..,"macID":..,"nonce":b64}`
+  mac   -> `{"t":"hello","v":1,"nonce":b64,"udpPort":N}`
+  After that, everything is sealed.
+- UDP touch link: phone sends sealed touch packets to `udpPort`. Mac learns the
+  phone's UDP address from the first valid packet. Parameters:
+  `serviceClass = .interactiveVoice` (WMM voice queue), `includePeerToPeer = true`.
+- Keep-awake: while the trackpad screen is visible, the phone sends a
+  heartbeat every 20 ms when no touches are flowing, so the Wi-Fi radio never
+  enters power save. Stops when the screen is hidden or the phone is idle 2 min.
+- RTT: Mac sends `ping` on TCP each second, phone answers `pong` with the
+  same id; Mac shows median and p95 RTT in its debug view.
+- Reconnect automatically with backoff (0.2, 0.5, 1, 2 s cap).
+
+Public API (both sides use these; names are fixed):
+```swift
+public final class GlasspadServer   // macOS only: listener, sessions, callbacks
+public final class GlasspadClient   // iOS (and macOS for tests): browse, connect
+public protocol GlasspadLinkDelegate: AnyObject {  // messages and state changes
+  func link(didChangeState state: LinkState)
+  func link(didReceive message: ControlMessage)
+  func link(didReceive frame: TouchFrame)          // server side only
+}
+public enum LinkState: Equatable, Sendable { case idle, searching, connecting, connected(rttMs: Double?), failed(String) }
+```
+
+## 5. Wire messages (GlasspadKit/Protocol)
+
+UDP touch packet plaintext (little endian, compact):
+```
+u8  kind          1 = touches, 2 = heartbeat
+u32 seq
+u64 tPhoneMicros  phone monotonic clock
+u8  count         0..10
+per touch (8 bytes):
+  u8  id          stable per finger for its lifetime
+  u8  phase       0 began 1 moved 2 stationary 3 ended 4 cancelled
+  u16 x           0..65535 across the surface width
+  u16 y           0..65535 across the surface height
+  u8  majorRadius points / 2, clamped
+  u8  reserved
+```
+Also in the packet header (after count): `u16 surfaceWidthPt`, `u16 surfaceHeightPt`
+so the Mac can convert to physical points (needed for speed and acceleration).
+
+```swift
+public struct Touch: Equatable, Sendable { public var id: UInt8; public var phase: TouchPhase; public var x: Double; public var y: Double; public var majorRadius: Double } // x,y in points
+public enum TouchPhase: UInt8, Sendable { case began, moved, stationary, ended, cancelled }
+public struct TouchFrame: Equatable, Sendable { public var seq: UInt32; public var timestamp: TimeInterval; public var touches: [Touch]; public var surface: CGSize }
+public enum TouchCodec { static func encode(_: TouchFrame) -> Data; static func decode(_: Data) throws -> TouchFrame; static func heartbeat(seq:) -> Data }
+```
+
+Control messages (TCP, sealed, JSON, `Codable` enum with `t` discriminator):
+```swift
+public enum ControlMessage: Codable, Equatable, Sendable {
+  case ping(id: UInt32), pong(id: UInt32)
+  case settings(TrackpadSettings)                 // mac -> phone, on connect and on change
+  case haptic(HapticKind)                         // mac -> phone, e.g. space snapped
+  case mode(ModeMessage)                          // both ways, see section 8
+  case bye(reason: String)
+}
+public enum HapticKind: String, Codable, Sendable { case click, forceClick, detent, snap, error }
+```
+
+## 6. Gestures (GlasspadKit/Gestures)
+
+The recognizer runs on the Mac (source of truth for events) and the same code
+runs on the phone, fed by local touches, only to trigger haptics instantly.
+
+```swift
+public struct TrackpadSettings: Codable, Equatable, Sendable {
+  public var trackingSpeed: Double        // com.apple.trackpad.scaling, 0...3
+  public var naturalScrolling: Bool       // com.apple.swipescrolldirection
+  public var tapToClick: Bool             // Clicking
+  public var secondaryClick: SecondaryClick   // twoFinger | bottomRight | bottomLeft | off
+  public var threeFingerDrag: Bool        // TrackpadThreeFingerDrag
+  public var lookUp: LookUp               // forceClick | threeFingerTap | off
+  public var scrollMomentum: Bool
+  public var pinchToZoom: Bool, rotate: Bool, smartZoom: Bool
+  public var swipeBetweenPages: SwipePages    // twoFinger | threeFinger | twoOrThree | off
+  public var swipeBetweenSpaces: FingerCount  // three | four | off
+  public var missionControl: FingerCount, appExpose: FingerCount
+  public var launchpadPinch: Bool, showDesktopSpread: Bool
+  public var notificationCenterEdge: Bool
+  public var clickPressure: ClickPressure     // light | medium | firm (FirstClickThreshold 0/1/2)
+  public var hapticStrength: Double           // phone-side, 0...1
+  public static let macDefault: TrackpadSettings
+}
+public enum GestureEvent: Equatable, Sendable {
+  case move(dx: Double, dy: Double)                       // Mac points, accelerated
+  case button(MouseButton, down: Bool, clickCount: Int)   // left/right/middle
+  case drag(dx: Double, dy: Double)                       // move while left is down
+  case scroll(dx: Double, dy: Double, phase: ScrollPhase, momentum: MomentumPhase)
+  case magnify(delta: Double, phase: GesturePhase)
+  case rotate(degrees: Double, phase: GesturePhase)
+  case smartMagnify
+  case swipe(SwipeKind, progress: Double, phase: GesturePhase)  // fluid, follows fingers
+  case navigate(back: Bool)                               // swipe between pages
+  case forceClick(stage: Int)                             // 1 = start, 2 = deep
+  case lookUp
+  case notificationCenter
+}
+public final class GestureRecognizer {
+  public init(settings: TrackpadSettings)
+  public var settings: TrackpadSettings
+  public func process(_ frame: TouchFrame) -> [GestureEvent]
+  public func tick(now: TimeInterval) -> [GestureEvent]   // momentum, tap timeouts
+  public var onHaptic: ((HapticKind) -> Void)?
+}
+public enum SwipeKind: Sendable { case spaces, missionControl, appExpose, launchpad, showDesktop }
+```
+
+Behaviour notes:
+- iPhones have no pressure sensor, so: tap = click (always on, even if the
+  Mac has tap to click off, because a phone cannot be pressed down; show this
+  in Settings). Press and hold still for 450 ms = force click (haptic ramp at
+  stage 1, sharp tick at stage 2). One finger touch, then drag = click-drag
+  (tap then touch again within 250 ms and move = drag, like tap-drag on Mac).
+- Pointer acceleration: synthetic events are not accelerated by macOS, so the
+  recognizer applies a curve that approximates the Mac's for the user's
+  tracking speed. Phone points convert to Mac points with a gain tuned so a
+  full-width swipe on the phone covers about 60% of the main display.
+- Scroll: two fingers, pixel deltas, phases began/changed/ended; after lift,
+  momentum with exponential decay (match macOS feel: ~0.95 per 8 ms frame),
+  stopped by a new touch. Respect natural scrolling.
+- Swipes: classify finger count at gesture start, lock axis after 12 pt,
+  then emit continuous `progress` so Spaces and Mission Control follow fingers.
+- Every threshold is a named constant in one file (`GestureTuning.swift`).
+- Fully unit tested with scripted touch sequences.
+
+## 7. Mac event synthesis (GlasspadMacCore/Synth)
+
+- Pointer, clicks, drags: `CGEvent` mouse events with delta fields set, click
+  state for double and triple clicks, clamped to the union of display bounds.
+- Scroll: `CGEvent(scrollWheelEvent2Source:units: .pixel ...)` with
+  `scrollWheelEventIsContinuous = 1`, scroll phase and momentum phase fields,
+  so apps get native rubber-banding and momentum.
+- Real gestures via private CGS event fields (event type 29 "gesture" and the
+  dock-control type), the technique used by open-source apps such as Mac Mouse
+  Fix. Implement from first principles and document every field; do not copy
+  code from projects with incompatible licenses. Covers: magnify, rotate,
+  smart magnify, dock swipes (Spaces horizontal, Mission Control / App Exposé
+  vertical, Launchpad pinch, Show Desktop spread), navigate swipes.
+- `SynthCapabilities.selfCheck()` at launch: if a private event type cannot be
+  created, switch that gesture to its fallback and say so in the menu.
+  Fallbacks: Spaces = ctrl+left/right, Mission Control = ctrl+up,
+  App Exposé = ctrl+down, Launchpad/Show Desktop = their shortcuts or
+  NSWorkspace, magnify = cmd+scroll, Look Up = ctrl+cmd+D.
+- Requires Accessibility permission. Check with `AXIsProcessTrustedWithOptions`.
+- Tests must never post events into the live session. Test by building events
+  and asserting their fields. A separate opt-in `--live-demo` flag can post.
+
+## 8. Modes
+
+All modes are minimal: same background, SF Symbols, one accent color.
+Each mode is a `ModeMessage` case pair handled by `GlasspadMacCore/Modes`.
+
+| Mode | Phone | Mac side |
+|---|---|---|
+| Trackpad | full-screen surface, finger dots | gesture engine + synth |
+| Dock | grid of the Mac's Dock apps + running apps, icons | read Dock prefs + NSWorkspace, send icons as PNG (64 px, cached by bundle id), launch / activate |
+| Keys | text field that streams typed text; arrows, esc, tab, cmd shortcuts row; dictation works | CGEvent keyboard unicode strings |
+| Media | now playing title/artist/art, play/pause/next/prev, volume, brightness | MediaRemote (private, with fallback to media key events), volume via CoreAudio |
+| Deck | grid of user buttons (open app, URL, run Shortcut, keystroke, shell script) | executes actions; config stored on Mac |
+| Clipboard | send phone clipboard to Mac, pull Mac clipboard to phone (text, images) | NSPasteboard |
+| Present | big next/previous buttons, timer, laser dot (move a highlight on the Mac) | arrow keys + transparent overlay window for the laser |
+
+## 9. iPhone app (Apps/iOS)
+
+- SwiftUI app shell; the trackpad surface is a UIKit `UIView` subclass for
+  raw touches: `isMultipleTouchEnabled`, uses `coalescedTouches(for:)` and
+  sends every sample immediately (no batching to display frames).
+- Hides the status bar and home indicator, defers system edge gestures
+  (`preferredScreenEdgesDeferringSystemGestures = .all`).
+- Mode switching: a small pill at the top centre that fades out after 2 s,
+  revealed by touching the top 24 pt. Long press the pill for Settings.
+- Haptics: Core Haptics (`CHHapticEngine`) pre-warmed; transient events for
+  click, force click ramp, detents. Strength follows Mac click pressure and
+  the phone-side slider.
+- Phone safety: `isIdleTimerDisabled` only while the surface is visible;
+  dims the surface after 60 s idle; on `thermalState >= .serious` it stops
+  haptics and heartbeats and shows a calm notice; no brightness changes.
+- Pairing: camera QR scan (`AVCaptureMetadataOutput`), Keychain storage.
+- Themes: Paper (#F2F1EE background, dots #1A1A1A at 14% opacity) and
+  Graphite (#141414, dots white at 18%). Dots 44 pt, soft edge, fade on lift.
+
+## 10. Mac app (Apps/Mac)
+
+- Menu bar only (`LSUIElement`). Popover: connection state + RTT, pair button
+  (QR), permissions checklist, which gestures are native vs fallback,
+  paired phones (revoke), launch at login (`SMAppService`).
+- Settings sync: watches the trackpad preference domains and pushes changes.
+
+## 11. Definition of done
+
+- `scripts/test.sh` green for both packages.
+- Mac app builds into `build/Glasspad.app` with `scripts/build-mac.sh`.
+- iOS app builds in Xcode once installed (project generated by XcodeGen).
+- A loopback test: `GlasspadClient` (macOS) pairs with `GlasspadServer` in one
+  process, sends touch frames, server receives decoded frames.
