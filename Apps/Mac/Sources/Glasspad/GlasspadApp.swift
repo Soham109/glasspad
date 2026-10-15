@@ -5,20 +5,20 @@ import SwiftUI
 @main
 struct GlasspadApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
-    @StateObject private var controller = AppDelegate.controller
+    @StateObject private var model = AppDelegate.model
 
     var body: some Scene {
         MenuBarExtra {
             PopoverView()
-                .environmentObject(controller)
+                .environmentObject(model)
         } label: {
-            MenuBarLabel(state: controller.linkState, macros: controller.macros)
+            MenuBarLabel(model: model)
         }
         .menuBarExtraStyle(.window)
 
         Settings {
             SettingsView()
-                .environmentObject(controller)
+                .environmentObject(model)
         }
     }
 }
@@ -26,6 +26,7 @@ struct GlasspadApp: App {
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     static let controller = GlasspadController()
+    static let model = AppModel.live(controller)
     private let recordingIndicator = RecordingIndicator()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -38,6 +39,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationWillTerminate(_ notification: Notification) {
         // Put the Mac's own Dock back before anything else.
         MacDockHider.shared.appWillTerminate()
-        Self.controller.stop()
+        if !Self.model.isPaused { Self.controller.stop() }
     }
 }

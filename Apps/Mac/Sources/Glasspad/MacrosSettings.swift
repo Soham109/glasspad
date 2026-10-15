@@ -7,13 +7,17 @@ import UniformTypeIdentifiers
 /// Settings > Macros: the macro library (record, rename, icon and colour, steps, scripts) and
 /// the per-app profiles that decide which buttons the phone shows.
 struct MacrosSettings: View {
-    @EnvironmentObject private var controller: GlasspadController
-    @State private var page = Page.macros
+    @EnvironmentObject private var model: AppModel
+    @State private var page: Page
 
     enum Page: Hashable { case macros, profiles }
 
+    init(page: Page = .macros) {
+        _page = State(initialValue: page)
+    }
+
     var body: some View {
-        MacrosSettingsContent(macros: controller.macros, page: $page)
+        MacrosSettingsContent(macros: model.macros, page: $page)
     }
 }
 
@@ -29,7 +33,7 @@ private struct MacrosSettingsContent: View {
             }
             Picker("Show", selection: $page) {
                 Text("Macros").tag(MacrosSettings.Page.macros)
-                Text("App Profiles").tag(MacrosSettings.Page.profiles)
+                Text("App Buttons").tag(MacrosSettings.Page.profiles)
             }
             .pickerStyle(.segmented)
             .labelsHidden()
@@ -533,13 +537,11 @@ private struct ProfileLibrary: View {
                 List(selection: $selection) {
                     ForEach(macros.profiles) { profile in
                         HStack(spacing: 8) {
-                            Image(systemName: profile.symbol)
-                                .frame(width: 20)
-                                .foregroundStyle(.secondary)
+                            MacroIcon(symbol: profile.symbol, color: "#8E8E93", size: 22)
                             VStack(alignment: .leading, spacing: 0) {
                                 Text(profile.name)
                                     .lineLimit(1)
-                                Text(profile.isFallback ? "Everywhere else" : appsSummary(profile))
+                                Text(summary(profile))
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                                     .lineLimit(1)
@@ -548,7 +550,8 @@ private struct ProfileLibrary: View {
                             if macros.activeProfile.profileID == profile.id {
                                 Image(systemName: "iphone")
                                     .foregroundStyle(.tint)
-                                    .help("On the phone now")
+                                    .help("On your iPhone now")
+                                    .accessibilityLabel("On your iPhone now")
                             }
                         }
                         .tag(profile.id)
@@ -557,8 +560,8 @@ private struct ProfileLibrary: View {
                 .listStyle(.sidebar)
                 .overlay {
                     if macros.profiles.isEmpty {
-                        ContentUnavailableView("No Profiles", systemImage: "rectangle.stack",
-                                               description: Text("Without profiles the phone shows every macro."))
+                        ContentUnavailableView("No App Buttons", systemImage: "rectangle.stack",
+                                               description: Text("Without these, your iPhone shows every macro."))
                     }
                 }
                 Divider()
@@ -595,8 +598,8 @@ private struct ProfileLibrary: View {
                     ProfileEditor(macros: macros, original: profile)
                         .id(profile.id)
                 } else {
-                    ContentUnavailableView("No Profile Selected", systemImage: "rectangle.stack",
-                                           description: Text("A profile picks the phone's buttons while its apps are in front."))
+                    ContentUnavailableView("Nothing Selected", systemImage: "rectangle.stack",
+                                           description: Text("Pick a set to choose the buttons your iPhone shows while its apps are in front."))
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -609,9 +612,12 @@ private struct ProfileLibrary: View {
         }
     }
 
-    private func appsSummary(_ p: ContextProfile) -> String {
-        let names = p.bundleIDs.map(AppInfo.name(for:))
-        return names.isEmpty ? "No apps" : names.joined(separator: ", ")
+    /// "Everywhere else, 4 buttons" or "2 apps, 6 buttons".
+    private func summary(_ p: ContextProfile) -> String {
+        let buttons = p.macroIDs.count == 1 ? "1 button" : "\(p.macroIDs.count) buttons"
+        if p.isFallback { return "Everywhere else, \(buttons)" }
+        let apps = p.bundleIDs.isEmpty ? "No apps" : (p.bundleIDs.count == 1 ? "1 app" : "\(p.bundleIDs.count) apps")
+        return "\(apps), \(buttons)"
     }
 
     private func add() {
@@ -665,9 +671,7 @@ private struct ProfileEditor: View {
                                 .resizable()
                                 .frame(width: 18, height: 18)
                             Text(AppInfo.name(for: id))
-                            Text(id)
-                                .foregroundStyle(.secondary)
-                                .font(.caption)
+                                .help(id)
                             Spacer()
                             Button {
                                 draft.bundleIDs.removeAll { $0 == id }
@@ -717,9 +721,9 @@ private struct ProfileEditor: View {
                 .disabled(available.isEmpty)
                 .fixedSize()
             } header: {
-                Text("Phone Buttons")
+                Text("iPhone Buttons")
             } footer: {
-                Text("In this order on the phone's Macros screen.")
+                Text("In this order on your iPhone.")
                     .foregroundStyle(.secondary)
             }
         }

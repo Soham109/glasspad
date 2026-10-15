@@ -2,240 +2,318 @@ import GlasspadKit
 import GlasspadMacCore
 import SwiftUI
 
+/// The menu bar window: who is connected and how well, anything that needs fixing, pairing,
+/// two quick switches, then Settings and Quit. Diagnostics live in Settings > Advanced.
 struct PopoverView: View {
-    @EnvironmentObject private var controller: GlasspadController
-    @StateObject private var login = LaunchAtLogin()
-    @State private var showGestures = false
+    @EnvironmentObject private var model: AppModel
+
+    static let width: CGFloat = 320
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             StatusHeader()
                 .padding(.horizontal, 14)
                 .padding(.top, 14)
-                .padding(.bottom, 10)
+                .padding(.bottom, 12)
 
-            RecordingRow(macros: controller.macros)
+            RecordingRow(macros: model.macros)
 
-            if !controller.accessibilityTrusted {
-                Divider()
-                AccessibilityRow()
+            if !model.missingPermissions.isEmpty {
+                PopoverDivider()
+                PermissionChecklist()
                     .padding(.horizontal, 14)
                     .padding(.vertical, 10)
             }
 
-            MediaPermissionRow()
-
-            Divider()
+            PopoverDivider()
             PairingSection()
+                .padding(.horizontal, 6)
+                .padding(.vertical, 6)
+
+            PopoverDivider()
+            QuickToggles()
                 .padding(.horizontal, 14)
-                .padding(.vertical, 10)
+                .padding(.vertical, 9)
 
-            if !controller.phones.isEmpty {
-                Divider()
-                PhonesSection()
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 10)
-            }
-
-            Divider()
-            DisclosureGroup(isExpanded: $showGestures) {
-                GestureList()
-                    .padding(.top, 6)
-            } label: {
-                Text("Gestures")
-                    .font(.headline)
-            }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 10)
-
-            Divider()
-            MacDockSection()
-                .padding(.horizontal, 14)
-                .padding(.vertical, 10)
-
-            Divider()
-            VStack(alignment: .leading, spacing: 8) {
-                Toggle("Launch at Login", isOn: Binding(get: { login.isEnabled }, set: { login.set($0) }))
-                    .toggleStyle(.switch)
-                    .controlSize(.small)
-                HStack {
-                    SettingsLink {
-                        Text("Settings…")
-                    }
-                    .simultaneousGesture(TapGesture().onEnded { NSApp.activate() })
-                    .keyboardShortcut(",")
-                    Spacer()
-                    Button("Quit Glasspad") { NSApp.terminate(nil) }
-                        .keyboardShortcut("q")
-                }
-                .buttonStyle(.borderless)
-            }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 10)
+            PopoverDivider()
+            FooterButtons()
+                .padding(.horizontal, 6)
+                .padding(.vertical, 6)
         }
-        .frame(width: 320)
-        .onAppear {
-            controller.refreshAccessibility()
-            login.refresh()
-        }
+        .frame(width: Self.width)
+        .onAppear { model.actions.refresh() }
     }
 }
 
+private struct PopoverDivider: View {
+    var body: some View {
+        Divider().padding(.horizontal, 14)
+    }
+}
+
+// MARK: - Status
+
 private struct StatusHeader: View {
-    @EnvironmentObject private var controller: GlasspadController
+    @EnvironmentObject private var model: AppModel
 
     var body: some View {
-        HStack(alignment: .center, spacing: 10) {
-            Image(systemName: controller.linkState.symbol)
-                .font(.title2)
-                .foregroundStyle(controller.linkState.tint)
-                .symbolEffect(.pulse, options: .repeating, isActive: controller.linkState == .searching)
-                .contentTransition(.symbolEffect(.replace))
-                .frame(width: 28)
-                .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 1) {
-                Text(controller.connectedPhoneName ?? "Glasspad")
+        HStack(spacing: 12) {
+            ZStack {
+                Circle()
+                    .fill(model.isConnected ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.quaternary))
+                Image(systemName: symbol)
+                    .font(.system(size: 17, weight: .medium))
+                    .foregroundStyle(model.isConnected ? AnyShapeStyle(.white) : AnyShapeStyle(.secondary))
+                    .contentTransition(.symbolEffect(.replace))
+            }
+            .frame(width: 36, height: 36)
+            .accessibilityHidden(true)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
                     .font(.headline)
-                Text(subtitle)
+                    .lineLimit(1)
+                Text(model.statusDetail)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
-            Spacer()
-            if let rtt = formatRTT(controller.stats.rttMedianMs), controller.linkState.isConnected {
-                Text(rtt)
-                    .font(.subheadline.monospacedDigit())
-                    .foregroundStyle(.secondary)
-                    .help("Median round trip time. 95th percentile: \(formatRTT(controller.stats.rttP95Ms) ?? "n/a")")
-                    .accessibilityLabel("Round trip \(rtt)")
+            Spacer(minLength: 4)
+            if let signal = model.signal {
+                SignalBars(quality: signal)
+                    .help("\(signal.title) signal")
+                    .accessibilityHidden(true)
+            } else if model.link == .connecting || (model.link == .searching && !model.phones.isEmpty && !model.isPaused) {
+                ProgressView()
+                    .controlSize(.small)
+                    .accessibilityHidden(true)
             }
         }
         .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(title). \(model.statusDetail)")
     }
 
-    private var subtitle: String {
-        if case .failed(let reason) = controller.linkState { return reason }
-        if let error = controller.lastError { return error }
-        return controller.linkState.title
+    private var title: String {
+        if model.isConnected, let name = model.connectedPhoneName { return name }
+        return model.statusTitle
     }
-}
 
-private struct AccessibilityRow: View {
-    @EnvironmentObject private var controller: GlasspadController
-
-    var body: some View {
-        HStack(spacing: 10) {
-            Image(systemName: "hand.raised")
-                .font(.title3)
-                .foregroundStyle(.orange)
-                .frame(width: 28)
-                .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 1) {
-                Text("Accessibility Access")
-                    .font(.headline)
-                Text("Needed to move the pointer and click.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            }
-            Spacer()
-            Button("Open…") {
-                controller.requestAccessibility()
-                SystemSettings.openAccessibility()
-            }
-            .controlSize(.small)
-            .accessibilityHint("Opens Privacy and Security, Accessibility in System Settings")
+    private var symbol: String {
+        if model.isPaused { return "pause.fill" }
+        switch model.link {
+        case .connected: return "iphone"
+        case .failed: return "exclamationmark.triangle"
+        default: return "iphone.slash"
         }
     }
 }
 
-private struct PairingSection: View {
-    @EnvironmentObject private var controller: GlasspadController
+// MARK: - Permissions
+
+private struct PermissionChecklist: View {
+    @EnvironmentObject private var model: AppModel
 
     var body: some View {
-        if let url = controller.pairingURL {
-            VStack(spacing: 10) {
-                if let qr = QRCode.image(for: url.absoluteString, size: 180) {
-                    Image(nsImage: qr)
-                        .interpolation(.none)
-                        .resizable()
-                        .frame(width: 180, height: 180)
-                        .padding(10)
-                        .background(.white, in: .rect(cornerRadius: 12))
-                        .accessibilityLabel("Pairing code")
-                }
-                Text("Scan with the Glasspad app on your iPhone.")
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Finish Setting Up")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .accessibilityAddTraits(.isHeader)
+            ForEach(model.missingPermissions) { item in
+                PermissionRow(item: item)
+            }
+        }
+    }
+}
+
+private struct PermissionRow: View {
+    @EnvironmentObject private var model: AppModel
+    let item: MissingPermission
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 10) {
+            SettingsIcon(symbol: symbol, color: color, size: 26)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(title)
+                    .font(.body.weight(.medium))
+                Text(detail)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 6)
+            Button("Allow…", action: fix)
+                .controlSize(.small)
+                .accessibilityLabel("Allow \(title)")
+                .accessibilityHint(hint)
+        }
+        .accessibilityElement(children: .contain)
+    }
+
+    private var symbol: String {
+        switch item {
+        case .accessibility: "hand.raised.fill"
+        case .automation: "music.note"
+        }
+    }
+
+    private var color: Color {
+        switch item {
+        case .accessibility: .blue
+        case .automation: .pink
+        }
+    }
+
+    private var title: String {
+        switch item {
+        case .accessibility: "Accessibility"
+        case .automation(let app): "\(app) Control"
+        }
+    }
+
+    private var detail: String {
+        switch item {
+        case .accessibility: "Lets your iPhone move the pointer and click."
+        case .automation(let app): "Shows what \(app) is playing on your iPhone."
+        }
+    }
+
+    private var hint: String {
+        switch item {
+        case .accessibility: "Opens Privacy and Security, Accessibility in System Settings"
+        case .automation: "Opens Privacy and Security, Automation in System Settings"
+        }
+    }
+
+    private func fix() {
+        switch item {
+        case .accessibility: model.actions.requestAccessibility()
+        case .automation: model.actions.openAutomationSettings()
+        }
+    }
+}
+
+// MARK: - Pairing
+
+private struct PairingSection: View {
+    @EnvironmentObject private var model: AppModel
+
+    var body: some View {
+        if let url = model.pairingURL {
+            VStack(spacing: 12) {
+                QRCodeView(url: url, size: 216)
+                Text("In Glasspad on your iPhone, tap Pair and point the camera at this code.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
-                Button("Cancel") { controller.cancelPairing() }
-                    .controlSize(.small)
+                    .fixedSize(horizontal: false, vertical: true)
+                Button("Cancel") { model.actions.cancelPairing() }
+                    .keyboardShortcut(.cancelAction)
             }
-            .padding(12)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
             .frame(maxWidth: .infinity)
-            .glassBackground(cornerRadius: 16)
         } else {
             Button {
-                controller.beginPairing()
+                model.actions.beginPairing()
             } label: {
-                Label("Pair New iPhone…", systemImage: "qrcode")
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                PopoverRow(symbol: "qrcode", title: model.phones.isEmpty ? "Pair Your iPhone…" : "Pair New iPhone…")
             }
-            .buttonStyle(.borderless)
+            .buttonStyle(PopoverRowButtonStyle())
+            .disabled(model.isPaused)
         }
     }
 }
 
-private struct PhonesSection: View {
-    @EnvironmentObject private var controller: GlasspadController
+// MARK: - Quick toggles
+
+private struct QuickToggles: View {
+    @EnvironmentObject private var model: AppModel
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text("Paired iPhones")
-                .font(.headline)
-            ForEach(controller.phones) { phone in
-                HStack(spacing: 8) {
-                    Image(systemName: "iphone")
-                        .foregroundStyle(.secondary)
-                        .accessibilityHidden(true)
-                    Text(phone.phoneName)
-                    if controller.connectedPhoneName == phone.phoneName, controller.linkState.isConnected {
-                        Text("Connected")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    Spacer()
-                    Button {
-                        controller.revoke(phone)
-                    } label: {
-                        Image(systemName: "minus.circle")
-                    }
-                    .buttonStyle(.borderless)
-                    .help("Revoke")
-                    .accessibilityLabel("Revoke \(phone.phoneName)")
-                }
-            }
+        VStack(spacing: 8) {
+            ToggleRow(title: "Hide Mac Dock", symbol: "dock.rectangle",
+                      isOn: Binding(get: { model.dock.hidden }, set: { model.actions.setDockHidden($0) }),
+                      help: "Glasspad saves your Dock settings first and puts them back when you turn this off or quit.")
+            ToggleRow(title: "Pause Glasspad", symbol: "pause.circle",
+                      isOn: Binding(get: { model.isPaused }, set: { model.actions.setPaused($0) }),
+                      help: "Stops listening for your iPhone until you turn this off.")
         }
     }
 }
 
-struct GestureList: View {
-    @EnvironmentObject private var controller: GlasspadController
+private struct ToggleRow: View {
+    let title: String
+    let symbol: String
+    @Binding var isOn: Bool
+    let help: String
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            ForEach(controller.capabilities.summary, id: \.gesture) { item in
-                HStack {
-                    Text(item.gesture.displayName)
-                    Spacer()
-                    Text(item.mode.label)
-                        .foregroundStyle(item.mode == .native ? .primary : .secondary)
-                }
-                .font(.callout)
-                .help(item.mode.help)
-                .accessibilityElement(children: .combine)
-            }
+        PopoverRow(symbol: symbol, title: title) {
+            Toggle(title, isOn: $isOn)
+                .toggleStyle(.switch)
+                .controlSize(.mini)
+                .labelsHidden()
+        }
+        .help(help)
+    }
+}
+
+/// Symbol column, title, then anything trailing. Every row in the popover lines up on it.
+private struct PopoverRow<Trailing: View>: View {
+    let symbol: String
+    let title: String
+    @ViewBuilder var trailing: () -> Trailing
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: symbol)
+                .font(.system(size: 13))
+                .foregroundStyle(.secondary)
+                .frame(width: 20)
+                .accessibilityHidden(true)
+            Text(title)
+            Spacer(minLength: 8)
+            trailing()
         }
     }
 }
+
+extension PopoverRow where Trailing == EmptyView {
+    init(symbol: String, title: String) {
+        self.init(symbol: symbol, title: title) { EmptyView() }
+    }
+}
+
+// MARK: - Footer
+
+private struct FooterButtons: View {
+    @EnvironmentObject private var model: AppModel
+
+    var body: some View {
+        VStack(spacing: 0) {
+            SettingsLink {
+                PopoverRow(symbol: "gearshape", title: "Settings…") {
+                    Text("⌘,").foregroundStyle(.tertiary)
+                }
+            }
+            .buttonStyle(PopoverRowButtonStyle())
+            .simultaneousGesture(TapGesture().onEnded { NSApp.activate() })
+            .keyboardShortcut(",")
+            Button {
+                model.actions.quit()
+            } label: {
+                PopoverRow(symbol: "power", title: "Quit Glasspad") {
+                    Text("⌘Q").foregroundStyle(.tertiary)
+                }
+            }
+            .buttonStyle(PopoverRowButtonStyle())
+            .keyboardShortcut("q")
+        }
+    }
+}
+
+// MARK: - Recording
 
 /// While a macro is being recorded: says so, with Stop.
 private struct RecordingRow: View {
@@ -243,35 +321,27 @@ private struct RecordingRow: View {
 
     var body: some View {
         if macros.isRecording {
-            Divider()
-            HStack(spacing: 8) {
+            PopoverDivider()
+            HStack(spacing: 10) {
                 Image(systemName: "record.circle.fill")
+                    .font(.title3)
                     .foregroundStyle(.red)
                     .symbolEffect(.pulse, options: .repeating)
-                Text("Recording a macro")
-                    .font(.headline)
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("Recording a Macro")
+                        .font(.body.weight(.medium))
+                    Text("Press ⌃⌥⌘. to stop.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
                 Spacer()
                 Button("Stop") { macros.stopRecording(fromMacMenu: true) }
                     .controlSize(.small)
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 10)
+            .accessibilityElement(children: .contain)
         }
-    }
-}
-
-/// The two switches that keep the Mac's own Dock out of the way. Values are always put back.
-struct MacDockSection: View {
-    @ObservedObject var hider = MacDockHider.shared
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Toggle("Hide Mac Dock", isOn: Binding(get: { hider.published.hidden }, set: { hider.setManual($0) }))
-            Toggle("Hide the Mac Dock while Glasspad is connected",
-                   isOn: Binding(get: { hider.published.hideWhileConnected }, set: { hider.setHideWhileConnected($0) }))
-        }
-        .toggleStyle(.switch)
-        .controlSize(.small)
-        .help("Glasspad saves your Dock settings first and puts them back when you turn this off, disconnect or quit.")
     }
 }

@@ -216,7 +216,11 @@ struct StepEditorSheet: View {
                 .lineLimit(3...8)
         case .click:
             Picker("Button", selection: $button) { buttonOptions }
-            Stepper("Clicks: \(number1)", value: $number1, in: 1...3)
+            Picker("Clicks", selection: $number1) {
+                Text("Single").tag(1)
+                Text("Double").tag(2)
+                Text("Triple").tag(3)
+            }
             PointEditor(title: "At", point: $point1)
             ModifierToggles(modifiers: $modifiers)
         case .moveMouse:
@@ -355,10 +359,8 @@ private struct PointEditor: View {
     var body: some View {
         LabeledContent(title) {
             HStack(spacing: 6) {
-                TextField("x", value: $point.x, format: .number)
-                    .frame(width: 70)
-                TextField("y", value: $point.y, format: .number)
-                    .frame(width: 70)
+                coordinate("X", $point.x)
+                coordinate("Y", $point.y)
                 Picker("Relative to", selection: $point.anchor) {
                     Text("Screen").tag(WindowAnchor?.none)
                     Divider()
@@ -371,6 +373,20 @@ private struct PointEditor: View {
                 .labelsHidden()
                 .fixedSize()
             }
+        }
+    }
+
+    private func coordinate(_ axis: String, _ value: Binding<Double>) -> some View {
+        HStack(spacing: 3) {
+            Text(axis)
+                .foregroundStyle(.secondary)
+                .accessibilityHidden(true)
+            TextField(axis, value: value, format: .number)
+                .labelsHidden()
+                .textFieldStyle(.roundedBorder)
+                .multilineTextAlignment(.trailing)
+                .frame(width: 58)
+                .accessibilityLabel("\(title) \(axis)")
         }
     }
 }

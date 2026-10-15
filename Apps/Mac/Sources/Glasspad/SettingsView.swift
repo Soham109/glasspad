@@ -2,97 +2,314 @@ import GlasspadKit
 import GlasspadMacCore
 import SwiftUI
 
-/// Standard Settings window: one grouped Form per tab.
+/// The standard Settings window: toolbar tabs, one grouped Form per tab.
 struct SettingsView: View {
+    @EnvironmentObject private var model: AppModel
+    @State private var tab = SettingsTab.general
+
     var body: some View {
-        TabView {
-            GeneralSettings()
-                .tabItem { Label("General", systemImage: "gearshape") }
-                .frame(width: 480)
-                .frame(minHeight: 420)
-            TrackpadSettingsPane()
-                .tabItem { Label("Trackpad", systemImage: "rectangle.and.hand.point.up.left") }
-                .frame(width: 480)
-                .frame(minHeight: 420)
-            DeckSettings()
-                .tabItem { Label("Deck", systemImage: "square.grid.3x2") }
-                .frame(width: 480)
-                .frame(minHeight: 420)
-            MacrosSettings()
-                .tabItem { Label("Macros", systemImage: "wand.and.stars") }
-                .frame(width: 760, height: 560)
+        TabView(selection: $tab) {
+            ForEach(SettingsTab.allCases) { t in
+                t.pane
+                    .frame(width: t.size.width, height: t.size.height)
+                    .tabItem { Label(t.title, systemImage: t.symbol) }
+                    .tag(t)
+            }
+        }
+        .onAppear { model.actions.refresh() }
+    }
+}
+
+enum SettingsTab: String, CaseIterable, Identifiable {
+    case general, iphone, trackpad, macros, advanced, about
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .general: "General"
+        case .iphone: "iPhone"
+        case .trackpad: "Trackpad"
+        case .macros: "Actions & Macros"
+        case .advanced: "Advanced"
+        case .about: "About"
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .general: "gearshape"
+        case .iphone: "iphone"
+        case .trackpad: "rectangle.and.hand.point.up.left"
+        case .macros: "wand.and.stars"
+        case .advanced: "slider.horizontal.3"
+        case .about: "info.circle"
+        }
+    }
+
+    /// Each pane's content size; the window animates between them as System Settings does.
+    var size: CGSize {
+        switch self {
+        case .general: CGSize(width: 520, height: 540)
+        case .iphone: CGSize(width: 520, height: 400)
+        case .trackpad: CGSize(width: 520, height: 640)
+        case .macros: CGSize(width: 780, height: 560)
+        case .advanced: CGSize(width: 520, height: 640)
+        case .about: CGSize(width: 520, height: 330)
+        }
+    }
+
+    @MainActor @ViewBuilder
+    var pane: some View {
+        switch self {
+        case .general: GeneralPane()
+        case .iphone: IPhonePane()
+        case .trackpad: TrackpadPane()
+        case .macros: MacrosSettings()
+        case .advanced: AdvancedPane()
+        case .about: AboutPane()
         }
     }
 }
 
-private struct GeneralSettings: View {
-    @EnvironmentObject private var controller: GlasspadController
-    @StateObject private var login = LaunchAtLogin()
+// MARK: - Row pieces
+
+/// A Form row label: tinted icon tile, title, and an optional line of explanation.
+struct RowLabel: View {
+    let title: String
+    var detail: String?
+    let symbol: String
+    let color: Color
+
+    var body: some View {
+        Label {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                if let detail {
+                    Text(detail)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+        } icon: {
+            SettingsIcon(symbol: symbol, color: color)
+        }
+    }
+}
+
+/// "Allowed" with a green check, for permission rows.
+private struct AllowedBadge: View {
+    var text = "Allowed"
+
+    var body: some View {
+        HStack(spacing: 5) {
+            Image(systemName: "checkmark.circle.fill")
+                .foregroundStyle(.green)
+                .accessibilityHidden(true)
+            Text(text)
+                .foregroundStyle(.secondary)
+        }
+    }
+}
+
+// MARK: - General
+
+struct GeneralPane: View {
+    @EnvironmentObject private var model: AppModel
 
     var body: some View {
         Form {
             Section {
-                Toggle("Launch at login", isOn: Binding(get: { login.isEnabled }, set: { login.set($0) }))
-                if login.needsApproval {
-                    LabeledContent("Approval needed") {
-                        Button("Open Login Items…") { SystemSettings.openLoginItems() }
+                Toggle(isOn: Binding(get: { model.launchAtLogin }, set: { model.actions.setLaunchAtLogin($0) })) {
+                    RowLabel(title: "Open at Login", symbol: "power", color: .gray)
+                }
+                if model.launchNeedsApproval {
+                    LabeledContent {
+                        Button("Open Login Items…") { model.actions.openLoginItems() }
+                    } label: {
+                        Text("Allow Glasspad in Login Items to finish turning this on.")
+                            .foregroundStyle(.secondary)
                     }
                 }
+                Toggle(isOn: Binding(get: { model.isPaused }, set: { model.actions.setPaused($0) })) {
+                    RowLabel(title: "Pause Glasspad", detail: "Your iPhone cannot connect while Glasspad is paused.",
+                             symbol: "pause.fill", color: .orange)
+                }
             }
+
             Section {
-                MacDockSection()
-                    .controlSize(.regular)
+                Toggle(isOn: Binding(get: { model.dock.hidden }, set: { model.actions.setDockHidden($0) })) {
+                    RowLabel(title: "Hide Mac Dock", symbol: "dock.rectangle", color: .blue)
+                }
+                Toggle(isOn: Binding(get: { model.dock.hideWhileConnected },
+                                     set: { model.actions.setHideDockWhileConnected($0) })) {
+                    RowLabel(title: "Hide While iPhone Is Connected", symbol: "iphone", color: .blue)
+                }
             } header: {
                 Text("Mac Dock")
             } footer: {
-                Text("Glasspad saves your Dock settings before hiding it and puts them back exactly when you turn this off, when the phone disconnects, and when Glasspad quits.")
+                Text("Glasspad saves your Dock settings before hiding it and puts them back exactly when you turn this off, when your iPhone disconnects, and when Glasspad quits.")
                     .foregroundStyle(.secondary)
             }
-            Section("Permissions") {
-                LabeledContent("Accessibility") {
-                    if controller.accessibilityTrusted {
-                        Label("Allowed", systemImage: "checkmark.circle.fill")
-                            .foregroundStyle(.green)
+
+            Section {
+                LabeledContent {
+                    if model.accessibilityTrusted {
+                        AllowedBadge()
                     } else {
-                        Button("Open System Settings…") {
-                            controller.requestAccessibility()
-                            SystemSettings.openAccessibility()
-                        }
+                        Button("Allow…") { model.actions.requestAccessibility() }
+                            .accessibilityLabel("Allow Accessibility")
                     }
+                } label: {
+                    RowLabel(title: "Accessibility", detail: "Lets your iPhone move the pointer and click.",
+                             symbol: "hand.raised.fill", color: .blue)
                 }
-            }
-            Section("Paired iPhones") {
-                if controller.phones.isEmpty {
-                    Text("No iPhones paired yet.")
-                        .foregroundStyle(.secondary)
-                }
-                ForEach(controller.phones) { phone in
-                    LabeledContent(phone.phoneName) {
-                        Button("Revoke", role: .destructive) { controller.revoke(phone) }
+                LabeledContent {
+                    if model.automationDenied.isEmpty {
+                        Text("Asked when needed")
+                            .foregroundStyle(.secondary)
+                    } else {
+                        Button("Allow…") { model.actions.openAutomationSettings() }
+                            .accessibilityLabel("Allow Automation")
                     }
+                } label: {
+                    RowLabel(title: "Music and Spotify",
+                             detail: model.automationDenied.isEmpty
+                                ? "Shows what is playing on your iPhone."
+                                : "Not allowed for \(model.automationDenied.formatted(.list(type: .and))).",
+                             symbol: "music.note", color: .pink)
                 }
-            }
-            Section("Gestures") {
-                ForEach(controller.capabilities.summary, id: \.gesture) { item in
-                    LabeledContent(item.gesture.displayName, value: item.mode.label)
-                        .help(item.mode.help)
-                }
+            } header: {
+                Text("Permissions")
             }
         }
         .formStyle(.grouped)
-        .onAppear { login.refresh() }
     }
 }
 
-/// Read-only mirror of the Mac's own trackpad settings, which Glasspad follows live.
-private struct TrackpadSettingsPane: View {
-    @EnvironmentObject private var controller: GlasspadController
+// MARK: - iPhone
+
+struct IPhonePane: View {
+    @EnvironmentObject private var model: AppModel
+    @State private var confirmForget: StoredPhone?
 
     var body: some View {
-        let s = controller.settings
         Form {
             Section {
-                LabeledContent("Tracking speed", value: String(format: "%.2f", s.trackingSpeed))
+                if model.phones.isEmpty {
+                    HStack {
+                        Spacer()
+                        VStack(spacing: 6) {
+                            Image(systemName: "iphone.gen3")
+                                .font(.system(size: 28, weight: .light))
+                                .foregroundStyle(.tertiary)
+                            Text("No iPhones Paired")
+                                .font(.headline)
+                            Text("Pair your iPhone to use it as a trackpad and remote.")
+                                .font(.callout)
+                                .foregroundStyle(.secondary)
+                        }
+                        .padding(.vertical, 12)
+                        Spacer()
+                    }
+                    .accessibilityElement(children: .combine)
+                }
+                ForEach(model.phones) { phone in
+                    LabeledContent {
+                        Button("Forget…") { confirmForget = phone }
+                            .accessibilityLabel("Forget \(phone.phoneName)")
+                    } label: {
+                        RowLabel(title: phone.phoneName, detail: detail(for: phone),
+                                 symbol: "iphone", color: isConnected(phone) ? .green : .gray)
+                    }
+                }
+            } header: {
+                Text("Paired iPhones")
+            } footer: {
+                HStack {
+                    Spacer()
+                    Button(model.phones.isEmpty ? "Pair Your iPhone…" : "Pair New iPhone…") {
+                        model.actions.beginPairing()
+                    }
+                    .disabled(model.isPaused)
+                }
+            }
+
+            Section {
+                LabeledContent("Shown on iPhone as", value: model.macName)
+            } header: {
+                Text("This Mac")
+            } footer: {
+                Text("Your iPhone finds this Mac on the same Wi-Fi network, or directly when there is no shared network. Everything between them is encrypted with the key made when you paired.")
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .formStyle(.grouped)
+        .sheet(isPresented: Binding(get: { model.pairingURL != nil },
+                                    set: { if !$0 { model.actions.cancelPairing() } })) {
+            PairingSheet()
+        }
+        .confirmationDialog("Forget “\(confirmForget?.phoneName ?? "")”?",
+                            isPresented: Binding(get: { confirmForget != nil }, set: { if !$0 { confirmForget = nil } }),
+                            presenting: confirmForget) { phone in
+            Button("Forget iPhone", role: .destructive) { model.actions.forget(phone) }
+        } message: { _ in
+            Text("It disconnects now and has to be paired again to use this Mac.")
+        }
+    }
+
+    private func isConnected(_ phone: StoredPhone) -> Bool {
+        model.isConnected && model.connectedPhoneName == phone.phoneName
+    }
+
+    private func detail(for phone: StoredPhone) -> String {
+        if isConnected(phone) {
+            if let s = model.signal { return "Connected, \(s.title.lowercased()) signal" }
+            return "Connected"
+        }
+        return "Paired \(phone.pairedAt.formatted(date: .abbreviated, time: .omitted))"
+    }
+}
+
+struct PairingSheet: View {
+    @EnvironmentObject private var model: AppModel
+
+    var body: some View {
+        VStack(spacing: 16) {
+            VStack(spacing: 4) {
+                Text("Pair New iPhone")
+                    .font(.title3.weight(.semibold))
+                Text("In Glasspad on your iPhone, tap Pair and point the camera at this code.")
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            if let url = model.pairingURL {
+                QRCodeView(url: url, size: 240)
+            }
+            HStack {
+                Spacer()
+                Button("Cancel") { model.actions.cancelPairing() }
+                    .keyboardShortcut(.cancelAction)
+            }
+        }
+        .padding(20)
+        .frame(width: 360)
+    }
+}
+
+// MARK: - Trackpad
+
+struct TrackpadPane: View {
+    @EnvironmentObject private var model: AppModel
+
+    var body: some View {
+        let s = model.settings
+        let t = s.tuning
+        Form {
+            Section {
+                LabeledContent("Tracking speed", value: String(format: "%.1f of 3", s.trackingSpeed))
                 LabeledContent("Natural scrolling", value: s.naturalScrolling ? "On" : "Off")
                 LabeledContent("Secondary click", value: s.secondaryClick.text)
                 LabeledContent("Look up", value: s.lookUp.text)
@@ -100,46 +317,156 @@ private struct TrackpadSettingsPane: View {
                 LabeledContent("Swipe between spaces", value: s.swipeBetweenSpaces.text)
                 LabeledContent("Mission Control", value: s.missionControl.text)
                 LabeledContent("App Exposé", value: s.appExpose.text)
+            } header: {
+                Text("From This Mac")
             } footer: {
-                Text("Glasspad follows these settings from System Settings and updates when you change them. Tap to click is always on, because an iPhone screen cannot be pressed down.")
-                    .foregroundStyle(.secondary)
-            }
-            Section {
-                Button("Open Trackpad Settings…") { SystemSettings.openTrackpad() }
-            }
-        }
-        .formStyle(.grouped)
-    }
-}
-
-private struct DeckSettings: View {
-    @EnvironmentObject private var controller: GlasspadController
-    @State private var allowShell = DeckConfig.load().allowShellCommands
-
-    var body: some View {
-        Form {
-            Section {
-                Toggle("Allow shell command buttons", isOn: $allowShell)
-                    .onChange(of: allowShell) { _, on in
-                        var cfg = DeckConfig.load()
-                        cfg.allowShellCommands = on
-                        try? cfg.save()
-                    }
-            } footer: {
-                Text("Shell commands run with your user account. Leave this off unless you wrote the commands yourself.")
-                    .foregroundStyle(.secondary)
-            }
-            Section {
-                Button("Show Deck File in Finder") {
-                    let url = DeckConfig.defaultURL()
-                    if !FileManager.default.fileExists(atPath: url.path) { try? DeckConfig.load().save() }
-                    NSWorkspace.shared.activateFileViewerSelecting([url])
+                HStack(alignment: .firstTextBaseline) {
+                    Text("Glasspad follows your Mac's trackpad settings and updates when you change them. Tap to click is always on.")
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Button("Trackpad Settings…") { model.actions.openTrackpadSettings() }
+                        .fixedSize()
                 }
             }
+
+            Section {
+                LabeledContent("Pointer speed", value: multiplier(t.pointerSpeed))
+                LabeledContent("Acceleration", value: t.acceleration.text)
+                LabeledContent("Scroll speed", value: multiplier(t.scrollSpeed))
+                LabeledContent("Momentum", value: t.momentumStrength == 0 ? "Off" : multiplier(t.momentumStrength))
+                LabeledContent("Click haptics", value: percent(t.clickHaptic))
+                LabeledContent("Force click haptics", value: percent(t.forceClickHaptic))
+                LabeledContent("Drag lock haptics", value: percent(t.dragLockHaptic))
+            } header: {
+                Text("Feel, Set on iPhone")
+            } footer: {
+                Text("Change these in Glasspad on your iPhone, under Settings > Feel. This Mac keeps them and uses them for every gesture.")
+                    .foregroundStyle(.secondary)
+            }
         }
         .formStyle(.grouped)
     }
+
+    private func multiplier(_ v: Double) -> String {
+        if abs(v - 1) < 0.005 { return "Same as Mac" }
+        let n = v.formatted(.number.precision(.fractionLength(0...2)))
+        return v > 1 ? "\(n)× faster" : "\(n)× Mac"
+    }
+
+    private func percent(_ v: Double) -> String {
+        v == 0 ? "Off" : v.formatted(.percent.precision(.fractionLength(0)))
+    }
 }
+
+// MARK: - Advanced
+
+struct AdvancedPane: View {
+    @EnvironmentObject private var model: AppModel
+
+    var body: some View {
+        let stats = model.stats
+        Form {
+            Section {
+                LabeledContent("Status", value: model.statusTitle)
+                LabeledContent("Signal", value: model.signal?.title ?? "Not connected")
+                LabeledContent("Round trip, typical", value: formatMilliseconds(stats.rttMedianMs))
+                LabeledContent("Round trip, slowest 5%", value: formatMilliseconds(stats.rttP95Ms))
+                LabeledContent("Touch updates received", value: stats.framesReceived.formatted())
+                LabeledContent("Rejected packets", value: rejected(stats).formatted())
+                    .help("Packets that failed the encryption check, arrived twice, or could not be read. A few are normal on busy networks.")
+            } header: {
+                Text("Connection")
+            }
+
+            Section {
+                ForEach(model.capabilities.summary, id: \.gesture) { item in
+                    LabeledContent(item.gesture.displayName, value: item.mode.label)
+                        .help(item.mode.help)
+                }
+            } header: {
+                Text("Gestures")
+            } footer: {
+                Text("Trackpad gestures follow your fingers. Where this Mac cannot accept one, Glasspad sends the matching keyboard shortcut instead.")
+                    .foregroundStyle(.secondary)
+            }
+
+            Section {
+                Toggle(isOn: Binding(get: { model.allowShellButtons }, set: { model.actions.setAllowShellButtons($0) })) {
+                    Text("Allow shell command buttons")
+                    Text("Commands run with your user account. Leave this off unless you wrote them yourself.")
+                }
+                LabeledContent("Button layout file") {
+                    Button("Show in Finder") { model.actions.showActionsFile() }
+                }
+                LabeledContent("Macros folder") {
+                    Button("Show in Finder") { model.actions.showMacrosFolder() }
+                }
+            } header: {
+                Text("Actions")
+            }
+
+            Section {
+                LabeledContent {
+                    Button("Open Console") { model.actions.openConsole() }
+                } label: {
+                    Text("Logs")
+                    Text("In Console, search for com.soham109.glasspad.")
+                }
+                LabeledContent {
+                    Button("Check Again") { model.actions.recheckPermissions() }
+                } label: {
+                    Text("Permissions")
+                    Text(model.missingPermissions.isEmpty ? "Everything Glasspad needs is allowed." : "Something needs your OK. See General.")
+                }
+            } header: {
+                Text("Troubleshooting")
+            }
+        }
+        .formStyle(.grouped)
+    }
+
+    private func rejected(_ s: LinkStats) -> Int { s.authFailures + s.replayDrops + s.malformed }
+}
+
+// MARK: - About
+
+struct AboutPane: View {
+    /// The harness passes the asset catalog's icon and a fixed version; the app reads its bundle.
+    var icon: NSImage?
+    var version: String?
+
+    var body: some View {
+        VStack(spacing: 6) {
+            Image(nsImage: icon ?? AppInfoText.icon)
+                .resizable()
+                .frame(width: 96, height: 96)
+                .accessibilityHidden(true)
+            Text("Glasspad")
+                .font(.title.weight(.semibold))
+                .padding(.top, 4)
+            Text(version ?? AppInfoText.version)
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .textSelection(.enabled)
+            Text("Your iPhone as a wireless trackpad and remote for your Mac.")
+                .multilineTextAlignment(.center)
+                .padding(.top, 8)
+            HStack(spacing: 16) {
+                Link("Source Code", destination: URL(string: "https://github.com/Soham109/glasspad")!)
+                Link("Report a Problem", destination: URL(string: "https://github.com/Soham109/glasspad/issues")!)
+            }
+            .padding(.top, 10)
+            Text("MIT License")
+                .font(.caption)
+                .foregroundStyle(.tertiary)
+                .padding(.top, 14)
+        }
+        .padding(28)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+// MARK: - Text for trackpad values
 
 private extension SecondaryClick {
     var text: String {
@@ -178,6 +505,16 @@ private extension FingerCount {
         switch self {
         case .three: "Three fingers"
         case .four: "Four fingers"
+        case .off: "Off"
+        }
+    }
+}
+
+private extension PointerAcceleration {
+    var text: String {
+        switch self {
+        case .mac: "Same as Mac"
+        case .linear: "Steady"
         case .off: "Off"
         }
     }

@@ -27,5 +27,17 @@ let package = Package(
                 .linkedFramework("CoreImage"),
             ]
         ),
+        // Debug-only snapshot harness: draws every screen with fixed fake state, in light and
+        // dark, to PNGs in /tmp/gpmac. Skipped unless GLASSPAD_SNAPSHOTS=1 (see the file).
+        .testTarget(
+            name: "GlasspadMacSnapshots",
+            dependencies: [
+                "Glasspad",
+                .product(name: "GlasspadKit", package: "GlasspadKit"),
+                .product(name: "GlasspadMacCore", package: "GlasspadMacCore"),
+                .product(name: "GlasspadMacros", package: "GlasspadMacros"),
+            ],
+            path: "Tests/GlasspadMacSnapshots"
+        ),
     ]
 )

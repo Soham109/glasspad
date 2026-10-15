@@ -23,7 +23,7 @@ final class RecordingIndicator {
 
     private func show(_ macros: MacroCoordinator) {
         if panel == nil {
-            let host = NSHostingView(rootView: IndicatorView(macros: macros))
+            let host = NSHostingView(rootView: RecordingIndicatorView(macros: macros))
             host.setFrameSize(host.fittingSize)
             let p = NSPanel(contentRect: NSRect(origin: .zero, size: host.fittingSize),
                             styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
@@ -51,29 +51,34 @@ final class RecordingIndicator {
     }
 }
 
-private struct IndicatorView: View {
+/// The pill itself: a pulsing dot, what is happening, how to stop.
+struct RecordingIndicatorView: View {
     @ObservedObject var macros: MacroCoordinator
 
     var body: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 12) {
             Image(systemName: "record.circle.fill")
+                .font(.title2)
                 .foregroundStyle(.red)
                 .symbolEffect(.pulse, options: .repeating)
-                .font(.title3)
-            VStack(alignment: .leading, spacing: 0) {
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 1) {
                 Text("Recording Macro")
                     .font(.headline)
-                Text("⌃⌥⌘. to stop")
+                Text("Press ⌃⌥⌘. or click Stop")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
             Button("Stop") { macros.stopRecording(fromMacMenu: true) }
                 .controlSize(.regular)
+                .accessibilityLabel("Stop recording")
         }
-        .padding(.horizontal, 14)
+        .padding(.leading, 14)
+        .padding(.trailing, 10)
         .padding(.vertical, 9)
-        .glassBackground(cornerRadius: 14)
+        .glassBackground(cornerRadius: 18)
         .fixedSize()
         .accessibilityElement(children: .contain)
+        .accessibilityLabel("Recording a macro")
     }
 }
