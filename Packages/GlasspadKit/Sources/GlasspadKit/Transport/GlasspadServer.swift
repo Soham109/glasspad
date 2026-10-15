@@ -221,6 +221,7 @@ public final class GlasspadServer: @unchecked Sendable {
     // MARK: TCP sessions
 
     private func acceptTCP(_ conn: NWConnection) {
+        GPLog.log("server: tcp from \(conn.endpoint)")
         guard running else { conn.cancel(); return }
         let s = Session(channel: ControlChannel(connection: conn, queue: queue))
         let key = ObjectIdentifier(s)
@@ -320,6 +321,7 @@ public final class GlasspadServer: @unchecked Sendable {
     }
 
     private func reject(_ s: Session, _ reason: String) {
+        GPLog.log("server: reject \(reason)")
         guard let json = try? JSONEncoder().encode(HandshakeReject(reason: reason)) else {
             return s.channel.close("rejected: \(reason)")
         }
@@ -458,6 +460,7 @@ public final class GlasspadServer: @unchecked Sendable {
 
     private func handleDatagram(_ data: Data, from conn: NWConnection) {
         guard let s = active, s.crypto != nil else {
+            GPLog.log("server: udp datagram with no active session")
             statsBox.mutate { $0.authFailures += 1 }
             conn.cancel()
             return
@@ -469,6 +472,7 @@ public final class GlasspadServer: @unchecked Sendable {
             statsBox.mutate { $0.replayDrops += 1 }
             return
         } catch {
+            GPLog.log("server: udp open failed: \(error)")
             statsBox.mutate { $0.authFailures += 1 }
             if s.udp !== conn { conn.cancel() }
             return
@@ -480,7 +484,8 @@ public final class GlasspadServer: @unchecked Sendable {
         }
         switch try? TouchCodec.decodePacket(plain) {
         case .touches(let frame):
-            statsBox.mutate { $0.framesReceived += 1 }
+            let n = statsBox.mutate { st -> Int in st.framesReceived += 1; return st.framesReceived }
+            if n == 1 || n % 200 == 0 { GPLog.log("server: \(n) touch frames received") }
             delegateQueue.async { [weak self] in self?.delegate?.link(didReceive: frame) }
         case .heartbeat:
             statsBox.mutate { $0.heartbeatsReceived += 1 }
@@ -498,6 +503,7 @@ public final class GlasspadServer: @unchecked Sendable {
             return true
         }
         guard changed else { return }
+        GPLog.log("server state -> \(new)")
         delegateQueue.async { [weak self] in self?.delegate?.link(didChangeState: new) }
     }
 }

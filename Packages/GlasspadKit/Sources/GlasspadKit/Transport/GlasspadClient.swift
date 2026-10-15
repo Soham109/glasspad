@@ -247,6 +247,7 @@ public final class GlasspadClient: @unchecked Sendable {
         let wanted = pairing.macID.uuidString.uppercased()
         b.browseResultsChangedHandler = { [weak self] results, _ in
             guard let self, gen == self.generation, self.browser != nil else { return }
+            GPLog.log("browse: \(results.count) result(s): \(results.map { r -> String in if case .bonjour(let t) = r.metadata { return "\(r.endpoint) id=\(t["id"] ?? "-")" }; return "\(r.endpoint)" }) wanted=\(wanted)")
             for r in results {
                 if case .bonjour(let txt) = r.metadata, txt["id"]?.uppercased() == wanted {
                     self.browser?.cancel()
@@ -259,12 +260,14 @@ public final class GlasspadClient: @unchecked Sendable {
         b.stateUpdateHandler = { [weak self] st in
             guard let self, gen == self.generation else { return }
             if case .failed(let e) = st { self.lost(gen, reason: "browse failed: \(e)") }
+            GPLog.log("browser state: \(st)")
         }
         browser = b
         b.start(queue: queue)
     }
 
     private func openTCP(_ endpoint: NWEndpoint) {
+        GPLog.log("tcp: opening \(endpoint)")
         setState(.connecting)
         let gen = generation
         let ch = ControlChannel(connection: NWConnection(to: endpoint, using: GlasspadService.tcpParameters()), queue: queue)
@@ -353,13 +356,16 @@ public final class GlasspadClient: @unchecked Sendable {
         var host: NWEndpoint.Host?
         if case .hostPort(let h, _)? = channel?.connection.currentPath?.remoteEndpoint { host = h }
         if host == nil, case .direct(let h, _)? = target { host = NWEndpoint.Host(h) }
-        guard let host, let port = NWEndpoint.Port(rawValue: udpPort) else { return }
+        guard let host, let port = NWEndpoint.Port(rawValue: udpPort) else { GPLog.log("udp: no host (\(String(describing: host))) or port \(udpPort)"); return }
+        GPLog.log("udp: sending to \(host):\(port)")
         let c = NWConnection(host: host, port: port, using: GlasspadService.udpParameters())
+        c.stateUpdateHandler = { st in GPLog.log("udp state: \(st)") }
         c.start(queue: queue)
         udp = c
     }
 
     private func lost(_ gen: Int, reason: String) {
+        GPLog.log("lost (gen \(gen) vs \(generation)): \(reason)")
         guard gen == generation else { return }
         teardown()
         scheduleReconnect(after: GlasspadService.backoff[min(attempt, GlasspadService.backoff.count - 1)])
@@ -459,6 +465,7 @@ public final class GlasspadClient: @unchecked Sendable {
             return true
         }
         guard changed else { return }
+        GPLog.log("state -> \(new)")
         delegateQueue.async { [weak self] in self?.delegate?.link(didChangeState: new) }
     }
 }
