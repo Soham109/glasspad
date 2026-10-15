@@ -3,14 +3,16 @@
 import AppKit
 
 struct Theme { let outer: NSColor; let surface: NSColor; let edge: NSColor; let dot: NSColor }
-let paper = Theme(outer: NSColor(srgbRed: 0.929, green: 0.925, blue: 0.910, alpha: 1),
-                  surface: NSColor(srgbRed: 0.985, green: 0.983, blue: 0.976, alpha: 1),
-                  edge: NSColor(white: 0.1, alpha: 0.10), dot: NSColor(white: 0.1, alpha: 0.24))
+// Contrast is set for the home screen, where the icon is about 60 pt: a solid ink finger and
+// a trail you can see, on a surface that stands off the background. Flat, no gradients.
+let paper = Theme(outer: NSColor(srgbRed: 0.890, green: 0.882, blue: 0.863, alpha: 1),
+                  surface: NSColor(srgbRed: 0.988, green: 0.986, blue: 0.980, alpha: 1),
+                  edge: NSColor(white: 0.1, alpha: 0.06), dot: NSColor(srgbRed: 0.102, green: 0.102, blue: 0.102, alpha: 1))
 /// For the iOS tinted icon: iOS tints a grayscale image, so this is light shapes on black.
-let tinted = Theme(outer: NSColor(white: 0, alpha: 1), surface: NSColor(white: 0.16, alpha: 1),
-                   edge: NSColor(white: 1, alpha: 0.14), dot: NSColor(white: 1, alpha: 0.9))
-let graphite = Theme(outer: NSColor(white: 0.055, alpha: 1), surface: NSColor(white: 0.106, alpha: 1),
-                     edge: NSColor(white: 1, alpha: 0.08), dot: NSColor(white: 1, alpha: 0.26))
+let tinted = Theme(outer: NSColor(white: 0, alpha: 1), surface: NSColor(white: 0.2, alpha: 1),
+                   edge: NSColor(white: 1, alpha: 0.0), dot: NSColor(white: 1, alpha: 1))
+let graphite = Theme(outer: NSColor(white: 0.04, alpha: 1), surface: NSColor(white: 0.155, alpha: 1),
+                     edge: NSColor(white: 1, alpha: 0.0), dot: NSColor(srgbRed: 0.949, green: 0.945, blue: 0.933, alpha: 1))
 
 func render(px: Int, theme: Theme, mac: Bool) -> Data {
     // iOS icons must be opaque (no alpha channel) and drawn at their real pixel size.
@@ -41,8 +43,8 @@ func render(px: Int, theme: Theme, mac: Bool) -> Data {
 
     // Glass surface
     let k = body.width / 1024
-    let surf = CGRect(x: body.minX + 102 * k, y: body.minY + 222 * k, width: 820 * k, height: 580 * k)
-    let sp = NSBezierPath(roundedRect: surf, xRadius: 140 * k, yRadius: 140 * k)
+    let surf = CGRect(x: body.minX + 84 * k, y: body.minY + 204 * k, width: 856 * k, height: 616 * k)
+    let sp = NSBezierPath(roundedRect: surf, xRadius: 132 * k, yRadius: 132 * k)
     theme.surface.setFill(); sp.fill()
     theme.edge.setStroke(); sp.lineWidth = 4 * k; sp.stroke()
 
@@ -50,7 +52,7 @@ func render(px: Int, theme: Theme, mac: Bool) -> Data {
     let design = ProcessInfo.processInfo.environment["DESIGN"] ?? "trail"
     func pt(_ x: CGFloat, _ yTop: CGFloat) -> CGPoint { CGPoint(x: body.minX + x * k, y: body.minY + (1024 - yTop) * k) }
     func disc(_ c: CGPoint, _ r: CGFloat, _ alpha: CGFloat) {
-        theme.dot.withAlphaComponent(alpha * 0.62).setFill()
+        theme.dot.withAlphaComponent(alpha).setFill()
         NSBezierPath(ovalIn: CGRect(x: c.x - r, y: c.y - r, width: 2 * r, height: 2 * r)).fill()
     }
     func ring(_ c: CGPoint, _ r: CGFloat, _ w: CGFloat, _ alpha: CGFloat) {
@@ -60,8 +62,8 @@ func render(px: Int, theme: Theme, mac: Bool) -> Data {
     if design == "trail" {
         // One continuous tapered stroke: the outline around a small circle at the start and the
         // finger's circle at the end, joined by their outer tangents, filled flat. Then the solid finger dot on top.
-        let from = pt(300, 610), to = pt(660, 440)
-        let r0 = 22 * k, r1 = 74 * k
+        let from = pt(276, 628), to = pt(668, 432)
+        let r0 = 26 * k, r1 = 92 * k
         let dx = to.x - from.x, dy = to.y - from.y
         let d = (dx * dx + dy * dy).squareRoot()
         let theta = atan2(dy, dx)
@@ -72,7 +74,7 @@ func render(px: Int, theme: Theme, mac: Bool) -> Data {
         trail.closeSubpath()
         // Flat: one even tint, no gradient.
         cg.addPath(trail)
-        cg.setFillColor(theme.dot.withAlphaComponent(0.22).cgColor)
+        cg.setFillColor(theme.dot.withAlphaComponent(0.16).cgColor)
         cg.fillPath()
         theme.surface.setFill()
         NSBezierPath(ovalIn: CGRect(x: to.x - r1, y: to.y - r1, width: 2 * r1, height: 2 * r1)).fill()
@@ -139,6 +141,8 @@ write(Data("""
 }
 """.utf8), "\(ios)/Contents.json")
 write(Data("{ \"info\" : { \"author\" : \"xcode\", \"version\" : 1 } }".utf8), "Apps/iOS/Resources/Assets.xcassets/Contents.json")
+
+if ProcessInfo.processInfo.environment["IOS_ONLY"] != nil { print("done (iOS only)"); exit(0) }
 
 // macOS
 let mac = "Apps/Mac/Resources/Assets.xcassets/AppIcon.appiconset"

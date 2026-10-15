@@ -112,9 +112,8 @@ struct PresentMode: View {
                     .contentTransition(.symbolEffect(.replace))
                     .frame(width: 28, height: 28)
             }
-            .glassButton(prominent: true)
+            .glassButton(prominent: true, accent: accent)
             .buttonBorderShape(.circle)
-            .tint(accent)
             .accessibilityLabel(timer.isRunning ? "Pause timer" : "Start timer")
         }
     }
@@ -146,9 +145,8 @@ struct PresentMode: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .glassButton(prominent: true)
+        .glassButton(prominent: true, accent: accent)
         .buttonBorderShape(.roundedRectangle(radius: 30))
-        .tint(accent)
         .accessibilityLabel("Next slide")
         .accessibilityHint("Starts the timer on the first press")
     }

@@ -134,7 +134,7 @@ struct ModeSwitcher: View {
                         VStack(spacing: 6) {
                             Image(systemName: mode.symbol)
                                 .font(.title3)
-                                .symbolVariant(current ? .fill : .none)
+                                .imageScale(.medium)
                                 .foregroundStyle(mode.accent(palette))
                                 .frame(height: 26)
                             Text(mode.title)
@@ -158,6 +158,26 @@ struct ModeSwitcher: View {
                 }
             }
             Divider().padding(.horizontal, 8).padding(.vertical, 2)
+            let tools = [AppMode.clipboard, .present].filter { !modes.contains($0) }
+            if !tools.isEmpty {
+                HStack(spacing: 6) {
+                    ForEach(tools) { tool in
+                        Button {
+                            Haptics.shared.tap()
+                            close()
+                            router.openTool(tool)
+                        } label: {
+                            Label(tool.title, systemImage: tool.symbol)
+                                .font(.subheadline.weight(.medium))
+                                .foregroundStyle(palette.inkColor)
+                                .frame(maxWidth: .infinity, minHeight: 40)
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(TileStyle())
+                        .accessibilityHint(tool == .present ? "Opens the slide remote full screen" : "Copies between this iPhone and your Mac")
+                    }
+                }
+            }
             if store.macs.count > 1 { macPicker }
             HStack(spacing: 6) {
                 Button {
@@ -286,10 +306,10 @@ struct ConnectionDot: View {
 
     private var color: Color {
         switch state {
-        case .connected: Color(hex: 0x34C759)
-        case .searching, .connecting: Color(hex: 0xFF9F0A)
+        case .connected: Color(uiColor: .systemGreen)
+        case .searching, .connecting: Color(uiColor: .systemOrange)
         case .failed where state.isReplaced: Color.gray
-        case .failed: Color(hex: 0xFF453A)
+        case .failed: Color(uiColor: .systemRed)
         case .idle: Color.gray
         }
     }

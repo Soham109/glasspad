@@ -436,7 +436,7 @@ Each mode is a `ModeMessage` case pair handled by `GlasspadMacCore/Modes`.
 | Apps (Dock) | grid of the Mac's Dock apps + running + recent apps, running dots, search, long-press Quit / Hide / Show in Finder / Keep, phone-side order and hiding | read Dock prefs + NSWorkspace, icons as 256 px PNG keyed by bundle id + app modification date, sent once (`dockSync`), launch / activate / reopen (`AppLauncher`), hide the Mac Dock (`MacDockHider`) |
 | Keys | text field that streams typed text; arrows, esc, tab, cmd shortcuts row; dictation works | CGEvent keyboard unicode strings |
 | Media | now playing title/artist/art, play/pause/next/prev, volume, brightness | MediaRemote (private, with fallback to media key events), volume via CoreAudio |
-| Actions (Deck) | pages: front-app page (follows the Mac), Mac controls, My Buttons + macros, Clipboard, Present; folders, sizes, colours, edit on the phone | executes actions directly (screencapture, pmset, CoreAudio...), config v3 on the Mac, phone edits via `deckSave` (never shell) |
+| Actions (Deck) | one screen: the front app's best buttons (up to 8, chosen and ordered per app) above Pinned (favourites of every kind, + opens a searchable Library); folders, sizes, colours, edit on the phone. Clipboard and Present are tools in the mode menu. Older Decks move into Pinned once, losslessly (`PinnedDeck.migrated`) | executes actions directly (screencapture, pmset, CoreAudio...), config v3 on the Mac, phone edits via `deckSave` (never shell) |
 | Clipboard | send phone clipboard to Mac, pull Mac clipboard to phone (text, images) | NSPasteboard |
 | Present | big next/previous buttons, timer, laser dot (move a highlight on the Mac) | arrow keys + transparent overlay window for the laser |
 

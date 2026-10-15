@@ -100,8 +100,7 @@ struct ClipboardMode: View {
                 Label("Get Mac clipboard", systemImage: "arrow.down.doc")
                     .padding(.horizontal, 4)
             }
-            .glassButton(prominent: true)
-            .tint(accent)
+            .glassButton(prominent: true, accent: accent)
             .disabled(session.clipboardPullPending)
 
             if session.clipboardPullPending {

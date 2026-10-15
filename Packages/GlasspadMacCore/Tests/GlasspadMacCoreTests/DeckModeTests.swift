@@ -291,6 +291,22 @@ import Testing
         #expect(d.config.layout.pages[0].buttons.map(\.title) == ["Notes", "Sh"])
     }
 
+    /// The phone's one-screen Actions moves loose pages into Pinned as folders. The Mac must
+    /// accept that edit, shell buttons included (same id, same script), and lose nothing.
+    @Test func phoneMigrationToPinnedIsAcceptedWithoutLoss() throws {
+        let shell = DeckButton(title: "Sh", symbol: "terminal", action: .shellScript("echo safe"))
+        let url = tempURL("deck.json")
+        try DeckConfig(allowShellCommands: true, buttons: [shell],
+                       pages: DeckConfig.starterPages() + [DeckPage(title: "Scripts", buttons: [shell])]).save(to: url)
+        let d = DeckMode(env: FakeDeckEnvironment(), url: url)
+        let before = Set(d.config.layout.allButtons.map(\.id))
+        let migrated = PinnedDeck.migrated(d.config.layout, macros: [])
+        #expect(d.savePhoneEdit(migrated) == .deckSaveResult(ok: true, message: nil))
+        #expect(before.isSubset(of: Set(d.config.layout.allButtons.map(\.id))))
+        #expect(d.config.layout.pages.map(\.id) == [DeckConfig.myPageID])
+        #expect(d.config.buttons.contains(shell))   // still runnable from the flat list
+    }
+
     @Test func phoneCannotTurnShellOn() throws {
         let (d, _) = try deck([], shell: false)
         let layout = DeckLayout(pages: [DeckPage(title: "Main", buttons: [])], allowsShellCommands: true)

@@ -126,10 +126,17 @@ final class PhoneSettings {
     var keysShowsShortcuts: Bool { didSet { defaults.set(keysShowsShortcuts, forKey: Key.keysShowsShortcuts) } }
     var presentStartsTimer: Bool { didSet { defaults.set(presentStartsTimer, forKey: Key.presentStartsTimer) } }
     var deckShowsTitles: Bool { didSet { defaults.set(deckShowsTitles, forKey: Key.deckShowsTitles) } }
-    /// Actions opens the page for the Mac's front app, and follows it as you switch apps.
-    var actionsFollowsApp: Bool { didSet { defaults.set(actionsFollowsApp, forKey: Key.actionsFollowsApp) } }
     /// Deck tile size, 0.85...1.3 (multiplies the compact base size).
     var deckTileScale: Double { didSet { defaults.set(deckTileScale, forKey: Key.deckTileScale) } }
+    /// Which front-app buttons Actions shows, in order, per Mac app bundle id (keys from
+    /// `FrontAppItem.id`). An app without an entry shows its first eight.
+    var frontAppPicks: [String: [String]] {
+        didSet { if let d = try? JSONEncoder().encode(frontAppPicks) { defaults.set(d, forKey: Key.frontAppPicks) } }
+    }
+    /// Macs whose Deck was already moved to the one-screen Actions layout (Mac ids).
+    var pinnedMigratedMacs: Set<String> {
+        didSet { defaults.set(Array(pinnedMigratedMacs).sorted(), forKey: Key.pinnedMigratedMacs) }
+    }
     /// Which modes show, their order, and whether Actions is split up.
     var modeList: ModeListLayout {
         didSet { if let d = try? JSONEncoder().encode(modeList) { defaults.set(d, forKey: Key.modeList) } }
@@ -164,8 +171,9 @@ final class PhoneSettings {
         static let dockShowsNames = "dockShowsNames", dockShowsRecent = "dockShowsRecent"
         static let dockArrangement = "dockArrangement", keysShowsShortcuts = "keysShowsShortcuts"
         static let presentStartsTimer = "presentStartsTimer"
-        static let deckShowsTitles = "deckShowsTitles", actionsFollowsApp = "actionsFollowsApp"
+        static let deckShowsTitles = "deckShowsTitles"
         static let deckTileScale = "deckTileScale", modeList = "modeList", seenTips = "seenTips"
+        static let frontAppPicks = "frontAppPicks", pinnedMigratedMacs = "pinnedMigratedMacs"
     }
 
     init(defaults: UserDefaults = .standard) {
@@ -196,8 +204,10 @@ final class PhoneSettings {
         keysShowsShortcuts = bool(Key.keysShowsShortcuts, true)
         presentStartsTimer = bool(Key.presentStartsTimer, true)
         deckShowsTitles = bool(Key.deckShowsTitles, true)
-        actionsFollowsApp = bool(Key.actionsFollowsApp, true)
         deckTileScale = double(Key.deckTileScale, 1, 0.85...1.3)
+        frontAppPicks = defaults.data(forKey: Key.frontAppPicks)
+            .flatMap { try? JSONDecoder().decode([String: [String]].self, from: $0) } ?? [:]
+        pinnedMigratedMacs = Set(defaults.stringArray(forKey: Key.pinnedMigratedMacs) ?? [])
         modeList = defaults.data(forKey: Key.modeList).flatMap { try? JSONDecoder().decode(ModeListLayout.self, from: $0) }
             ?? ModeListLayout()
         seenTips = Set(defaults.stringArray(forKey: Key.seenTips) ?? [])

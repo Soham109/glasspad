@@ -25,32 +25,35 @@ enum AppMode: String, CaseIterable, Identifiable, Sendable {
 
     var symbol: String {
         switch self {
-        case .trackpad: "hand.point.up.left"
+        case .trackpad: "hand.point.up.left.fill"
         case .dock: "square.grid.3x3.fill"
         case .actions: "bolt.fill"
-        case .keys: "keyboard"
-        case .media: "play.circle"
-        case .deck: "square.grid.2x2"
+        case .keys: "keyboard.fill"
+        case .media: "play.circle.fill"
+        case .deck: "square.grid.2x2.fill"
         case .macros: "wand.and.stars"
-        case .clipboard: "doc.on.clipboard"
-        case .present: "play.rectangle"
+        case .clipboard: "doc.on.clipboard.fill"
+        case .present: "play.rectangle.fill"
         }
     }
 
-    /// One accent per mode. Trackpad stays neutral so the surface is just paper.
+    /// One accent per mode. Trackpad stays neutral so the surface is just paper. The others
+    /// are Apple's system colours, which already carry a light and a dark value each.
     func accent(_ palette: Palette) -> Color {
         switch self {
         case .trackpad: palette.inkColor
-        case .dock: Color(hex: 0x3D7BF2)
-        case .actions: Color(hex: 0xE8930C)
-        case .keys: Color(hex: 0x8A63E8)
-        case .media: Color(hex: 0xEC4F73)
-        case .deck: Color(hex: 0xE8930C)
-        case .macros: Color(hex: 0x12A594)
-        case .clipboard: Color(hex: 0x2E9E5B)
-        case .present: Color(hex: 0xEE6A2F)
+        case .dock: Color(uiColor: .systemBlue)
+        case .actions, .deck: Color(uiColor: .systemOrange)
+        case .keys: Color(uiColor: .systemIndigo)
+        case .media: Color(uiColor: .systemPink)
+        case .macros: Color(uiColor: .systemTeal)
+        case .clipboard: Color(uiColor: .systemGreen)
+        case .present: Color(uiColor: .systemRed)
         }
     }
+
+    /// Clipboard and Present: small tools in the mode menu unless split into their own modes.
+    var isTool: Bool { self == .clipboard || self == .present }
 
     /// The screen name the Mac is told about, so it can react (for example hide the laser).
     var wireMode: GlasspadMode {
@@ -76,7 +79,7 @@ extension AppMode {
         case .keys: "Type on the Mac, with arrows and shortcuts."
         case .media: "What is playing, volume and brightness."
         case .dock: "Open and switch the Mac's apps."
-        case .actions: "Buttons for the app in front, Mac controls, your macros, clipboard and presenting."
+        case .actions: "The front app's buttons and your pinned favourites."
         case .deck: "Your Deck buttons on their own."
         case .macros: "Your macros on their own."
         case .clipboard: "Copy between iPhone and Mac."

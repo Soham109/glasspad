@@ -133,13 +133,16 @@ struct DeckButtonEditor: View {
     @State private var pickingAction: Bool
     @State private var confirmDelete = false
 
-    init(button: DeckButton, isNew: Bool, frontAppName: String, onSave: @escaping (DeckButton) -> Void, onDelete: @escaping () -> Void) {
+    /// `picksAction`: a new button opens on the action list first (false when the action is
+    /// already chosen, as from the Library).
+    init(button: DeckButton, isNew: Bool, frontAppName: String, picksAction: Bool? = nil,
+         onSave: @escaping (DeckButton) -> Void, onDelete: @escaping () -> Void) {
         _button = State(initialValue: button)
         self.isNew = isNew
         self.frontAppName = frontAppName
         self.onSave = onSave
         self.onDelete = onDelete
-        _pickingAction = State(initialValue: isNew)
+        _pickingAction = State(initialValue: picksAction ?? isNew)
     }
 
     static let colors = ["#0A84FF", "#5E5CE6", "#BF5AF2", "#FF375F", "#FF453A", "#FF9F0A",
@@ -204,7 +207,7 @@ struct DeckButtonEditor: View {
             }
             .scrollContentBackground(.hidden)
             .background(palette.backgroundColor.ignoresSafeArea())
-            .navigationTitle(isNew ? "New Button" : "Edit Button")
+            .navigationTitle(button.action == .folder ? (isNew ? "New Folder" : "Edit Folder") : (isNew ? "New Button" : "Edit Button"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
@@ -381,6 +384,7 @@ private struct ActionOptions: View {
 }
 
 private struct KeystrokeEditor: View {
+    @Environment(\.palette) private var palette
     @Binding var keystroke: Keystroke
 
     private static let specials: [(String, SpecialKey)] = [
@@ -424,8 +428,8 @@ private struct KeystrokeEditor: View {
             Image(systemName: symbol)
                 .font(.body.weight(.semibold))
                 .frame(maxWidth: .infinity, minHeight: 36)
-                .foregroundStyle(on ? Color.white : Color.primary)
-                .background(on ? Color.accentColor : Color.secondary.opacity(0.12), in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+                .foregroundStyle(on ? palette.backgroundColor : palette.inkColor)
+                .background(on ? palette.inkColor : palette.raisedPressedColor, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
         }
         .buttonStyle(.plain)
         .accessibilityLabel(symbol)

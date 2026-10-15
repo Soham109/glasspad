@@ -12,6 +12,15 @@ final class AppRouter {
     private(set) var mode: AppMode
     var showSettings = false
     var showPairing = false
+    /// Clipboard as a small tool sheet (when it is not a mode of its own).
+    var showClipboard = false
+    /// Present, full screen, opened as a tool (when it is not a mode of its own).
+    var showPresenter = false {
+        didSet {
+            presenting = showPresenter
+            ScreenAwake.update()
+        }
+    }
     /// The trackpad and Present screens dim after the idle delay; a touch wakes them.
     private(set) var isDimmed = false
     /// Last time anything touched a screen that dims. Not observed: it changes on every touch.
@@ -23,6 +32,11 @@ final class AppRouter {
     }
 
     func show(_ requested: AppMode) {
+        // Clipboard and Present are tools unless they were split into modes of their own.
+        if requested.isTool, requested.shown != requested {
+            openTool(requested)
+            return
+        }
         let newMode = requested.shown
         showSettings = false
         showPairing = false
@@ -34,6 +48,17 @@ final class AppRouter {
         MacSession.shared.modeDidChange(to: newMode)
         ScreenAwake.update()
         LiveActivityController.shared.refresh()
+    }
+
+    /// Opens Clipboard or Present on top of the current mode.
+    func openTool(_ tool: AppMode) {
+        showSettings = false
+        showPairing = false
+        switch tool {
+        case .clipboard: showClipboard = true
+        case .present: showPresenter = true
+        default: break
+        }
     }
 
     /// Handles `glasspad://pair?...`, `glasspad://trackpad` and `glasspad://mode/<name>`.
@@ -90,7 +115,7 @@ final class AppRouter {
     }
 
     private func checkIdle() {
-        guard dims, !showSettings, !showPairing else { return }
+        guard dims, !showSettings, !showPairing, !showClipboard else { return }
         let idle = ProcessInfo.processInfo.systemUptime - lastActivity
         let delay = PhoneSettings.shared.dimDelay
         if !isDimmed, delay > 0, idle >= delay { isDimmed = true }
@@ -105,7 +130,7 @@ enum ScreenAwake {
     static func update() {
         let router = AppRouter.shared
         let wanted = sceneActive && PhoneSettings.shared.hasOnboarded && PhoneSettings.shared.keepScreenAwake && router.dims
-            && !router.showSettings && !router.showPairing
+            && !router.showSettings && !router.showPairing && !router.showClipboard
         if UIApplication.shared.isIdleTimerDisabled != wanted {
             UIApplication.shared.isIdleTimerDisabled = wanted
         }

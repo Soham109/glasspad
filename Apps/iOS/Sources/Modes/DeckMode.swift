@@ -1,10 +1,10 @@
 import SwiftUI
 import GlasspadKit
 
-/// Deck on its own, for people who split Actions back up in Settings. Same pages, tiles and
-/// editor as Actions, without the front-app page, Clipboard and Present.
+/// Deck on its own, for people who split Actions back up in Settings: the same one screen
+/// (front app and Pinned) as Actions.
 struct DeckMode: View {
-    var body: some View { ActionsMode(deckOnly: true) }
+    var body: some View { ActionsMode() }
 }
 
 /// The last result of running a Deck button.

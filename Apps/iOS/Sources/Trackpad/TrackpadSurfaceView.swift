@@ -22,7 +22,7 @@ final class TrackpadSurfaceView: UIView {
     /// surface; it is not sent to the Mac.
     var onWake: (() -> Void)?
 
-    var palette: Palette = .paper { didSet { applyPalette() } }
+    var palette: Palette = .themed(dark: false) { didSet { applyPalette() } }
     var showsDots = true { didSet { if !showsDots { removeAllDots() } } }
     var isDimmed = false {
         didSet {
@@ -52,7 +52,7 @@ final class TrackpadSurfaceView: UIView {
         super.init(frame: frame)
         isMultipleTouchEnabled = true
         isExclusiveTouch = true
-        dimView.backgroundColor = .black
+        dimView.backgroundColor = .black // Dimming is a black veil in both themes.
         dimView.alpha = 0
         dimView.isUserInteractionEnabled = false
         addSubview(dimView)
@@ -84,7 +84,8 @@ final class TrackpadSurfaceView: UIView {
 
     private func applyPalette() {
         backgroundColor = palette.background
-        dotImage = Self.renderDot(color: palette.dot, size: palette.dotDiameter, style: palette.dotStyle)
+        // Layer contents are a bitmap, so resolve the dot token for the palette's appearance.
+        dotImage = Self.renderDot(color: palette.dot.resolvedColor(with: palette.traits), size: palette.dotDiameter, style: palette.dotStyle)
         let side = palette.dotDiameter
         for finger in fingers.values {
             finger.dot?.contents = dotImage

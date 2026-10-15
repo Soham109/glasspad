@@ -103,8 +103,7 @@ struct DockMode: View {
                     editing = false
                 }
                 .font(.body.weight(.semibold))
-                .glassButton(prominent: true)
-                .tint(accent)
+                .glassButton(prominent: true, accent: accent)
             } else {
                 optionsMenu
             }
@@ -431,7 +430,7 @@ private struct DockTile: View {
                             Image(systemName: "minus.circle.fill")
                                 .font(.system(size: 22))
                                 .symbolRenderingMode(.palette)
-                                .foregroundStyle(.white, Color(white: 0.45))
+                                .foregroundStyle(.white, Color(uiColor: .systemGray))
                                 .offset(x: -6, y: -6)
                                 .transition(.scale.combined(with: .opacity))
                                 .accessibilityHidden(true)

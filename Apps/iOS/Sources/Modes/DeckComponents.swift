@@ -148,8 +148,11 @@ struct ActionTile: View {
                     .aspectRatio(contentMode: .fit)
                     .frame(width: side * (size == .large ? 0.36 : 0.5))
             } else {
+                // Filled, like Control Center: one weight and one style for
+                // every tile, whatever symbol the user picked.
                 Image(systemName: UIImage(systemName: symbol) == nil ? "square.dashed" : symbol)
-                    .font(.system(size: side * (size == .large ? 0.2 : 0.27), weight: .semibold))
+                    .font(.system(size: side * (size == .large ? 0.2 : 0.26), weight: .medium))
+                    .symbolVariant(style == .outlined ? .none : .fill)
                     .symbolRenderingMode(.monochrome)
                     .foregroundStyle(tint)
                     .symbolEffect(.bounce, value: succeeded)
@@ -172,12 +175,7 @@ struct ActionTile: View {
 
     @ViewBuilder private var cornerMark: some View {
         if editing {
-            Image(systemName: "pencil.circle.fill")
-                .font(.system(size: 18))
-                .symbolRenderingMode(.palette)
-                .foregroundStyle(.white, palette.inkSoftColor)
-                .padding(5)
-                .accessibilityHidden(true)
+            EmptyView() // Edit mode marks tiles with a remove button and a gentle wiggle, like the Home Screen.
         } else if succeeded {
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 16))

@@ -135,8 +135,7 @@ struct MacroStatusBar: View {
                 Haptics.shared.play(.click)
                 session.send(.macro(.recordStop))
             }
-            .glassButton(prominent: true)
-            .tint(.red)
+            .glassButton(prominent: true, accent: .red)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)

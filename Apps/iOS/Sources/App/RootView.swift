@@ -49,7 +49,10 @@ struct RootView: View {
         }
         .animation(.easeInOut(duration: 0.35), value: settings.hasOnboarded)
         .environment(\.palette, palette)
-        .preferredColorScheme(settings.theme == .system ? nil : palette.colorScheme)
+        // Paper and Graphite force the window light or dark; System leaves it to the phone.
+        // Set on the window, not with preferredColorScheme, so that system text, controls,
+        // sheets already on screen, menus, alerts and the keyboard all follow a change at once.
+        .background(WindowAppearance(style: settings.theme.interfaceStyle))
         .tint(palette.inkColor)
         .statusBarHidden(true)
         .sheet(isPresented: $router.showSettings, onDismiss: ScreenAwake.update) {
@@ -61,6 +64,14 @@ struct RootView: View {
             PairSheet()
                 .environment(\.palette, palette)
                 .presentationDragIndicator(.visible)
+        }
+        .sheet(isPresented: $router.showClipboard, onDismiss: ScreenAwake.update) {
+            ClipboardSheet()
+                .environment(\.palette, palette)
+        }
+        .fullScreenCover(isPresented: $router.showPresenter) {
+            PresenterCover()
+                .environment(\.palette, palette)
         }
     }
 
@@ -181,8 +192,9 @@ private struct WarmNotice: View {
 ///   -GPOnboarding                       show onboarding again
 ///   -GPSettings / -GPMenu / -GPPairSheet open Settings, the mode menu or the pair sheet
 ///   -GPOrientation <automatic|portrait|landscape>  set the orientation choice (it is saved)
+///   -GPTheme / -GPThemeLater <paper|graphite|system>  set the theme at launch, or two seconds later
 ///   -GPDemo <icon folder>               fill the screens with sample Mac data (no Mac needed)
-///   -GPActionsPage <mac|mine|clipboard|present>  open that Actions page; -GPEdit starts editing
+///   -GPActionsPage <library|front|folder|clipboard|present>  open that Actions sheet or tool; -GPEdit starts editing
 enum DebugLaunch {
     @MainActor static func apply() {
         let args = ProcessInfo.processInfo.arguments
@@ -194,6 +206,13 @@ enum DebugLaunch {
             PhoneSettings.shared.orientation = choice
         }
         if let t = value("-GPTheme"), let theme = ThemeChoice(rawValue: t) { PhoneSettings.shared.theme = theme }
+        // Switches the theme two seconds after launch, the way a person does from Settings.
+        if let t = value("-GPThemeLater"), let theme = ThemeChoice(rawValue: t) {
+            Task { @MainActor in
+                try? await Task.sleep(for: .seconds(2))
+                PhoneSettings.shared.theme = theme
+            }
+        }
         if args.contains("-GPOnboarding") { PhoneSettings.shared.hasOnboarded = false }
         if let pair = value("-GPPair"), let url = URL(string: pair) { AppRouter.shared.open(url) }
         if let mode = value("-GPMode"), let target = AppMode(rawValue: mode) {
@@ -204,11 +223,15 @@ enum DebugLaunch {
         if args.contains("-GPPairSheet") { AppRouter.shared.showPairing = true }
         if args.contains("-GPMenu") { showMenuAtLaunch = true }
         if let folder = value("-GPDemo") { MacSession.shared.applyDemo(DemoData(iconFolder: folder)) }
-        if let page = value("-GPActionsPage") { demoActionsPage = page }
+        if let page = value("-GPActionsPage") {
+            demoActionsPage = page
+            if page == "clipboard" { AppRouter.shared.openTool(.clipboard) }
+            if page == "present" { AppRouter.shared.openTool(.present) }
+        }
         if args.contains("-GPEdit") { demoEditing = true }
     }
     @MainActor static var showMenuAtLaunch = false
-    /// `mac`, `mine`, `clipboard` or `present`: the Actions page to open.
+    /// `library`, `front` or `folder`: the Actions sheet (or Pinned folder) to open.
     @MainActor static var demoActionsPage: String?
     @MainActor static var demoEditing = false
 }

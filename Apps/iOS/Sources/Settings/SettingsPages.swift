@@ -303,9 +303,6 @@ struct ModeDetailSettings: View {
 
     @ViewBuilder private var actions: some View {
         Section {
-            if mode == .actions {
-                Toggle("Follow the Front App", isOn: $settings.actionsFollowsApp)
-            }
             Toggle("Show Labels", isOn: $settings.deckShowsTitles)
             Picker("Tile Size", selection: $settings.deckTileScale) {
                 Text("Small").tag(0.85)
@@ -314,9 +311,7 @@ struct ModeDetailSettings: View {
             }
             .pickerStyle(.segmented)
         } footer: {
-            Text(mode == .actions
-                 ? "When the app in front on your Mac changes, Actions shows that app's buttons and macros."
-                 : "Edit buttons by long pressing them.")
+            Text("The top of Actions follows the app in front on your Mac. Touch and hold a button to change it.")
         }
         .listRowBackground(palette.raisedColor)
         Section {

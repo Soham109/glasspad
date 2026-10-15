@@ -39,12 +39,37 @@ extension View {
     }
 
     /// The standard glass button look on iOS 26, bordered before that.
-    @ViewBuilder
-    func glassButton(prominent: Bool = false) -> some View {
-        if #available(iOS 26.0, *) {
-            if prominent { buttonStyle(.glassProminent) } else { buttonStyle(.glass) }
+    ///
+    /// A prominent button is filled. With an `accent` it is that colour with white text, like
+    /// any tinted system button. Without one it is filled with the theme's ink and its label
+    /// takes the surface colour, so it reads in both themes (white ink on Graphite gets dark text).
+    func glassButton(prominent: Bool = false, accent: Color? = nil) -> some View {
+        modifier(GlassButtonStyle(prominent: prominent, accent: accent))
+    }
+}
+
+private struct GlassButtonStyle: ViewModifier {
+    @Environment(\.palette) private var palette
+    let prominent: Bool
+    let accent: Color?
+
+    func body(content: Content) -> some View {
+        if prominent {
+            styled(content)
+                .tint(accent ?? palette.inkColor)
+                .foregroundStyle(accent == nil ? palette.backgroundColor : Color.white)
+        } else if let accent {
+            styled(content).tint(accent)
         } else {
-            if prominent { buttonStyle(.borderedProminent) } else { buttonStyle(.bordered) }
+            styled(content)
+        }
+    }
+
+    @ViewBuilder private func styled(_ content: Content) -> some View {
+        if #available(iOS 26.0, *) {
+            if prominent { content.buttonStyle(.glassProminent) } else { content.buttonStyle(.glass) }
+        } else {
+            if prominent { content.buttonStyle(.borderedProminent) } else { content.buttonStyle(.bordered) }
         }
     }
 }

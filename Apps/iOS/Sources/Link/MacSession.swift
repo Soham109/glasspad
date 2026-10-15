@@ -630,7 +630,7 @@ final class MacSession {
 
     #if DEBUG
     /// Debug builds only: fills every screen with sample data for simulator screenshots.
-    @ObservationIgnored private var isDemo = false
+    @ObservationIgnored private(set) var isDemo = false
 
     func applyDemo(_ demo: DemoData) {
         isDemo = true

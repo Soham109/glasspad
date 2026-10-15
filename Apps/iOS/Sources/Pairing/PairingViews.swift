@@ -40,7 +40,7 @@ struct PairingScanner: View {
 
             Text(errorText ?? " ")
                 .font(.footnote)
-                .foregroundStyle(Color(hex: 0xD9443A))
+                .foregroundStyle(Color(uiColor: .systemRed))
                 .multilineTextAlignment(.center)
                 .frame(minHeight: 18)
                 .accessibilityHidden(errorText == nil)
@@ -225,10 +225,10 @@ struct PairedBadge: View {
     var body: some View {
         VStack(spacing: 14) {
             ZStack {
-                Circle().fill(Color(hex: 0x2E9E5B).opacity(0.14)).frame(width: 96, height: 96)
+                Circle().fill(Color(uiColor: .systemGreen).opacity(0.14)).frame(width: 96, height: 96)
                 Image(systemName: "checkmark")
                     .font(.system(size: 38, weight: .semibold))
-                    .foregroundStyle(Color(hex: 0x2E9E5B))
+                    .foregroundStyle(Color(uiColor: .systemGreen))
             }
             Label(name, systemImage: "laptopcomputer")
                 .font(.headline)
