@@ -1,4 +1,19 @@
 import { lerp, minJerk, reducedMotion, nextFrame, sleep } from "./spring";
+import { appIcon } from "./apps";
+
+/* Buttons the Actions mode shows for the app in front (from the starter sets). */
+const g = (d: string) => `<svg viewBox="0 0 24 24">${d}</svg>`;
+const FRONT: Record<string, { name: string; buttons: [string, string, string][] }> = {
+  music: { name: "Music", buttons: [
+    ["Play / Pause", '<path d="M6 5v14l8-7Z"/><path d="M16 5v14M20 5v14"/>', "#FF2D55"], ["Previous", '<path d="M18 6v12l-8-6ZM6 6v12"/>', "#FF2D55"],
+    ["Next", '<path d="M6 6v12l8-6ZM18 6v12"/>', "#FF2D55"], ["Volume Down", '<path d="M4 10v4h3l4 3.5v-11L7 10Z"/><path d="M15 12h5"/>', "#FF9500"],
+    ["Volume Up", '<path d="M4 10v4h3l4 3.5v-11L7 10Z"/><path d="M15 12h5M17.5 9.5v5"/>', "#FF9500"], ["Current Song", '<path d="M10 17V6.5l8-1.8V15"/><circle cx="8" cy="17" r="2"/><circle cx="16" cy="15" r="2"/>', "#FF2D55"]] },
+  web: { name: "Safari", buttons: [
+    ["New Tab", '<rect x="5" y="5" width="14" height="14" rx="3"/><path d="M12 9v6M9 12h6"/>', "#0A84FF"], ["Reopen Tab", '<path d="M9 7 5 11l4 4"/><path d="M5 11h9a5 5 0 0 1 0 10h-2"/>', "#0A84FF"],
+    ["Reader", '<path d="M6 4h9l3 3v13H6Z"/><path d="M9 11h6M9 14h6M9 17h4"/>', "#30B0C7"], ["Private", '<rect x="5" y="10.5" width="14" height="9.5" rx="2.5"/><path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5"/>', "#8E8E93"],
+    ["Close Other Tabs", '<rect x="4.5" y="4.5" width="15" height="15" rx="3"/><path d="m9.5 9.5 5 5M14.5 9.5l-5 5"/>', "#FF3B30"], ["Pin Tab", '<path d="M9 4h6M10 4v6l-3 4h10l-3-4V4M12 14v6"/>', "#FF9500"],
+    ["Copy Link", '<path d="M10 14a4 4 0 0 0 5.7 0l2.8-2.8a4 4 0 0 0-5.7-5.7L11.5 6.8"/><path d="M14 10a4 4 0 0 0-5.7 0l-2.8 2.8a4 4 0 0 0 5.7 5.7l1.3-1.3"/>', "#34C759"], ["Web Inspector", '<path d="m13 7 4 4M5 19l8.5-8.5M12 4.5l3-1.5 5 5-1.5 3-1.5-1.5-3 3-4-4 3-3Z"/>', "#5E5CE6"]] },
+};
 
 /* The full setup: an iPhone lying in front of a MacBook Pro, finger dots on the phone driving the Mac. */
 export function initSetup() {
@@ -7,11 +22,12 @@ export function initSetup() {
   const $ = <T extends Element = HTMLElement>(id: string) => document.getElementById(id) as unknown as T;
   const display = $("scDisplay"), spaces = $("scSpaces"), winA = $("scWinA"), winB = $("scWinB"), winNew = $("scWinNew");
   const docB = $("scDocB"), cursor = $<SVGElement>("scCursor"), surface = $("spSurface"), pDock = $("spDock"), pill = $("spPill");
+  const pAct = $("spAct"), saHead = $("saHead"), saGrid = $("saGrid"), pillText = pill.querySelector("span")!;
   const steps = Array.from(document.querySelectorAll<HTMLButtonElement>("#howSteps button"));
   const items = steps.map(b => b.parentElement as HTMLElement);
   const caption = $("howCaption");
   const reduce = reducedMotion();
-  const DUR = [2700, 2000, 3000, 3800, 4600];
+  const DUR = [2700, 2000, 3000, 3800, 4200, 5600];
 
   /* ---------- drawing ---------- */
   const dots: HTMLElement[] = [];
@@ -32,10 +48,23 @@ export function initSetup() {
   const setNew = (e: number) => { winNew.style.opacity = String(Math.min(1, e * 1.6)); winNew.style.transform = `scale(${lerp(0.62, 1, e)})`; };
   const slot = (k: string) => document.querySelector<HTMLElement>(`#scDock [data-app="${k}"]`)!;
 
+  const showFront = (k: string, animate = true) => {
+    const f = FRONT[k];
+    saHead.innerHTML = `${appIcon(k)}<b>${f.name}</b>`;
+    saGrid.innerHTML = f.buttons.map(([n, d, c], i) => `<div class="sa-b" style="--c:${c};--i:${i}">${g(d)}<span>${n}</span></div>`).join("");
+    if (animate && !reduce) {
+      // Swap in place: nothing ever disappears, it only dips and settles.
+      saHead.animate([{ opacity: 0.35, transform: "translateY(4%)" }, { opacity: 1, transform: "none" }], { duration: 420, easing: "cubic-bezier(.2,.8,.2,1)" });
+      Array.from(saGrid.children).forEach((el, i) => (el as HTMLElement).animate([{ opacity: 0.35, transform: "scale(0.94)" }, { opacity: 1, transform: "none" }], { duration: 420, delay: i * 25, easing: "cubic-bezier(.2,.8,.2,1)", fill: "backwards" }));
+    }
+  };
+  const setPill = (label: string, color: string) => { pillText.textContent = label; pill.style.setProperty("--pc", color); };
+  const frontNew = (on: boolean) => { winNew.style.zIndex = on ? "3" : "1"; winNew.classList.toggle("front", on); if (on) { winA.classList.remove("front"); winB.classList.remove("front"); } };
+
   function reset() {
-    hide(); cx = 0.45; cy = 0.6; pc(); front(winA); setSpace(0); setDocB(0); setNew(0);
-    pDock.classList.remove("on"); pill.classList.remove("on");
-    slot("notes").querySelector(".md-run")!.classList.remove("on");
+    hide(); cx = 0.45; cy = 0.6; pc(); front(winA); setSpace(0); setDocB(0); setNew(0); frontNew(true);
+    pDock.classList.remove("on"); pill.classList.remove("on"); pAct.classList.remove("on");
+    slot("music").querySelector(".md-run")!.classList.remove("on");
   }
 
   /* ---------- timeline ---------- */
@@ -86,20 +115,34 @@ export function initSetup() {
         await wait(t, 650);
       }
     },
-    async t => { // Dock mode opens an app on the Mac
-      pill.classList.add("on"); await wait(t, 500);
+    async t => { // Apps mode opens an app on the Mac
+      setPill("Apps", "#0A84FF"); pill.classList.add("on"); await wait(t, 500);
       pDock.classList.add("on"); await wait(t, 300); pill.classList.remove("on"); await wait(t, 400);
-      const tile = pDock.querySelector<HTMLElement>('[data-app="notes"]')!;
+      const tile = pDock.querySelector<HTMLElement>('[data-app="music"]')!;
       const tr = tile.querySelector(".app") as HTMLElement;
       const x = (tile.offsetLeft + tile.offsetWidth / 2) / surface.clientWidth, y = (tile.offsetTop + tr.offsetHeight / 2) / surface.clientHeight;
       await touch(t, [[x, y]]); tr.classList.add("pressed"); ripple(x, y); await wait(t, 120); tr.classList.remove("pressed");
-      const icon = slot("notes").querySelector(".app") as HTMLElement; icon.classList.remove("bounce"); void icon.offsetWidth; icon.classList.add("bounce");
-      slot("notes").querySelector(".md-run")!.classList.add("on");
+      const icon = slot("music").querySelector(".app") as HTMLElement; icon.classList.remove("bounce"); void icon.offsetWidth; icon.classList.add("bounce");
+      slot("music").querySelector(".md-run")!.classList.add("on");
       await lift(t, [[x, y]]);
       await wait(t, 380);
       await tween(t, 620, setNew, u => 1 - Math.exp(-6 * u) * Math.cos(8 * u));
+      await wait(t, 1100);
+    },
+    async t => { // Actions: the buttons follow the app in front
+      showFront("music", false);
+      if (winNew.style.opacity !== "1") { setNew(1); frontNew(true); slot("music").querySelector(".md-run")!.classList.add("on"); }
+      setPill("Actions", "#FF9500"); pill.classList.add("on"); await wait(t, 450);
+      pDock.classList.remove("on"); pAct.classList.add("on"); await wait(t, 350); pill.classList.remove("on");
       await wait(t, 1500);
-      pill.classList.add("on"); await wait(t, 300); pDock.classList.remove("on"); await wait(t, 400); pill.classList.remove("on");
+      // on the Mac, click the Safari window: the phone's buttons change with it
+      const x0 = cx, y0 = cy;
+      await tween(t, 700, e => { cx = lerp(x0, 0.2, e); cy = lerp(y0, 0.3, e); pc(); });
+      cursor.classList.add("press"); await wait(t, 110); cursor.classList.remove("press");
+      frontNew(false); front(winA);
+      await wait(t, 260); showFront("web");
+      await wait(t, 2200);
+      setPill("Trackpad", "#1A1A1A"); pill.classList.add("on"); await wait(t, 300); pAct.classList.remove("on"); await wait(t, 400); pill.classList.remove("on");
     },
   ];
 
@@ -132,7 +175,8 @@ export function initSetup() {
     if (k === 1) { put(0, 0.76, 0.44); cx = 0.735; cy = 0.5; pc(); front(winB); }
     if (k === 2) { put(0, 0.44, 0.3); put(1, 0.56, 0.28); front(winB); setDocB(-dh * 0.3); }
     if (k === 3) { put(0, 0.17, 0.52); put(1, 0.3, 0.47); put(2, 0.43, 0.53); setSpace(1); }
-    if (k === 4) { pDock.classList.add("on"); setNew(1); slot("notes").querySelector(".md-run")!.classList.add("on"); }
+    if (k === 4) { pDock.classList.add("on"); setNew(1); slot("music").querySelector(".md-run")!.classList.add("on"); }
+    if (k === 5) { showFront("web", false); pAct.classList.add("on"); setNew(1); frontNew(false); front(winA); slot("music").querySelector(".md-run")!.classList.add("on"); }
   }
 
   let current = 0, visible = false;
