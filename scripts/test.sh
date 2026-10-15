@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # Run every package's tests. Works with Xcode or with only the command line tools.
+# Honours an existing DEVELOPER_DIR (for example DEVELOPER_DIR=/Library/Developer/CommandLineTools
+# when Xcode is installed but its license is not accepted yet).
 set -euo pipefail
 cd "$(dirname "$0")/.."
-F=/Library/Developer/CommandLineTools/Library/Developer/Frameworks
-FLAGS=()
-if ! xcode-select -p | grep -q Xcode.app; then
-  FLAGS=(-Xswiftc "-F$F" -Xlinker "-F$F" -Xlinker -rpath -Xlinker "$F")
-fi
+# shellcheck source=scripts/toolchain.sh
+source scripts/toolchain.sh
 for pkg in Packages/*/; do
   echo "== $pkg"
-  (cd "$pkg" && swift test "${FLAGS[@]}" "$@")
+  name="$(basename "$pkg")"
+  (cd "$pkg" && swift test --scratch-path "$GP_BUILD_ROOT/$name" ${GP_SWIFT_FLAGS[@]+"${GP_SWIFT_FLAGS[@]}"} "$@")
 done
