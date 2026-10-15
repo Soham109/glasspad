@@ -84,6 +84,18 @@ public struct SessionCrypto: Sendable {
 ```
 Sealed format: `counter(8, BE) || ciphertext || tag(16)`.
 
+As built (GlasspadKit):
+- `phoneID` is a `String` (the phone app picks it, e.g. a UUID string).
+- Key confirmation: right after the two Hellos, each side sends one sealed TCP
+  frame whose plaintext is `"glasspad confirm v1"` (phone first, then Mac). The
+  Mac only stores a new pairing, and the phone only reports `connected`, after
+  the other side's confirmation opens. A wrong key never gets past this step.
+- Refusal: instead of its Hello the Mac may send plaintext
+  `{"t":"reject","reason":"not paired" | "wrong mac" | "unsupported version N" | ...}`
+  and close. The phone shows `failed(reason)` and does not retry.
+- Helpers: `PairingPayload.generateKey()`, `randomBytes(_:)`.
+  `SessionCryptoError`: `tooShort`, `replay`, `authenticationFailed`, `counterExhausted`.
+
 ## 4. Transport (GlasspadKit/Transport)
 
 - Mac advertises Bonjour `_glasspad._tcp` with TXT `id=<macID>`, `v=1`.
@@ -114,6 +126,41 @@ public protocol GlasspadLinkDelegate: AnyObject {  // messages and state changes
 }
 public enum LinkState: Equatable, Sendable { case idle, searching, connecting, connected(rttMs: Double?), failed(String) }
 ```
+
+As built (GlasspadKit), exact signatures:
+```swift
+// Server (macOS). Every member is thread safe. Callbacks arrive on delegateQueue.
+public init(macID: UUID, macName: String, tcpPort: UInt16 = 0, udpPort: UInt16 = 0,
+            advertise: Bool = true, delegateQueue: DispatchQueue = .main,
+            pairKeyLookup: @escaping @Sendable (String) -> Data?)   // phoneID -> pairKey, nil = unknown/revoked
+public weak var delegate: (any GlasspadLinkDelegate)?
+public var pendingPairKey: Data?          // key in the QR on screen; accepted once for an unknown phone
+public var onPaired: (@Sendable (PairedPhone) -> Void)?   // new phone proved the key; app stores it
+public func start() throws; public func stop()
+public func send(_ message: ControlMessage)               // to the active phone
+public func disconnect(reason: String)                    // sends bye, closes (phone reconnects)
+public var state: LinkState; public var stats: LinkStats  // RTT median/p95, auth failures, replays...
+public var ports: (tcp: UInt16, udp: UInt16)?; public var connectedPhone: PairedPhone?
+public struct PairedPhone { phoneID: String; phoneName: String; pairKey: Data }
+
+// Client (iOS, and macOS for tests).
+public init(phoneID: String, phoneName: String, pairing: PairingPayload, delegateQueue: DispatchQueue = .main)
+public func connect()                             // Bonjour, match TXT id == pairing.macID
+public func connect(host: String, port: UInt16)   // direct (tests, manual address)
+public func disconnect()
+public func send(frame: TouchFrame)               // client assigns seq
+public func send(message: ControlMessage)
+public var heartbeatsEnabled: Bool                // true while the trackpad screen is visible
+```
+- One active phone at a time; a new authenticated connection replaces the old one.
+- `pairKeyLookup` runs on the server's private queue; do not call back into the server from it.
+- `ping`/`pong` are answered and measured inside the transport, never delivered.
+  `link(didReceive frame:)` has a default empty implementation.
+- A `bye` from the phone closes its session. TCP frames (including Hello) are
+  `UInt32 BE length || payload`, max 16 MiB.
+- While any finger is down the client resends the last snapshot (phases set to
+  `stationary`, fresh timestamp) every 20 ms; otherwise it sends heartbeats when
+  `heartbeatsEnabled` and the phone touched within 2 min.
 
 ## 5. Wire messages (GlasspadKit/Protocol)
 
@@ -152,6 +199,26 @@ public enum ControlMessage: Codable, Equatable, Sendable {
 }
 public enum HapticKind: String, Codable, Sendable { case click, forceClick, detent, snap, error }
 ```
+
+As built (GlasspadKit):
+- Every touch packet is a full snapshot: it lists every finger currently down.
+  A finger missing from a packet is treated as lifted, so a lost "ended"
+  packet heals on the next one.
+- `TouchFrame.timestamp` is the phone's `systemUptime` in seconds (UITouch
+  timestamps already are). The Mac never compares it with its own clock directly.
+- `TouchCodec`: `encode(_:)`, `decode(_:)` (touches only), `decodePacket(_:) -> TouchPacket`
+  (`.touches(TouchFrame)` or `.heartbeat(seq:timestamp:)`), `heartbeat(seq:timestamp: = 0)`.
+  Malformed packets throw `TouchCodecError`. A heartbeat is the 18-byte header with count 0.
+- `ControlMessage.jsonData()` and `ControlMessage.from(jsonData:)` are the wire helpers.
+- `ModeMessage` (in `Protocol/ModeMessage.swift`, synthesized Codable, one doc
+  comment per case with its direction): `modeSelected`, `dockRequest`,
+  `dockList(apps: [DockApp])`, `dockOpen(bundleID:)` (launch or activate),
+  `keysText`, `keysKeystroke(Keystroke)`, `mediaRequest`, `mediaState(MediaState)`,
+  `mediaCommand(MediaCommand)`, `mediaSetVolume`, `mediaSetBrightness`,
+  `deckRequest`, `deckButtons([DeckButton])`, `deckRun(id:)`,
+  `deckResult(id:ok:message:)`, `clipboardPush(ClipboardContent)`, `clipboardPull`,
+  `clipboardContent(ClipboardContent?)`, `presentNext`, `presentPrevious`,
+  `presentLaser(on:)`, `presentLaserPosition(x:y:)` (0...1 of the main display).
 
 ## 6. Gestures (GlasspadKit/Gestures)
 
@@ -218,6 +285,43 @@ Behaviour notes:
   then emit continuous `progress` so Spaces and Mission Control follow fingers.
 - Every threshold is a named constant in one file (`GestureTuning.swift`).
 - Fully unit tested with scripted touch sequences.
+
+As built (GlasspadKit), additions to the API above:
+```swift
+public enum MouseButton { case left, right, middle }
+public enum GesturePhase { case began, changed, ended, cancelled }
+public enum ScrollPhase { case none, began, changed, ended, cancelled }   // none on momentum events
+public enum MomentumPhase { case none, began, changed, ended }
+// GestureRecognizer
+public func process(_ frame: TouchFrame, receivedAt localTime: TimeInterval) -> [GestureEvent]
+public func cancelAll() -> [GestureEvent]     // call on disconnect: releases buttons, cancels everything
+public var needsTick: Bool                    // call tick(now:) about every 8 ms while true
+public var isLeftButtonDown: Bool
+public var displayWidth: Double               // main display width in Mac points (pointer gain)
+public var staleTouchTimeout: TimeInterval?   // 0.5 s; set nil on the phone
+public var clock: () -> TimeInterval          // caller's clock, default systemUptime
+```
+- Clocks: `tick(now:)` takes the caller's own clock (the Mac's `systemUptime`).
+  The recognizer learns the phone-to-Mac clock offset from frame arrivals.
+- Conventions: `move`/`drag` in Mac points, +y down. `scroll` uses CGEvent pixel
+  signs (positive dy = wheel up, content moves down) with natural scrolling
+  already applied. `rotate` positive = counterclockwise. `swipe.progress` is
+  cumulative from `began`, 1.0 = one full transition; positive = fingers left
+  (spaces), up (missionControl), down (appExpose), pinch in (launchpad),
+  spread out (showDesktop). Reversing gives negative progress; with App Exposé
+  off a downward swipe drives `missionControl` negative.
+- Force click: at 450 ms still, the left button goes down, then `forceClick(1)`;
+  250 ms later `forceClick(2)`. Moving after stage 1 becomes a drag. When
+  `lookUp == .forceClick`, stage 2 is the Look Up trigger (synth chooses native
+  pressure events or the ctrl+cmd+D fallback); `.lookUp` is only emitted for
+  `lookUp == .threeFingerTap`.
+- Two-finger tap waits 250 ms for a possible second tap when smart zoom is on
+  (right click after the wait, `smartMagnify` instead if the second tap comes).
+- Two-finger swipe between pages arrives as horizontal phased scroll; three
+  fingers emit `navigate(back:)` once past 50 pt.
+- Never a stuck button: when no finger is down, the left button is up. Lifts,
+  `cancelled` touches, a silent link (`staleTouchTimeout`), a phone clock restart
+  and `cancelAll()` all release it.
 
 ## 7. Mac event synthesis (GlasspadMacCore/Synth)
 
