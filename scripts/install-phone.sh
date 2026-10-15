@@ -5,7 +5,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 TEAM="${GLASSPAD_TEAM:?Set GLASSPAD_TEAM to your Apple team ID (Xcode > Settings > Apple Accounts)}"
-DEVICE="${1:-$(xcrun devicectl list devices 2>/dev/null | awk '/available \(paired\)/ && !/simulated/ {for(i=1;i<=NF;i++) if ($i ~ /^[0-9A-F]{8}-[0-9A-F]{16}$/) {print $i; exit}}')}"
+DEVICE="${1:-$(xcrun devicectl list devices 2>/dev/null | awk '(/available \(paired\)/ || / connected /) && !/simulated/ {for(i=1;i<=NF;i++) if ($i ~ /^[0-9A-F]{8}-[0-9A-F]{16}$/) {print $i; exit}}')}"
 [ -n "$DEVICE" ] || { echo "No iPhone found. Plug it in and unlock it."; exit 1; }
 # Build from a clean copy outside iCloud Desktop so codesign and unfinished edits never interfere.
 WT="${HOME}/Library/Caches/glasspad-phone"
