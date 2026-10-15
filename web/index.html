@@ -1,0 +1,384 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Glasspad: your iPhone as a Mac trackpad</title>
+<meta name="description" content="Glasspad turns your iPhone into a wireless Mac trackpad with haptics, plus Dock, Keys, Media, Deck, Macros, Clipboard and Present modes. Free, private and open source.">
+<meta name="theme-color" content="#F2F1EE">
+<script>document.documentElement.classList.add("js")</script>
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta property="og:title" content="Glasspad">
+<meta property="og:description" content="Your iPhone, as a Mac trackpad. Free, private and open source.">
+<link rel="canonical" href="https://glasspad.sohamaggarwal.com/">
+<meta property="og:url" content="https://glasspad.sohamaggarwal.com/">
+<meta property="og:image" content="https://glasspad.sohamaggarwal.com/og.png">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<svg width="0" height="0" class="sr-sprite" aria-hidden="true">
+  <defs>
+    <symbol id="i-github" viewBox="0 0 16 16"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></symbol>
+    <!-- Line icons, 24 grid, drawn for this site -->
+    <symbol id="i-dock" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="3.5"/><rect x="6" y="14.5" width="12" height="3" rx="1.5"/></symbol>
+    <symbol id="i-keys" viewBox="0 0 24 24"><rect x="2.5" y="6" width="19" height="12" rx="3"/><path d="M6.5 10h.01M10 10h.01M13.5 10h.01M17 10h.01M8.5 14h7"/></symbol>
+    <symbol id="i-media" viewBox="0 0 24 24"><path d="M5 6.2v11.6a.8.8 0 0 0 1.2.7l9.3-5.8a.8.8 0 0 0 0-1.4L6.2 5.5A.8.8 0 0 0 5 6.2Z"/><path d="M19 6v12"/></symbol>
+    <symbol id="i-deck" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="7" height="7" rx="2"/><rect x="13.5" y="3.5" width="7" height="7" rx="2"/><rect x="3.5" y="13.5" width="7" height="7" rx="2"/><rect x="13.5" y="13.5" width="7" height="7" rx="2"/></symbol>
+    <symbol id="i-macros" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="3.2"/></symbol>
+    <symbol id="i-clipboard" viewBox="0 0 24 24"><path d="M9 4.5H7.5A2.5 2.5 0 0 0 5 7v11.5A2.5 2.5 0 0 0 7.5 21h9a2.5 2.5 0 0 0 2.5-2.5V7a2.5 2.5 0 0 0-2.5-2.5H15"/><rect x="9" y="3" width="6" height="3.2" rx="1.2"/><path d="M8.5 11.5h7M8.5 15h4.5"/></symbol>
+    <symbol id="i-present" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2.5"/><path d="M12 16v4M8.5 20h7"/><circle cx="14.5" cy="9.5" r="1.4"/></symbol>
+    <symbol id="i-qr" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="6" height="6" rx="1.5"/><rect x="14.5" y="3.5" width="6" height="6" rx="1.5"/><rect x="3.5" y="14.5" width="6" height="6" rx="1.5"/><path d="M14.5 14.5h2.5v2.5M20.5 14.5v.01M14.5 20.5h.01M18 18v2.5h2.5"/></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24"><rect x="4.5" y="10.5" width="15" height="10" rx="2.5"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/></symbol>
+    <symbol id="i-home" viewBox="0 0 24 24"><path d="M4 10.5 12 4l8 6.5V19a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 19Z"/><path d="M9 14.2a4.2 4.2 0 0 1 6 0M10.8 16.8a1.7 1.7 0 0 1 2.4 0"/></symbol>
+    <symbol id="i-noaccount" viewBox="0 0 24 24"><circle cx="12" cy="8.5" r="3.5"/><path d="M5 20a7 7 0 0 1 11.2-5.6M4 4l16 16"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8.5" y="8.5" width="11" height="11" rx="2.5"/><path d="M15.5 8.5V6.5A2 2 0 0 0 13.5 4.5h-7a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h2"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></symbol>
+  </defs>
+</svg>
+
+<header class="nav" id="nav">
+  <a class="brand" href="#top" aria-label="Glasspad home">
+    <img src="/icon.svg" width="28" height="28" alt="">
+    <span>Glasspad</span>
+  </a>
+  <nav class="nav-links" aria-label="Sections">
+    <a href="#try">Try it</a>
+    <a href="#modes">Modes</a>
+    <a href="#privacy">Privacy</a>
+    <a href="#get">Get it</a>
+  </nav>
+  <a class="nav-gh" href="https://github.com/Soham109/glasspad" aria-label="Glasspad on GitHub">
+    <svg width="18" height="18" aria-hidden="true"><use href="#i-github"/></svg>
+  </a>
+</header>
+
+<main id="main">
+
+<!-- Hero -->
+<section class="hero" id="top">
+  <div class="hero-mark" aria-hidden="true">
+    <svg class="glide" id="heroGlide" viewBox="0 0 1024 1024" width="100%" height="100%">
+      <rect width="1024" height="1024" rx="228" fill="#EDECE8"/>
+      <rect x="102" y="222" width="820" height="580" rx="140" fill="#FBFBF9" stroke="#1A1A1A" stroke-opacity="0.10" stroke-width="4"/>
+      <path id="heroTrail" d="M300 610 L660 440" fill="none" stroke="#1A1A1A" stroke-opacity="0.1" stroke-width="90" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle id="heroDot" cx="660" cy="440" r="74" fill="#1A1A1A" fill-opacity="0.62"/>
+    </svg>
+  </div>
+  <h1 class="hero-title">Glasspad</h1>
+  <p class="hero-line">Your iPhone, as a Mac trackpad.</p>
+  <p class="hero-sub">Wireless, with haptics, plus a dock, keyboard, media controls, macros and more. Free, private and open source.</p>
+  <div class="hero-actions">
+    <a class="btn btn-ink" href="https://github.com/Soham109/glasspad">
+      <svg width="18" height="18" aria-hidden="true"><use href="#i-github"/></svg>
+      View on GitHub
+    </a>
+    <a class="btn btn-quiet" href="#try">Try the trackpad</a>
+  </div>
+  <p class="hero-note">Version 0.1.0, not yet released. Built from source with Xcode, for macOS 14 and iOS 17 or later.</p>
+</section>
+
+<!-- Interactive demo -->
+<section class="demo dark" id="try" aria-labelledby="try-title">
+  <div class="wrap">
+    <div class="section-head center">
+      <h2 id="try-title" class="reveal">Try it here.</h2>
+      <p class="lede reveal" data-touch-copy="Put one, two or three fingers on the phone. Scroll, pinch, and swipe sideways with three." data-mouse-copy="Move your pointer over the phone. Click, scroll, or pinch on your trackpad. Tap a gesture below to see the rest.">Move your pointer over the phone. Click, scroll, or pinch on your trackpad. Tap a gesture below to see the rest.</p>
+    </div>
+
+    <div class="stage">
+      <div class="phone-col">
+        <div class="phone" id="phone">
+          <div class="phone-screen" id="surface" role="application" aria-label="Trackpad demo. Use your pointer or fingers on this surface." tabindex="0">
+            <svg class="trails" id="trails" aria-hidden="true"></svg>
+            <div class="dots" id="dots" aria-hidden="true"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="mac-col">
+        <div class="mac" id="mac" aria-hidden="true">
+          <div class="mac-bar"><span class="mac-apple"></span><span class="mac-menu"></span><span class="mac-menu short"></span></div>
+          <div class="mac-viewport">
+            <div class="spaces" id="spaces">
+              <div class="space">
+                <div class="win" id="win">
+                  <div class="win-bar"><i></i><i></i><i></i></div>
+                  <div class="win-body"><div class="doc" id="doc"></div></div>
+                </div>
+                <div class="win win-b"><div class="win-bar"><i></i><i></i><i></i></div></div>
+              </div>
+              <div class="space space-2"><div class="win win-c"><div class="win-bar"><i></i><i></i><i></i></div></div></div>
+              <div class="space space-3"><div class="win win-d"><div class="win-bar"><i></i><i></i><i></i></div></div></div>
+            </div>
+            <svg class="cursor" id="cursor" width="16" height="22" viewBox="0 0 16 22"><path d="M1 1v17l4.6-4.4 3 6.9 3-1.3-3-6.8H15Z" fill="#1A1A1A" stroke="#fff" stroke-width="1.4" stroke-linejoin="round"/></svg>
+          </div>
+          <div class="mac-dots" id="macSpaces"><i class="on"></i><i></i><i></i></div>
+        </div>
+        <div class="caption" aria-live="polite"><span class="caption-text" id="caption">Move the pointer</span></div>
+      </div>
+    </div>
+
+    <div class="gestures" role="group" aria-label="Show a gesture">
+      <button class="chip" data-g="move">Move</button>
+      <button class="chip" data-g="click">Tap to click</button>
+      <button class="chip" data-g="scroll">Two finger scroll</button>
+      <button class="chip" data-g="pinch">Pinch to zoom</button>
+      <button class="chip" data-g="spaces">Three finger swipe</button>
+      <button class="chip" data-g="mission">Mission Control</button>
+      <span class="theme-row" role="radiogroup" aria-label="Surface theme">
+        <button role="radio" aria-checked="true" data-theme="paper">Paper</button>
+        <button role="radio" aria-checked="false" data-theme="graphite">Graphite</button>
+      </span>
+    </div>
+  </div>
+</section>
+
+<!-- Settings -->
+<section class="settings" id="settings" aria-labelledby="settings-title">
+  <div class="wrap split">
+    <div class="split-text">
+      <h2 id="settings-title" class="reveal">It follows your Mac's own trackpad settings.</h2>
+      <p class="lede reveal">Glasspad reads your trackpad settings from macOS while it runs, so you never set anything up twice. Change one in System Settings and the phone follows.</p>
+      <p class="small reveal">Tracking speed, natural scrolling, tap to click, secondary click, three finger drag, Look Up, swipe between pages and Spaces, Mission Control, App Exposé, Launchpad, Show Desktop and click firmness all come from your Mac.</p>
+      <p class="small reveal">One difference: a phone screen cannot be pressed down, so a tap always clicks, even if tap to click is off on your Mac.</p>
+    </div>
+    <div class="sync" id="sync">
+      <div class="pane mac-pane">
+        <p class="pane-title">Trackpad <span>on your Mac</span></p>
+        <div class="row"><span>Tracking speed</span>
+          <input type="range" min="0" max="3" step="0.25" value="1.5" id="speed" aria-label="Tracking speed">
+        </div>
+        <div class="row"><span>Natural scrolling</span><button class="toggle" role="switch" aria-checked="true" data-key="natural" aria-label="Natural scrolling"><i></i></button></div>
+        <div class="row"><span>Three finger drag</span><button class="toggle" role="switch" aria-checked="false" data-key="drag" aria-label="Three finger drag"><i></i></button></div>
+        <div class="row"><span>Swipe between pages</span><button class="toggle" role="switch" aria-checked="true" data-key="pages" aria-label="Swipe between pages"><i></i></button></div>
+        <div class="row"><span>Mission Control</span><button class="toggle" role="switch" aria-checked="true" data-key="mission" aria-label="Mission Control"><i></i></button></div>
+      </div>
+      <div class="wire" aria-hidden="true"><i class="pulse" id="pulse"></i></div>
+      <div class="pane phone-pane" aria-label="What the phone uses">
+        <p class="pane-title">Glasspad <span>on your phone</span></p>
+        <div class="row"><span>Tracking speed</span><span class="meter"><i id="speedOut"></i></span></div>
+        <div class="row"><span>Natural scrolling</span><span class="state" data-out="natural">On</span></div>
+        <div class="row"><span>Three finger drag</span><span class="state" data-out="drag">Off</span></div>
+        <div class="row"><span>Swipe between pages</span><span class="state" data-out="pages">On</span></div>
+        <div class="row"><span>Mission Control</span><span class="state" data-out="mission">On</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Modes -->
+<section class="modes" id="modes" aria-labelledby="modes-title">
+  <div class="wrap">
+    <div class="section-head">
+      <h2 id="modes-title" class="reveal">More than a trackpad.</h2>
+      <p class="lede reveal">Touch the top of the screen and a small pill appears. Pick a mode, and the phone becomes something else for a while.</p>
+    </div>
+    <div class="modes-grid">
+      <div class="modes-sticky">
+        <div class="phone phone-paper mode-phone" id="modePhone" aria-hidden="true">
+          <div class="phone-screen">
+            <div class="pill" id="pill"><svg width="14" height="14"><use href="#i-dock"/></svg><span>Dock</span></div>
+            <div class="mode-views" id="modeViews"></div>
+          </div>
+        </div>
+      </div>
+      <ol class="mode-list" id="modeList">
+        <li class="mode" data-mode="dock">
+          <svg class="mode-icon" width="28" height="28" aria-hidden="true"><use href="#i-dock"/></svg>
+          <h3>Dock</h3>
+          <p>Your Mac's Dock apps and running apps, as a grid. Tap one to open it or switch to it.</p>
+        </li>
+        <li class="mode" data-mode="keys">
+          <svg class="mode-icon" width="28" height="28" aria-hidden="true"><use href="#i-keys"/></svg>
+          <h3>Keys</h3>
+          <p>Type on the phone and it appears on the Mac. A row of arrow keys, Esc, Tab and Command shortcuts. Dictation works too.</p>
+        </li>
+        <li class="mode" data-mode="media">
+          <svg class="mode-icon" width="28" height="28" aria-hidden="true"><use href="#i-media"/></svg>
+          <h3>Media</h3>
+          <p>What is playing, with artwork. Play, pause, skip, volume and screen brightness.</p>
+        </li>
+        <li class="mode" data-mode="deck">
+          <svg class="mode-icon" width="28" height="28" aria-hidden="true"><use href="#i-deck"/></svg>
+          <h3>Deck</h3>
+          <p>A grid of your own buttons. Open an app or a link, run an Apple Shortcut, send a keystroke or run a script.</p>
+        </li>
+        <li class="mode" data-mode="macros">
+          <svg class="mode-icon" width="28" height="28" aria-hidden="true"><use href="#i-macros"/></svg>
+          <h3>Macros</h3>
+          <p>Record what you do on your Mac and replay it with one tap. Buttons change with the app in front.</p>
+        </li>
+        <li class="mode" data-mode="clipboard">
+          <svg class="mode-icon" width="28" height="28" aria-hidden="true"><use href="#i-clipboard"/></svg>
+          <h3>Clipboard</h3>
+          <p>Send what you copied on your phone to the Mac, or bring the Mac's clipboard to the phone. Text and images.</p>
+        </li>
+        <li class="mode" data-mode="present">
+          <svg class="mode-icon" width="28" height="28" aria-hidden="true"><use href="#i-present"/></svg>
+          <h3>Present</h3>
+          <p>Big next and previous buttons, a timer, and a laser dot you steer across the Mac's screen.</p>
+        </li>
+      </ol>
+    </div>
+  </div>
+</section>
+
+<!-- Macros and per-app sets -->
+<section class="macros" id="macros" aria-labelledby="macros-title">
+  <div class="wrap">
+    <div class="section-head">
+      <h2 id="macros-title" class="reveal">Buttons that know which app you are in.</h2>
+      <p class="lede reveal">Switch apps on your Mac and the buttons on your phone switch with it. Glasspad comes with sets for ten popular apps plus one for everywhere else, and every button is one of that app's own standard shortcuts. Edit them, or make your own.</p>
+    </div>
+
+    <div class="profiles">
+      <div class="profile-picker" role="tablist" aria-label="Front app on your Mac" id="picker"></div>
+      <div class="profile-stage">
+        <div class="front-app" aria-hidden="true"><span class="front-label">In front on your Mac</span><span class="front-name" id="frontName">Safari</span></div>
+        <div class="phone phone-paper profile-phone">
+          <div class="phone-screen">
+            <div class="profile-head" id="profileHead">Safari</div>
+            <div class="buttons" id="buttons" role="tabpanel" aria-live="polite"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="record split">
+      <div class="split-text">
+        <h3 class="h3 reveal">Record it once. Replay it with a tap.</h3>
+        <p class="reveal">Press record and use your Mac as usual. Glasspad turns what you did into a short list of steps you can read and edit: typing becomes text, shortcuts become keystrokes, pauses become waits.</p>
+        <p class="reveal">A macro can also run your Apple Shortcuts, open apps, links and files, and repeat. Start one from a button, a phone gesture or a Mac hotkey.</p>
+        <p class="small reveal">Scripts never run unless you turn them on for that macro. Passwords typed into secure fields are never recorded.</p>
+      </div>
+      <ol class="steps-list" id="steps" aria-label="An example recorded macro">
+        <li><span class="step-kind">Open app</span><span class="step-val">Safari</span></li>
+        <li><span class="step-kind">Keystroke</span><span class="step-val"><kbd>⌘</kbd><kbd>L</kbd></span></li>
+        <li><span class="step-kind">Type text</span><span class="step-val">github.com/Soham109/glasspad</span></li>
+        <li><span class="step-kind">Keystroke</span><span class="step-val"><kbd>Return</kbd></span></li>
+        <li><span class="step-kind">Wait</span><span class="step-val">0.8 s</span></li>
+        <li><span class="step-kind">Run Shortcut</span><span class="step-val">Start focus</span></li>
+      </ol>
+    </div>
+  </div>
+</section>
+
+<!-- Privacy -->
+<section class="privacy dark" id="privacy" aria-labelledby="privacy-title">
+  <div class="wrap">
+    <div class="section-head center">
+      <h2 id="privacy-title" class="reveal">It controls your Mac, so it is locked down.</h2>
+      <p class="lede reveal">Your phone and your Mac talk directly over your own Wi-Fi. There is no server in between and nothing to sign up for.</p>
+    </div>
+
+    <div class="net" aria-hidden="true">
+      <svg viewBox="0 0 720 220" id="net">
+        <rect x="1" y="1" width="718" height="218" rx="28" fill="none" stroke="currentColor" stroke-opacity="0.16" stroke-dasharray="2 7" stroke-linecap="round"/>
+        <text x="28" y="40" class="net-label">Your Wi-Fi</text>
+        <rect x="118" y="62" width="64" height="122" rx="16" fill="none" stroke="currentColor" stroke-opacity="0.7" stroke-width="2"/>
+        <rect x="508" y="74" width="112" height="76" rx="8" fill="none" stroke="currentColor" stroke-opacity="0.7" stroke-width="2"/>
+        <path d="M494 168h140" stroke="currentColor" stroke-opacity="0.7" stroke-width="2" stroke-linecap="round"/>
+        <path id="netPath" d="M196 123 H494" stroke="currentColor" stroke-opacity="0.18" stroke-width="2" stroke-linecap="round" fill="none"/>
+        <g id="netPackets"></g>
+        <text x="150" y="208" text-anchor="middle" class="net-cap">iPhone</text>
+        <text x="564" y="208" text-anchor="middle" class="net-cap">Mac</text>
+      </svg>
+    </div>
+
+    <ul class="facts">
+      <li class="reveal">
+        <svg width="28" height="28" aria-hidden="true"><use href="#i-qr"/></svg>
+        <h3>Pair with a QR code</h3>
+        <p>Your Mac shows a QR code holding a random secret key. The phone scans it once and keeps the key in the iOS Keychain, Apple's encrypted store for secrets. No key, no connection.</p>
+      </li>
+      <li class="reveal">
+        <svg width="28" height="28" aria-hidden="true"><use href="#i-lock"/></svg>
+        <h3>Encrypted, every message</h3>
+        <p>After the first hello, everything is encrypted and checked with ChaCha20-Poly1305, a widely used encryption method. Recorded traffic cannot be played back later.</p>
+      </li>
+      <li class="reveal">
+        <svg width="28" height="28" aria-hidden="true"><use href="#i-home"/></svg>
+        <h3>Nothing leaves your network</h3>
+        <p>It does not work over the internet, by design. Touches go from the phone to the Mac and nowhere else. Unpaired devices on your Wi-Fi are ignored.</p>
+      </li>
+      <li class="reveal">
+        <svg width="28" height="28" aria-hidden="true"><use href="#i-noaccount"/></svg>
+        <h3>No accounts, no tracking</h3>
+        <p>No sign up, no servers, no analytics. Remove a phone from the Mac's menu and its key stops working.</p>
+      </li>
+    </ul>
+  </div>
+</section>
+
+<!-- Phone safety -->
+<section class="safety" id="safety" aria-labelledby="safety-title">
+  <div class="wrap split">
+    <div class="split-text">
+      <h2 id="safety-title" class="reveal">Gentle on your phone.</h2>
+      <p class="lede reveal">Glasspad uses only public iOS features, the same ones any App Store app may use.</p>
+    </div>
+    <ul class="plain-list">
+      <li class="reveal"><span class="pl-dot" aria-hidden="true"></span>The screen dims after a minute without a touch.</li>
+      <li class="reveal"><span class="pl-dot" aria-hidden="true"></span>It never turns your brightness up.</li>
+      <li class="reveal"><span class="pl-dot" aria-hidden="true"></span>The phone only stays awake while the trackpad is on screen.</li>
+      <li class="reveal"><span class="pl-dot" aria-hidden="true"></span>If the phone gets warm, it pauses haptics and background traffic and tells you calmly.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- Get it -->
+<section class="get" id="get" aria-labelledby="get-title">
+  <div class="wrap">
+    <div class="section-head">
+      <h2 id="get-title" class="reveal">Build it yourself. It is free.</h2>
+      <p class="lede reveal">Glasspad is not on the App Store. You build it with Xcode, which is what lets the Mac side do things the App Store does not allow, like real Mission Control and Spaces swipes. You need a Mac with Xcode 16 or newer, an iPhone on iOS 17 or newer, and a free Apple ID.</p>
+    </div>
+
+    <div class="code reveal">
+      <button class="copy" id="copy" aria-label="Copy commands">
+        <svg width="16" height="16" class="ic-copy" aria-hidden="true"><use href="#i-copy"/></svg>
+        <svg width="16" height="16" class="ic-check" aria-hidden="true"><use href="#i-check"/></svg>
+        <span>Copy</span>
+      </button>
+<pre id="cmds"><code>git clone https://github.com/Soham109/glasspad.git
+cd glasspad
+brew install xcodegen
+xcodegen generate
+open Glasspad.xcodeproj</code></pre>
+    </div>
+
+    <ol class="numbered">
+      <li class="reveal"><span class="num">1</span><div><h3>Run the Mac app</h3><p>Pick the Glasspad Mac scheme and press Run. Allow Accessibility access when asked. macOS needs it before any app can move the pointer.</p></div></li>
+      <li class="reveal"><span class="num">2</span><div><h3>Put it on your iPhone</h3><p>Plug in your phone, pick the Glasspad iOS scheme and your phone, and press Run. Sign in with your Apple ID under Signing and Capabilities.</p></div></li>
+      <li class="reveal"><span class="num">3</span><div><h3>Pair</h3><p>Click Glasspad in the Mac's menu bar, choose Pair, and scan the QR code with the phone.</p></div></li>
+    </ol>
+    <!--shot:menubar.png|The Glasspad menu in the Mac menu bar-->
+    <p class="small note">With a free Apple ID, the iPhone app stops opening after 7 days. Run it from Xcode again to refresh it. A paid developer account lasts a year.</p>
+  </div>
+</section>
+
+</main>
+
+<footer class="foot dark">
+  <div class="wrap foot-inner">
+    <div class="foot-brand">
+      <img src="/icon-graphite.svg" width="40" height="40" alt="">
+      <p>Glasspad is open source under the MIT license.<br>Read it, change it, fork it.</p>
+    </div>
+    <nav class="foot-links" aria-label="Project links">
+      <a href="https://github.com/Soham109/glasspad">GitHub</a>
+      <a href="https://github.com/Soham109/glasspad/blob/main/CONTRIBUTING.md">Contributing</a>
+      <a href="https://github.com/Soham109/glasspad/blob/main/SECURITY.md">Security</a>
+      <a href="https://github.com/Soham109/glasspad/blob/main/LICENSE">License</a>
+    </nav>
+    <p class="foot-copy">Copyright 2026 Soham Aggarwal. Not affiliated with Apple. iPhone, Mac and Xcode are trademarks of Apple Inc.</p>
+  </div>
+</footer>
+
+<script type="module" src="/src/main.ts"></script>
+</body>
+</html>
