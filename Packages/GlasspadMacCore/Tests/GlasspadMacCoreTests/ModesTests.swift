@@ -71,20 +71,37 @@ func tempURL(_ name: String) -> URL {
 }
 
 @Suite @MainActor struct ClipboardTests {
-    @Test func textAndImageRoundTrip() throws {
+    @Test func textAndImageRoundTrip() async throws {
         let pb = NSPasteboard(name: NSPasteboard.Name("glasspad-test-\(UUID().uuidString)"))
         defer { pb.releaseGlobally() }
         let clip = ClipboardMode(pasteboard: pb)
         clip.push(.text("hello"))
-        #expect(clip.pull() == .text("hello"))
+        #expect(await clip.pull() == .text("hello"))
         let png = try #require(DockMode.renderPNG(NSImage(size: NSSize(width: 8, height: 8)), pixels: 8))
         clip.push(.imagePNG(png))
-        if case .imagePNG(let d) = clip.pull() { #expect(d == png) } else { Issue.record("expected image") }
+        if case .imagePNG(let d) = await clip.pull() { #expect(d == png) } else { Issue.record("expected image") }
+        // The TIFF copy for apps that only read TIFF follows shortly.
+        let deadline = Date().addingTimeInterval(2)
+        while Date() < deadline, pb.data(forType: .tiff) == nil { try await Task.sleep(for: .milliseconds(10)) }
+        let tiff = try #require(pb.data(forType: .tiff))
+        #expect(NSBitmapImageRep(data: tiff)?.pixelsWide == 8)
+        #expect(pb.data(forType: .png) == png)
+    }
+
+    /// A TIFF-only clipboard (some apps) comes out as PNG.
+    @Test func tiffIsPulledAsPNG() async throws {
+        let pb = NSPasteboard(name: NSPasteboard.Name("glasspad-test-\(UUID().uuidString)"))
+        defer { pb.releaseGlobally() }
+        let png = try #require(DockMode.renderPNG(NSImage(size: NSSize(width: 8, height: 8)), pixels: 8))
+        pb.clearContents()
+        pb.setData(try #require(NSImage(data: png)?.tiffRepresentation), forType: .tiff)
+        guard case .imagePNG(let d) = await ClipboardMode(pasteboard: pb).pull() else { Issue.record("expected image"); return }
+        #expect(NSBitmapImageRep(data: d)?.pixelsWide == 8)
     }
 
     /// A big screenshot on the Mac clipboard used to go out whole: over the phone's frame limit,
     /// so pulling it dropped the connection. It is scaled down until it fits one message.
-    @Test func largeImageIsScaledToFitOneMessage() throws {
+    @Test func largeImageIsScaledToFitOneMessage() async throws {
         let pb = NSPasteboard(name: NSPasteboard.Name("glasspad-test-\(UUID().uuidString)"))
         defer { pb.releaseGlobally() }
         // Noise does not compress: 3 bytes per pixel, so 2100 x 2100 is about 13 MB.
@@ -98,7 +115,17 @@ func tempURL(_ name: String) -> URL {
         #expect(big.count > ClipboardContent.maxImageBytes)
         pb.clearContents()
         pb.setData(big, forType: .png)
-        guard case .imagePNG(let d) = ClipboardMode(pasteboard: pb).pull() else { Issue.record("expected image"); return }
+        // The shrinking runs off the main thread: the main actor keeps running meanwhile.
+        let clip = ClipboardMode(pasteboard: pb)
+        let pull = Task { await clip.pull() }
+        var mainTurns = 0
+        let ticker = Task { @MainActor in
+            while !Task.isCancelled { mainTurns += 1; try? await Task.sleep(for: .milliseconds(5)) }
+        }
+        let result = await pull.value
+        ticker.cancel()
+        #expect(mainTurns > 5)
+        guard case .imagePNG(let d) = result else { Issue.record("expected image"); return }
         #expect(d.count <= ClipboardContent.maxImageBytes)
         let out = try #require(NSBitmapImageRep(data: d))
         #expect(out.pixelsWide < side && out.pixelsWide > 0)

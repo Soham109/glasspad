@@ -110,8 +110,75 @@ private let sep = ScriptablePlayer.separator
     }
 }
 
+/// The helper restart policy, with a fake helper (/bin/sh) instead of perl.
+@MainActor @Suite(.serialized) struct AdapterRestartTests {
+    /// Says "nothing is playing", then dies at once.
+    static func crashingHelper(_ library: URL) -> (executable: URL, arguments: [String]) {
+        (URL(fileURLWithPath: "/bin/sh"), ["-c", #"echo '{"type":"data","diff":false,"payload":null}'; exit 3"#])
+    }
+
+    func waitFor(_ seconds: Double, _ cond: () -> Bool) async -> Bool {
+        let end = Date().addingTimeInterval(seconds)
+        while Date() < end {
+            if cond() { return true }
+            try? await Task.sleep(for: .milliseconds(20))
+        }
+        return cond()
+    }
+
+    /// A helper that reports "nothing" and then crashes used to reset the restart counter with
+    /// its output, so it was restarted about once a second forever. Now only a run that stays up
+    /// counts as healthy: the pauses grow and Glasspad gives up.
+    @Test func crashAfterNothingStillGivesUp() async {
+        let adapter = NowPlayingAdapter(library: URL(fileURLWithPath: "/dev/null"), launcher: Self.crashingHelper)
+        adapter.restartDelays = [0.05, 0.1, 0.2]
+        var events: [AdapterStreamParser.Event] = []
+        adapter.onEvent = { events.append($0) }
+        adapter.start()
+        #expect(await waitFor(6) {
+            if case .unavailable = adapter.status { return true }
+            return false
+        })
+        #expect(adapter.launches == NowPlayingAdapter.maxQuickRestarts + 1)
+        #expect(events.contains(.nothing))
+        if case .unavailable(let why) = adapter.status { #expect(why.contains("keeps stopping")) }
+        // Given up means given up: no more launches.
+        let launches = adapter.launches
+        try? await Task.sleep(for: .milliseconds(400))
+        #expect(adapter.launches == launches)
+        adapter.stop()
+    }
+
+    /// A helper that ran for a good while before it died is restarted with a short pause again.
+    @Test func longRunResetsTheBackoff() async {
+        let adapter = NowPlayingAdapter(library: URL(fileURLWithPath: "/dev/null"), launcher: { _ in
+            (URL(fileURLWithPath: "/bin/sh"), ["-c", "sleep 0.3; exit 1"])
+        })
+        adapter.restartDelays = [0.05]
+        adapter.stableRun = 0.2
+        adapter.start()
+        #expect(await waitFor(4) { adapter.launches >= NowPlayingAdapter.maxQuickRestarts + 3 })
+        if case .unavailable(let why) = adapter.status { Issue.record("gave up: \(why)") }
+        adapter.stop()
+    }
+}
+
 @Suite struct AppleScriptParsingTests {
     let now = Date(timeIntervalSince1970: 1000)
+
+    /// Scripting-addition commands run on the main thread even when the script does not; the
+    /// player scripts must not need one, so they never wait on the pointer's thread.
+    @Test func playerScriptsUseNoScriptingAdditions() {
+        for p in ScriptablePlayer.allCases {
+            let all = [p.statusScript, p.artworkScript ?? "", p.volumeScript(0.5)]
+                + MediaCommand.allCases.compactMap(p.commandScript)
+            for script in all {
+                for addition in ["ASCII character", "ASCII number", "display dialog", "do shell script", "offset of"] {
+                    #expect(!script.contains(addition), "\(p.name) script uses \(addition)")
+                }
+            }
+        }
+    }
 
     @Test func spotifyLine() {
         let text = ["playing", "Paranoid Android", "Radiohead", "OK Computer", "387000", "12,5",

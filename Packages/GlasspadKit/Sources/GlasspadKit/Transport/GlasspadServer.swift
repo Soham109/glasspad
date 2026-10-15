@@ -87,6 +87,13 @@ public final class GlasspadServer: @unchecked Sendable {
     private var pingSent: [UInt32: TimeInterval] = [:]
     private var rtts: [Double] = []
     private var running = false
+    /// Restart bookkeeping per listener (key: true for TCP).
+    private var listenerFailures: [Bool: Int] = [:]
+    private var listenerRestart: [Bool: DispatchWorkItem] = [:]
+    /// Why a listener is down, until it is back.
+    private var listenerFailure: String?
+    /// Pauses before replacing a failed listener; the last one repeats. Internal for tests.
+    var listenerBackoff: [TimeInterval] = [0.5, 1, 2, 5, 10]
     /// Last authenticated TCP frame or touch datagram from the active phone.
     private var lastHeard: TimeInterval = 0
     /// The active session is closed after this long without hearing from the phone (it answers
@@ -94,6 +101,11 @@ public final class GlasspadServer: @unchecked Sendable {
     var silenceTimeout: TimeInterval = GlasspadService.serverSilenceTimeout
     /// Internal so tests can make the phone's liveness check fire.
     var pingInterval: TimeInterval = GlasspadService.pingInterval
+    /// A connection that has not finished the handshake by then is closed. Internal for tests.
+    var handshakeTimeout: TimeInterval = GlasspadService.handshakeTimeout
+    /// Most connections allowed to be mid-handshake at once (anyone on the network can open
+    /// one). Over the cap the oldest one that has not even sent its hello is dropped.
+    static let maxPendingHandshakes = 8
 
     final class Session: @unchecked Sendable {
         enum Phase { case awaitingHello, awaitingConfirm, authenticated }
@@ -106,6 +118,7 @@ public final class GlasspadServer: @unchecked Sendable {
         var phone: PairedPhone?
         var isNewPairing = false
         var udp: NWConnection?
+        let acceptedAt = uptime()
         init(channel: ControlChannel) { self.channel = channel }
     }
 
@@ -130,36 +143,50 @@ public final class GlasspadServer: @unchecked Sendable {
         pingTimer?.cancel()
     }
 
-    /// Starts both listeners. State becomes `.searching` once the TCP listener is ready.
+    /// Starts both listeners. State becomes `.searching` once both are ready.
     public func start() throws {
-        // Peer-to-peer stays allowed on the listeners so a phone with no shared network can
-        // still connect; phones only use it as a fallback (GlasspadService.tcpParameters).
-        let tcp = try NWListener(using: GlasspadService.tcpParameters(peerToPeer: true), on: Self.port(requestedTCPPort))
-        let udp = try NWListener(using: GlasspadService.udpParameters(peerToPeer: true), on: Self.port(requestedUDPPort))
-        if advertise {
-            var txt = NWTXTRecord()
-            txt["id"] = macID.uuidString
-            txt["v"] = "\(GlasspadService.protocolVersion)"
-            tcp.service = NWListener.Service(name: macName, type: GlasspadService.bonjourType, domain: nil, txtRecord: txt)
-            tcp.serviceRegistrationUpdateHandler = { [weak self] change in
-                switch change {
-                case .add: self?.advertisingBox.set(true)
-                case .remove: self?.advertisingBox.set(false)
-                @unknown default: break
-                }
-            }
-        }
-        tcp.stateUpdateHandler = { [weak self] st in self?.listenerState(st, tcp: true) }
-        udp.stateUpdateHandler = { [weak self] st in self?.listenerState(st, tcp: false) }
-        tcp.newConnectionHandler = { [weak self] c in self?.acceptTCP(c) }
-        udp.newConnectionHandler = { [weak self] c in self?.acceptUDP(c) }
+        let tcp = try makeListener(tcp: true)
+        let udp = try makeListener(tcp: false)
         queue.sync {
             running = true
             tcpListener = tcp
             udpListener = udp
+            listenerFailures = [:]
+            listenerFailure = nil
         }
         tcp.start(queue: queue)
         udp.start(queue: queue)
+    }
+
+    private func makeListener(tcp isTCP: Bool) throws -> NWListener {
+        // Peer-to-peer stays allowed on the listeners so a phone with no shared network can
+        // still connect; phones only use it as a fallback (GlasspadService.tcpParameters).
+        let l = isTCP
+            ? try NWListener(using: GlasspadService.tcpParameters(peerToPeer: true), on: Self.port(requestedTCPPort))
+            : try NWListener(using: GlasspadService.udpParameters(peerToPeer: true), on: Self.port(requestedUDPPort))
+        if isTCP, advertise {
+            var txt = NWTXTRecord()
+            txt["id"] = macID.uuidString
+            txt["v"] = "\(GlasspadService.protocolVersion)"
+            l.service = NWListener.Service(name: macName, type: GlasspadService.bonjourType, domain: nil, txtRecord: txt)
+            l.serviceRegistrationUpdateHandler = { [weak self, weak l] change in
+                guard let self, let l, l === self.tcpListener else { return }
+                switch change {
+                case .add: self.advertisingBox.set(true)
+                case .remove: self.advertisingBox.set(false)
+                @unknown default: break
+                }
+            }
+        }
+        // Callbacks from a listener that was already replaced are ignored.
+        l.stateUpdateHandler = { [weak self, weak l] st in
+            guard let self, let l else { return }
+            self.listenerState(st, of: l, tcp: isTCP)
+        }
+        l.newConnectionHandler = { [weak self] c in
+            if isTCP { self?.acceptTCP(c) } else { self?.acceptUDP(c) }
+        }
+        return l
     }
 
     /// Closes the session and both listeners.
@@ -180,6 +207,10 @@ public final class GlasspadServer: @unchecked Sendable {
             udpListener?.cancel()
             tcpListener = nil
             udpListener = nil
+            for w in listenerRestart.values { w.cancel() }
+            listenerRestart = [:]
+            listenerFailures = [:]
+            listenerFailure = nil
             udpPort = nil
             portsBox.set((nil, nil))
             advertisingBox.set(false)
@@ -209,17 +240,85 @@ public final class GlasspadServer: @unchecked Sendable {
         p == 0 ? .any : NWEndpoint.Port(rawValue: p) ?? .any
     }
 
-    private func listenerState(_ st: NWListener.State, tcp: Bool) {
+    private func listenerState(_ st: NWListener.State, of l: NWListener, tcp: Bool) {
+        guard l === (tcp ? tcpListener : udpListener) else { return }
         switch st {
         case .ready:
-            let port = (tcp ? tcpListener?.port : udpListener?.port)?.rawValue
+            let port = l.port?.rawValue
             portsBox.mutate { if tcp { $0.tcp = port } else { $0.udp = port } }
             if !tcp { udpPort = port }
-            if tcp, active == nil { setState(.searching) }
+            listenerFailures[tcp] = 0
+            guard tcpListener?.port != nil, udpPort != nil else { return }
+            listenerFailure = nil
+            if active == nil { setState(.searching) }
         case .failed(let e):
-            setState(.failed("\(tcp ? "TCP" : "UDP") listener: \(e)"))
+            listenerFailed(tcp: tcp, error: "\(e)")
         default:
             break
+        }
+    }
+
+    /// A listener stopped for good (the network went away, the port was taken): replace it after
+    /// a growing pause. The state shows the failure meanwhile, unless a phone is connected.
+    private func listenerFailed(tcp: Bool, error: String) {
+        let name = tcp ? "TCP" : "UDP"
+        GPLog.log("server: \(name) listener failed: \(error)")
+        if tcp {
+            tcpListener?.cancel()
+            tcpListener = nil
+            advertisingBox.set(false)
+            portsBox.mutate { $0.tcp = nil }
+        } else {
+            udpListener?.cancel()
+            udpListener = nil
+            udpPort = nil
+            portsBox.mutate { $0.udp = nil }
+        }
+        guard running else { return }
+        listenerFailure = "\(name) listener: \(error)"
+        if !tcp, let s = active {
+            // The phone's touch packets go to the old UDP port; make it reconnect and learn the
+            // new one once the listener is back.
+            active = nil
+            phoneBox.set(nil)
+            pingTimer?.cancel()
+            pingTimer = nil
+            s.udp?.cancel()
+            byeAndClose(s, reason: "touch listener restarted")
+        }
+        if active == nil { setState(restingState) }
+        let n = listenerFailures[tcp, default: 0]
+        listenerFailures[tcp] = n + 1
+        let delay = listenerBackoff[min(n, listenerBackoff.count - 1)]
+        listenerRestart[tcp]?.cancel()
+        let work = DispatchWorkItem { [weak self] in self?.restartListener(tcp: tcp) }
+        listenerRestart[tcp] = work
+        queue.asyncAfter(deadline: .now() + delay, execute: work)
+    }
+
+    private func restartListener(tcp: Bool) {
+        listenerRestart[tcp] = nil
+        guard running, (tcp ? tcpListener : udpListener) == nil else { return }
+        do {
+            let l = try makeListener(tcp: tcp)
+            if tcp { tcpListener = l } else { udpListener = l }
+            l.start(queue: queue)
+        } catch {
+            listenerFailed(tcp: tcp, error: "\(error)")
+        }
+    }
+
+    /// The state with no active session.
+    private var restingState: LinkState {
+        guard running else { return .idle }
+        return listenerFailure.map { .failed($0) } ?? .searching
+    }
+
+    /// Test hook: behave as if a listener reported `.failed`.
+    func failListenerForTesting(tcp: Bool) {
+        queue.async { [self] in
+            guard let l = tcp ? tcpListener : udpListener else { return }
+            listenerState(.failed(.posix(.ENETDOWN)), of: l, tcp: tcp)
         }
     }
 
@@ -229,7 +328,19 @@ public final class GlasspadServer: @unchecked Sendable {
         let viaAWDL = "\(conn.endpoint)".contains("%awdl")
         GPLog.log("server: tcp from \(conn.endpoint)\(viaAWDL ? " (peer-to-peer Wi-Fi: expect latency spikes)" : "")")
         guard running else { conn.cancel(); return }
+        if handshaking.count >= Self.maxPendingHandshakes {
+            // Drop the oldest connection still waiting for a hello (a real phone says hello as
+            // soon as it connects); refuse this one when every slot is further along.
+            guard let oldest = handshaking.values.filter({ $0.phase == .awaitingHello }).min(by: { $0.acceptedAt < $1.acceptedAt })
+            else {
+                GPLog.log("server: refused tcp from \(conn.endpoint), too many handshakes in progress")
+                conn.cancel()
+                return
+            }
+            oldest.channel.close("too many handshakes in progress")
+        }
         let s = Session(channel: ControlChannel(connection: conn, queue: queue))
+        s.channel.maxIncomingFrame = GlasspadService.maxHandshakeFrameLength
         let key = ObjectIdentifier(s)
         handshaking[key] = s
         // Weak, not unowned: a replaced session is released while its last bye is still in
@@ -243,7 +354,7 @@ public final class GlasspadServer: @unchecked Sendable {
             self?.closed(s, reason: reason)
         }
         s.channel.start()
-        queue.asyncAfter(deadline: .now() + GlasspadService.handshakeTimeout) { [weak s] in
+        queue.asyncAfter(deadline: .now() + handshakeTimeout) { [weak s] in
             guard let s, s.phase != .authenticated else { return }
             s.channel.close("handshake timeout")
         }
@@ -268,6 +379,7 @@ public final class GlasspadServer: @unchecked Sendable {
                 return
             }
             s.phase = .authenticated
+            s.channel.maxIncomingFrame = GlasspadService.maxFrameLength
             guard let phone = s.phone else { return }
             if s.isNewPairing {
                 pendingKey.mutate { if $0 == phone.pairKey { $0 = nil } }
@@ -389,7 +501,7 @@ public final class GlasspadServer: @unchecked Sendable {
     private func closed(_ s: Session, reason: String?) {
         handshaking.removeValue(forKey: ObjectIdentifier(s))
         guard s === active else {
-            if active == nil, running, case .connecting = stateBox.get(), handshaking.isEmpty { setState(.searching) }
+            if active == nil, running, case .connecting = stateBox.get(), handshaking.isEmpty { setState(restingState) }
             return
         }
         active = nil
@@ -397,7 +509,7 @@ public final class GlasspadServer: @unchecked Sendable {
         phoneBox.set(nil)
         pingTimer?.cancel()
         pingTimer = nil
-        setState(running ? .searching : .idle)
+        setState(restingState)
     }
 
     private func byeAndClose(_ s: Session, reason: String) {

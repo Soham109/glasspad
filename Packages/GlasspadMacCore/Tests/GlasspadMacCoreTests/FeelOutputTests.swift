@@ -204,6 +204,27 @@ import Testing
         #expect(!clock.isRunning)
     }
 
+    /// The display is asleep (the clock runs but never fires) and a quick tap's last frame
+    /// arrives before the stall limit: the click must still go out on its own, not wait for the
+    /// next touch.
+    @Test func quickTapIsPostedWithNoDisplayFrames() async {
+        let (synth, poster) = makeSynth()
+        let clock = ManualFrameClock()
+        let pipeline = TouchPipeline(settings: .macDefault, synth: synth, frameClock: clock)
+        pipeline.onDiagnostics = nil
+        let t = 10.0
+        pipeline.process(frame(1, t, [Touch(id: 1, phase: .began, x: 100, y: 400)]))
+        pipeline.process(frame(2, t + 0.03, [Touch(id: 1, phase: .ended, x: 100, y: 400)]))
+        #expect(clock.isRunning)
+        let deadline = Date().addingTimeInterval(1)
+        while Date() < deadline, !poster.events.contains(where: { $0.type == .leftMouseUp }) {
+            try? await Task.sleep(for: .milliseconds(10))
+        }
+        #expect(poster.events.contains { $0.type == .leftMouseDown })
+        #expect(poster.events.contains { $0.type == .leftMouseUp })
+        pipeline.cancelAll()
+    }
+
     @Test func displayStallFallsBackToImmediatePosting() {
         let (synth, poster) = makeSynth()
         let clock = ManualFrameClock()

@@ -19,7 +19,8 @@
 //   stdout: one JSON object per line. "payload" is null when nothing is playing.
 //           {"type":"error","message":"..."} when MediaRemote cannot be used.
 //   stdin:  one command per line: "send <MRCommand>", "seek <seconds>", "shuffle <1-3>",
-//           "repeat <1-3>", "refresh". End of input (Glasspad quit) exits the process.
+//           "repeat <1-3>", "refresh". End of input (Glasspad quit) exits the process, and so
+//           does Glasspad's exit itself (watched by pid, in case the pipe stays open).
 
 #import <AppKit/AppKit.h>
 #import <Foundation/Foundation.h>
@@ -49,6 +50,7 @@ static NSString *gLastLine;
 static NSData *gLastArtwork;
 static NSString *gLastArtworkBase64;
 static BOOL gRefreshScheduled;
+static dispatch_source_t gParentWatch;
 
 static void emitLine(NSString *line) {
     if ([line isEqualToString:gLastLine]) return;
@@ -191,6 +193,19 @@ static void readCommands(void) {
     });
 }
 
+/// Exits when Glasspad (the parent) exits, even if something else still holds the stdin pipe
+/// open. Glasspad gone before the watch starts shows as a parent pid of 1 (launchd).
+static void watchParent(void) {
+    pid_t parent = getppid();
+    if (parent <= 1) exit(0);
+    dispatch_source_t source = dispatch_source_create(DISPATCH_SOURCE_TYPE_PROC, (uintptr_t)parent, DISPATCH_PROC_EXIT,
+                                                      dispatch_get_global_queue(QOS_CLASS_UTILITY, 0));
+    dispatch_source_set_event_handler(source, ^{ exit(0); });
+    dispatch_resume(source);
+    gParentWatch = source;
+    if (getppid() != parent) exit(0);
+}
+
 /// Entry point, called by perl as an XSUB. The two arguments (perl interpreter, CV) are unused.
 /// Never returns.
 __attribute__((visibility("default"))) void glasspad_nowplaying_run(void *perl, void *cv) {
@@ -238,6 +253,7 @@ __attribute__((visibility("default"))) void glasspad_nowplaying_run(void *perl, 
         dispatch_resume(timer);
 
         readCommands();
+        watchParent();
     }
     CFRunLoopRun();
     exit(0);

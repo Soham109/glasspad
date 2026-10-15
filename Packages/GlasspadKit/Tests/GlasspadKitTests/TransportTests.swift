@@ -1,6 +1,7 @@
 #if os(macOS)
 import Foundation
 import CoreGraphics
+import Network
 import Testing
 @testable import GlasspadKit
 
@@ -63,6 +64,97 @@ struct TransportTests {
         let c = GlasspadClient(phoneID: phoneID, phoneName: "Test Phone", pairing: pairing, delegateQueue: q)
         c.delegate = rec
         return (c, rec)
+    }
+
+    /// A raw TCP connection that has not paired: records when the Mac closes it.
+    final class RawConnection: @unchecked Sendable {
+        let conn: NWConnection
+        private let lock = NSLock()
+        private var _closed = false
+        var closed: Bool { lock.withLock { _closed } }
+        init(port: UInt16, queue: DispatchQueue) {
+            conn = NWConnection(host: "127.0.0.1", port: NWEndpoint.Port(rawValue: port)!, using: .tcp)
+            conn.start(queue: queue)
+            receive()
+        }
+        private func receive() {
+            conn.receive(minimumIncompleteLength: 1, maximumLength: 1 << 16) { [self] _, _, done, error in
+                if done || error != nil { lock.withLock { _closed = true }; return }
+                receive()
+            }
+        }
+        func send(_ d: Data) { conn.send(content: d, completion: .idempotent) }
+    }
+
+    /// Before the handshake only a hello-sized frame is accepted: a frame header that announces
+    /// 1 MB closes the connection at once instead of buffering it.
+    @Test func bigFrameBeforeHandshakeIsRefused() async throws {
+        let key = self.key
+        let (server, _, port) = try await makeServer { _ in key }
+        defer { server.stop() }
+        let raw = RawConnection(port: port, queue: q)
+        defer { raw.conn.cancel() }
+        var header = Data()
+        withUnsafeBytes(of: UInt32(1 << 20).bigEndian) { header.append(contentsOf: $0) }
+        raw.send(header + Data(repeating: 1, count: 4096))
+        #expect(await waitUntil(1.5) { raw.closed })
+    }
+
+    /// Idle connections that never say hello are capped (the oldest is dropped), time out, and do
+    /// not lock out a real phone.
+    @Test func unauthenticatedConnectionsAreCapped() async throws {
+        let key = self.key
+        let (server, _, port) = try await makeServer { _ in key }
+        defer { server.stop() }
+        server.handshakeTimeout = 2
+        let raws = (0..<20).map { _ in RawConnection(port: port, queue: q) }
+        defer { raws.forEach { $0.conn.cancel() } }
+        #expect(await waitUntil(1.5) { raws.filter(\.closed).count >= 20 - GlasspadServer.maxPendingHandshakes })
+        let (client, _) = makeClient()
+        client.connect(host: "127.0.0.1", port: port)
+        #expect(await waitUntil(1.5) { client.state.isConnected && server.state.isConnected })
+        // The rest time out on their own.
+        #expect(await waitUntil(3) { raws.allSatisfy(\.closed) })
+        client.disconnect()
+    }
+
+    /// A TCP listener that fails is replaced after a pause; the state shows the failure meanwhile.
+    @Test func failedTCPListenerIsRestarted() async throws {
+        let key = self.key
+        let (server, srec, _) = try await makeServer { _ in key }
+        defer { server.stop() }
+        server.listenerBackoff = [0.2]
+        server.failListenerForTesting(tcp: true)
+        #expect(await waitUntil(1) { server.state.failure != nil })
+        #expect(await waitUntil(2) { server.state == .searching && server.ports != nil })
+        #expect(srec.states.contains { $0.failure?.contains("TCP listener") == true })
+        let (client, _) = makeClient()
+        client.connect(host: "127.0.0.1", port: try #require(server.ports).tcp)
+        #expect(await waitUntil { client.state.isConnected && server.state.isConnected })
+        client.disconnect()
+    }
+
+    /// A UDP listener that fails under a connected phone is replaced, and the phone reconnects
+    /// and sends touches to the new port.
+    @Test func failedUDPListenerIsRestartedUnderAConnectedPhone() async throws {
+        let key = self.key
+        let (server, srec, port) = try await makeServer { _ in key }
+        defer { server.stop() }
+        server.listenerBackoff = [0.2]
+        let (client, _) = makeClient()
+        defer { client.disconnect() }
+        client.connect(host: "127.0.0.1", port: port)
+        #expect(await waitUntil { client.state.isConnected && server.state.isConnected })
+        let oldUDP = try #require(server.ports).udp
+        server.failListenerForTesting(tcp: false)
+        #expect(await waitUntil(1) { !server.state.isConnected })
+        #expect(await waitUntil(4) { server.state.isConnected && server.ports != nil })
+        #expect(try #require(server.ports).udp != oldUDP)
+        let surface = CGSize(width: 390, height: 844)
+        #expect(await waitUntil(3) {
+            client.send(frame: TouchFrame(seq: 0, timestamp: 1, touches: [Touch(id: 1, phase: .began, x: 5, y: 5)], surface: surface))
+            return !srec.frames.isEmpty
+        })
     }
 
     @Test func clientConnectsAndFramesArrive() async throws {

@@ -133,7 +133,12 @@ public final class ModeRouter {
                 self.send(.deckCatalog(catalog))
             }
         case .clipboardPush(let c): clipboard.push(c)
-        case .clipboardPull: send(.clipboardContent(clipboard.pull()))
+        case .clipboardPull:
+            Task { [weak self] in
+                guard let self else { return }
+                let content = await self.clipboard.pull()
+                self.send(.clipboardContent(content))
+            }
         case .presentNext: present.next()
         case .presentPrevious: present.previous()
         case .presentLaser(let on): present.setLaser(on: on)

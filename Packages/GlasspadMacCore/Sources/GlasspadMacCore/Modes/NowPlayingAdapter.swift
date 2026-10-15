@@ -169,11 +169,26 @@ final class NowPlayingAdapter {
     private var parser = AdapterStreamParser()
     private var buffer = Data()
     private var restarts = 0
+    private var launchedAt: TimeInterval = 0
+    /// Restarts in a row (each after a short run) before giving up.
+    nonisolated static let maxQuickRestarts = 5
+    /// Pause before each restart in a row; the last one repeats. Internal for tests.
+    var restartDelays: [TimeInterval] = [1, 2, 4, 8, 16]
+    /// A run at least this long counts as healthy and resets the restart count.
+    var stableRun: TimeInterval = 30
     private var wanted = false
     private var restartTask: Task<Void, Never>?
 
-    init(library: URL? = NowPlayingAdapter.bundledLibrary()) {
+    /// The program to run for a library: perl and the loader. Tests swap in a fake helper.
+    typealias Launcher = (URL) -> (executable: URL, arguments: [String])
+    private let launcher: Launcher
+    /// How many times the helper was started (tests).
+    private(set) var launches = 0
+
+    init(library: URL? = NowPlayingAdapter.bundledLibrary(),
+         launcher: @escaping Launcher = { (NowPlayingAdapter.perl, ["-e", NowPlayingAdapter.loader, $0.path]) }) {
         self.library = library
+        self.launcher = launcher
     }
 
     var isRunning: Bool { status == .running }
@@ -186,7 +201,7 @@ final class NowPlayingAdapter {
             setStatus(.unavailable("The now-playing helper is not in this build of Glasspad"))
             return
         }
-        guard FileManager.default.isExecutableFile(atPath: Self.perl.path) else {
+        guard FileManager.default.isExecutableFile(atPath: launcher(library).executable.path) else {
             setStatus(.unavailable("/usr/bin/perl is missing on this Mac"))
             return
         }
@@ -222,8 +237,9 @@ final class NowPlayingAdapter {
     private func launch(_ library: URL) {
         setStatus(.starting)
         let p = Process()
-        p.executableURL = Self.perl
-        p.arguments = ["-e", Self.loader, library.path]
+        let command = launcher(library)
+        p.executableURL = command.executable
+        p.arguments = command.arguments
         // A clean environment: no PERL5LIB or similar from the user's shell.
         p.environment = ["PATH": "/usr/bin:/bin", "LANG": "en_US.UTF-8"]
         let out = Pipe(), input = Pipe(), err = Pipe()
@@ -251,6 +267,8 @@ final class NowPlayingAdapter {
         _ = fcntl(input.fileHandleForWriting.fileDescriptor, F_SETNOSIGPIPE, 1)
         do {
             try p.run()
+            launches += 1
+            launchedAt = ProcessInfo.processInfo.systemUptime
             process = p
             stdin = input.fileHandleForWriting
             setStatus(.running)
@@ -266,8 +284,6 @@ final class NowPlayingAdapter {
             let lineData = buffer[buffer.startIndex..<newline]
             buffer.removeSubrange(buffer.startIndex...newline)
             guard let line = String(data: lineData, encoding: .utf8), let event = parser.consume(line) else { continue }
-            if case .snapshot = event { restarts = 0 }
-            if case .nothing = event { restarts = 0 }
             onEvent(event)
             if case .failed(let message) = event {
                 stop()
@@ -288,13 +304,16 @@ final class NowPlayingAdapter {
             setStatus(.stopped)
             return
         }
+        // Output does not prove health (a helper can print "nothing" and then crash); only a
+        // run that stayed up for a while resets the count.
+        if ProcessInfo.processInfo.systemUptime - launchedAt >= stableRun { restarts = 0 }
         restarts += 1
-        if restarts > 4 {
+        if restarts > Self.maxQuickRestarts {
             setStatus(.unavailable("The now-playing helper keeps stopping (exit \(code))"))
             return
         }
         setStatus(.starting)
-        let delay = Double(1 << min(restarts, 4)) * 0.5
+        let delay = restartDelays[min(restarts - 1, restartDelays.count - 1)]
         restartTask = Task { [weak self] in
             try? await Task.sleep(for: .seconds(delay))
             guard let self, !Task.isCancelled else { return }

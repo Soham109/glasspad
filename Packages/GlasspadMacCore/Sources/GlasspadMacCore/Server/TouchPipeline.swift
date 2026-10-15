@@ -28,6 +28,7 @@ public final class TouchPipeline {
 
     private let frameClock: FrameClock?
     private var tickTimer: DispatchSourceTimer?
+    private var stallTimer: DispatchSourceTimer?
     /// Idle display frames before the frame clock stops (about half a second at 120 Hz).
     static let idleFramesBeforeStop = 60
     private var idleFrames = 0
@@ -73,6 +74,7 @@ public final class TouchPipeline {
                 synth.handle(scheduler.drain())
                 synth.handle(recognizer.tick(now: arrival))
             }
+            armStallCheck()
         } else {
             synth.handle(events)
             scheduleTicks()
@@ -97,6 +99,37 @@ public final class TouchPipeline {
         }
     }
 
+    /// With a frame clock, a timer stands in for display frames that stop coming (display
+    /// asleep, lid closed): without it, a quick tap whose last frame arrived inside the stall
+    /// limit, or a recognizer timer (tap-drag window, two-finger tap gap), would wait for the
+    /// next touch. It runs only while work is queued and does nothing while frames arrive.
+    private func armStallCheck() {
+        guard stallTimer == nil, frameClock?.isRunning == true else { return }
+        let t = DispatchSource.makeTimerSource(queue: .main)
+        t.schedule(deadline: .now() + Self.displayStallLimit, repeating: Self.tickInterval, leeway: .milliseconds(1))
+        t.setEventHandler { [weak self] in
+            MainActor.assumeIsolated { self?.stallCheck() }
+        }
+        t.resume()
+        stallTimer = t
+    }
+
+    private func stallCheck() {
+        guard let clock = frameClock, clock.isRunning, scheduler.hasPending || recognizer.needsTick else {
+            stopStallCheck()
+            return
+        }
+        let t = now()
+        guard let last = lastDisplayFrame, t - last > Self.displayStallLimit else { return }
+        synth.handle(scheduler.drain())
+        synth.handle(recognizer.tick(now: t))
+    }
+
+    private func stopStallCheck() {
+        stallTimer?.cancel()
+        stallTimer = nil
+    }
+
     /// Without a frame clock: drive recognizer timers directly.
     public func tick(now: TimeInterval? = nil) {
         synth.handle(recognizer.tick(now: now ?? self.now()))
@@ -110,6 +143,7 @@ public final class TouchPipeline {
         synth.reset()
         scheduler.reset()
         stopTicks()
+        stopStallCheck()
         frameClock?.stop()
     }
 

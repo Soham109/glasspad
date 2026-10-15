@@ -376,6 +376,40 @@ struct ConnectivityTests {
         #expect(KnownMacsStore(storage: InMemoryKnownMacsStorage(Data("nope".utf8))).current.macs.isEmpty)
     }
 
+    /// Two updates from different threads: the stored bytes must be the later state. A slow save
+    /// (the Keychain) that finished after a newer one used to leave the older state on disk.
+    @Test func knownMacsStoreSavesInUpdateOrder() throws {
+        final class SlowFirstSave: KnownMacsStorage, @unchecked Sendable {
+            let lock = NSLock()
+            var saved: Data?
+            var calls = 0
+            var store: KnownMacsStore?
+            let second = DispatchGroup()
+            let b = PairingPayload(macID: UUID(), macName: "Laptop", pairKey: PairingPayload.generateKey())
+            func load() -> Data? { nil }
+            func save(_ d: Data) throws {
+                let first = lock.withLock { calls += 1; return calls == 1 }
+                if first, let store {
+                    // Another thread changes the store while this write is still in progress.
+                    second.enter()
+                    let b = self.b
+                    Thread.detachNewThread { store.update { $0.add(b) }; self.second.leave() }
+                    Thread.sleep(forTimeInterval: 0.2)
+                }
+                lock.withLock { saved = d }
+            }
+        }
+        let storage = SlowFirstSave()
+        let store = KnownMacsStore(storage: storage)
+        storage.store = store
+        let a = PairingPayload(macID: UUID(), macName: "Studio", pairKey: PairingPayload.generateKey())
+        store.update { $0.add(a) }
+        storage.second.wait()
+        let onDisk = try JSONDecoder().decode(KnownMacs.self, from: try #require(storage.lock.withLock { storage.saved }))
+        #expect(onDisk == store.current)
+        #expect(onDisk.macs.count == 2)
+    }
+
     /// Two Macs on loopback: connect to a chosen one, switch, then auto-connect to the last used.
     @Test func connectorSwitchesBetweenMacsAndRemembersTheLastOne() async throws {
         let keyA = PairingPayload.generateKey(), keyB = PairingPayload.generateKey()

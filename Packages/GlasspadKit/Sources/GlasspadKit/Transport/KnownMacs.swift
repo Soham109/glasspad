@@ -164,14 +164,15 @@ public final class KnownMacsStore: @unchecked Sendable {
 
     public var current: KnownMacs { lock.withLock { value } }
 
-    /// Applies a change and saves it. Returns the closure's result.
+    /// Applies a change and saves it. Returns the closure's result. The save happens under the
+    /// lock so saves land in the same order as the changes (otherwise a slower save of an older
+    /// state could overwrite a newer one).
     @discardableResult
     public func update<R>(_ change: (inout KnownMacs) -> R) -> R {
-        lock.lock()
-        let r = change(&value)
-        let snapshot = value
-        lock.unlock()
-        if let d = try? JSONEncoder().encode(snapshot) { try? storage.save(d) }
-        return r
+        lock.withLock {
+            let r = change(&value)
+            if let d = try? JSONEncoder().encode(value) { try? storage.save(d) }
+            return r
+        }
     }
 }

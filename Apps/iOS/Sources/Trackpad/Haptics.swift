@@ -35,7 +35,10 @@ final class Haptics {
     private var engine: CHHapticEngine?
     private var players: [HapticCueKey: CHHapticPatternPlayer] = [:]
     private var builtStrength: Double = -1
+    /// The trackpad is on screen: keep the engine running.
     private var wantsRunning = false
+    private var engineRunning = false
+    private var idleStop: Task<Void, Never>?
     private(set) var isSupported = CHHapticEngine.capabilitiesForHardware().supportsHaptics
 
     /// Effective strength 0...1, recomputed from settings by the caller.
@@ -51,25 +54,57 @@ final class Haptics {
     /// Set from the thermal monitor. When true, nothing plays.
     var suspendedForHeat = false
 
-    /// Starts the engine ahead of the first touch so the first click has no start-up delay.
+    /// Starts the engine ahead of the first touch so the first click has no start-up delay, and
+    /// keeps it running until `coolDown`.
     func warmUp() {
         wantsRunning = true
-        guard isSupported else { return }
-        if engine == nil { makeEngine() }
-        do {
-            try engine?.start()
-        } catch {
-            engine = nil
-            players = [:]
-        }
-        if players.isEmpty { rebuildPlayers() }
+        idleStop?.cancel()
+        idleStop = nil
+        startEngine()
     }
 
     /// Lets the engine shut down when the trackpad is not on screen.
     func coolDown() {
         wantsRunning = false
+        idleStop?.cancel()
+        idleStop = nil
+        stopEngine()
+    }
+
+    /// Starts (or restarts) the engine without asking for it to stay on.
+    private func startEngine() {
+        guard isSupported else { return }
+        if engine == nil { makeEngine() }
+        do {
+            try engine?.start()
+            engineRunning = engine != nil
+        } catch {
+            engine = nil
+            players = [:]
+            engineRunning = false
+        }
+        if players.isEmpty { rebuildPlayers() }
+    }
+
+    private func stopEngine() {
+        engineRunning = false
         engine?.stop(completionHandler: nil)
     }
+
+    /// Off the trackpad (mode buttons, Settings) a cue starts the engine only for a moment: it
+    /// stops again after `idleStopDelay` without cues, so it does not keep the Taptic Engine
+    /// powered (auto shutdown is off for the trackpad's sake).
+    private func scheduleIdleStop() {
+        idleStop?.cancel()
+        idleStop = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(Self.idleStopDelay))
+            guard let self, !Task.isCancelled, !self.wantsRunning else { return }
+            self.idleStop = nil
+            self.stopEngine()
+        }
+    }
+
+    static let idleStopDelay: TimeInterval = 2
 
     /// Plays a cue unless that kind is switched off in Settings > Haptic Types.
     func play(_ cue: HapticCue) {
@@ -79,14 +114,15 @@ final class Haptics {
 
     private func start(_ cue: HapticCue) {
         guard isSupported, !suspendedForHeat, strength > 0.01 else { return }
-        if engine == nil { warmUp() }
+        if !engineRunning { startEngine() }
+        if !wantsRunning { scheduleIdleStop() }
         let key = HapticCueKey(cue)
         guard let player = players[key] else { return }
         do {
             try player.start(atTime: CHHapticTimeImmediate)
         } catch {
-            // The engine was reset by the system; rebuild once and retry.
-            warmUp()
+            // The engine was reset or stopped by the system; restart once and retry.
+            startEngine()
             try? players[key]?.start(atTime: CHHapticTimeImmediate)
         }
     }
@@ -102,15 +138,16 @@ final class Haptics {
         guard let engine = try? CHHapticEngine() else { return }
         engine.playsHapticsOnly = true
         engine.isAutoShutdownEnabled = false
-        engine.stoppedHandler = { @Sendable _ in }
+        engine.stoppedHandler = { @Sendable [weak self] _ in
+            Task { @MainActor in self?.engineRunning = false }
+        }
         engine.resetHandler = { @Sendable [weak self] in
             Task { @MainActor in
                 guard let self else { return }
                 self.players = [:]
-                if self.wantsRunning {
-                    try? self.engine?.start()
-                    self.rebuildPlayers()
-                }
+                self.engineRunning = false
+                // Off the trackpad the next cue restarts it (and rebuilds the players).
+                if self.wantsRunning { self.startEngine() }
             }
         }
         self.engine = engine

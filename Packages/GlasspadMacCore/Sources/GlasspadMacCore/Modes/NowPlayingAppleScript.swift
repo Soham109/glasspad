@@ -24,7 +24,7 @@ public enum ScriptablePlayer: String, CaseIterable, Sendable {
             return """
             if application id "com.spotify.client" is not running then return "notRunning"
             tell application id "com.spotify.client"
-                set sep to (ASCII character 31)
+                set sep to (character id 31)
                 set st to player state as string
                 if st is "stopped" then return "stopped"
                 set t to current track
@@ -36,7 +36,7 @@ public enum ScriptablePlayer: String, CaseIterable, Sendable {
             return """
             if application id "com.apple.Music" is not running then return "notRunning"
             tell application id "com.apple.Music"
-                set sep to (ASCII character 31)
+                set sep to (character id 31)
                 set st to player state as string
                 if st is "stopped" then return "stopped"
                 set t to current track
@@ -161,6 +161,14 @@ public protocol AppleScriptRunning: Sendable {
 }
 
 /// NSAppleScript on one serial queue (scripts are compiled once and reused).
+///
+/// Off the main thread on purpose: since Mac OS X 10.6 "OSA and AppleScript are now thread-safe
+/// ... This also applies to NSAppleScript" (AppleScript Release Notes, 10.6), which replaces the
+/// older Threading Programming Guide's main-thread-only rule. Two limits remain: one script must
+/// not run on two threads at once (the serial queue guarantees that, and the compiled cache is
+/// only touched there), and scripting-addition commands are sent to the main thread, so the
+/// scripts here use none (`character id 31`, not Standard Additions' `ASCII character 31`) and
+/// never wait on the main thread, which posts the pointer events.
 public final class LiveAppleScriptRunner: AppleScriptRunning, @unchecked Sendable {
     private let queue = DispatchQueue(label: "glasspad.media.applescript", qos: .userInitiated)
     private var compiled: [String: NSAppleScript] = [:]

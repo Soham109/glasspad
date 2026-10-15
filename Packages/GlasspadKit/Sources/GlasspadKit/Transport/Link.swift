@@ -69,6 +69,9 @@ public enum GlasspadService {
     public static let handshakeTimeout: TimeInterval = 5
     /// Largest TCP frame accepted (Dock icons and clipboard images fit).
     public static let maxFrameLength = 16 << 20
+    /// Largest TCP frame the Mac accepts before the handshake is done (a hello or a key
+    /// confirmation is well under 1 KB; a long phone name still fits).
+    public static let maxHandshakeFrameLength = 8 << 10
     /// `bye` reason the Mac sends to a session that another connection replaced. A client that
     /// receives it stops reconnecting (otherwise two phones would take turns forever) and
     /// reports `failed(replacedFailure)`.
@@ -142,17 +145,26 @@ struct FrameAccumulator {
     enum FrameError: Error { case tooLarge }
 
     mutating func append(_ data: Data) throws -> [Data] {
-        buffer.append(data)
+        push(data)
         var frames: [Data] = []
-        while buffer.count >= 4 {
-            let b = buffer.startIndex
-            let len = Int(buffer[b]) << 24 | Int(buffer[b + 1]) << 16 | Int(buffer[b + 2]) << 8 | Int(buffer[b + 3])
-            guard len <= GlasspadService.maxFrameLength else { throw FrameError.tooLarge }
-            guard buffer.count >= 4 + len else { break }
-            frames.append(Data(buffer[(b + 4)..<(b + 4 + len)]))
-            buffer = Data(buffer[(b + 4 + len)...])
-        }
+        while let f = try next(limit: GlasspadService.maxFrameLength) { frames.append(f) }
         return frames
+    }
+
+    /// Buffers bytes read from the stream; take frames out with `next`.
+    mutating func push(_ data: Data) { buffer.append(data) }
+
+    /// The next whole frame, nil until one has arrived. Throws when the next frame announces more
+    /// than `limit` bytes (checked on the header, so an oversized frame is never buffered).
+    mutating func next(limit: Int) throws -> Data? {
+        guard buffer.count >= 4 else { return nil }
+        let b = buffer.startIndex
+        let len = Int(buffer[b]) << 24 | Int(buffer[b + 1]) << 16 | Int(buffer[b + 2]) << 8 | Int(buffer[b + 3])
+        guard len <= limit else { throw FrameError.tooLarge }
+        guard buffer.count >= 4 + len else { return nil }
+        let frame = Data(buffer[(b + 4)..<(b + 4 + len)])
+        buffer = Data(buffer[(b + 4 + len)...])
+        return frame
     }
 }
 
@@ -165,6 +177,10 @@ final class ControlChannel: @unchecked Sendable {
     var onClosed: ((String?) -> Void)?
     private var acc = FrameAccumulator()
     private(set) var closed = false
+    /// Largest frame accepted from the peer; checked frame by frame, so a change made while one
+    /// frame is handled applies to the next. The Mac keeps it small until the phone has proved
+    /// it holds the pair key.
+    var maxIncomingFrame = GlasspadService.maxFrameLength
 
     init(connection: NWConnection, queue: DispatchQueue) {
         self.connection = connection
@@ -196,7 +212,8 @@ final class ControlChannel: @unchecked Sendable {
             guard let self, !self.closed else { return }
             if let data, !data.isEmpty {
                 do {
-                    for f in try self.acc.append(data) {
+                    self.acc.push(data)
+                    while let f = try self.acc.next(limit: self.maxIncomingFrame) {
                         self.onFrame?(f)
                         if self.closed { return }
                     }
