@@ -1,7 +1,8 @@
 import SwiftUI
 import UIKit
 
-/// The two looks Glasspad ships with. Paper is a soft warm white, Graphite a near black.
+/// The looks Glasspad ships with. Paper is a soft warm white, Graphite a near black, System
+/// follows the iPhone's light or dark appearance.
 enum ThemeChoice: String, CaseIterable, Identifiable, Sendable {
     case paper, graphite, system
 
@@ -11,7 +12,7 @@ enum ThemeChoice: String, CaseIterable, Identifiable, Sendable {
         switch self {
         case .paper: "Paper"
         case .graphite: "Graphite"
-        case .system: "Match iPhone"
+        case .system: "System"
         }
     }
 
@@ -39,8 +40,11 @@ struct Palette: Equatable, Sendable {
     let ink: UIColor
     /// Secondary text.
     let inkSoft: UIColor
-    /// Finger dots on the trackpad.
-    let dot: UIColor
+    /// Finger dots on the trackpad (opacity already includes the user's setting).
+    var dot: UIColor
+    /// Finger dot diameter in points and look, from Settings.
+    var dotDiameter: CGFloat = 44
+    var dotStyle: DotStyle = .soft
 
     static let paper = Palette(
         isDark: false,
@@ -63,6 +67,18 @@ struct Palette: Equatable, Sendable {
         inkSoft: UIColor(white: 1, alpha: 0.5),
         dot: UIColor(white: 1, alpha: 0.18)
     )
+
+    /// The palette with the user's finger dot size, opacity and style applied.
+    @MainActor
+    func customized(_ settings: PhoneSettings) -> Palette {
+        var p = self
+        var alpha: CGFloat = 0
+        p.dot.getWhite(nil, alpha: &alpha)
+        p.dot = p.dot.withAlphaComponent(min(0.9, alpha * settings.dotOpacity))
+        p.dotDiameter = settings.dotSize
+        p.dotStyle = settings.dotStyle
+        return p
+    }
 
     var backgroundColor: Color { Color(uiColor: background) }
     var raisedColor: Color { Color(uiColor: raised) }

@@ -61,7 +61,7 @@ Tap the pill at the top of the phone to switch.
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/img/modes-dark.png">
     <source media="(prefers-color-scheme: light)" srcset="docs/img/modes-light.png">
-    <img src="docs/img/modes-light.png" alt="The mode menu and the Dock, Keys, Media, Deck, Macros, Clipboard and Present screens" width="820">
+    <img src="docs/img/modes-light.png" alt="The mode menu, Apps, Keyboard, the Actions pages (front app, Mac, My Buttons, Clipboard) and Settings" width="820">
   </picture>
 </p>
 <p align="center"><sub>Simulator screenshots against a stand-in Mac. The album art is a placeholder.</sub></p>

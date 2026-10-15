@@ -7,6 +7,8 @@ import GlasspadKit
 struct ClipboardMode: View {
     @Environment(\.palette) private var palette
     var session = MacSession.shared
+    /// Shown as a page inside Actions (no room needed for the mode pill).
+    var embedded = false
     private let accent = AppMode.clipboard.accent(.paper)
 
     @State private var sentNote: String?
@@ -21,7 +23,7 @@ struct ClipboardMode: View {
                 pullCard
             }
             .padding(.horizontal, 16)
-            .padding(.top, 76)
+            .padding(.top, embedded ? 14 : 76)
             .padding(.bottom, 32)
         }
         .onReceive(NotificationCenter.default.publisher(for: UIPasteboard.changedNotification)) { _ in refreshPasteboard() }

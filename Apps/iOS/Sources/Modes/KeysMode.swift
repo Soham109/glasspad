@@ -35,7 +35,7 @@ struct KeysMode: View {
                         }
                     }
                     .frame(height: 44)
-                    shortcutRow
+                    if settings.keysShowsShortcuts { shortcutRow }
                 }
                 .padding(.horizontal, 20)
                 .padding(.bottom, 8)
@@ -44,7 +44,7 @@ struct KeysMode: View {
                     Spacer(minLength: 64)
                     echoArea
                     modifierRow
-                    shortcutRow
+                    if settings.keysShowsShortcuts { shortcutRow }
                     navigationRow
                 }
                 .padding(.horizontal, 16)

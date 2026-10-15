@@ -32,13 +32,13 @@ import Testing
         #expect(moves.allSatisfy { $0.location.x >= 500 })
     }
 
-    @Test func swipeCompletionSendsSnapHaptic() {
+    @Test func swipeCompletionSendsNoHaptic() {
         let (synth, _) = makeSynth()
         let pipeline = TouchPipeline(settings: .macDefault, synth: synth)
         var haptics: [HapticKind] = []
         pipeline.onHaptic = { haptics.append($0) }
         synth.handle([.swipe(.spaces, progress: 0.2, phase: .began), .swipe(.spaces, progress: 0.9, phase: .ended)])
-        #expect(haptics == [.snap])
+        #expect(haptics.isEmpty)        // only clicks, force clicks and drag lock buzz, on the phone
     }
 
     @Test func settingsPropagateToRecognizerAndSynth() {

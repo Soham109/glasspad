@@ -2,9 +2,16 @@ import GlasspadKit
 import QuartzCore
 import UIKit
 
-/// The raw multi-touch surface. Every touch sample, including the coalesced ones UIKit
-/// collects between display frames, becomes one `TouchFrame` handed to `onFrame`
-/// immediately. Nothing is batched to the display refresh.
+/// The raw multi-touch surface. Each touch callback from UIKit (one per display frame, 120 Hz
+/// on ProMotion with `CADisableMinimumFrameDurationOnPhone`) becomes one `TouchFrame` with the
+/// newest position of every finger, stamped with the newest sample's time, handed to `onFrame`
+/// at once. The coalesced samples in between still update the finger positions in time order,
+/// but they are not sent one by one: that sent a burst of 2 to 6 packets per callback (one per
+/// sample and per finger, 430 to 700 a second measured on the Mac), which only added air time
+/// and bunching. The Mac spreads motion evenly between frame timestamps itself.
+///
+/// A frame is also sent at the moment a finger lifts, so a tap that begins and ends inside one
+/// callback still shows both phases.
 ///
 /// Frames follow the kit contract: each lists every finger currently down, and a lifted
 /// finger appears once with phase `ended` (or `cancelled`) before it disappears.
@@ -77,8 +84,12 @@ final class TrackpadSurfaceView: UIView {
 
     private func applyPalette() {
         backgroundColor = palette.background
-        dotImage = Self.renderDot(color: palette.dot)
-        for finger in fingers.values { finger.dot?.contents = dotImage }
+        dotImage = Self.renderDot(color: palette.dot, size: palette.dotDiameter, style: palette.dotStyle)
+        let side = palette.dotDiameter
+        for finger in fingers.values {
+            finger.dot?.contents = dotImage
+            finger.dot?.bounds = CGRect(x: 0, y: 0, width: side, height: side)
+        }
     }
 
     // MARK: Touches
@@ -104,6 +115,7 @@ final class TrackpadSurfaceView: UIView {
     }
 
     private func handle(_ touches: Set<UITouch>, event: UIEvent?) {
+        stats.callback()
         if swallowing {
             let stillDown = event?.allTouches?.contains { $0.phase != .ended && $0.phase != .cancelled } ?? false
             if !stillDown { swallowing = false }
@@ -134,6 +146,7 @@ final class TrackpadSurfaceView: UIView {
         // Coordinates are in this view's space, which UIKit keeps upright in every
         // orientation: toward the top of the phone as held is always negative y.
         let size = bounds.size
+        var unsent: TimeInterval?
         for sample in samples {
             let id: UInt8
             if let known = idsByTouch[sample.key] {
@@ -146,33 +159,49 @@ final class TrackpadSurfaceView: UIView {
             let x = min(max(Double(sample.location.x), 0), Double(size.width))
             let y = min(max(Double(sample.location.y), 0), Double(size.height))
             let isNew = fingers[id] == nil
-            let phase: TouchPhase = isNew ? .began : (sample.phase == .began ? .moved : sample.phase)
+            var phase: TouchPhase = isNew ? .began : (sample.phase == .began ? .moved : sample.phase)
+            // A finger stays `began` until a frame carrying it has been sent.
+            if !isNew, phase == .moved, fingers[id]?.touch.phase == .began { phase = .began }
             var finger = fingers[id] ?? Finger(touch: Touch(id: id, phase: .began, x: x, y: y), dot: nil)
             finger.touch = Touch(id: id, phase: phase, x: x, y: y, majorRadius: sample.radius)
             fingers[id] = finger
-
-            emit(timestamp: sample.timestamp, size: size, changedID: id)
+            changed.insert(id)
+            stats.sample()
 
             if phase == .ended || phase == .cancelled {
+                emit(timestamp: sample.timestamp, size: size)
+                unsent = nil
                 fadeOut(fingers[id]?.dot)
                 fingers[id] = nil
                 idsByTouch[sample.key] = nil
+            } else {
+                unsent = sample.timestamp
             }
         }
+        if let t = unsent { emit(timestamp: t, size: size) }
         updateDots()
+        if fingers.isEmpty { stats.end() }
     }
 
-    /// Sends one frame with every finger. Fingers other than the one that changed are stationary.
-    private func emit(timestamp: TimeInterval, size: CGSize, changedID: UInt8) {
+    /// Fingers that changed since the last frame was sent; the rest are sent as stationary.
+    private var changed: Set<UInt8> = []
+    private var stats = TouchRateStats()
+
+    /// Sends one frame with every finger. Fingers that did not change since the last frame are
+    /// stationary. A finger that began counts as began until it has been sent once.
+    private func emit(timestamp: TimeInterval, size: CGSize) {
         var list: [Touch] = []
         list.reserveCapacity(fingers.count)
         for (id, finger) in fingers {
             var t = finger.touch
-            if id != changedID, t.phase == .began || t.phase == .moved { t.phase = .stationary }
+            if !changed.contains(id), t.phase == .began || t.phase == .moved { t.phase = .stationary }
             list.append(t)
+            if t.phase == .began { fingers[id]?.touch.phase = .moved }
         }
+        changed = []
         list.sort { $0.id < $1.id }
         seq &+= 1
+        stats.frame()
         onFrame?(TouchFrame(seq: seq, timestamp: timestamp, touches: list, surface: size))
     }
 
@@ -193,6 +222,8 @@ final class TrackpadSurfaceView: UIView {
         removeAllDots()
         fingers = [:]
         idsByTouch = [:]
+        changed = []
+        stats.end()
     }
 
     #if DEBUG
@@ -228,7 +259,7 @@ final class TrackpadSurfaceView: UIView {
             } else {
                 dot = CALayer()
                 dot.contents = dotImage
-                dot.bounds = CGRect(x: 0, y: 0, width: Self.dotSize, height: Self.dotSize)
+                dot.bounds = CGRect(x: 0, y: 0, width: palette.dotDiameter, height: palette.dotDiameter)
                 dot.contentsScale = traitCollection.displayScale
                 layer.insertSublayer(dot, below: dimView.layer)
                 fingers[id]?.dot = dot
@@ -256,20 +287,59 @@ final class TrackpadSurfaceView: UIView {
         }
     }
 
-    /// A 44 pt circle: solid centre, soft falloff over the outer third.
-    private static func renderDot(color: UIColor) -> CGImage? {
+    /// One finger dot in the user's style (Settings > Finger Dots): soft (solid centre, soft
+    /// edge over the outer third, as designed), solid, or a ring. Size in points.
+    private static func renderDot(color: UIColor, size: CGFloat, style: DotStyle) -> CGImage? {
         let format = UIGraphicsImageRendererFormat.preferred()
-        let renderer = UIGraphicsImageRenderer(size: CGSize(width: dotSize, height: dotSize), format: format)
+        let renderer = UIGraphicsImageRenderer(size: CGSize(width: size, height: size), format: format)
         let image = renderer.image { ctx in
-            let rgba = color.cgColor
-            let clear = color.withAlphaComponent(0).cgColor
-            let space = CGColorSpaceCreateDeviceRGB()
-            guard let gradient = CGGradient(colorsSpace: space, colors: [rgba, rgba, clear] as CFArray,
-                                            locations: [0, 0.62, 1]) else { return }
-            let c = CGPoint(x: dotSize / 2, y: dotSize / 2)
-            ctx.cgContext.drawRadialGradient(gradient, startCenter: c, startRadius: 0, endCenter: c,
-                                             endRadius: dotSize / 2, options: [])
+            let cg = ctx.cgContext
+            let rect = CGRect(x: 0, y: 0, width: size, height: size)
+            switch style {
+            case .soft:
+                let rgba = color.cgColor
+                let clear = color.withAlphaComponent(0).cgColor
+                guard let gradient = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: [rgba, rgba, clear] as CFArray,
+                                                locations: [0, 0.62, 1]) else { return }
+                let c = CGPoint(x: size / 2, y: size / 2)
+                cg.drawRadialGradient(gradient, startCenter: c, startRadius: 0, endCenter: c, endRadius: size / 2, options: [])
+            case .solid:
+                cg.setFillColor(color.cgColor)
+                cg.fillEllipse(in: rect.insetBy(dx: size * 0.1, dy: size * 0.1))
+            case .ring:
+                let w = max(2, size * 0.07)
+                cg.setStrokeColor(color.withAlphaComponent(min(1, color.cgColor.alpha * 2.2)).cgColor)
+                cg.setLineWidth(w)
+                cg.strokeEllipse(in: rect.insetBy(dx: w / 2, dy: w / 2))
+            }
         }
         return image.cgImage
+    }
+}
+
+/// Counts what the surface sees and sends during one touch session (first finger down to last
+/// finger up) and logs it, so the phone's real touch rate can be read from the console:
+/// `touch rate: 1.84 s, 221 callbacks (120/s), 442 samples (240/s), 223 frames sent (121/s)`.
+struct TouchRateStats {
+    private var start: TimeInterval?
+    private var callbacks = 0, samples = 0, frames = 0
+
+    mutating func callback() {
+        if start == nil { start = ProcessInfo.processInfo.systemUptime }
+        callbacks += 1
+    }
+    mutating func sample() { samples += 1 }
+    mutating func frame() { frames += 1 }
+
+    mutating func end() {
+        guard let s = start else { return }
+        let d = ProcessInfo.processInfo.systemUptime - s
+        start = nil
+        defer { callbacks = 0; samples = 0; frames = 0 }
+        guard d > 0.25 else { return }
+        func rate(_ n: Int) -> Int { Int((Double(n) / d).rounded()) }
+        GPLog.log(String(format: "touch rate: %.2f s, ", d)
+            + "\(callbacks) callbacks (\(rate(callbacks))/s), \(samples) samples (\(rate(samples))/s), "
+            + "\(frames) frames sent (\(rate(frames))/s)")
     }
 }

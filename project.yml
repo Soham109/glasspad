@@ -75,6 +75,7 @@ targets:
         NSLocalNetworkUsageDescription: Glasspad finds your paired Mac on this Wi-Fi network and sends your touches to it.
         NSBonjourServices: [_glasspad._tcp]
         NSCameraUsageDescription: Glasspad uses the camera only to scan the pairing code your Mac shows.
+        NSPhotoLibraryAddUsageDescription: Glasspad saves screenshots that a Deck button takes on your Mac to Photos, only when you set the button up to.
         NSSupportsLiveActivities: true
         CFBundleURLTypes:
           - CFBundleURLName: com.soham109.glasspad.ios
@@ -126,6 +127,7 @@ targets:
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ENABLE_HARDENED_RUNTIME: NO
         COMBINE_HIDPI_IMAGES: YES
+        CODE_SIGN_ENTITLEMENTS: Config/Mac/Glasspad.entitlements
     info:
       path: Config/Mac/Info.plist
       properties:
@@ -137,6 +139,7 @@ targets:
         NSHumanReadableCopyright: Copyright 2026 Soham Aggarwal. MIT licensed.
         NSLocalNetworkUsageDescription: Glasspad listens on this network so your paired iPhone can find and control this Mac.
         NSBonjourServices: [_glasspad._tcp]
+        NSAppleEventsUsageDescription: Glasspad shows what Spotify or Music is playing on your iPhone and controls playback, and opens Notification Center when you swipe in from the right edge.
 
 schemes:
   Glasspad iOS:

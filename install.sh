@@ -87,14 +87,7 @@ ok "Team $TEAM"
 
 # 5. Mac app ---------------------------------------------------------------------------------
 step "5. Mac app"
-scripts/build-mac.sh >/dev/null
-pkill -f /Applications/Glasspad.app/Contents/MacOS/Glasspad 2>/dev/null || true
-rm -rf /Applications/Glasspad.app
-ditto build/Glasspad.app /Applications/Glasspad.app
-xattr -cr /Applications/Glasspad.app
-IDENTITY="$(security find-identity -v -p codesigning | awk -F'"' '/Apple Development/ {print $2; exit}')"
-codesign --force --deep --options runtime -s "$IDENTITY" /Applications/Glasspad.app 2>/dev/null
-open /Applications/Glasspad.app
+scripts/install-mac.sh >/dev/null
 ok "Installed in Applications and running in your menu bar"
 todo "Allow Accessibility so Glasspad can move the pointer. Opening the right page:"
 say  "System Settings > Privacy & Security > Accessibility > switch on Glasspad."

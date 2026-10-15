@@ -31,6 +31,21 @@ final class MacSession {
 
     private(set) var dockApps: [DockApp] = []
     let icons = IconCache()
+    /// Every app installed on the Mac (names only), for search and the Deck editor.
+    private(set) var dockCatalog: [DockApp] = []
+    /// Why the last Dock tap did not work, shown for a few seconds.
+    private(set) var dockNotice: DockNotice?
+    /// Whether the Mac's own Dock is hidden, and the two switches behind it.
+    private(set) var macDockState: MacDockState?
+    /// The Mac's frontmost app (Deck brings linked pages forward).
+    private(set) var frontmostBundleID: String?
+    /// Pages, folders and grid density of the Deck.
+    private(set) var deckLayout: DeckLayout?
+    private(set) var deckCatalog: DeckCatalog?
+    /// A Deck edit the Mac refused, with its reason.
+    private(set) var deckSaveError: String?
+    /// A screenshot a Deck button sent, for a short confirmation.
+    private(set) var deckImageNotice: DeckFailure?
     private(set) var media: MediaState?
     private(set) var mediaReceivedAt: Date?
     private(set) var deckButtons: [DeckButton]?
@@ -64,6 +79,8 @@ final class MacSession {
     private static let settingsKey = "lastMacSettings"
     private static let deckCacheKey = "deckButtonsCache"
     private static let macroCacheKey = "macrosCache"
+    private static let deckLayoutCacheKey = "deckLayoutCache"
+    private static let dockListCacheKey = "dockListCache"
 
     private init() {
         if let data = UserDefaults.standard.data(forKey: Self.settingsKey),
@@ -79,6 +96,12 @@ final class MacSession {
         }
         if let data = UserDefaults.standard.data(forKey: Self.macroCacheKey) {
             allMacros = try? JSONDecoder().decode([MacroSummary].self, from: data)
+        }
+        if let data = UserDefaults.standard.data(forKey: Self.deckLayoutCacheKey) {
+            deckLayout = try? JSONDecoder().decode(DeckLayout.self, from: data)
+        }
+        if let data = UserDefaults.standard.data(forKey: Self.dockListCacheKey) {
+            dockApps = (try? JSONDecoder().decode([DockApp].self, from: data)) ?? []
         }
         bridge.session = self
         thermalObserver = NotificationCenter.default.addObserver(
@@ -160,6 +183,9 @@ final class MacSession {
     }
 
     private func connectIfNeeded() {
+        #if DEBUG
+        if isDemo { return }
+        #endif
         guard foreground || backgroundUsers > 0 else { return }
         guard let mac = PairingStore.shared.selected else {
             setState(.idle)
@@ -219,14 +245,43 @@ final class MacSession {
         client?.send(message: .mode(message))
     }
 
+    /// Any control message (the trackpad uses it to send its tuning inside `.settings`).
+    func send(control message: ControlMessage) {
+        client?.send(message: message)
+    }
+
     func modeDidChange(to mode: AppMode) {
         if mode != .present, laserOn { laserOff() }
         send(.modeSelected(mode.wireMode))
     }
 
-    func runDeck(_ id: UUID) {
+    /// Asks for the Dock list, telling the Mac which icons this phone already has.
+    func requestDock() {
+        send(.dockSync(iconKeys: icons.knownKeys))
+    }
+
+    func openDockApp(_ app: DockApp) {
+        dockNotice = nil
+        send(.dockOpen(bundleID: app.bundleID))
+    }
+
+    /// Changes the Mac's own Dock switches (applied on the Mac, which answers with the new state).
+    func setMacDock(_ state: MacDockState) {
+        macDockState = state
+        send(.macDockSet(state))
+    }
+
+    /// Sends the edited Deck to the Mac. Shown at once; the Mac's answer confirms or undoes it.
+    func saveDeck(_ layout: DeckLayout) {
+        deckSaveError = nil
+        deckLayout = layout
+        cacheDeckLayout(layout)
+        send(.deckSave(layout))
+    }
+
+    func runDeck(_ id: UUID, confirmed: Bool = false) {
         deckPending.insert(id)
-        send(.deckRun(id: id))
+        send(confirmed ? .deckRunConfirmed(id: id) : .deckRun(id: id))
         // If the Mac never answers (old Mac build, dropped link), stop the spinner.
         Task { @MainActor in
             try? await Task.sleep(for: .seconds(10))
@@ -294,9 +349,12 @@ final class MacSession {
             send(.modeSelected(AppRouter.shared.mode.wireMode))
             // Refresh whatever the current screen shows.
             switch AppRouter.shared.mode {
-            case .dock: send(.dockRequest)
+            case .dock: requestDock()
             case .media: send(.mediaRequest)
             case .deck: send(.deckRequest)
+            case .actions:
+                send(.deckRequest)
+                send(.macro(.listMacros))
             case .macros: send(.macro(.listMacros))
             default: break
             }
@@ -313,6 +371,7 @@ final class MacSession {
             }
             refreshHapticStrength()
         case .haptic(let kind):
+            guard PhoneSettings.shared.allowsHaptic(kind) else { return }
             let now = ProcessInfo.processInfo.systemUptime
             if let local = lastLocalHaptic[kind], now - local < 0.25 { return }
             Haptics.shared.play(HapticCue(kind))
@@ -326,13 +385,43 @@ final class MacSession {
     private func received(_ message: ModeMessage) {
         switch message {
         case .dockList(let apps):
-            for app in apps {
-                if let png = app.iconPNG { icons.store(png, for: app.bundleID) }
+            dockApps = storeIcons(apps)
+            if let data = try? JSONEncoder().encode(dockApps) {
+                UserDefaults.standard.set(data, forKey: Self.dockListCacheKey)
             }
-            dockApps = apps.map { DockApp(bundleID: $0.bundleID, name: $0.name, iconPNG: nil, running: $0.running, active: $0.active) }
+        case .dockIcons(let apps):
+            _ = storeIcons(apps)
+        case .dockCatalog(let apps):
+            dockCatalog = apps
+        case .dockOpenResult(let bundleID, let ok, let message):
+            if ok {
+                Haptics.shared.play(.detent)
+            } else {
+                Haptics.shared.play(.error)
+                let name = (dockApps + dockCatalog).first { $0.bundleID == bundleID }?.name ?? "That app"
+                showDockNotice(DockNotice(title: "\(name) did not open", message: message ?? "Your Mac could not open it."))
+            }
+        case .frontmostApp(let bundleID):
+            frontmostBundleID = bundleID
+        case .macDockState(let state):
+            macDockState = state
+        case .deckLayout(let layout):
+            deckLayout = layout
+            cacheDeckLayout(layout)
+        case .deckSaveResult(let ok, let message):
+            if !ok {
+                deckSaveError = message ?? "Your Mac did not save the Deck."
+                Haptics.shared.play(.error)
+                send(.deckRequest)
+            }
+        case .deckCatalog(let catalog):
+            deckCatalog = catalog
+        case .deckImage(_, let data, let destination):
+            receivedDeckImage(data, destination)
         case .mediaState(let state):
             media = state
             mediaReceivedAt = Date()
+            MediaStore.shared.receive(state)
         case .deckButtons(let buttons):
             deckButtons = buttons
             if let data = try? JSONEncoder().encode(buttons) {
@@ -442,6 +531,53 @@ final class MacSession {
         return allMacros ?? []
     }
 
+    /// Keeps icons by key and returns the list without the image bytes.
+    private func storeIcons(_ apps: [DockApp]) -> [DockApp] {
+        apps.map { app in
+            var a = app
+            if let png = app.iconPNG { icons.store(png, key: app.iconKey ?? app.bundleID, bundleID: app.bundleID) }
+            a.iconPNG = nil
+            return a
+        }
+    }
+
+    private func showDockNotice(_ notice: DockNotice) {
+        dockNotice = notice
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(4))
+            if self.dockNotice == notice { self.dockNotice = nil }
+        }
+    }
+
+    private func cacheDeckLayout(_ layout: DeckLayout) {
+        if let data = try? JSONEncoder().encode(layout) {
+            UserDefaults.standard.set(data, forKey: Self.deckLayoutCacheKey)
+        }
+    }
+
+    private func receivedDeckImage(_ data: Data, _ destination: DeckImageDestination) {
+        guard let image = UIImage(data: data) else { return }
+        switch destination {
+        case .clipboard:
+            UIPasteboard.general.image = image
+            showDeckImageNotice("Screenshot copied")
+        case .photos:
+            PhotoSaver.save(image) { ok in
+                self.showDeckImageNotice(ok ? "Screenshot saved to Photos" : "Allow Glasspad to add to Photos in Settings")
+            }
+        }
+        Haptics.shared.play(.snap)
+    }
+
+    private func showDeckImageNotice(_ text: String) {
+        let notice = DeckFailure(message: text)
+        deckImageNotice = notice
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(2.5))
+            if self.deckImageNotice == notice { self.deckImageNotice = nil }
+        }
+    }
+
     private func showDeckFailure(_ message: String) {
         let failure = DeckFailure(message: message)
         deckFailure = failure
@@ -453,7 +589,15 @@ final class MacSession {
 
     private func resetModeData() {
         dockApps = []
+        dockCatalog = []
+        macDockState = nil
+        frontmostBundleID = nil
+        deckLayout = nil
+        deckCatalog = nil
+        UserDefaults.standard.removeObject(forKey: Self.deckLayoutCacheKey)
+        UserDefaults.standard.removeObject(forKey: Self.dockListCacheKey)
         media = nil
+        MediaStore.shared.reset()
         deckButtons = nil
         deckOutcomes = [:]
         deckPending = []
@@ -468,6 +612,9 @@ final class MacSession {
     }
 
     private func setState(_ new: LinkState) {
+        #if DEBUG
+        if isDemo { return }
+        #endif
         guard state != new else { return }
         state = new
         switch new {
@@ -480,6 +627,25 @@ final class MacSession {
         }
         LiveActivityController.shared.refresh()
     }
+
+    #if DEBUG
+    /// Debug builds only: fills every screen with sample data for simulator screenshots.
+    @ObservationIgnored private var isDemo = false
+
+    func applyDemo(_ demo: DemoData) {
+        isDemo = true
+        state = .connected(rttMs: 3)
+        for (id, png) in demo.icons { icons.store(png, key: "\(id)@demo", bundleID: id) }
+        dockApps = demo.dockApps
+        dockCatalog = demo.catalog
+        frontmostBundleID = demo.frontmost
+        deckLayout = demo.layout
+        macroProfile = demo.profile
+        allMacros = demo.macros
+        macDockState = MacDockState(hidden: false, hideWhileConnected: true, isHiddenNow: true)
+        hasMacSettings = true
+    }
+    #endif
 
     // MARK: Background use (Siri and Shortcuts)
 

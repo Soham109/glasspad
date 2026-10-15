@@ -77,6 +77,18 @@ struct MacrosMode: View {
         }
     }
 
+    private var bottomBar: some View { MacroStatusBar(showsRecord: session.macroProfile != nil) }
+}
+
+/// Recording, running, last result, or the Record button. Used by Macros and Actions.
+struct MacroStatusBar: View {
+    @Environment(\.palette) private var palette
+    var session = MacSession.shared
+    var showsRecord = true
+    private let accent = AppMode.macros.accent(.paper)
+
+    var body: some View { bottomBar }
+
     // MARK: Bottom bar: running, recording, result, or the Record button
 
     @ViewBuilder private var bottomBar: some View {
@@ -87,7 +99,7 @@ struct MacrosMode: View {
                 runningBar(running)
             } else if let result = session.macroResult {
                 resultBar(result)
-            } else if session.isConnected && session.macroProfile != nil {
+            } else if session.isConnected && showsRecord {
                 Button {
                     Haptics.shared.tap()
                     session.send(.macro(.recordStart(windowRelative: false, keepTiming: true)))
@@ -181,7 +193,7 @@ struct MacrosMode: View {
     }
 }
 
-private struct MacroTile: View {
+struct MacroTile: View {
     @Environment(\.palette) private var palette
     let macro: MacroSummary
     let fallback: Color

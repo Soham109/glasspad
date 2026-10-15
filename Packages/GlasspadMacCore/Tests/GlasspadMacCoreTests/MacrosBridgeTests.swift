@@ -370,7 +370,7 @@ func eventually(_ timeout: TimeInterval = 3, _ cond: () -> Bool) async -> Bool {
 
     @Test func modeRouterRoutesMacroMessages() throws {
         let h = try MacroHarness(macros: [Self.closeTab])
-        let router = ModeRouter(poster: CapturingEventPoster())
+        let router = ModeRouter(poster: CapturingEventPoster(), macDock: FakeDockHider.make().hider, observeWorkspace: false)
         router.macros = h.coordinator
         router.handle(.modeSelected(.macros))
         if case .macroList(_, let all)? = h.sent().last { #expect(all.map(\.id) == [Self.closeTab.id]) } else { Issue.record("no list") }

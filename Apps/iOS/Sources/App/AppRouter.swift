@@ -19,10 +19,11 @@ final class AppRouter {
     @ObservationIgnored private var dimTimer: Timer?
 
     private init() {
-        mode = PhoneSettings.shared.lastMode
+        mode = PhoneSettings.shared.startMode
     }
 
-    func show(_ newMode: AppMode) {
+    func show(_ requested: AppMode) {
+        let newMode = requested.shown
         showSettings = false
         showPairing = false
         if mode != newMode {
@@ -60,7 +61,10 @@ final class AppRouter {
 
     // MARK: Idle dimming
 
-    var dims: Bool { mode == .trackpad || mode == .present }
+    /// The full-screen presenter inside Actions is showing.
+    var presenting = false
+
+    var dims: Bool { mode == .trackpad || mode == .present || presenting }
 
     /// Called on every touch of a dimming screen. Cheap enough to call per touch sample.
     func noteActivity() {
@@ -88,7 +92,8 @@ final class AppRouter {
     private func checkIdle() {
         guard dims, !showSettings, !showPairing else { return }
         let idle = ProcessInfo.processInfo.systemUptime - lastActivity
-        if !isDimmed, idle >= PhoneSettings.shared.dimDelay { isDimmed = true }
+        let delay = PhoneSettings.shared.dimDelay
+        if !isDimmed, delay > 0, idle >= delay { isDimmed = true }
     }
 }
 
@@ -99,7 +104,7 @@ enum ScreenAwake {
 
     static func update() {
         let router = AppRouter.shared
-        let wanted = sceneActive && PhoneSettings.shared.hasOnboarded && router.dims
+        let wanted = sceneActive && PhoneSettings.shared.hasOnboarded && PhoneSettings.shared.keepScreenAwake && router.dims
             && !router.showSettings && !router.showPairing
         if UIApplication.shared.isIdleTimerDisabled != wanted {
             UIApplication.shared.isIdleTimerDisabled = wanted

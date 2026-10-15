@@ -19,7 +19,9 @@ struct SettingsView: View {
                 look
                 feel
                 trackpad
+                TrackpadTuningSection()
                 screen
+                modes
                 macs
                 fromMac
                 about
@@ -78,17 +80,35 @@ struct SettingsView: View {
             HStack(spacing: 12) {
                 ForEach(ThemeChoice.allCases) { choice in
                     ThemeSwatch(choice: choice, selected: settings.theme == choice) {
+                        Haptics.shared.tap()
                         settings.theme = choice
                     }
                 }
             }
             .padding(.vertical, 6)
-            Toggle("Show finger dots", isOn: $settings.showDots)
+            NavigationLink {
+                FingerDotSettings()
+            } label: {
+                LabeledContent {
+                    Text(settings.showDots ? settings.dotStyle.title : "Off")
+                } label: {
+                    Label("Finger Dots", systemImage: "circle.dotted.circle")
+                }
+            }
+            Picker(selection: $settings.pillPosition) {
+                ForEach(PillPosition.allCases) { Text($0.title).tag($0) }
+            } label: {
+                Label("Mode Pill", systemImage: "capsule")
+            }
             Toggle(isOn: $settings.leftHanded) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Left-handed")
-                    Text("Puts the main buttons on the left in Keys and Present.")
-                        .font(.footnote).foregroundStyle(palette.inkSoftColor)
+                Label {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Left-Handed")
+                        Text("Puts the main buttons on the left in Keyboard and Present.")
+                            .font(.footnote).foregroundStyle(palette.inkSoftColor)
+                    }
+                } icon: {
+                    Image(systemName: "hand.raised")
                 }
             }
         }
@@ -99,7 +119,7 @@ struct SettingsView: View {
         Section {
             VStack(alignment: .leading, spacing: 10) {
                 HStack {
-                    Text("Haptic strength")
+                    Label("Haptic Strength", systemImage: "waveform")
                     Spacer()
                     Text(settings.hapticStrength < 0.01 ? "Off" : settings.hapticStrength.formatted(.percent.precision(.fractionLength(0))))
                         .monospacedDigit()
@@ -113,10 +133,20 @@ struct SettingsView: View {
                             Haptics.shared.play(.click)
                         }
                     }
+                    .accessibilityLabel("Haptic strength")
                     Image(systemName: "speaker.wave.3").foregroundStyle(palette.inkSoftColor).accessibilityHidden(true)
                 }
             }
             .padding(.vertical, 4)
+            NavigationLink {
+                HapticKindsSettings()
+            } label: {
+                LabeledContent {
+                    Text(settings.hapticsOff.isEmpty ? "All On" : "\(HapticChannel.allCases.count - settings.hapticsOff.count) of \(HapticChannel.allCases.count)")
+                } label: {
+                    Label("Haptic Types", systemImage: "list.bullet")
+                }
+            }
             if !Haptics.shared.isSupported {
                 Text("This device has no Taptic Engine, so there is nothing to feel.")
                     .font(.footnote).foregroundStyle(palette.inkSoftColor)
@@ -131,10 +161,12 @@ struct SettingsView: View {
 
     private var trackpad: some View {
         Section {
-            Picker("Orientation", selection: $settings.orientation) {
+            Picker(selection: $settings.orientation) {
                 ForEach(OrientationChoice.allCases) { choice in
                     Text(choice.title).tag(choice)
                 }
+            } label: {
+                Label("Orientation", systemImage: "rotate.right")
             }
         } header: {
             Text("Trackpad")
@@ -146,15 +178,58 @@ struct SettingsView: View {
 
     private var screen: some View {
         Section {
-            Picker("Dim after", selection: $settings.dimDelay) {
+            Toggle(isOn: $settings.keepScreenAwake) {
+                Label("Keep Screen On", systemImage: "sun.max")
+            }
+            .onChange(of: settings.keepScreenAwake) { ScreenAwake.update() }
+            Picker(selection: $settings.dimDelay) {
                 ForEach(PhoneSettings.dimDelayChoices, id: \.self) { delay in
                     Text(Self.durationText(delay)).tag(delay)
                 }
+            } label: {
+                Label("Dim After", systemImage: "moon")
             }
+            .disabled(!settings.keepScreenAwake)
         } header: {
             Text("Screen")
         } footer: {
-            Text("The trackpad dims when you stop touching it and wakes on the next touch. Glasspad keeps the screen on only while the trackpad is showing and never changes brightness.")
+            Text("While the trackpad or a presentation is showing, the screen stays on and dims when you stop touching it; the next touch wakes it. Glasspad never changes brightness. With Keep Screen On off, your iPhone's Auto-Lock applies.")
+        }
+        .listRowBackground(palette.raisedColor)
+    }
+
+    private var modes: some View {
+        Section {
+            NavigationLink {
+                ModesSettings()
+            } label: {
+                LabeledContent {
+                    Text("\(AppMode.visible.count) shown")
+                } label: {
+                    Label("Modes", systemImage: "square.grid.2x2")
+                }
+            }
+            Picker(selection: $settings.launchMode) {
+                Text("Last Used").tag(AppMode?.none)
+                ForEach(AppMode.visible) { Text($0.title).tag(AppMode?.some($0)) }
+            } label: {
+                Label("Open In", systemImage: "arrow.forward.square")
+            }
+            ForEach(AppMode.visible.filter { $0.hasSettings }) { mode in
+                NavigationLink {
+                    ModeDetailSettings(mode: mode)
+                } label: {
+                    Label {
+                        Text(mode.title)
+                    } icon: {
+                        Image(systemName: mode.symbol).foregroundStyle(mode.accent(palette))
+                    }
+                }
+            }
+        } header: {
+            Text("Modes")
+        } footer: {
+            Text("Choose which modes the pill shows and their order, or split Actions back into Deck, Macros, Clipboard and Present.")
         }
         .listRowBackground(palette.raisedColor)
     }
@@ -244,6 +319,11 @@ struct SettingsView: View {
                     Image(systemName: "arrow.up.right").foregroundStyle(palette.inkSoftColor)
                 }
             }
+            Button("Reset Look and Feel", role: .destructive) {
+                Haptics.shared.tap()
+                settings.resetLookAndFeel()
+                session.refreshHapticStrength()
+            }
             Text("Glasspad is free and open source under the MIT license. It talks only to your paired Mac on your network: no accounts, no servers, no tracking. Every message is encrypted with a key only your Mac and this phone have.")
                 .font(.footnote)
                 .foregroundStyle(palette.inkSoftColor)
@@ -264,7 +344,8 @@ struct SettingsView: View {
     }
 
     static func durationText(_ seconds: TimeInterval) -> String {
-        seconds < 60 ? "\(Int(seconds)) seconds" : (seconds == 60 ? "1 minute" : "\(Int(seconds / 60)) minutes")
+        if seconds == 0 { return "Never" }
+        return seconds < 60 ? "\(Int(seconds)) seconds" : (seconds == 60 ? "1 minute" : "\(Int(seconds / 60)) minutes")
     }
 }
 

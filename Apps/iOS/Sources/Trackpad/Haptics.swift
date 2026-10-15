@@ -11,6 +11,7 @@ enum HapticCue: Sendable {
     case detent
     case snap
     case error
+    case dragLock         // a tap-drag picked something up
 
     init(_ kind: HapticKind) {
         switch kind {
@@ -19,6 +20,7 @@ enum HapticCue: Sendable {
         case .detent: self = .detent
         case .snap: self = .snap
         case .error: self = .error
+        case .dragLock: self = .dragLock
         }
     }
 }
@@ -39,6 +41,11 @@ final class Haptics {
     /// Effective strength 0...1, recomputed from settings by the caller.
     var strength: Double = 0.7 {
         didSet { if abs(strength - builtStrength) > 0.01 { rebuildPlayers() } }
+    }
+
+    /// Per-kind strengths (click, force click, drag lock) from the phone's tuning, 0...1 each.
+    var tuning: TrackpadTuning = .default {
+        didSet { if tuning != oldValue { rebuildPlayers() } }
     }
 
     /// Set from the thermal monitor. When true, nothing plays.
@@ -64,7 +71,13 @@ final class Haptics {
         engine?.stop(completionHandler: nil)
     }
 
+    /// Plays a cue unless that kind is switched off in Settings > Haptic Types.
     func play(_ cue: HapticCue) {
+        guard !PhoneSettings.shared.hapticsOff.contains(HapticChannel(cue)) else { return }
+        start(cue)
+    }
+
+    private func start(_ cue: HapticCue) {
         guard isSupported, !suspendedForHeat, strength > 0.01 else { return }
         if engine == nil { warmUp() }
         let key = HapticCueKey(cue)
@@ -79,7 +92,11 @@ final class Haptics {
     }
 
     /// For buttons in the modes: a light tap that follows the same strength and heat rules.
-    func tap() { play(.detent) }
+    /// Follows the "Buttons in modes" switch rather than the scroll-step one.
+    func tap() {
+        guard !PhoneSettings.shared.hapticsOff.contains(.buttons) else { return }
+        start(.detent)
+    }
 
     private func makeEngine() {
         guard let engine = try? CHHapticEngine() else { return }
@@ -104,7 +121,9 @@ final class Haptics {
         guard let engine else { return }
         var built: [HapticCueKey: CHHapticPatternPlayer] = [:]
         for key in HapticCueKey.allCases {
-            if let pattern = try? key.pattern(strength: Float(strength)),
+            let s = strength * key.scale(tuning)
+            guard s > 0.01 else { continue }
+            if let pattern = try? key.pattern(strength: Float(s)),
                let player = try? engine.makePlayer(with: pattern) {
                 built[key] = player
             }
@@ -115,7 +134,17 @@ final class Haptics {
 
 /// Hashable twin of `HapticCue`, used as the player cache key.
 private enum HapticCueKey: CaseIterable {
-    case click, forceClickRamp, forceClickDeep, detent, snap, error
+    case click, forceClickRamp, forceClickDeep, detent, snap, error, dragLock
+
+    /// The per-kind strength from the phone's tuning; mode buttons (detent) and the others stay 1.
+    func scale(_ t: TrackpadTuning) -> Double {
+        switch self {
+        case .click: t.clickHaptic
+        case .forceClickRamp, .forceClickDeep: t.forceClickHaptic
+        case .dragLock: t.dragLockHaptic
+        case .detent, .snap, .error: 1
+        }
+    }
 
     init(_ cue: HapticCue) {
         switch cue {
@@ -125,6 +154,7 @@ private enum HapticCueKey: CaseIterable {
         case .detent: self = .detent
         case .snap: self = .snap
         case .error: self = .error
+        case .dragLock: self = .dragLock
         }
     }
 
@@ -157,6 +187,9 @@ private enum HapticCueKey: CaseIterable {
             return try CHHapticPattern(events: [tick(0, 0.55, 0.5), tick(0.07, 1.0, 0.85)], parameters: [])
         case .error:
             return try CHHapticPattern(events: [tick(0, 0.6, 0.3), tick(0.1, 0.6, 0.3), tick(0.2, 0.6, 0.3)], parameters: [])
+        case .dragLock:
+            // Softer and duller than a click: something was picked up, not pressed.
+            return try CHHapticPattern(events: [tick(0, 0.75, 0.45)], parameters: [])
         }
     }
 }

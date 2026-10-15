@@ -23,6 +23,8 @@ struct PopoverView: View {
                     .padding(.vertical, 10)
             }
 
+            MediaPermissionRow()
+
             Divider()
             PairingSection()
                 .padding(.horizontal, 14)
@@ -45,6 +47,11 @@ struct PopoverView: View {
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 10)
+
+            Divider()
+            MacDockSection()
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
 
             Divider()
             VStack(alignment: .leading, spacing: 8) {
@@ -250,5 +257,21 @@ private struct RecordingRow: View {
             .padding(.horizontal, 14)
             .padding(.vertical, 10)
         }
+    }
+}
+
+/// The two switches that keep the Mac's own Dock out of the way. Values are always put back.
+struct MacDockSection: View {
+    @ObservedObject var hider = MacDockHider.shared
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Toggle("Hide Mac Dock", isOn: Binding(get: { hider.published.hidden }, set: { hider.setManual($0) }))
+            Toggle("Hide the Mac Dock while Glasspad is connected",
+                   isOn: Binding(get: { hider.published.hideWhileConnected }, set: { hider.setHideWhileConnected($0) }))
+        }
+        .toggleStyle(.switch)
+        .controlSize(.small)
+        .help("Glasspad saves your Dock settings first and puts them back when you turn this off, disconnect or quit.")
     }
 }

@@ -2,6 +2,8 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>CADisableMinimumFrameDurationOnPhone</key>
+	<true/>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
@@ -43,6 +45,8 @@
 	<string>Glasspad uses the camera only to scan the pairing code your Mac shows.</string>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Glasspad finds your paired Mac on this Wi-Fi network and sends your touches to it.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Glasspad saves screenshots that a Deck button takes on your Mac to Photos, only when you set the button up to.</string>
 	<key>NSSupportsLiveActivities</key>
 	<true/>
 	<key>UIApplicationSceneManifest</key>

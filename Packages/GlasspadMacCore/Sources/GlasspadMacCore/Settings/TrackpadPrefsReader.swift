@@ -31,6 +31,8 @@ import GlasspadKit
 /// | notificationCenterEdge   | tp     | TrackpadTwoFingerFromRightEdgeSwipeGesture  | 3 = on, 0 = off (observed 3) |
 /// | clickPressure            | tp     | FirstClickThreshold                         | 0 light, 1 medium, 2 firm (observed 1) |
 /// | hapticStrength           | -      | phone-side only                             | left at the default |
+/// | scrollSpeed              | -g     | com.apple.trackpad.scrolling                | Double, clamped 0...3; absent = 0.3125 (the HID default, observed absent) |
+/// | tuning                   | -      | phone-side only (sent by the phone)         | left at the default |
 ///
 /// `tp` = com.apple.AppleMultitouchTrackpad, falling back to
 /// com.apple.driver.AppleBluetoothMultitouch.trackpad. `dock` = com.apple.dock.
@@ -65,6 +67,7 @@ public enum TrackpadPrefsReader {
     /// Global-domain keys we care about (reading the whole global domain is large).
     static let globalKeys = [
         "com.apple.trackpad.scaling",
+        "com.apple.trackpad.scrolling",
         "com.apple.swipescrolldirection",
         "com.apple.trackpad.forceClick",
         "AppleEnableSwipeNavigateWithScrolls",
@@ -113,6 +116,9 @@ public enum TrackpadPrefsReader {
 
         if let speed = double(s.global["com.apple.trackpad.scaling"]) {
             out.trackingSpeed = min(3, max(0, speed))
+        }
+        if let scroll = double(s.global["com.apple.trackpad.scrolling"]) {
+            out.scrollSpeed = min(3, max(0, scroll))
         }
         if let natural = int(s.global["com.apple.swipescrolldirection"]) { out.naturalScrolling = natural != 0 }
         if let v = tpBool("Clicking") { out.tapToClick = v }

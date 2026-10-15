@@ -19,8 +19,9 @@ struct ModeSwitcher: View {
 
     var body: some View {
         GeometryReader { geo in
-            let top = geo.safeAreaInsets.top
-            ZStack(alignment: .top) {
+            let bottom = settings.pillPosition == .bottom
+            let edge = bottom ? geo.safeAreaInsets.bottom : geo.safeAreaInsets.top
+            ZStack(alignment: bottom ? .bottom : .top) {
                 if expanded {
                     // Tap anywhere else to close the menu.
                     Color.black.opacity(palette.isDark ? 0.35 : 0.12)
@@ -30,35 +31,39 @@ struct ModeSwitcher: View {
                         .accessibilityHidden(true)
                 }
 
-                // Touching the top edge brings the pill back.
+                // Touching the pill's edge brings it back.
                 if !visible && !expanded {
                     Color.clear
-                        .frame(height: max(24, top))
+                        .frame(height: max(24, edge))
                         .frame(maxWidth: .infinity)
                         .contentShape(Rectangle())
                         .gesture(DragGesture(minimumDistance: 0).onChanged { _ in reveal() })
-                        .ignoresSafeArea(edges: .top)
+                        .ignoresSafeArea(edges: bottom ? .bottom : .top)
                         .accessibilityHidden(true)
                 }
 
                 VStack(spacing: 10) {
+                    if bottom && expanded {
+                        menu
+                            .transition(reduceMotion ? .opacity : .opacity.combined(with: .scale(scale: 0.92, anchor: .bottom)))
+                    }
                     if visible || expanded {
                         pill
-                            .transition(reduceMotion ? .opacity : .opacity.combined(with: .scale(scale: 0.85, anchor: .top)))
+                            .transition(reduceMotion ? .opacity : .opacity.combined(with: .scale(scale: 0.85, anchor: bottom ? .bottom : .top)))
                     } else {
                         ConnectionDot(state: session.state)
-                            .padding(.top, 8)
+                            .padding(bottom ? .bottom : .top, 8)
                             .transition(.opacity)
                     }
-                    if expanded {
+                    if !bottom && expanded {
                         menu
                             .transition(reduceMotion ? .opacity : .opacity.combined(with: .scale(scale: 0.92, anchor: .top)))
                     }
                 }
-                .padding(.top, 6)
+                .padding(bottom ? .bottom : .top, 6)
                 .glassGroup(spacing: 12)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: bottom ? .bottom : .top)
         }
         .animation(.spring(response: 0.38, dampingFraction: 0.82), value: visible)
         .animation(.spring(response: 0.38, dampingFraction: 0.82), value: expanded)
@@ -115,9 +120,10 @@ struct ModeSwitcher: View {
     private var locked: Bool { settings.orientation != .automatic }
 
     private var menu: some View {
-        let modes = AppMode.allCases
+        let modes = AppMode.visible
+        let columns = modes.count <= 5 ? max(1, modes.count) : 4
         return VStack(spacing: 6) {
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: 4), spacing: 6) {
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: columns), spacing: 6) {
                 ForEach(modes) { mode in
                     let current = mode == router.mode
                     Button {
@@ -135,7 +141,7 @@ struct ModeSwitcher: View {
                                 .font(.caption2.weight(.medium))
                                 .foregroundStyle(palette.inkColor)
                                 .lineLimit(1)
-                                .minimumScaleFactor(0.8)
+                                .minimumScaleFactor(0.7)
                         }
                         .frame(maxWidth: .infinity, minHeight: 64)
                         .background {
@@ -192,7 +198,7 @@ struct ModeSwitcher: View {
             }
         }
         .padding(10)
-        .frame(width: 330)
+        .frame(width: 340)
         .glassPanel(cornerRadius: 28)
     }
 

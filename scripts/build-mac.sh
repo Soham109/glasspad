@@ -24,6 +24,16 @@ rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN_DIR/Glasspad" "$APP/Contents/MacOS/Glasspad"
 
+# Now-playing helper: a small library /usr/bin/perl loads so Media mode can read MediaRemote,
+# which since macOS 15.4 answers only Apple processes (see Apps/Mac/Helpers/NowPlayingHelper.m).
+echo "== now-playing helper"
+mkdir -p "$APP/Contents/Frameworks"
+clang -arch arm64 -arch x86_64 -mmacosx-version-min=14.0 -fobjc-arc -dynamiclib -O2 \
+  -Wall -Wextra -Wno-unused-parameter -Werror \
+  -framework Foundation -framework AppKit \
+  -install_name @rpath/GlasspadNowPlaying.dylib \
+  -o "$APP/Contents/Frameworks/GlasspadNowPlaying.dylib" "$ROOT/Apps/Mac/Helpers/NowPlayingHelper.m"
+
 # App icon: turn the asset catalog's PNGs into an .icns with iconutil.
 ICONSET="$(mktemp -d)/AppIcon.iconset"
 mkdir -p "$ICONSET"
@@ -64,7 +74,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>NSLocalNetworkUsageDescription</key>
   <string>Glasspad listens on your local network so your paired iPhone can connect and work as a trackpad.</string>
   <key>NSAppleEventsUsageDescription</key>
-  <string>Glasspad opens Notification Center when you swipe in from the right edge on your iPhone.</string>
+  <string>Glasspad shows what Spotify or Music is playing on your iPhone and controls playback, and opens Notification Center when you swipe in from the right edge.</string>
   <key>NSHumanReadableCopyright</key><string>MIT License</string>
 </dict>
 </plist>
@@ -74,6 +84,8 @@ plutil -lint "$APP/Contents/Info.plist" >/dev/null
 echo "== codesign (ad-hoc)"
 # iCloud-synced folders tag bundles with Finder info; codesign refuses those attributes.
 xattr -cr "$APP"
-codesign --force --sign - --timestamp=none "$APP"
+codesign --force --sign - --timestamp=none "$APP/Contents/Frameworks/GlasspadNowPlaying.dylib"
+# The entitlements carry com.apple.security.automation.apple-events (Media mode's Apple Events).
+codesign --force --sign - --timestamp=none --entitlements "$ROOT/Config/Mac/Glasspad.entitlements" "$APP"
 codesign --verify --strict "$APP"
 echo "Built $APP"

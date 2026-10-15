@@ -36,10 +36,12 @@ public final class GlasspadController: ObservableObject {
         let poster = LiveEventPoster()
         let watcher = TrackpadPrefsWatcher()
         self.watcher = watcher
-        self.settings = watcher.settings
         self.capabilities = caps
         let synth = EventSynthesizer(poster: poster, settings: watcher.settings, capabilities: caps)
-        self.pipeline = TouchPipeline(settings: watcher.settings, synth: synth)
+        var initial = watcher.settings
+        initial.tuning = Self.savedTuning()
+        self.settings = initial
+        self.pipeline = TouchPipeline(settings: initial, synth: synth, frameClock: DisplayFrameClock())
         self.modes = ModeRouter(poster: poster)
         self.macros = MacroCoordinator.live(poster: poster)
         self.modes.macros = macros
@@ -57,7 +59,6 @@ public final class GlasspadController: ObservableObject {
         server.onPaired = { [weak self] phone in
             MainActor.assumeIsolated { self?.paired(phone) }
         }
-        pipeline.onHaptic = { [weak self] kind in self?.server.send(.haptic(kind)) }
         pipeline.setDisplayWidth(Double(NSScreen.screens.first?.frame.width ?? 0))
         modes.send = { [weak self] message in self?.server.send(.mode(message)) }
         macros.send = { [weak self] message in self?.server.send(.mode(.macro(message))) }
@@ -161,7 +162,33 @@ public final class GlasspadController: ObservableObject {
     }
 
     fileprivate func received(_ message: ControlMessage) {
-        if case .mode(let m) = message { modes.handle(m) }
+        switch message {
+        case .mode(let m): modes.handle(m)
+        case .settings(let fromPhone): phoneTuningChanged(fromPhone.tuning.clamped)
+        default: break
+        }
+    }
+
+    // MARK: Phone tuning
+
+    private static let tuningKey = "phoneTrackpadTuning"
+
+    static func savedTuning() -> TrackpadTuning {
+        guard let data = UserDefaults.standard.data(forKey: tuningKey),
+              let t = try? JSONDecoder().decode(TrackpadTuning.self, from: data) else { return .default }
+        return t.clamped
+    }
+
+    /// The phone sent its feel settings (pointer speed, acceleration, scroll, momentum, haptics).
+    /// The Mac keeps them with its own trackpad prefs and echoes the merged settings back.
+    private func phoneTuningChanged(_ tuning: TrackpadTuning) {
+        guard tuning != settings.tuning else { return }
+        if let data = try? JSONEncoder().encode(tuning) { UserDefaults.standard.set(data, forKey: Self.tuningKey) }
+        var s = settings
+        s.tuning = tuning
+        settings = s
+        pipeline.settings = s
+        server.send(.settings(s))
     }
 
     fileprivate func received(_ frame: TouchFrame) {
@@ -169,7 +196,9 @@ public final class GlasspadController: ObservableObject {
         pipeline.process(frame)
     }
 
-    private func settingsChanged(_ s: TrackpadSettings) {
+    private func settingsChanged(_ new: TrackpadSettings) {
+        var s = new
+        s.tuning = settings.tuning      // the phone owns tuning; the Mac prefs never carry it
         settings = s
         pipeline.settings = s
         server.send(.settings(s))

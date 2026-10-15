@@ -1,115 +1,10 @@
 import SwiftUI
 import GlasspadKit
 
-/// A grid of the buttons set up in the Mac app. Tap runs one on the Mac and shows the outcome.
+/// Deck on its own, for people who split Actions back up in Settings. Same pages, tiles and
+/// editor as Actions, without the front-app page, Clipboard and Present.
 struct DeckMode: View {
-    @Environment(\.palette) private var palette
-    var session = MacSession.shared
-    private let accent = AppMode.deck.accent(.paper)
-
-    private let columns = [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)]
-
-    var body: some View {
-        ZStack {
-            if let buttons = session.deckButtons {
-                if buttons.isEmpty {
-                    QuietMessage(symbol: "square.grid.2x2", title: "No buttons yet",
-                                 detail: "Add buttons in the Glasspad menu on your Mac. They show up here.")
-                } else {
-                    grid(buttons)
-                }
-            } else if session.isConnected {
-                ProgressView().controlSize(.large).frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else {
-                ModeOfflineMessage(mode: .deck)
-            }
-        }
-        .overlay(alignment: .bottom) { failureBanner }
-        .onAppear { session.send(.deckRequest) }
-    }
-
-    private func grid(_ buttons: [DeckButton]) -> some View {
-        ScrollView {
-            LazyVGrid(columns: columns, spacing: 12) {
-                ForEach(buttons) { button in
-                    DeckTile(button: button, accent: accent,
-                             pending: session.deckPending.contains(button.id),
-                             outcome: session.deckOutcomes[button.id]) {
-                        Haptics.shared.play(.click)
-                        session.runDeck(button.id)
-                    }
-                }
-            }
-            .padding(.horizontal, 16)
-            .padding(.top, 76)
-            .padding(.bottom, 32)
-        }
-        .refreshable { session.send(.deckRequest) }
-    }
-
-    @ViewBuilder private var failureBanner: some View {
-        if let failure = session.deckFailure {
-            Label(failure.message, systemImage: "exclamationmark.triangle.fill")
-                .font(.subheadline)
-                .foregroundStyle(palette.inkColor)
-                .padding(.horizontal, 18)
-                .padding(.vertical, 12)
-                .glassCapsule()
-                .padding(.horizontal, 20)
-                .padding(.bottom, 24)
-                .transition(.move(edge: .bottom).combined(with: .opacity))
-                .id(failure.id)
-                .accessibilityAddTraits(.updatesFrequently)
-        }
-    }
-}
-
-private struct DeckTile: View {
-    @Environment(\.palette) private var palette
-    let button: DeckButton
-    let accent: Color
-    let pending: Bool
-    let outcome: DeckOutcome?
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            VStack(spacing: 10) {
-                ZStack {
-                    Image(systemName: UIImage(systemName: button.symbol) == nil ? "square.dashed" : button.symbol)
-                        .font(.title2)
-                        .symbolRenderingMode(.hierarchical)
-                        .foregroundStyle(accent)
-                        .opacity(pending ? 0 : 1)
-                        .symbolEffect(.bounce, value: outcome?.id)
-                    if pending { ProgressView() }
-                }
-                .frame(height: 30)
-                Text(button.title)
-                    .font(.footnote.weight(.medium))
-                    .foregroundStyle(palette.inkColor)
-                    .lineLimit(2, reservesSpace: true)
-                    .multilineTextAlignment(.center)
-                    .minimumScaleFactor(0.85)
-            }
-            .padding(.horizontal, 8)
-            .frame(maxWidth: .infinity, minHeight: 104)
-        }
-        .glassButton()
-        .buttonBorderShape(.roundedRectangle(radius: 22))
-        .overlay(alignment: .topTrailing) {
-            if let outcome, outcome.ok {
-                Image(systemName: "checkmark.circle.fill")
-                    .font(.body)
-                    .foregroundStyle(Color.green)
-                    .padding(8)
-                    .transition(.scale.combined(with: .opacity))
-            }
-        }
-        .animation(.snappy, value: outcome?.id)
-        .accessibilityLabel(button.title)
-        .accessibilityHint(button.action.spokenHint)
-    }
+    var body: some View { ActionsMode(deckOnly: true) }
 }
 
 /// The last result of running a Deck button.
@@ -129,9 +24,43 @@ extension DeckAction {
         switch self {
         case .openApp: "Opens an app on your Mac"
         case .openURL: "Opens a link on your Mac"
+        case .openFile: "Opens a file or folder on your Mac"
         case .runShortcut(let name): "Runs the shortcut \(name) on your Mac"
+        case .runMacro: "Runs a macro on your Mac"
         case .keystroke: "Presses a key combination on your Mac"
+        case .typeText: "Types text on your Mac"
         case .shellScript: "Runs a script on your Mac"
+        case .screenshot: "Takes a screenshot on your Mac"
+        case .screenRecording: "Starts or stops a screen recording on your Mac"
+        case .system(let s): s.spokenHint
+        case .setAudioOutput(let name): "Switches the Mac's sound to \(name)"
+        case .folder: "Opens this folder"
+        }
+    }
+}
+
+extension DeckSystemAction {
+    var spokenHint: String {
+        switch self {
+        case .lockScreen: "Locks your Mac"
+        case .sleepDisplay: "Turns off the Mac's display"
+        case .sleepMac: "Puts your Mac to sleep"
+        case .toggleDarkMode: "Switches the Mac between light and dark"
+        case .volumeUp: "Turns the Mac's volume up"
+        case .volumeDown: "Turns the Mac's volume down"
+        case .mute: "Mutes or unmutes the Mac"
+        case .micMute: "Mutes or unmutes the Mac's microphone"
+        case .brightnessUp: "Makes the Mac's display brighter"
+        case .brightnessDown: "Makes the Mac's display dimmer"
+        case .playPause: "Plays or pauses on your Mac"
+        case .nextTrack: "Skips to the next track"
+        case .previousTrack: "Goes back a track"
+        case .showDesktop: "Shows the Mac's desktop"
+        case .missionControl: "Opens Mission Control"
+        case .appExpose: "Shows the front app's windows"
+        case .launchpad: "Opens the Mac's Apps view"
+        case .emptyTrash: "Empties the Mac's Trash after you confirm"
+        case .ejectAll: "Ejects every disk"
         }
     }
 }

@@ -33,7 +33,7 @@ struct RootView: View {
     var session = MacSession.shared
 
     var body: some View {
-        let palette = settings.theme.resolved(systemScheme)
+        let palette = settings.theme.resolved(systemScheme).customized(settings)
         @Bindable var router = router
         ZStack {
             palette.backgroundColor.ignoresSafeArea()
@@ -100,6 +100,7 @@ struct RootView: View {
         case .dock: DockMode()
         case .keys: KeysMode()
         case .media: MediaMode()
+        case .actions: ActionsMode()
         case .deck: DeckMode()
         case .macros: MacrosMode()
         case .clipboard: ClipboardMode()
@@ -180,6 +181,8 @@ private struct WarmNotice: View {
 ///   -GPOnboarding                       show onboarding again
 ///   -GPSettings / -GPMenu / -GPPairSheet open Settings, the mode menu or the pair sheet
 ///   -GPOrientation <automatic|portrait|landscape>  set the orientation choice (it is saved)
+///   -GPDemo <icon folder>               fill the screens with sample Mac data (no Mac needed)
+///   -GPActionsPage <mac|mine|clipboard|present>  open that Actions page; -GPEdit starts editing
 enum DebugLaunch {
     @MainActor static func apply() {
         let args = ProcessInfo.processInfo.arguments
@@ -190,6 +193,7 @@ enum DebugLaunch {
         if let o = value("-GPOrientation"), let choice = OrientationChoice(rawValue: o) {
             PhoneSettings.shared.orientation = choice
         }
+        if let t = value("-GPTheme"), let theme = ThemeChoice(rawValue: t) { PhoneSettings.shared.theme = theme }
         if args.contains("-GPOnboarding") { PhoneSettings.shared.hasOnboarded = false }
         if let pair = value("-GPPair"), let url = URL(string: pair) { AppRouter.shared.open(url) }
         if let mode = value("-GPMode"), let target = AppMode(rawValue: mode) {
@@ -199,7 +203,13 @@ enum DebugLaunch {
         if args.contains("-GPSettings") { AppRouter.shared.showSettings = true }
         if args.contains("-GPPairSheet") { AppRouter.shared.showPairing = true }
         if args.contains("-GPMenu") { showMenuAtLaunch = true }
+        if let folder = value("-GPDemo") { MacSession.shared.applyDemo(DemoData(iconFolder: folder)) }
+        if let page = value("-GPActionsPage") { demoActionsPage = page }
+        if args.contains("-GPEdit") { demoEditing = true }
     }
     @MainActor static var showMenuAtLaunch = false
+    /// `mac`, `mine`, `clipboard` or `present`: the Actions page to open.
+    @MainActor static var demoActionsPage: String?
+    @MainActor static var demoEditing = false
 }
 #endif

@@ -122,11 +122,11 @@ private final class PipelineBridge: GlasspadLinkDelegate {
         #expect(docks.allSatisfy { $0.get(.gestureHIDType) == 23 && $0.get(.dockSwipeMotion) == 1 })   // horizontal dock swipe
         // Every dock event rides with its type-29 companion.
         #expect(immediate.filter { $0.type.rawValue == 29 }.count == docks.count)
-        // Progress grows as the fingers travel left, and the swipe completed (snap haptic).
+        // Progress grows as the fingers travel left, and the swipe completed (no haptic).
         let offsets = docks.map { $0.getDouble(.dockSwipeOriginOffset) }
         #expect(offsets.last ?? 0 > 0.5)
         #expect(zip(offsets, offsets.dropFirst()).allSatisfy { $0.1 >= $0.0 - 1e-6 })
-        #expect(rig.haptics() == [.snap])
+        #expect(rig.haptics().isEmpty)          // Spaces do not buzz
         #expect(rig.poster.posted.allSatisfy { $0.tap == .cgSessionEventTap })
         // No pointer motion, clicks or page navigation leaked out of the swipe.
         #expect(!rig.poster.events.contains { [.leftMouseDown, .mouseMoved, .scrollWheel].contains($0.type) })

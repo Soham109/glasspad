@@ -37,24 +37,21 @@ public enum GestureTuning {
     public static let pointerStartSlop: Double = 4
     /// Movement past which a held button (tap-drag, hold, three-finger) starts dragging.
     public static let dragStartSlop: Double = 4
-    /// Fraction of the display width a full-width phone swipe covers at the reference speed.
-    public static let fullSwipeDisplayFraction: Double = 0.6
     /// Display width assumed until the Mac sets `GestureRecognizer.displayWidth` (Mac points).
+    /// Pointer gain no longer depends on it (it follows the Mac's curve in physical units).
     public static let defaultDisplayWidth: Double = 1512
-    /// Finger speed at which the full-swipe fraction above holds, default tracking speed.
-    public static let referenceSpeed: Double = 400
-    /// Speed where acceleration is halfway between its slow and fast gain.
-    public static let accelHalfSpeed: Double = 450
-    /// Slow-finger gain = base + perSpeed * trackingSpeed.
-    public static let slowGainBase: Double = 0.45
-    public static let slowGainPerSpeed: Double = 0.30
-    /// Fast-finger gain = base + perSpeed * trackingSpeed.
-    public static let fastGainBase: Double = 0.70
-    public static let fastGainPerSpeed: Double = 1.40
-    /// Tracking speed the reference gain is computed at (macOS default).
-    public static let referenceTrackingSpeed: Double = 1.0
-    /// Smoothing for the speed estimate (0 = frozen, 1 = no smoothing).
-    public static let speedSmoothing: Double = 0.5
+    /// Phone screen points per inch. iPhone Pro screens are 460 pixels per inch at 3x, so
+    /// 153.3 points per inch (6.04 points per mm). Turns touch travel into physical travel,
+    /// which is what the Mac's acceleration curve is defined on.
+    public static let phonePointsPerInch: Double = 460.0 / 3.0
+    /// Finger speed is travel per frame over at least this much time: one report of the Mac's
+    /// own trackpad (120 Hz), so the curve sees the same speeds it does on the real trackpad.
+    public static let speedWindow: TimeInterval = 1.0 / 120
+    /// `PointerAcceleration.linear` uses the Mac curve's gain at this finger speed (inches/s).
+    public static let linearReferenceSpeed: Double = 2.0
+    /// Scroll pixels per inch, relative to the Mac pointer formula at the same speed on the
+    /// scroll curve. First knob to tune if scrolling feels uniformly fast or slow.
+    public static let scrollCalibration: Double = 1.5
     /// Frame interval clamp for speed estimates.
     public static let minFrameInterval: TimeInterval = 0.004
     public static let maxFrameInterval: TimeInterval = 0.05
@@ -62,8 +59,6 @@ public enum GestureTuning {
     // MARK: Scroll
     /// Two fingers must translate this far together to start scrolling.
     public static let scrollStartDistance: Double = 8
-    /// Phone points to scroll pixels.
-    public static let scrollGain: Double = 1.8
     /// Velocity is measured over this much history before lift.
     public static let momentumSampleWindow: TimeInterval = 0.08
     /// If the fingers were still for this long before lifting, there is no momentum.
@@ -72,10 +67,10 @@ public enum GestureTuning {
     public static let momentumMinSpeed: Double = 60
     /// Momentum ends below this speed (pixels/s).
     public static let momentumStopSpeed: Double = 12
-    /// Decay per momentum frame, matching macOS feel.
-    public static let momentumDecayPerFrame: Double = 0.95
-    /// The frame the decay above is defined for.
-    public static let momentumFrameInterval: TimeInterval = 0.008
+    /// Momentum velocity kept per millisecond at momentum strength 1: the platform's normal
+    /// scroll deceleration (UIScrollView.DecelerationRate.normal, 0.998), a time constant of
+    /// about 0.5 s. Momentum strength s uses 0.998^(1/s).
+    public static let momentumDecayPerMillisecond: Double = 0.998
     /// Longest tick gap integrated in one momentum step.
     public static let momentumMaxStep: TimeInterval = 0.1
     /// When one of two scrolling fingers lifts, the other has this long to follow for momentum.
@@ -98,8 +93,6 @@ public enum GestureTuning {
     public static let spreadFullDistance: Double = 60
     /// Travel at which a three-finger page swipe fires `navigate`.
     public static let navigateDistance: Double = 50
-    /// Progress at swipe end that plays the snap haptic.
-    public static let swipeCommitProgress: Double = 0.5
     /// Fewest fingers for launchpad pinch / show desktop spread (thumb + three).
     public static let spreadMinFingers = 4
 
@@ -117,4 +110,7 @@ public enum GestureTuning {
     public static let clockJumpTolerance: TimeInterval = 1.0
     /// A sequence number this far behind the last one is a sender restart, not a late packet.
     public static let seqResetDistance: UInt32 = 1024
+    /// The learned phone-to-Mac clock offset may creep upward this fast (seconds per second),
+    /// so the two clocks drifting apart never leaves it stale. 200 ppm is well above crystal drift.
+    public static let clockOffsetCreep: Double = 0.0002
 }

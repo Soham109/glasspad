@@ -181,6 +181,16 @@ public var heartbeatsEnabled: Bool                // true while the trackpad scr
 - While any finger is down the client resends the last snapshot (phases set to
   `stationary`, fresh timestamp) every 20 ms; otherwise it sends heartbeats when
   `heartbeatsEnabled` and the phone touched within 2 min.
+- Shared network first (feel pass, Oct 2026): the phone browses and connects with
+  `includePeerToPeer = false` and cellular prohibited; only if the Mac is not found within
+  `GlasspadService.peerToPeerFallbackDelay` (3 s) does it browse again with peer-to-peer Wi-Fi
+  (AWDL) allowed. While AWDL is active the Wi-Fi chip hops to AWDL channels several times a
+  second, which shows up as periodic latency spikes on every packet. The Mac's listeners keep
+  peer-to-peer on so the fallback works, and log `(peer-to-peer Wi-Fi: expect latency spikes)`
+  when a phone arrives that way. `tcpParameters(peerToPeer:)` / `udpParameters(peerToPeer:)`.
+- Measured RTT on the owner's Wi-Fi with heartbeats: median 7.6 ms (TCP ping, includes the
+  phone's power-save wake). The 1.1 ms figure was over the USB cable (`en8`). Without
+  heartbeats the median is 70 to 120 ms.
 
 ## 5. Wire messages (GlasspadKit/Protocol)
 
@@ -349,6 +359,34 @@ public var clock: () -> TimeInterval          // caller's clock, default systemU
   `cancelled` touches, a silent link (`staleTouchTimeout`), a phone clock restart
   and `cancelAll()` all release it.
 
+As built, feel pass (Oct 2026):
+- Pointer acceleration is the Mac's own, in physical units (`Gestures/MacAcceleration.swift`).
+  It re-implements IOHIDFamily's parametric curve (`IOHIDParametricAcceleration`) and
+  `IOHIDPointerAccelerator`: speed is counts per 120 Hz report at 400 counts per inch (floored),
+  standardized by 400/67, run through the curve for `trackingSpeed` (the `HIDAccelCurves` table,
+  blended between entries), and one inch moves the pointer `96 * f(v) / v` points. Curves,
+  resolution and report rate were read from the reference MacBook Pro's IORegistry. Phone
+  points become inches with `phonePointsPerInch` (153.3: 460 ppi at 3x). Finger speed is the
+  frame's travel over max(dt, 1/120 s). `displayWidth` no longer affects gain.
+- Scroll uses the same formula on `HIDScrollAccelCurves` at `TrackpadSettings.scrollSpeed`
+  (`com.apple.trackpad.scrolling`, default 0.3125), times `GestureTuning.scrollCalibration`
+  (1.5, the main scroll knob). Momentum decays at 0.998 per ms (time constant about 0.5 s).
+- `TrackpadSettings.scrollSpeed` and `TrackpadSettings.tuning: TrackpadTuning` are new and
+  optional on the wire (older peers decode). `TrackpadTuning` (phone-owned): `pointerSpeed`
+  (multiplier, 1 = match Mac), `acceleration` (`.mac`, `.linear` = Mac gain at 2 in/s, `.off` =
+  96 pt per inch), `scrollSpeed`, `momentumStrength` (0 = none, rate 0.998^(1/s) per ms),
+  `clickHaptic`, `forceClickHaptic`, `dragLockHaptic`. The phone sends it inside
+  `ControlMessage.settings` (phone -> Mac); the Mac keeps only `tuning` from it, stores it, and
+  echoes the merged settings. `GestureRecognizer.pointerGain(speed:settings:)` is public for the
+  settings preview.
+- Haptics: only clicks (tap, two-finger click, corner click, three-finger Look Up tap), force
+  click stages, and drag lock (new `HapticKind.dragLock`, when a tap-drag picks something up).
+  Spaces, Mission Control, swipes, page swipes, the edge swipe and scroll never buzz, and the
+  Mac no longer sends `.haptic(.snap)`.
+- The phone-to-Mac clock offset is the fastest frame's delay, allowed to creep up at 200 ppm
+  (`clockOffsetCreep`) so drift between the clocks never leaves it stale.
+  `learnedClockOffset` exposes it.
+
 ## 7. Mac event synthesis (GlasspadMacCore/Synth)
 
 - Pointer, clicks, drags: `CGEvent` mouse events with delta fields set, click
@@ -371,6 +409,22 @@ public var clock: () -> TimeInterval          // caller's clock, default systemU
 - Tests must never post events into the live session. Test by building events
   and asserting their fields. A separate opt-in `--live-demo` flag can post.
 
+As built, feel pass (Oct 2026): display-synced output.
+- Before, every packet was posted the moment it arrived, so Wi-Fi bunching became pointer
+  jitter and a 120 Hz display got 0, 1 or 3 updates per frame. Now `TouchPipeline` (with a
+  `FrameClock`; the app uses `DisplayFrameClock`, `NSScreen.displayLink` at the screen's real
+  rate, 120 Hz on ProMotion, timer fallback) puts every recognizer event on the phone's timeline
+  in `Synth/MotionScheduler.swift` and releases it at display frames: at most one move, drag
+  and scroll event per frame, motion spread evenly over the sample interval after its sample,
+  discrete events kept in order. Delay `D` = 90th percentile of frame lateness (eased, capped
+  at one display frame); added latency is `D` plus about half a sample interval. Recognizer
+  ticks (momentum, hold timers) run once per display frame on the same delayed timeline. If
+  the display stops calling back for 50 ms, events post at once. The clock stops after about
+  half a second idle. Without a frame clock (tests) the old immediate path is used.
+- `TouchDiagnostics` logs one line per second while frames flow:
+  `feel: N fps, gap p50/p95/max, lost, late p50/p95/max, buffer, display Hz, out/s`.
+  Read it with `/usr/bin/log show --predicate 'subsystem == "com.soham109.glasspad"'`.
+
 ## 8. Modes
 
 All modes are minimal: same background, SF Symbols, one accent color.
@@ -379,10 +433,10 @@ Each mode is a `ModeMessage` case pair handled by `GlasspadMacCore/Modes`.
 | Mode | Phone | Mac side |
 |---|---|---|
 | Trackpad | full-screen surface, finger dots | gesture engine + synth |
-| Dock | grid of the Mac's Dock apps + running apps, icons | read Dock prefs + NSWorkspace, send icons as PNG (64 px, cached by bundle id), launch / activate |
+| Apps (Dock) | grid of the Mac's Dock apps + running + recent apps, running dots, search, long-press Quit / Hide / Show in Finder / Keep, phone-side order and hiding | read Dock prefs + NSWorkspace, icons as 256 px PNG keyed by bundle id + app modification date, sent once (`dockSync`), launch / activate / reopen (`AppLauncher`), hide the Mac Dock (`MacDockHider`) |
 | Keys | text field that streams typed text; arrows, esc, tab, cmd shortcuts row; dictation works | CGEvent keyboard unicode strings |
 | Media | now playing title/artist/art, play/pause/next/prev, volume, brightness | MediaRemote (private, with fallback to media key events), volume via CoreAudio |
-| Deck | grid of user buttons (open app, URL, run Shortcut, keystroke, shell script) | executes actions; config stored on Mac |
+| Actions (Deck) | pages: front-app page (follows the Mac), Mac controls, My Buttons + macros, Clipboard, Present; folders, sizes, colours, edit on the phone | executes actions directly (screencapture, pmset, CoreAudio...), config v3 on the Mac, phone edits via `deckSave` (never shell) |
 | Clipboard | send phone clipboard to Mac, pull Mac clipboard to phone (text, images) | NSPasteboard |
 | Present | big next/previous buttons, timer, laser dot (move a highlight on the Mac) | arrow keys + transparent overlay window for the laser |
 
@@ -391,6 +445,11 @@ Each mode is a `ModeMessage` case pair handled by `GlasspadMacCore/Modes`.
 - SwiftUI app shell; the trackpad surface is a UIKit `UIView` subclass for
   raw touches: `isMultipleTouchEnabled`, uses `coalescedTouches(for:)` and
   sends every sample immediately (no batching to display frames).
+  As built (feel pass): `CADisableMinimumFrameDurationOnPhone` is set, so touches arrive at
+  120 Hz on ProMotion. Coalesced samples update finger positions in order, but the surface
+  sends one frame per touch callback (newest positions, newest timestamp), plus one at the
+  moment a finger lifts. Sending every sample per finger had produced 430 to 700 packets a
+  second. It logs `touch rate: ... callbacks (/s), samples (/s), frames sent (/s)` per touch.
 - Hides the status bar and home indicator, defers system edge gestures
   (`preferredScreenEdgesDeferringSystemGestures = .all`).
 - Mode switching: a small pill at the top centre that fades out after 2 s,

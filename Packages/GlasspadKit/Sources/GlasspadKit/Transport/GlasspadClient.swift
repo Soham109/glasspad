@@ -76,6 +76,8 @@ public final class GlasspadClient: @unchecked Sendable {
     private var pathMonitor: NWPathMonitor?
     private var lastPathSignature: String?
     private var lastGateways = ""
+    /// True once infrastructure browsing found nothing and AWDL is allowed for this attempt.
+    private var usePeerToPeer = false
     /// Internal so tests can shorten it.
     var silenceTimeout: TimeInterval = GlasspadService.clientSilenceTimeout
 
@@ -138,7 +140,7 @@ public final class GlasspadClient: @unchecked Sendable {
     /// Sends one touch snapshot over UDP. Dropped while not connected.
     public func send(frame: TouchFrame) {
         queue.async { [self] in
-            guard case .connected = phase else { GPLog.log("send(frame): dropped, phase \(phase)"); return }
+            guard case .connected = phase else { GPLog.log("send(frame): dropped, phase \(String(describing: phase))"); return }
             let now = uptime()
             lastAppFrame = now
             lastTouchActivity = now
@@ -163,6 +165,7 @@ public final class GlasspadClient: @unchecked Sendable {
     private func start(_ t: Target) {
         target = t
         attempt = 0
+        usePeerToPeer = false
         teardown()
         startPathMonitor()
         open()
@@ -173,6 +176,7 @@ public final class GlasspadClient: @unchecked Sendable {
         guard target != nil else { return }
         teardown()
         attempt = 0
+        usePeerToPeer = false
         open()
     }
 
@@ -238,16 +242,31 @@ public final class GlasspadClient: @unchecked Sendable {
         }
     }
 
+    /// Browses on the shared network first. Only if the Mac is not found there within
+    /// `peerToPeerFallbackDelay` does it browse again with peer-to-peer Wi-Fi (AWDL) allowed.
     private func browse() {
         setState(.searching)
         let gen = generation
+        let p2p = usePeerToPeer
         let params = NWParameters()
-        params.includePeerToPeer = true
+        params.includePeerToPeer = p2p
+        params.prohibitedInterfaceTypes = [.cellular]
+        if !p2p {
+            queue.asyncAfter(deadline: .now() + GlasspadService.peerToPeerFallbackDelay) { [weak self] in
+                guard let self, gen == self.generation, self.browser != nil, !self.usePeerToPeer else { return }
+                GPLog.log("browse: not found on the shared network, also trying peer-to-peer Wi-Fi")
+                self.browser?.cancel()
+                self.browser = nil
+                self.usePeerToPeer = true
+                self.generation += 1
+                self.browse()
+            }
+        }
         let b = NWBrowser(for: .bonjourWithTXTRecord(type: GlasspadService.bonjourType, domain: nil), using: params)
         let wanted = pairing.macID.uuidString.uppercased()
         b.browseResultsChangedHandler = { [weak self] results, _ in
             guard let self, gen == self.generation, self.browser != nil else { return }
-            GPLog.log("browse: \(results.count) result(s): \(results.map { r -> String in if case .bonjour(let t) = r.metadata { return "\(r.endpoint) id=\(t["id"] ?? "-")" }; return "\(r.endpoint)" }) wanted=\(wanted)")
+            GPLog.log("browse (\(p2p ? "peer-to-peer allowed" : "shared network")): \(results.count) result(s): \(results.map { r -> String in if case .bonjour(let t) = r.metadata { return "\(r.endpoint) id=\(t["id"] ?? "-")" }; return "\(r.endpoint)" }) wanted=\(wanted)")
             for r in results {
                 if case .bonjour(let txt) = r.metadata, txt["id"]?.uppercased() == wanted {
                     self.browser?.cancel()
@@ -270,7 +289,7 @@ public final class GlasspadClient: @unchecked Sendable {
         GPLog.log("tcp: opening \(endpoint)")
         setState(.connecting)
         let gen = generation
-        let ch = ControlChannel(connection: NWConnection(to: endpoint, using: GlasspadService.tcpParameters()), queue: queue)
+        let ch = ControlChannel(connection: NWConnection(to: endpoint, using: GlasspadService.tcpParameters(peerToPeer: usePeerToPeer)), queue: queue)
         ch.onReady = { [weak self] in self?.sendHello() }
         ch.onFrame = { [weak self] data in self?.handleFrame(data) }
         ch.onClosed = { [weak self] reason in self?.lost(gen, reason: reason ?? "closed") }
@@ -358,7 +377,7 @@ public final class GlasspadClient: @unchecked Sendable {
         if host == nil, case .direct(let h, _)? = target { host = NWEndpoint.Host(h) }
         guard let host, let port = NWEndpoint.Port(rawValue: udpPort) else { GPLog.log("udp: no host (\(String(describing: host))) or port \(udpPort)"); return }
         GPLog.log("udp: sending to \(host):\(port)")
-        let c = NWConnection(host: host, port: port, using: GlasspadService.udpParameters())
+        let c = NWConnection(host: host, port: port, using: GlasspadService.udpParameters(peerToPeer: usePeerToPeer))
         c.stateUpdateHandler = { st in GPLog.log("udp state: \(st)") }
         c.start(queue: queue)
         udp = c

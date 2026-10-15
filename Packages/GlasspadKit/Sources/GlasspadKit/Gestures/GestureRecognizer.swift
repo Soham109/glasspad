@@ -14,10 +14,15 @@ import CoreGraphics
 /// (`staleTouchTimeout`) and `cancelAll()` all release it.
 public final class GestureRecognizer {
     public var settings: TrackpadSettings
-    /// Fired for clicks, force click stages, snaps and detents.
+    /// Fired for clicks (tap, two-finger click, corner click, three-finger Look Up tap), force
+    /// click stages and drag lock (a tap-drag picking something up). Nothing else buzzes: no
+    /// Spaces, Mission Control, swipes, scroll, page swipes or edge swipes.
     public var onHaptic: ((HapticKind) -> Void)?
-    /// Width of the main display in Mac points; sets pointer gain.
+    /// Width of the main display in Mac points. Kept for callers; pointer gain follows the Mac's
+    /// acceleration curve in physical units and does not depend on it.
     public var displayWidth: Double = GestureTuning.defaultDisplayWidth
+    /// Phone screen points per inch (`GestureTuning.phonePointsPerInch` for iPhone Pro screens).
+    public var phonePointsPerInch: Double = GestureTuning.phonePointsPerInch
     /// With fingers down and no frame for this long, cancel everything. Set nil on the phone,
     /// where UIKit sends no frames for resting fingers.
     public var staleTouchTimeout: TimeInterval? = GestureTuning.staleTouchTimeout
@@ -92,7 +97,10 @@ public final class GestureRecognizer {
     private var surface = CGSize(width: 390, height: 844)
     private var lastFrameTime: TimeInterval?
     private var clockOffset: Double?
-    private var smoothedSpeed: Double = 0
+    private var clockOffsetSetAt: TimeInterval = 0
+    /// Finger speed in phone points per second over the last `speedWindow`.
+    private var fingerSpeed: Double = 0
+    private var curves: (tracking: Double, scroll: Double, pointer: ParametricAcceleration, scroll2: ParametricAcceleration)?
 
     private var scrollSamples: [(t: TimeInterval, d: V)] = []
     private var scrollStartTime: TimeInterval = 0
@@ -168,7 +176,7 @@ public final class GestureRecognizer {
         }
         if moved > 0 {
             let d = sum / Double(moved)
-            updateSpeed(d, dt: dt)
+            updateSpeed(d, t: t, dt: dt)
             ev += handleMotion(d, t: t)
         }
 
@@ -223,14 +231,29 @@ public final class GestureRecognizer {
 
     // MARK: Clock
 
+    /// Learns `local - frameTime` as the smallest delay seen (the fastest packet). The estimate
+    /// may also creep up slowly (`clockOffsetCreep`), so clocks drifting apart over a long
+    /// session never leave it stale.
     private func updateOffset(frameTime t: TimeInterval, local: TimeInterval) {
         let o = local - t
         if let cur = clockOffset {
-            if o < cur || o - cur > GestureTuning.clockJumpTolerance { clockOffset = o }
+            let allowed = cur + max(local - clockOffsetSetAt, 0) * GestureTuning.clockOffsetCreep
+            if o < allowed || o - cur > GestureTuning.clockJumpTolerance {
+                clockOffset = o
+                clockOffsetSetAt = local
+            } else {
+                clockOffset = allowed
+                clockOffsetSetAt = local
+            }
         } else {
             clockOffset = o
+            clockOffsetSetAt = local
         }
     }
+
+    /// The learned phone-to-local clock offset (`local - frameTime` of the fastest frame), nil
+    /// before the first frame. The Mac's output scheduler uses it too.
+    public var learnedClockOffset: Double? { clockOffset }
 
     // MARK: Motion
 
@@ -277,6 +300,7 @@ public final class GestureRecognizer {
             if session?.tapDragArmed == true {
                 setNotTap()
                 state = .dragging(.tapDrag)
+                haptic(.dragLock)
                 var ev = pressLeft(1)
                 let a = accel(T)
                 ev.append(.drag(dx: a.x, dy: a.y))
@@ -312,7 +336,6 @@ public final class GestureRecognizer {
             if -T.x >= GestureTuning.notificationCenterDistance {
                 setNotTap()
                 state = .consumed
-                haptic(.detent)
                 return [.notificationCenter]
             }
             if abs(D) < GestureTuning.pinchStartDistance { return [] }   // wait: may still be the edge swipe
@@ -442,14 +465,12 @@ public final class GestureRecognizer {
     }
 
     private func endSwipe(_ kind: SwipeKind, cancelled: Bool) -> [GestureEvent] {
-        if !cancelled, abs(swipeProgress) >= GestureTuning.swipeCommitProgress { haptic(.snap) }
         return [.swipe(kind, progress: swipeProgress, phase: cancelled ? .cancelled : .ended)]
     }
 
     private func maybeNavigate() -> [GestureEvent] {
         guard abs(pageTravel) >= GestureTuning.navigateDistance else { return [] }
         state = .pageSwipe(fired: true)
-        haptic(.detent)
         return [.navigate(back: pageTravel > 0)]
     }
 
@@ -501,7 +522,7 @@ public final class GestureRecognizer {
                 armed = true
             }
             session = Session(startTime: t, maxFingers: n, tapDragArmed: armed, firstOrigin: firstOrigin)
-            smoothedSpeed = 0
+            fingerSpeed = 0
             state = .possible
             rebase()
             return []
@@ -662,8 +683,18 @@ public final class GestureRecognizer {
 
     // MARK: Scroll and momentum
 
+    /// Phone points of two-finger travel to scroll pixels: the Mac's scroll curve for its
+    /// scrolling speed, at the current finger speed, times the phone's scroll speed setting.
     private func scrollVector(_ d: V) -> V {
-        d * GestureTuning.scrollGain * (settings.naturalScrolling ? 1 : -1)
+        d * scrollGain() * (settings.naturalScrolling ? 1 : -1)
+    }
+
+    /// Scroll pixels per phone point at the current finger speed.
+    func scrollGain() -> Double {
+        let inchesPerSecond = fingerSpeed / max(phonePointsPerInch, 1)
+        let perInch = MacAcceleration.gain(inchesPerSecond: inchesPerSecond, curve: currentCurves().scroll)
+        let tuning = settings.tuning.clamped
+        return perInch * GestureTuning.scrollCalibration * tuning.scrollSpeed / max(phonePointsPerInch, 1)
     }
 
     private func releaseVelocity(at t: TimeInterval) -> V {
@@ -678,7 +709,8 @@ public final class GestureRecognizer {
     private func endScroll(momentum withMomentum: Bool, t: TimeInterval) -> [GestureEvent] {
         let ev: [GestureEvent] = [.scroll(dx: 0, dy: 0, phase: .ended, momentum: .none)]
         scrollSamples = []
-        if withMomentum, settings.scrollMomentum, length(liftVelocity) >= GestureTuning.momentumMinSpeed {
+        if withMomentum, settings.scrollMomentum, settings.tuning.clamped.momentumStrength > 0.01,
+           length(liftVelocity) >= GestureTuning.momentumMinSpeed {
             momentum = Momentum(v: liftVelocity, last: t, began: false)
         }
         return ev
@@ -688,7 +720,7 @@ public final class GestureRecognizer {
         guard var m = momentum else { return [] }
         let dt = min(t - m.last, GestureTuning.momentumMaxStep)
         guard dt > 0 else { return [] }
-        let k = -log(GestureTuning.momentumDecayPerFrame) / GestureTuning.momentumFrameInterval
+        let k = Self.momentumRate(strength: settings.tuning.clamped.momentumStrength)
         let decay = exp(-k * dt)
         let disp = m.v * ((1 - decay) / k)
         m.v *= decay
@@ -702,6 +734,12 @@ public final class GestureRecognizer {
             momentum = m
         }
         return ev
+    }
+
+    /// Exponential momentum decay rate (1/s) for a momentum strength (1 = the platform's).
+    static func momentumRate(strength: Double) -> Double {
+        let perMs = pow(GestureTuning.momentumDecayPerMillisecond, 1 / max(strength, 0.01))
+        return -log(perMs) * 1000
     }
 
     private func stopMomentum() -> [GestureEvent] {
@@ -761,26 +799,55 @@ public final class GestureRecognizer {
 
     // MARK: Pointer acceleration
 
-    private func updateSpeed(_ d: V, dt: TimeInterval) {
-        let dtc = min(max(dt, GestureTuning.minFrameInterval), GestureTuning.maxFrameInterval)
-        let v = length(d) / dtc
-        let a = GestureTuning.speedSmoothing
-        smoothedSpeed = a * v + (1 - a) * smoothedSpeed
+    /// Finger speed the way the Mac's HID system measures it per trackpad report: this frame's
+    /// travel over its time step, with the step never shorter than one report period
+    /// (`speedWindow`, 1/120 s). The phone sends one frame per touch callback (120 Hz), so this
+    /// matches what the real trackpad's 120 Hz reports give the curve.
+    private func updateSpeed(_ d: V, t: TimeInterval, dt: TimeInterval) {
+        let step = min(max(dt, GestureTuning.speedWindow), GestureTuning.maxFrameInterval)
+        fingerSpeed = length(d) / step
     }
 
-    static func gain(speed v: Double, tracking s: Double) -> Double {
-        let slow = GestureTuning.slowGainBase + GestureTuning.slowGainPerSpeed * s
-        let fast = GestureTuning.fastGainBase + GestureTuning.fastGainPerSpeed * s
-        let h = GestureTuning.accelHalfSpeed
-        return slow + (fast - slow) * (v * v) / (v * v + h * h)
+    private func currentCurves() -> (pointer: ParametricAcceleration, scroll: ParametricAcceleration) {
+        let tracking = min(max(settings.trackingSpeed, 0), 3), scroll = min(max(settings.scrollSpeed, 0), 3)
+        if let c = curves, c.tracking == tracking, c.scroll == scroll { return (c.pointer, c.scroll2) }
+        let p = MacAcceleration.pointerCurve(trackingSpeed: tracking), sc = MacAcceleration.scrollCurve(scrollSpeed: scroll)
+        curves = (tracking, scroll, p, sc)
+        return (p, sc)
+    }
+
+    /// Mac points per phone point at a finger speed (phone points per second), for the current
+    /// settings: the Mac's trackpad curve in physical units, then the phone's pointer speed.
+    func pointerGain(speed: Double) -> Double {
+        Self.pointerGain(speed: speed, tuning: settings.tuning, curve: currentCurves().pointer,
+                         phonePointsPerInch: phonePointsPerInch)
+    }
+
+    /// Mac points per phone point at a finger speed (phone points per second): the Mac's
+    /// trackpad curve for `settings.trackingSpeed` in physical units, then the phone's tuning.
+    /// Public so the phone's settings preview can show the exact same mapping.
+    public static func pointerGain(speed: Double, settings: TrackpadSettings,
+                                   phonePointsPerInch: Double = GestureTuning.phonePointsPerInch) -> Double {
+        pointerGain(speed: speed, tuning: settings.tuning, curve: MacAcceleration.pointerCurve(trackingSpeed: settings.trackingSpeed),
+                    phonePointsPerInch: phonePointsPerInch)
+    }
+
+    static func pointerGain(speed: Double, tuning raw: TrackpadTuning, curve: ParametricAcceleration,
+                            phonePointsPerInch: Double) -> Double {
+        let ppi = max(phonePointsPerInch, 1)
+        let tuning = raw.clamped
+        let perInch: Double
+        switch tuning.acceleration {
+        case .mac: perInch = MacAcceleration.gain(inchesPerSecond: speed / ppi, curve: curve)
+        case .linear: perInch = MacAcceleration.gain(inchesPerSecond: GestureTuning.linearReferenceSpeed, curve: curve)
+        case .off: perInch = MacAcceleration.screenResolution
+        }
+        return perInch * tuning.pointerSpeed / ppi
     }
 
     /// Phone points to accelerated Mac points at the current finger speed.
     private func accel(_ d: V) -> V {
-        let s = min(max(settings.trackingSpeed, 0), 3)
-        let base = GestureTuning.fullSwipeDisplayFraction * displayWidth / max(Double(surface.width), 1)
-        let ref = Self.gain(speed: GestureTuning.referenceSpeed, tracking: GestureTuning.referenceTrackingSpeed)
-        return d * (base * Self.gain(speed: smoothedSpeed, tracking: s) / ref)
+        d * pointerGain(speed: fingerSpeed)
     }
 
     // MARK: Geometry

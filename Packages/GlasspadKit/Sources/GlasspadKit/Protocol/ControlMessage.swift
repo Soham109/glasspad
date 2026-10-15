@@ -1,8 +1,11 @@
 import Foundation
 
-/// Haptic the phone should play.
+/// Haptic the phone should play. Only `click`, `forceClick` and `dragLock` play on the
+/// trackpad; `detent`, `snap` and `error` remain for the wire and for buttons in the modes.
 public enum HapticKind: String, Codable, Sendable {
     case click, forceClick, detent, snap, error
+    /// A tap-drag picked up the item (the button is held without a finger pressing).
+    case dragLock
 }
 
 /// Messages on the sealed TCP control channel. JSON with a `"t"` discriminator:
@@ -13,7 +16,9 @@ public enum ControlMessage: Codable, Equatable, Sendable {
     case ping(id: UInt32)
     /// Phone -> Mac answer to `ping` with the same id. Used for RTT stats.
     case pong(id: UInt32)
-    /// Mac -> phone, on connect and whenever the trackpad prefs change.
+    /// Mac -> phone, on connect and whenever the trackpad prefs change. Phone -> Mac too, to
+    /// deliver the phone's `TrackpadSettings.tuning` (the Mac keeps only that field and sends
+    /// the merged settings back).
     case settings(TrackpadSettings)
     /// Mac -> phone, play a haptic now (e.g. a Space snapped into place).
     case haptic(HapticKind)

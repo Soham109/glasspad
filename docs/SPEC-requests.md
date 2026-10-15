@@ -57,3 +57,16 @@ All additive; nothing the phone uses today changed shape.
 - Expect `failed(GlasspadService.replacedFailure)` (and a `bye(replacedReason)` message) when
   another iPhone takes the Mac; the client stops retrying until `connect()` is called again.
 - `AppMode.macros.wireMode` can now return `.macros`.
+
+## 4. Trackpad feel settings (from: trackpad feel, to: Settings screen)
+
+- Please place `TrackpadTuningSection()` (in `Apps/iOS/Sources/Trackpad/TrackpadTuningSection.swift`)
+  inside the Settings `Form`, for example after the Feel section. It is a `Group` of three
+  `Section`s (Pointer with a live preview pad, Scrolling, Haptics by kind) and reads
+  `TrackpadTuningStore.shared` itself; it needs only the `\.palette` environment.
+- Values live in `TrackpadSettings.tuning` (`TrackpadTuning`, in GlasspadKit). The phone owns them
+  (`TrackpadTuningStore`, UserDefaults key `trackpadTuning`) and sends them inside
+  `ControlMessage.settings`; the Mac stores them (UserDefaults key `phoneTrackpadTuning`).
+- One small additive change outside the trackpad folder: `MacSession.send(control:)` in
+  `Apps/iOS/Sources/Link/MacSession.swift`, used to send that message.
+- `HapticKind.dragLock` is new. Code that switches over `HapticKind` must handle it.

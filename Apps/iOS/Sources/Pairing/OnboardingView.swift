@@ -231,7 +231,6 @@ private struct FingerDotsArt: View {
                     .fill(palette.raisedColor)
                     .overlay(RoundedRectangle(cornerRadius: 34, style: .continuous).strokeBorder(palette.lineColor))
                     .frame(width: 150, height: 250)
-                    .shadow(color: .black.opacity(palette.isDark ? 0.4 : 0.07), radius: 24, y: 12)
                 SoftDot(color: palette.dot)
                     .offset(x: -22 + 8 * sin(t * 0.9), y: -10 + 26 * sin(t * 0.7))
                 SoftDot(color: palette.dot)

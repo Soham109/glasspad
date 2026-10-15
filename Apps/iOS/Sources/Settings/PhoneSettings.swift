@@ -1,5 +1,80 @@
 import Foundation
+import GlasspadKit
 import Observation
+
+/// How the dot under each finger looks.
+enum DotStyle: String, CaseIterable, Identifiable, Sendable {
+    /// A soft-edged blur, like a fingertip on frosted glass.
+    case soft
+    /// A crisp filled circle.
+    case solid
+    /// An outline only.
+    case ring
+
+    var id: String { rawValue }
+    var title: String {
+        switch self {
+        case .soft: "Soft"
+        case .solid: "Solid"
+        case .ring: "Ring"
+        }
+    }
+}
+
+/// Where the mode pill sits.
+enum PillPosition: String, CaseIterable, Identifiable, Sendable {
+    case top, bottom
+    var id: String { rawValue }
+    var title: String { self == .top ? "Top" : "Bottom" }
+}
+
+/// Which haptics play. Each can be turned off on its own.
+enum HapticChannel: String, CaseIterable, Identifiable, Sendable {
+    case click, forceClick, detent, snap, error, buttons
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .click: "Clicks"
+        case .forceClick: "Force click"
+        case .detent: "Scroll and pinch steps"
+        case .snap: "Spaces and Mission Control"
+        case .error: "Errors"
+        case .buttons: "Buttons in modes"
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .click: "cursorarrow.click"
+        case .forceClick: "hand.point.up.braille"
+        case .detent: "arrow.up.and.down"
+        case .snap: "rectangle.on.rectangle"
+        case .error: "exclamationmark.triangle"
+        case .buttons: "square.grid.2x2"
+        }
+    }
+
+    init(_ cue: HapticCue) {
+        switch cue {
+        case .click, .dragLock: self = .click
+        case .forceClickRamp, .forceClickDeep: self = .forceClick
+        case .detent: self = .detent
+        case .snap: self = .snap
+        case .error: self = .error
+        }
+    }
+
+    init(_ kind: HapticKind) {
+        switch kind {
+        case .click, .dragLock: self = .click
+        case .forceClick: self = .forceClick
+        case .detent: self = .detent
+        case .snap: self = .snap
+        case .error: self = .error
+        }
+    }
+}
 
 /// Settings that belong to the phone. Trackpad behaviour (speed, scrolling direction,
 /// gestures) comes from the Mac and is never stored here.
@@ -8,15 +83,61 @@ import Observation
 final class PhoneSettings {
     static let shared = PhoneSettings()
 
-    /// Choices for how long the trackpad waits before dimming.
-    static let dimDelayChoices: [TimeInterval] = [30, 60, 120, 300]
+    /// Choices for how long the trackpad waits before dimming. 0 means never.
+    static let dimDelayChoices: [TimeInterval] = [30, 60, 120, 300, 0]
+    static let dotSizeRange: ClosedRange<Double> = 28...72
+    static let dotOpacityRange: ClosedRange<Double> = 0.4...2.5
+    static let dockIconScaleRange: ClosedRange<Double> = 0.8...1.25
 
+    // Look
     var theme: ThemeChoice { didSet { defaults.set(theme.rawValue, forKey: Key.theme) } }
+    var showDots: Bool { didSet { defaults.set(showDots, forKey: Key.showDots) } }
+    var dotStyle: DotStyle { didSet { defaults.set(dotStyle.rawValue, forKey: Key.dotStyle) } }
+    /// Points across.
+    var dotSize: Double { didSet { defaults.set(dotSize, forKey: Key.dotSize) } }
+    /// Multiplies the theme's dot opacity (1 = as designed).
+    var dotOpacity: Double { didSet { defaults.set(dotOpacity, forKey: Key.dotOpacity) } }
+    var pillPosition: PillPosition { didSet { defaults.set(pillPosition.rawValue, forKey: Key.pillPosition) } }
+    var leftHanded: Bool { didSet { defaults.set(leftHanded, forKey: Key.leftHanded) } }
+
+    // Feel
     /// 0...1. Multiplied by the Mac's click firmness.
     var hapticStrength: Double { didSet { defaults.set(hapticStrength, forKey: Key.hapticStrength) } }
-    var showDots: Bool { didSet { defaults.set(showDots, forKey: Key.showDots) } }
-    var leftHanded: Bool { didSet { defaults.set(leftHanded, forKey: Key.leftHanded) } }
+    var hapticsOff: Set<HapticChannel> {
+        didSet { defaults.set(hapticsOff.map(\.rawValue).sorted(), forKey: Key.hapticsOff) }
+    }
+
+    // Screen
     var dimDelay: TimeInterval { didSet { defaults.set(dimDelay, forKey: Key.dimDelay) } }
+    /// Keep the screen on while the trackpad or Present is showing.
+    var keepScreenAwake: Bool { didSet { defaults.set(keepScreenAwake, forKey: Key.keepScreenAwake) } }
+
+    // Modes
+    /// nil = open the last used mode.
+    var launchMode: AppMode? { didSet { defaults.set(launchMode?.rawValue ?? "", forKey: Key.launchMode) } }
+    var dockDensity: DockDensity { didSet { defaults.set(dockDensity.rawValue, forKey: Key.dockDensity) } }
+    var dockIconScale: Double { didSet { defaults.set(dockIconScale, forKey: Key.dockIconScale) } }
+    var dockShowsNames: Bool { didSet { defaults.set(dockShowsNames, forKey: Key.dockShowsNames) } }
+    var dockShowsRecent: Bool { didSet { defaults.set(dockShowsRecent, forKey: Key.dockShowsRecent) } }
+    /// The phone's own Dock order, hidden apps and kept apps.
+    var dockArrangement: DockArrangement {
+        didSet { if let d = try? JSONEncoder().encode(dockArrangement) { defaults.set(d, forKey: Key.dockArrangement) } }
+    }
+    var keysShowsShortcuts: Bool { didSet { defaults.set(keysShowsShortcuts, forKey: Key.keysShowsShortcuts) } }
+    var presentStartsTimer: Bool { didSet { defaults.set(presentStartsTimer, forKey: Key.presentStartsTimer) } }
+    var deckShowsTitles: Bool { didSet { defaults.set(deckShowsTitles, forKey: Key.deckShowsTitles) } }
+    /// Actions opens the page for the Mac's front app, and follows it as you switch apps.
+    var actionsFollowsApp: Bool { didSet { defaults.set(actionsFollowsApp, forKey: Key.actionsFollowsApp) } }
+    /// Deck tile size, 0.85...1.3 (multiplies the compact base size).
+    var deckTileScale: Double { didSet { defaults.set(deckTileScale, forKey: Key.deckTileScale) } }
+    /// Which modes show, their order, and whether Actions is split up.
+    var modeList: ModeListLayout {
+        didSet { if let d = try? JSONEncoder().encode(modeList) { defaults.set(d, forKey: Key.modeList) } }
+    }
+    /// First-run tips already shown, by id.
+    var seenTips: Set<String> { didSet { defaults.set(Array(seenTips).sorted(), forKey: Key.seenTips) } }
+
+    // Other
     var hasOnboarded: Bool { didSet { defaults.set(hasOnboarded, forKey: Key.hasOnboarded) } }
     /// The name the Mac shows for this phone. iOS no longer tells apps the device's own name.
     var phoneName: String { didSet { defaults.set(phoneName, forKey: Key.phoneName) } }
@@ -37,19 +158,78 @@ final class PhoneSettings {
         static let theme = "theme", hapticStrength = "hapticStrength", showDots = "showDots"
         static let leftHanded = "leftHanded", dimDelay = "dimDelay", hasOnboarded = "hasOnboarded"
         static let phoneName = "phoneName", lastMode = "lastMode", orientation = "orientation"
+        static let dotStyle = "dotStyle", dotSize = "dotSize", dotOpacity = "dotOpacity"
+        static let pillPosition = "pillPosition", hapticsOff = "hapticsOff", keepScreenAwake = "keepScreenAwake"
+        static let launchMode = "launchMode", dockDensity = "dockDensity", dockIconScale = "dockIconScale"
+        static let dockShowsNames = "dockShowsNames", dockShowsRecent = "dockShowsRecent"
+        static let dockArrangement = "dockArrangement", keysShowsShortcuts = "keysShowsShortcuts"
+        static let presentStartsTimer = "presentStartsTimer"
+        static let deckShowsTitles = "deckShowsTitles", actionsFollowsApp = "actionsFollowsApp"
+        static let deckTileScale = "deckTileScale", modeList = "modeList", seenTips = "seenTips"
     }
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
+        func bool(_ key: String, _ fallback: Bool) -> Bool { defaults.object(forKey: key) as? Bool ?? fallback }
+        func double(_ key: String, _ fallback: Double, _ range: ClosedRange<Double>) -> Double {
+            (defaults.object(forKey: key) as? Double).map { min(range.upperBound, max(range.lowerBound, $0)) } ?? fallback
+        }
         theme = ThemeChoice(rawValue: defaults.string(forKey: Key.theme) ?? "") ?? .paper
-        hapticStrength = defaults.object(forKey: Key.hapticStrength) as? Double ?? 0.7
-        showDots = defaults.object(forKey: Key.showDots) as? Bool ?? true
+        hapticStrength = double(Key.hapticStrength, 0.7, 0...1)
+        showDots = bool(Key.showDots, true)
+        dotStyle = DotStyle(rawValue: defaults.string(forKey: Key.dotStyle) ?? "") ?? .soft
+        dotSize = double(Key.dotSize, 44, Self.dotSizeRange)
+        dotOpacity = double(Key.dotOpacity, 1, Self.dotOpacityRange)
+        pillPosition = PillPosition(rawValue: defaults.string(forKey: Key.pillPosition) ?? "") ?? .top
         leftHanded = defaults.bool(forKey: Key.leftHanded)
-        let delay = defaults.double(forKey: Key.dimDelay)
+        hapticsOff = Set((defaults.stringArray(forKey: Key.hapticsOff) ?? []).compactMap(HapticChannel.init(rawValue:)))
+        let delay = defaults.object(forKey: Key.dimDelay) as? Double ?? 60
         dimDelay = Self.dimDelayChoices.contains(delay) ? delay : 60
+        keepScreenAwake = bool(Key.keepScreenAwake, true)
+        launchMode = AppMode(rawValue: defaults.string(forKey: Key.launchMode) ?? "")
+        dockDensity = DockDensity(rawValue: defaults.string(forKey: Key.dockDensity) ?? "") ?? .regular
+        dockIconScale = double(Key.dockIconScale, 1, Self.dockIconScaleRange)
+        dockShowsNames = bool(Key.dockShowsNames, true)
+        dockShowsRecent = bool(Key.dockShowsRecent, true)
+        dockArrangement = defaults.data(forKey: Key.dockArrangement)
+            .flatMap { try? JSONDecoder().decode(DockArrangement.self, from: $0) } ?? DockArrangement()
+        keysShowsShortcuts = bool(Key.keysShowsShortcuts, true)
+        presentStartsTimer = bool(Key.presentStartsTimer, true)
+        deckShowsTitles = bool(Key.deckShowsTitles, true)
+        actionsFollowsApp = bool(Key.actionsFollowsApp, true)
+        deckTileScale = double(Key.deckTileScale, 1, 0.85...1.3)
+        modeList = defaults.data(forKey: Key.modeList).flatMap { try? JSONDecoder().decode(ModeListLayout.self, from: $0) }
+            ?? ModeListLayout()
+        seenTips = Set(defaults.stringArray(forKey: Key.seenTips) ?? [])
         hasOnboarded = defaults.bool(forKey: Key.hasOnboarded)
         phoneName = defaults.string(forKey: Key.phoneName) ?? "iPhone"
         lastMode = AppMode(rawValue: defaults.string(forKey: Key.lastMode) ?? "") ?? .trackpad
         orientation = OrientationChoice(rawValue: defaults.string(forKey: Key.orientation) ?? "") ?? .automatic
+    }
+
+    /// The mode to open at launch.
+    var startMode: AppMode { (launchMode ?? lastMode).shown }
+
+    /// False when that kind of haptic is switched off.
+    func allowsHaptic(_ kind: HapticKind) -> Bool { !hapticsOff.contains(HapticChannel(kind)) }
+
+    func setHaptic(_ channel: HapticChannel, on: Bool) {
+        if on { hapticsOff.remove(channel) } else { hapticsOff.insert(channel) }
+    }
+
+    /// Puts every look and feel setting back to how Glasspad ships.
+    func resetLookAndFeel() {
+        theme = .paper
+        showDots = true
+        dotStyle = .soft
+        dotSize = 44
+        dotOpacity = 1
+        pillPosition = .top
+        hapticStrength = 0.7
+        hapticsOff = []
+        dockDensity = .regular
+        dockIconScale = 1
+        dockShowsNames = true
+        dockShowsRecent = true
     }
 }

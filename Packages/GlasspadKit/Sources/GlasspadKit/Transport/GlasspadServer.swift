@@ -129,8 +129,10 @@ public final class GlasspadServer: @unchecked Sendable {
 
     /// Starts both listeners. State becomes `.searching` once the TCP listener is ready.
     public func start() throws {
-        let tcp = try NWListener(using: GlasspadService.tcpParameters(), on: Self.port(requestedTCPPort))
-        let udp = try NWListener(using: GlasspadService.udpParameters(), on: Self.port(requestedUDPPort))
+        // Peer-to-peer stays allowed on the listeners so a phone with no shared network can
+        // still connect; phones only use it as a fallback (GlasspadService.tcpParameters).
+        let tcp = try NWListener(using: GlasspadService.tcpParameters(peerToPeer: true), on: Self.port(requestedTCPPort))
+        let udp = try NWListener(using: GlasspadService.udpParameters(peerToPeer: true), on: Self.port(requestedUDPPort))
         if advertise {
             var txt = NWTXTRecord()
             txt["id"] = macID.uuidString
@@ -221,7 +223,8 @@ public final class GlasspadServer: @unchecked Sendable {
     // MARK: TCP sessions
 
     private func acceptTCP(_ conn: NWConnection) {
-        GPLog.log("server: tcp from \(conn.endpoint)")
+        let viaAWDL = "\(conn.endpoint)".contains("%awdl")
+        GPLog.log("server: tcp from \(conn.endpoint)\(viaAWDL ? " (peer-to-peer Wi-Fi: expect latency spikes)" : "")")
         guard running else { conn.cancel(); return }
         let s = Session(channel: ControlChannel(connection: conn, queue: queue))
         let key = ObjectIdentifier(s)

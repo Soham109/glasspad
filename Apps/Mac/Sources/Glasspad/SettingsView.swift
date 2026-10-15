@@ -39,6 +39,15 @@ private struct GeneralSettings: View {
                     }
                 }
             }
+            Section {
+                MacDockSection()
+                    .controlSize(.regular)
+            } header: {
+                Text("Mac Dock")
+            } footer: {
+                Text("Glasspad saves your Dock settings before hiding it and puts them back exactly when you turn this off, when the phone disconnects, and when Glasspad quits.")
+                    .foregroundStyle(.secondary)
+            }
             Section("Permissions") {
                 LabeledContent("Accessibility") {
                     if controller.accessibilityTrusted {

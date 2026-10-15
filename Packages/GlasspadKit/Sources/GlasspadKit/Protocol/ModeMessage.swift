@@ -11,18 +11,36 @@ public enum GlasspadMode: String, Codable, Sendable, CaseIterable {
 public struct DockApp: Codable, Equatable, Sendable, Hashable {
     public var bundleID: String
     public var name: String
-    /// 64 px PNG. The Mac may send nil when the phone already has it cached by bundle id.
+    /// PNG, `DockApp.iconPixels` square (older Macs sent 64 px). nil when the phone already
+    /// has the icon for `iconKey`.
     public var iconPNG: Data?
     public var running: Bool
     /// Frontmost app.
     public var active: Bool
+    /// Identifies this exact icon: bundle id plus the app's modification date. The phone caches
+    /// icons by it and tells the Mac which ones it has (`dockSync`).
+    public var iconKey: String?
+    /// In the Mac's Dock (`persistent-apps`), as opposed to only running or recent.
+    public var inDock: Bool?
+    /// Recently used, not in the Dock and not running.
+    public var recent: Bool?
+    /// Running with its windows hidden (cmd+H).
+    public var hidden: Bool?
 
-    public init(bundleID: String, name: String, iconPNG: Data? = nil, running: Bool, active: Bool) {
+    /// Icon size the Mac renders: 3x the largest tile the phone draws, so icons stay sharp.
+    public static let iconPixels = 256
+
+    public init(bundleID: String, name: String, iconPNG: Data? = nil, running: Bool, active: Bool,
+                iconKey: String? = nil, inDock: Bool? = nil, recent: Bool? = nil, hidden: Bool? = nil) {
         self.bundleID = bundleID
         self.name = name
         self.iconPNG = iconPNG
         self.running = running
         self.active = active
+        self.iconKey = iconKey
+        self.inDock = inDock
+        self.recent = recent
+        self.hidden = hidden
     }
 }
 
@@ -60,20 +78,44 @@ public struct Keystroke: Codable, Equatable, Sendable, Hashable {
 }
 
 /// Now-playing snapshot for Media mode. Volume and brightness are 0...1, nil when unknown.
+/// Every field after `brightness` is newer and optional, so older phones and Macs still decode it
+/// (see MediaTypes.swift).
 public struct MediaState: Codable, Equatable, Sendable {
     public var title: String?
     public var artist: String?
     public var album: String?
+    /// Artwork image (PNG or JPEG). Sent once per `artworkID` per session; the phone caches it.
     public var artworkPNG: Data?
     public var isPlaying: Bool
     public var duration: TimeInterval?
+    /// Position when the Mac sent this state; the phone advances it by `playbackRate`.
     public var elapsed: TimeInterval?
     public var volume: Double?
     public var brightness: Double?
+    /// Playback speed: 1 normal, 0 paused.
+    public var playbackRate: Double?
+    /// Identifies the artwork in `artworkPNG`, nil when there is none.
+    public var artworkID: String?
+    /// The app playing, e.g. com.spotify.client and "Spotify".
+    public var sourceBundleID: String?
+    public var sourceName: String?
+    /// The playing app's icon (PNG), sent once per app per session.
+    public var sourceIconPNG: Data?
+    public var shuffle: Bool?
+    public var repeatMode: MediaRepeatMode?
+    /// False when the player cannot seek (a live stream, or no way to reach it).
+    public var canSeek: Bool?
+    /// Sound outputs on the Mac, the current one marked.
+    public var outputs: [MediaOutput]?
+    /// Why song info is missing or limited, e.g. Automation permission denied.
+    public var notice: MediaNotice?
 
     public init(title: String? = nil, artist: String? = nil, album: String? = nil, artworkPNG: Data? = nil,
                 isPlaying: Bool = false, duration: TimeInterval? = nil, elapsed: TimeInterval? = nil,
-                volume: Double? = nil, brightness: Double? = nil) {
+                volume: Double? = nil, brightness: Double? = nil, playbackRate: Double? = nil,
+                artworkID: String? = nil, sourceBundleID: String? = nil, sourceName: String? = nil,
+                sourceIconPNG: Data? = nil, shuffle: Bool? = nil, repeatMode: MediaRepeatMode? = nil,
+                canSeek: Bool? = nil, outputs: [MediaOutput]? = nil, notice: MediaNotice? = nil) {
         self.title = title
         self.artist = artist
         self.album = album
@@ -83,6 +125,16 @@ public struct MediaState: Codable, Equatable, Sendable {
         self.elapsed = elapsed
         self.volume = volume
         self.brightness = brightness
+        self.playbackRate = playbackRate
+        self.artworkID = artworkID
+        self.sourceBundleID = sourceBundleID
+        self.sourceName = sourceName
+        self.sourceIconPNG = sourceIconPNG
+        self.shuffle = shuffle
+        self.repeatMode = repeatMode
+        self.canSeek = canSeek
+        self.outputs = outputs
+        self.notice = notice
     }
 }
 
@@ -98,6 +150,22 @@ public enum DeckAction: Codable, Equatable, Sendable, Hashable {
     case runShortcut(name: String)
     case keystroke(Keystroke)
     case shellScript(String)
+    /// Open a file or folder (an absolute path; `~` is the home folder).
+    case openFile(path: String)
+    /// Run a Glasspad macro.
+    case runMacro(id: UUID)
+    /// Type this text.
+    case typeText(String)
+    /// Take a screenshot now (see `DeckScreenshot`).
+    case screenshot(DeckScreenshot)
+    /// Start a screen recording, or stop and save the one running.
+    case screenRecording
+    /// A one-tap Mac control.
+    case system(DeckSystemAction)
+    /// Switch the sound output to the device with this name.
+    case setAudioOutput(name: String)
+    /// A folder: tapping shows the button's `children`.
+    case folder
 }
 
 /// One Deck button. `symbol` is an SF Symbol name.
@@ -106,11 +174,28 @@ public struct DeckButton: Codable, Equatable, Sendable, Hashable, Identifiable {
     public var title: String
     public var symbol: String
     public var action: DeckAction
-    public init(id: UUID = UUID(), title: String, symbol: String, action: DeckAction) {
+    /// Tile colour as `#RRGGBB`; nil uses the Deck accent.
+    public var color: String?
+    /// nil is `.regular`.
+    public var size: DeckButtonSize?
+    /// The buttons inside a folder (`action == .folder`).
+    public var children: [DeckButton]?
+
+    public init(id: UUID = UUID(), title: String, symbol: String, action: DeckAction,
+                color: String? = nil, size: DeckButtonSize? = nil, children: [DeckButton]? = nil) {
         self.id = id
         self.title = title
         self.symbol = symbol
         self.action = action
+        self.color = color
+        self.size = size
+        self.children = children
+    }
+
+    /// True when the phone must ask before running it, and the Mac wants `deckRunConfirmed`.
+    public var needsConfirmation: Bool {
+        if case .system(let s) = action { return s.needsConfirmation }
+        return false
     }
 }
 
@@ -137,6 +222,27 @@ public enum ModeMessage: Codable, Equatable, Sendable {
     case dockList(apps: [DockApp])
     /// Phone -> Mac: launch the app, or activate it if already running.
     case dockOpen(bundleID: String)
+    /// Phone -> Mac: like `dockRequest`, listing the icon keys the phone already has, so the
+    /// Mac sends each icon once.
+    case dockSync(iconKeys: [String])
+    /// Phone -> Mac: quit, hide, show or reveal an app.
+    case dockAppAction(bundleID: String, action: DockAppAction)
+    /// Mac -> phone: how `dockOpen` went; `message` says why on failure.
+    case dockOpenResult(bundleID: String, ok: Bool, message: String?)
+    /// Phone -> Mac: send every installed app (for search and the Deck editor).
+    case dockCatalogRequest
+    /// Mac -> phone: installed apps by name, without icons (`iconKey` set).
+    case dockCatalog(apps: [DockApp])
+    /// Phone -> Mac: send icons for these apps (search results, Deck buttons).
+    case dockIconRequest(bundleIDs: [String])
+    /// Mac -> phone: icons asked for with `dockIconRequest`.
+    case dockIcons(apps: [DockApp])
+    /// Mac -> phone: the Mac's frontmost app changed (Deck uses it to bring app pages forward).
+    case frontmostApp(bundleID: String?)
+    /// Mac -> phone: whether the Mac's own Dock is hidden, and why.
+    case macDockState(MacDockState)
+    /// Phone -> Mac: change the hide-the-Mac-Dock switches.
+    case macDockSet(MacDockState)
 
     // Keys
     /// Phone -> Mac: type this text as unicode key events (streamed as the user types or dictates).
@@ -155,6 +261,8 @@ public enum ModeMessage: Codable, Equatable, Sendable {
     case mediaSetVolume(Double)
     /// Phone -> Mac: set main display brightness, 0...1.
     case mediaSetBrightness(Double)
+    /// Phone -> Mac: seek, shuffle, repeat or switch the sound output.
+    case mediaControl(MediaControl)
 
     // Deck
     /// Phone -> Mac: send the Deck buttons.
@@ -165,6 +273,20 @@ public enum ModeMessage: Codable, Equatable, Sendable {
     case deckRun(id: UUID)
     /// Mac -> phone: outcome of `deckRun`; `message` is shown on failure.
     case deckResult(id: UUID, ok: Bool, message: String?)
+    /// Mac -> phone: pages, folders and grid density (sent along with `deckButtons`).
+    case deckLayout(DeckLayout)
+    /// Phone -> Mac: the edited Deck. The Mac keeps shell buttons only if they were already there.
+    case deckSave(DeckLayout)
+    /// Mac -> phone: outcome of `deckSave`.
+    case deckSaveResult(ok: Bool, message: String?)
+    /// Phone -> Mac: run a button that needs confirmation, after the user said yes.
+    case deckRunConfirmed(id: UUID)
+    /// Phone -> Mac: send what the button editor can pick from.
+    case deckCatalogRequest
+    /// Mac -> phone: sound outputs and Shortcuts on the Mac.
+    case deckCatalog(DeckCatalog)
+    /// Mac -> phone: an image a button made (a screenshot), for Photos or the clipboard.
+    case deckImage(id: UUID, imageData: Data, destination: DeckImageDestination)
 
     // Clipboard
     /// Phone -> Mac: put this on the Mac pasteboard.

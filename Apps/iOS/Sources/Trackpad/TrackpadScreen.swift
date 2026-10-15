@@ -11,10 +11,11 @@ struct TrackpadScreen: View {
     var settings = PhoneSettings.shared
     var session = MacSession.shared
     var router = AppRouter.shared
+    var tuning = TrackpadTuningStore.shared
 
     var body: some View {
         SurfaceRepresentable(palette: palette, showsDots: settings.showDots, isDimmed: router.isDimmed,
-                             trackpadSettings: session.trackpadSettings)
+                             trackpadSettings: tuning.merged(session.trackpadSettings))
             .ignoresSafeArea()
             .onAppear { session.setTrackpadVisible(true) }
             .onDisappear { session.setTrackpadVisible(false) }
@@ -46,6 +47,8 @@ private struct SurfaceRepresentable: UIViewRepresentable {
         if view.showsDots != showsDots { view.showsDots = showsDots }
         view.isDimmed = isDimmed
         context.coordinator.update(settings: trackpadSettings)
+        // Settings from the Mac carry its copy of the phone's tuning; resend ours if it differs.
+        TrackpadTuningStore.shared.macSettingsArrived(MacSession.shared.trackpadSettings)
     }
 
     static func dismantleUIView(_ view: TrackpadSurfaceView, coordinator: TrackpadDriver) {
@@ -107,7 +110,8 @@ final class TrackpadDriver {
     }
 
     /// Force click gets its own shape: a ramp at stage 1 and a sharp tick at stage 2.
-    /// Everything else maps one to one.
+    /// Everything else maps one to one. The recognizer only reports clicks, force click stages
+    /// and drag lock; anything else is ignored here too, so no swipe or scroll ever buzzes.
     private func play(_ events: [GestureEvent]) {
         let haptics = pendingHaptics
         pendingHaptics = []
@@ -131,6 +135,7 @@ final class TrackpadDriver {
         for kind in haptics {
             if stage1 && kind == .click { continue }
             if stage2 && kind == .forceClick { continue }
+            guard kind == .click || kind == .forceClick || kind == .dragLock else { continue }
             Haptics.shared.play(HapticCue(kind))
             session.noteLocalHaptic(kind)
         }

@@ -232,12 +232,17 @@ struct PointerTests {
         #expect(s.drags.isEmpty)
     }
 
-    @Test func fullWidthSwipeCoversAboutSixtyPercentOfDisplay() {
-        let s = Script()
+    @Test func pointerFollowsTheMacCurveInPhysicalUnits() {
+        // 3.2 pt per frame; frames under one 120 Hz report count as one: 384 pt/s = 2.5 in/s.
+        let s = Script { $0.trackingSpeed = 0.875 }
         s.down(1, 0, 400)
-        s.move([1], dx: 3.2, dy: 0, steps: 120)     // 384 pt at 400 pt/s, the reference speed
+        s.move([1], dx: 3.2, dy: 0, steps: 120)
         let total = s.moves.reduce(0) { $0 + $1.0 }
-        #expect(abs(total / GestureTuning.defaultDisplayWidth - 0.6) < 0.08)
+        let inches = 3.2 * 120 / GestureTuning.phonePointsPerInch
+        let expected = inches * MacAcceleration.gain(inchesPerSecond: 3.2 * 120 / GestureTuning.phonePointsPerInch,
+                                                     curve: MacAcceleration.pointerCurve(trackingSpeed: 0.875))
+        // The first move carries the slop distance at an unsettled speed; the rest is exact.
+        #expect(abs(total - expected) / expected < 0.03)
     }
 
     @Test func accelerationAndTrackingSpeed() {
@@ -251,9 +256,6 @@ struct PointerTests {
         #expect(travel(speed: 1500, tracking: 1) > travel(speed: 100, tracking: 1) * 1.5)
         #expect(travel(speed: 600, tracking: 3) > travel(speed: 600, tracking: 1) * 1.5)
         #expect(travel(speed: 600, tracking: 0) < travel(speed: 600, tracking: 1))
-        let w = Script(); w.r.displayWidth = 3000
-        w.down(1, 10, 400); w.move([1], dx: 4, dy: 0, steps: 50)
-        #expect(w.moves.reduce(0) { $0 + $1.0 } > travel(speed: 500, tracking: 1) * 1.5)
     }
 
     @Test func tapThenTouchAndMoveDrags() {
@@ -361,7 +363,12 @@ struct ScrollTests {
         #expect(sc.first.map { $0.dy > 0 } == true)            // fingers down -> content down (natural)
         #expect(sc.dropFirst().dropLast().allSatisfy { $0.phase == .changed && $0.momentum == .none })
         #expect(sc.last?.phase == .ended)
-        #expect(abs(sc.reduce(0) { $0 + $1.dy } - 100 * GestureTuning.scrollGain) < 0.001)
+        // 10 pt per 8 ms throughout; steps shorter than one 120 Hz report count as one report,
+        // so every step sees 1200 pt/s on the Mac's scroll curve.
+        let speed = 10 * 120 / GestureTuning.phonePointsPerInch
+        let perPoint = MacAcceleration.gain(inchesPerSecond: speed, curve: MacAcceleration.scrollCurve(scrollSpeed: 0.3125))
+            * GestureTuning.scrollCalibration / GestureTuning.phonePointsPerInch
+        #expect(abs(sc.reduce(0) { $0 + $1.dy } - 100 * perPoint) < 0.01)
         s.wait(0.3)
         #expect(!s.scrolls.contains { $0.momentum != .none })  // rested before lifting: no momentum
         #expect(s.buttons.isEmpty && s.moves.isEmpty)
@@ -381,7 +388,7 @@ struct ScrollTests {
         s.advance(0.008)
         s.up([1, 2])
         _ = s.take()
-        s.wait(2.5)
+        s.wait(6)
         let m = s.scrolls
         #expect(m.first?.momentum == .began)
         #expect(m.last?.momentum == .ended)
@@ -534,7 +541,7 @@ struct MultiFingerTests {
         let progress = sw.map(\.progress)
         #expect(zip(progress, progress.dropFirst()).allSatisfy { $0 <= $1 })
         #expect(abs((progress.last ?? 0) - 100 / GestureTuning.swipeFullDistance) < 0.001)
-        #expect(s.haptics.contains(.snap))
+        #expect(s.haptics.isEmpty)          // Spaces never buzz
         #expect(s.buttons.isEmpty && s.moves.isEmpty && s.scrolls.isEmpty)
     }
 
@@ -780,7 +787,7 @@ struct StuckButtonTests {
                 }
             }
             s.fingers.keys.sorted().forEach { s.up($0) }
-            s.wait(3)
+            s.wait(8)       // momentum coasts with a 0.5 s time constant
             #expect(!s.r.isLeftButtonDown)
             #expect(!s.r.needsTick, "round \(round)")
             // Button events must alternate down/up per button and end released.

@@ -137,7 +137,7 @@ struct PresentMode: View {
         Button {
             Haptics.shared.play(.click)
             session.send(.presentNext)
-            if !timer.isRunning && !timer.hasTime { timer.toggle() }
+            if settings.presentStartsTimer && !timer.isRunning && !timer.hasTime { timer.toggle() }
         } label: {
             VStack(spacing: 8) {
                 Image(systemName: "chevron.right")
@@ -174,7 +174,6 @@ private struct LaserPad: View {
                     Circle()
                         .fill(Color.red)
                         .frame(width: 18, height: 18)
-                        .shadow(color: .red.opacity(0.7), radius: 10)
                         .position(x: point.x * geo.size.width, y: point.y * geo.size.height)
                 } else {
                     VStack(spacing: 8) {

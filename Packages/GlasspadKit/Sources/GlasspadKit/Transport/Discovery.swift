@@ -51,7 +51,9 @@ public final class GlasspadDiscovery: @unchecked Sendable {
         queue.async { [self] in
             guard browser == nil else { return }
             let params = NWParameters()
-            params.includePeerToPeer = true
+            // Shared network only: browsing with peer-to-peer on wakes AWDL, which costs every
+            // Wi-Fi packet periodic latency spikes (see GlasspadService.tcpParameters).
+            params.includePeerToPeer = false
             let b = NWBrowser(for: .bonjourWithTXTRecord(type: GlasspadService.bonjourType, domain: nil), using: params)
             b.browseResultsChangedHandler = { [weak self] results, _ in self?.update(results) }
             b.stateUpdateHandler = { [weak self] st in

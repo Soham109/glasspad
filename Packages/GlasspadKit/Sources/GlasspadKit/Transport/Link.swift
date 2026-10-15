@@ -80,21 +80,34 @@ public enum GlasspadService {
     /// The Mac closes a session after this long without hearing from the phone.
     public static let serverSilenceTimeout: TimeInterval = 6
 
-    static func tcpParameters() -> NWParameters {
+    /// How long the phone browses on the shared Wi-Fi network before it also looks over
+    /// peer-to-peer Wi-Fi (AWDL).
+    public static let peerToPeerFallbackDelay: TimeInterval = 3
+
+    /// TCP control parameters. `peerToPeer` allows AWDL (Apple's peer-to-peer Wi-Fi). The phone
+    /// leaves it off unless no shared network works: while AWDL is in use the Wi-Fi chip hops
+    /// to AWDL's channels several times a second, which shows up as periodic latency spikes on
+    /// every packet, including ones sent over the normal network. The Mac's listeners keep it
+    /// on so that the fallback can still reach them.
+    static func tcpParameters(peerToPeer: Bool = false) -> NWParameters {
         let tcp = NWProtocolTCP.Options()
         tcp.noDelay = true
         let p = NWParameters(tls: nil, tcp: tcp)
-        p.includePeerToPeer = true
+        p.includePeerToPeer = peerToPeer
         p.serviceClass = .responsiveData
+        p.prohibitedInterfaceTypes = [.cellular]
         // Lets the Mac rebind its port right after a restart.
         p.allowLocalEndpointReuse = true
         return p
     }
 
-    static func udpParameters() -> NWParameters {
+    /// UDP touch parameters: the WMM voice queue (lowest air-time wait) and the same
+    /// peer-to-peer rule as `tcpParameters`.
+    static func udpParameters(peerToPeer: Bool = false) -> NWParameters {
         let p = NWParameters.udp
-        p.includePeerToPeer = true
+        p.includePeerToPeer = peerToPeer
         p.serviceClass = .interactiveVoice
+        p.prohibitedInterfaceTypes = [.cellular]
         return p
     }
 }

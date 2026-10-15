@@ -36,6 +36,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        // Put the Mac's own Dock back before anything else.
+        MacDockHider.shared.appWillTerminate()
         Self.controller.stop()
     }
 }

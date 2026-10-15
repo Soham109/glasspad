@@ -6,13 +6,17 @@ struct Theme { let outer: NSColor; let surface: NSColor; let edge: NSColor; let 
 let paper = Theme(outer: NSColor(srgbRed: 0.929, green: 0.925, blue: 0.910, alpha: 1),
                   surface: NSColor(srgbRed: 0.985, green: 0.983, blue: 0.976, alpha: 1),
                   edge: NSColor(white: 0.1, alpha: 0.10), dot: NSColor(white: 0.1, alpha: 0.24))
+/// For the iOS tinted icon: iOS tints a grayscale image, so this is light shapes on black.
+let tinted = Theme(outer: NSColor(white: 0, alpha: 1), surface: NSColor(white: 0.16, alpha: 1),
+                   edge: NSColor(white: 1, alpha: 0.14), dot: NSColor(white: 1, alpha: 0.9))
 let graphite = Theme(outer: NSColor(white: 0.055, alpha: 1), surface: NSColor(white: 0.106, alpha: 1),
                      edge: NSColor(white: 1, alpha: 0.08), dot: NSColor(white: 1, alpha: 0.26))
 
 func render(px: Int, theme: Theme, mac: Bool) -> Data {
+    // iOS icons must be opaque (no alpha channel) and drawn at their real pixel size.
     let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: px, pixelsHigh: px, bitsPerSample: 8,
                                samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
-                               colorSpaceName: .calibratedRGB, bytesPerRow: 0, bitsPerPixel: 0)!
+                               colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0)!
     let ctx = NSGraphicsContext(bitmapImageRep: rep)!
     NSGraphicsContext.current = ctx
     let cg = ctx.cgContext
@@ -54,15 +58,25 @@ func render(px: Int, theme: Theme, mac: Bool) -> Data {
         p.lineWidth = w; theme.dot.withAlphaComponent(alpha).setStroke(); p.stroke()
     }
     if design == "trail" {
+        // One continuous tapered stroke: the outline around a small circle at the start and the
+        // finger's circle at the end, joined by their outer tangents, filled flat. Then the solid finger dot on top.
         let from = pt(300, 610), to = pt(660, 440)
-        for i in 0..<24 {
-            let t = CGFloat(i) / 24
-            let c = CGPoint(x: from.x + (to.x - from.x) * t, y: from.y + (to.y - from.y) * t)
-            disc(c, (26 + 46 * t) * k, 0.03 + 0.22 * t * t)
-        }
+        let r0 = 22 * k, r1 = 74 * k
+        let dx = to.x - from.x, dy = to.y - from.y
+        let d = (dx * dx + dy * dy).squareRoot()
+        let theta = atan2(dy, dx)
+        let phi = acos((r0 - r1) / d)
+        let trail = CGMutablePath()
+        trail.addArc(center: from, radius: r0, startAngle: theta + phi, endAngle: theta - phi + 2 * .pi, clockwise: false)
+        trail.addArc(center: to, radius: r1, startAngle: theta - phi, endAngle: theta + phi, clockwise: false)
+        trail.closeSubpath()
+        // Flat: one even tint, no gradient.
+        cg.addPath(trail)
+        cg.setFillColor(theme.dot.withAlphaComponent(0.22).cgColor)
+        cg.fillPath()
         theme.surface.setFill()
-        NSBezierPath(ovalIn: CGRect(x: to.x - 74 * k, y: to.y - 74 * k, width: 148 * k, height: 148 * k)).fill()
-        disc(to, 74 * k, 1)
+        NSBezierPath(ovalIn: CGRect(x: to.x - r1, y: to.y - r1, width: 2 * r1, height: 2 * r1)).fill()
+        disc(to, r1, 1)
     } else {
         let c = pt(512, 512)
         ring(c, 230 * k, 5 * k, 0.25)
@@ -71,7 +85,13 @@ func render(px: Int, theme: Theme, mac: Bool) -> Data {
     }
     if mac { cg.restoreGState() }
     NSGraphicsContext.current = nil
-    return rep.representation(using: .png, properties: [:])!
+    if mac { return rep.representation(using: .png, properties: [:])! }
+    // iOS: flatten into an opaque sRGB bitmap so the PNG has no alpha channel at all.
+    let flat = CGContext(data: nil, width: px, height: px, bitsPerComponent: 8, bytesPerRow: 0,
+                         space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                         bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue)!
+    flat.draw(rep.cgImage!, in: CGRect(x: 0, y: 0, width: px, height: px))
+    return NSBitmapImageRep(cgImage: flat.makeImage()!).representation(using: .png, properties: [:])!
 }
 
 func menuBar(px: Int) -> Data {
@@ -107,11 +127,13 @@ func write(_ d: Data, _ path: String) {
 let ios = "Apps/iOS/Resources/Assets.xcassets/AppIcon.appiconset"
 write(render(px: 1024, theme: paper, mac: false), "\(ios)/AppIcon-1024.png")
 write(render(px: 1024, theme: graphite, mac: false), "\(ios)/AppIcon-1024-dark.png")
+write(render(px: 1024, theme: tinted, mac: false), "\(ios)/AppIcon-1024-tinted.png")
 write(Data("""
 {
   "images" : [
     { "filename" : "AppIcon-1024.png", "idiom" : "universal", "platform" : "ios", "size" : "1024x1024" },
-    { "appearances" : [ { "appearance" : "luminosity", "value" : "dark" } ], "filename" : "AppIcon-1024-dark.png", "idiom" : "universal", "platform" : "ios", "size" : "1024x1024" }
+    { "appearances" : [ { "appearance" : "luminosity", "value" : "dark" } ], "filename" : "AppIcon-1024-dark.png", "idiom" : "universal", "platform" : "ios", "size" : "1024x1024" },
+    { "appearances" : [ { "appearance" : "luminosity", "value" : "tinted" } ], "filename" : "AppIcon-1024-tinted.png", "idiom" : "universal", "platform" : "ios", "size" : "1024x1024" }
   ],
   "info" : { "author" : "xcode", "version" : 1 }
 }
