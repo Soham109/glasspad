@@ -1,0 +1,4 @@
+- What changed:
+- Why:
+- How it was tested (`scripts/test.sh`, on-device check):
+- Spec updated if an interface changed (docs/SPEC.md): yes / not needed

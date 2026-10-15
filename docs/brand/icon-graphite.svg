@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- Graphite variant. -->
+  <rect width="1024" height="1024" fill="#0E0E0E"/>
+  <rect x="102" y="222" width="820" height="580" rx="140" fill="#1B1B1B" stroke="#FFFFFF" stroke-opacity="0.10" stroke-width="4"/>
+  <circle cx="415" cy="465" r="72" fill="#FFFFFF" fill-opacity="0.26"/>
+  <circle cx="625" cy="565" r="72" fill="#FFFFFF" fill-opacity="0.26"/>
+</svg>
