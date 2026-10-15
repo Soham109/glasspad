@@ -86,6 +86,13 @@ struct HandshakeReject: Codable, Equatable {
     var reason: String
 }
 
+/// Mac -> phone, sealed, right after the handshake: how to wake this Mac. Handled inside the
+/// transport (old clients fail to decode it as a `ControlMessage` and drop it).
+struct WakeAnnouncement: Codable, Equatable {
+    var t = "wake"
+    var target: WakeTarget
+}
+
 /// Peek at the `t` field of a plaintext handshake frame.
 struct HandshakeTag: Codable { var t: String }
 

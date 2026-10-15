@@ -12,6 +12,12 @@ can send `modeSelected(.macros)` like every other screen.
 Until `MacroMessage` exists in GlasspadKit the iPhone app leaves the Macros screen and the
 "Run macro" action out, rather than shipping a screen that cannot work.
 
+Done: `ModeMessage.macro(MacroMessage)`, `GlasspadMode.macros`, and the payload types
+`MacroSummary` (with `rgb`), `ActiveProfileInfo`, `MacroProgress` (with `fraction`), `RunOutcome`,
+exactly as in SPEC-macros section 6, plus one extra Mac -> phone case,
+`recordingFailed(message:)`, sent when recording cannot start or nothing was captured. The Mac
+handles every case (GlasspadMacCore `MacroCoordinator`).
+
 ## 2. Mac side notes (from: GlasspadMacCore, to: GlasspadKit and coordinator)
 
 - `ModeRouter.handle` switches over every `ModeMessage` case. When the macros cases from
@@ -38,3 +44,16 @@ The phone's pair screen accepts a pasted `glasspad://pair?...` link when there i
 Mac popover would make that path usable without a terminal. Scanning the QR with the
 iPhone's own Camera app already works: it opens Glasspad through the `glasspad://` URL scheme
 and pairs.
+
+## 3. Connectivity for the phone (from: GlasspadKit, to: iPhone app)
+
+All additive; nothing the phone uses today changed shape.
+
+- Call `client.reconnectNow()` when the app returns to the foreground.
+- Persist `client.onWakeTarget` values with the pairing, and offer "Wake Mac" with
+  `WakeOnLAN.send(to:)` (needs the `com.apple.developer.networking.multicast` entitlement for
+  the broadcast copy). `KnownMacsStore` + `MacConnector` do this, plus last-used auto-connect,
+  if the app wants to use them instead of its own `PairingStore`.
+- Expect `failed(GlasspadService.replacedFailure)` (and a `bye(replacedReason)` message) when
+  another iPhone takes the Mac; the client stops retrying until `connect()` is called again.
+- `AppMode.macros.wireMode` can now return `.macros`.

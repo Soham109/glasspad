@@ -3,6 +3,8 @@ import Foundation
 /// The phone's screens (SPEC section 8).
 public enum GlasspadMode: String, Codable, Sendable, CaseIterable {
     case trackpad, dock, keys, media, deck, clipboard, present
+    /// The Macros screen (docs/SPEC-macros.md).
+    case macros
 }
 
 /// One app tile in Dock mode.
@@ -119,8 +121,10 @@ public enum ClipboardContent: Codable, Equatable, Sendable {
 }
 
 /// Messages for the extra modes, carried inside `ControlMessage.mode`.
-/// Direction is noted on each case. Encoded with Swift's synthesized enum Codable
-/// (`{"dockOpen":{"bundleID":"com.apple.Safari"}}`).
+/// Direction is noted on each case. JSON with a `"t"` discriminator, like `ControlMessage`:
+/// `{"t":"dockOpen","bundleID":"com.apple.Safari"}`. The older synthesized shape
+/// (`{"dockOpen":{"bundleID":"com.apple.Safari"}}`) still decodes, so a phone and a Mac built a
+/// few days apart keep talking. Payload types (DockApp, DeckAction, ...) keep their own encoding.
 public enum ModeMessage: Codable, Equatable, Sendable {
     // General
     /// Phone -> Mac: the phone switched to this screen (e.g. hide the laser overlay on leaving Present).
@@ -179,4 +183,8 @@ public enum ModeMessage: Codable, Equatable, Sendable {
     case presentLaser(on: Bool)
     /// Phone -> Mac: laser position, normalized 0...1 across the main display, origin top left.
     case presentLaserPosition(x: Double, y: Double)
+
+    // Macros
+    /// Both ways: Macros mode (docs/SPEC-macros.md section 6). Direction is noted on each `MacroMessage` case.
+    case macro(MacroMessage)
 }

@@ -14,6 +14,8 @@ struct PopoverView: View {
                 .padding(.top, 14)
                 .padding(.bottom, 10)
 
+            RecordingRow(macros: controller.macros)
+
             if !controller.accessibilityTrusted {
                 Divider()
                 AccessibilityRow()
@@ -224,6 +226,29 @@ struct GestureList: View {
                 .help(item.mode.help)
                 .accessibilityElement(children: .combine)
             }
+        }
+    }
+}
+
+/// While a macro is being recorded: says so, with Stop.
+private struct RecordingRow: View {
+    @ObservedObject var macros: MacroCoordinator
+
+    var body: some View {
+        if macros.isRecording {
+            Divider()
+            HStack(spacing: 8) {
+                Image(systemName: "record.circle.fill")
+                    .foregroundStyle(.red)
+                    .symbolEffect(.pulse, options: .repeating)
+                Text("Recording a macro")
+                    .font(.headline)
+                Spacer()
+                Button("Stop") { macros.stopRecording(fromMacMenu: true) }
+                    .controlSize(.small)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
         }
     }
 }

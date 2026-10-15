@@ -10,6 +10,12 @@ import Network
 /// resends the last snapshot (phases set to stationary, fresh timestamp) every 20 ms, so the
 /// Mac never mistakes a resting finger for a dead link and a lost "ended" packet heals fast.
 ///
+/// Staying connected: the client reconnects with backoff after any drop, at once when the
+/// network changes (Wi-Fi switch, wake from sleep) or when the Mac goes silent for
+/// `GlasspadService.clientSilenceTimeout` (the Mac pings every second). Call `reconnectNow()`
+/// when the app returns to the foreground. It stops retrying only after `disconnect()`, a
+/// refusal from the Mac, or when another phone takes over the Mac (`failed(replacedFailure)`).
+///
 /// Thread safety: every public member may be called from any thread.
 public final class GlasspadClient: @unchecked Sendable {
     public let phoneID: String
@@ -28,6 +34,14 @@ public final class GlasspadClient: @unchecked Sendable {
     }
     /// Datagrams sent (touch frames, resends and heartbeats).
     public var datagramsSent: Int { sentBox.get() }
+    /// How to wake this Mac, from its last handshake (nil until then). Store it with the pairing
+    /// (`KnownMacs.setWakeTarget`) so it is there when the Mac is asleep.
+    public var wakeTarget: WakeTarget? { wakeBox.get() }
+    /// Called on the delegate queue when the Mac sends its wake details (after each handshake).
+    public var onWakeTarget: (@Sendable (WakeTarget) -> Void)? {
+        get { wakeHandler.get() }
+        set { wakeHandler.set(newValue) }
+    }
 
     private let queue = DispatchQueue(label: "glasspad.client", qos: .userInteractive)
     private let delegateQueue: DispatchQueue
@@ -35,6 +49,8 @@ public final class GlasspadClient: @unchecked Sendable {
     private let stateBox = Locked(LinkState.idle)
     private let heartbeatsBox = Locked(false)
     private let sentBox = Locked(0)
+    private let wakeBox = Locked<WakeTarget?>(nil)
+    private let wakeHandler = Locked<(@Sendable (WakeTarget) -> Void)?>(nil)
 
     private enum Target { case bonjour, direct(host: String, port: UInt16) }
     private enum Phase { case hello(nonce: Data), confirm, connected }
@@ -56,6 +72,12 @@ public final class GlasspadClient: @unchecked Sendable {
     private var keepalive: DispatchSourceTimer?
     private var attempt = 0
     private var reconnectWork: DispatchWorkItem?
+    private var lastReceived: TimeInterval = 0
+    private var pathMonitor: NWPathMonitor?
+    private var lastPathSignature: String?
+    private var lastGateways = ""
+    /// Internal so tests can shorten it.
+    var silenceTimeout: TimeInterval = GlasspadService.clientSilenceTimeout
 
     /// Snapshot resends stop after this long without a frame from the app.
     static let maxResendAge: TimeInterval = 30
@@ -68,6 +90,7 @@ public final class GlasspadClient: @unchecked Sendable {
     }
 
     deinit {
+        pathMonitor?.cancel()
         browser?.cancel()
         keepalive?.cancel()
         udp?.cancel()
@@ -95,8 +118,20 @@ public final class GlasspadClient: @unchecked Sendable {
                 ch.sendThenClose(sealed, reason: "disconnect")
             }
             target = nil
+            stopPathMonitor()
             teardown()
             setState(.idle)
+        }
+    }
+
+    /// Reconnects right away, skipping any backoff wait. Use it when the app comes back to the
+    /// foreground. A connected session is kept if the Mac was heard from in the last second,
+    /// otherwise it is replaced (after sleep the old socket is often dead without knowing it).
+    public func reconnectNow() {
+        queue.async { [self] in
+            guard target != nil else { return }
+            if case .connected = phase, uptime() - lastReceived < 1.0 { return }
+            restartNow()
         }
     }
 
@@ -129,7 +164,67 @@ public final class GlasspadClient: @unchecked Sendable {
         target = t
         attempt = 0
         teardown()
+        startPathMonitor()
         open()
+    }
+
+    /// Drops whatever is in progress and connects again with no delay.
+    private func restartNow() {
+        guard target != nil else { return }
+        teardown()
+        attempt = 0
+        open()
+    }
+
+    /// Tests only: stalls the client's queue, as if the phone app were suspended.
+    func blockQueueForTesting(seconds: TimeInterval) {
+        queue.async { Thread.sleep(forTimeInterval: seconds) }
+    }
+
+    // MARK: Network changes
+
+    private func startPathMonitor() {
+        guard pathMonitor == nil else { return }
+        let m = NWPathMonitor()
+        m.pathUpdateHandler = { [weak self] path in self?.pathUpdated(path) }
+        pathMonitor = m
+        m.start(queue: queue)
+    }
+
+    private func stopPathMonitor() {
+        pathMonitor?.cancel()
+        pathMonitor = nil
+        lastPathSignature = nil
+        lastGateways = ""
+    }
+
+    private func pathUpdated(_ path: NWPath) {
+        let satisfied = path.status == .satisfied
+        let names = Set(path.availableInterfaces.map(\.name))
+        let gateways = path.gateways.map { "\($0)" }.sorted().joined(separator: ",")
+        let signature = "\(satisfied)|" + names.sorted().joined(separator: ",") + "|" + gateways
+        defer {
+            lastPathSignature = signature
+            lastGateways = gateways
+        }
+        guard let previous = lastPathSignature, previous != signature else { return }
+        // Joining another Wi-Fi network keeps the interface name (en0) but changes the router.
+        let switched = previous.hasPrefix("false|") || (!lastGateways.isEmpty && lastGateways != gateways)
+        networkChanged(satisfied: satisfied, interfaceNames: names, networkSwitched: switched)
+    }
+
+    /// Wi-Fi switched, an interface came or went, or the device woke. Not connected: retry now
+    /// instead of waiting out the backoff. Connected, but the network changed under the session
+    /// (another Wi-Fi, back from no network, or its interface is gone): the socket is dead, so
+    /// start over now rather than waiting for TCP or the silence timeout to notice.
+    func networkChanged(satisfied: Bool, interfaceNames: Set<String>, networkSwitched: Bool = false) {
+        guard target != nil, satisfied else { return }
+        if case .connected = phase, !networkSwitched,
+           let used = channel?.connection.currentPath?.availableInterfaces.first?.name,
+           interfaceNames.contains(used) {
+            return
+        }
+        restartNow()
     }
 
     private func open() {
@@ -193,6 +288,7 @@ public final class GlasspadClient: @unchecked Sendable {
     }
 
     private func handleFrame(_ data: Data) {
+        lastReceived = uptime()
         switch phase {
         case .hello(let nonce)?:
             guard let tag = try? JSONDecoder().decode(HandshakeTag.self, from: data) else {
@@ -226,11 +322,26 @@ public final class GlasspadClient: @unchecked Sendable {
             startKeepalive()
             setState(.connected(rttMs: nil))
         case .connected?:
-            guard crypto != nil, let plain = try? crypto!.openTCP(data),
-                  let msg = try? ControlMessage.from(jsonData: plain) else { return }
+            guard crypto != nil, let plain = try? crypto!.openTCP(data) else { return }
+            guard let msg = try? ControlMessage.from(jsonData: plain) else {
+                if let wake = try? JSONDecoder().decode(WakeAnnouncement.self, from: plain), wake.t == "wake" {
+                    wakeBox.set(wake.target)
+                    let handler = wakeHandler.get()
+                    delegateQueue.async { handler?(wake.target) }
+                }
+                return
+            }
             switch msg {
             case .ping(let id): sendControl(.pong(id: id))
             case .pong: break
+            case .bye(let reason) where reason == GlasspadService.replacedReason:
+                // Another connection took over the Mac. Retrying would steal it back, and the
+                // two phones would take turns forever.
+                delegateQueue.async { [weak self] in self?.delegate?.link(didReceive: msg) }
+                target = nil
+                stopPathMonitor()
+                teardown()
+                setState(.failed(GlasspadService.replacedFailure))
             default: delegateQueue.async { [weak self] in self?.delegate?.link(didReceive: msg) }
             }
         case nil:
@@ -251,8 +362,11 @@ public final class GlasspadClient: @unchecked Sendable {
     private func lost(_ gen: Int, reason: String) {
         guard gen == generation else { return }
         teardown()
+        scheduleReconnect(after: GlasspadService.backoff[min(attempt, GlasspadService.backoff.count - 1)])
+    }
+
+    private func scheduleReconnect(after delay: TimeInterval) {
         guard target != nil else { return }
-        let delay = GlasspadService.backoff[min(attempt, GlasspadService.backoff.count - 1)]
         attempt += 1
         if case .bonjour? = target { setState(.searching) } else { setState(.connecting) }
         let work = DispatchWorkItem { [weak self] in
@@ -320,6 +434,13 @@ public final class GlasspadClient: @unchecked Sendable {
     private func keepaliveTick() {
         guard case .connected = phase else { return }
         let now = uptime()
+        if now - lastReceived > silenceTimeout {
+            // The Mac pings every second; this many missed means it slept, changed network or
+            // the socket died quietly. Reconnect now instead of waiting for TCP to give up.
+            teardown()
+            scheduleReconnect(after: 0)
+            return
+        }
         guard now - lastSend >= GlasspadService.heartbeatInterval * 0.9 else { return }
         if var snap = lastSnapshot, now - lastAppFrame < Self.maxResendAge {
             snap.timestamp = now

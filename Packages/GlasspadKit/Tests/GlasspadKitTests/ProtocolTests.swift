@@ -190,8 +190,121 @@ struct ControlMessageTests {
             .presentPrevious,
             .presentLaser(on: true),
             .presentLaserPosition(x: 0.25, y: 0.75),
+            .modeSelected(.macros),
+            .macro(.listMacros),
         ]
         for m in all { try roundTrip(.mode(m)) }
+    }
+
+    static let summary = MacroSummary(id: UUID(), name: "Close tab", symbol: "xmark.square", color: "#FF453A",
+                                      stepCount: 2, usesScripts: false)
+
+    static var everyMacroMessage: [MacroMessage] {
+        let id = UUID()
+        let profile = ActiveProfileInfo(profileID: UUID(), name: "Safari", symbol: "safari", bundleID: "com.apple.Safari",
+                                        macros: [summary])
+        return [
+            .listMacros,
+            .run(macroID: id),
+            .gesture(name: "fourFingerTap"),
+            .cancelRun,
+            .recordStart(windowRelative: true, keepTiming: false),
+            .recordStop,
+            .macroList(active: profile, all: [summary, MacroSummary(id: id, name: "Deploy", symbol: "terminal",
+                                                                    color: "#30D158", stepCount: 9, usesScripts: true)]),
+            .macroList(active: ActiveProfileInfo(profileID: nil, name: "All Macros", symbol: "square.grid.2x2",
+                                                 bundleID: nil, macros: []), all: []),
+            .activeProfileChanged(profile),
+            .progress(MacroProgress(macroID: id, completedSteps: 1, totalSteps: 3, currentPath: [1, 0],
+                                    currentSummary: "Press ⌘W")),
+            .runFinished(macroID: id, outcome: .completed, message: nil, outputs: []),
+            .runFinished(macroID: id, outcome: .failed, message: "No app with bundle id x", outputs: ["out 1", "out 2"]),
+            .runFinished(macroID: id, outcome: .interruptedByUser, message: nil, outputs: []),
+            .runFinished(macroID: id, outcome: .cancelled, message: nil, outputs: []),
+            .recordingState(isRecording: true),
+            .recordingFinished(macro: summary, droppedSecureKeys: 3),
+            .recordingFailed(message: "A password field is focused"),
+        ]
+    }
+
+    @Test func everyMacroMessageRoundTrips() throws {
+        for m in Self.everyMacroMessage { try roundTrip(.mode(.macro(m))) }
+    }
+
+    @Test func modeAndMacroMessagesUseTDiscriminator() throws {
+        let id = UUID(uuidString: "6B1F3C2E-9D3A-4C55-8E21-0F8A6B3C9D11")!
+        let json = String(decoding: try ControlMessage.mode(.macro(.run(macroID: id))).jsonData(), as: UTF8.self)
+        let obj = try JSONSerialization.jsonObject(with: Data(json.utf8)) as! [String: Any]
+        #expect(obj["t"] as? String == "mode")
+        let mode = obj["mode"] as! [String: Any]
+        #expect(mode["t"] as? String == "macro")
+        let macro = mode["macro"] as! [String: Any]
+        #expect(macro["t"] as? String == "run")
+        #expect(macro["macroID"] as? String == id.uuidString)
+
+        let open = try JSONSerialization.jsonObject(with: JSONEncoder().encode(ModeMessage.dockOpen(bundleID: "com.apple.Notes"))) as! [String: Any]
+        #expect(open as NSDictionary == ["t": "dockOpen", "bundleID": "com.apple.Notes"] as NSDictionary)
+        let req = try JSONSerialization.jsonObject(with: JSONEncoder().encode(ModeMessage.deckRequest)) as! [String: Any]
+        #expect(req as NSDictionary == ["t": "deckRequest"] as NSDictionary)
+        let text = try JSONSerialization.jsonObject(with: JSONEncoder().encode(ModeMessage.keysText("hi"))) as! [String: Any]
+        #expect(text as NSDictionary == ["t": "keysText", "text": "hi"] as NSDictionary)
+        // A nil clipboard leaves the field out.
+        let empty = try JSONSerialization.jsonObject(with: JSONEncoder().encode(ModeMessage.clipboardContent(nil))) as! [String: Any]
+        #expect(empty as NSDictionary == ["t": "clipboardContent"] as NSDictionary)
+    }
+
+    @Test func legacySynthesizedModeMessagesStillDecode() throws {
+        let id = UUID()
+        let cases: [(String, ModeMessage)] = [
+            (#"{"dockRequest":{}}"#, .dockRequest),
+            (#"{"dockOpen":{"bundleID":"com.apple.Notes"}}"#, .dockOpen(bundleID: "com.apple.Notes")),
+            (#"{"modeSelected":{"_0":"present"}}"#, .modeSelected(.present)),
+            (#"{"keysText":{"_0":"héllo"}}"#, .keysText("héllo")),
+            (#"{"mediaSetVolume":{"_0":0.5}}"#, .mediaSetVolume(0.5)),
+            (#"{"mediaCommand":{"_0":"nextTrack"}}"#, .mediaCommand(.nextTrack)),
+            (#"{"deckRun":{"id":"\#(id.uuidString)"}}"#, .deckRun(id: id)),
+            (#"{"deckResult":{"id":"\#(id.uuidString)","ok":false,"message":"x"}}"#, .deckResult(id: id, ok: false, message: "x")),
+            (#"{"clipboardContent":{}}"#, .clipboardContent(nil)),
+            (#"{"clipboardPush":{"_0":{"text":{"_0":"copied"}}}}"#, .clipboardPush(.text("copied"))),
+            (#"{"presentLaserPosition":{"x":0.25,"y":1}}"#, .presentLaserPosition(x: 0.25, y: 1)),
+            (#"{"keysKeystroke":{"_0":{"key":{"character":{"_0":"c"}},"modifiers":1}}}"#,
+             .keysKeystroke(Keystroke(key: .character("c"), modifiers: [.command]))),
+        ]
+        for (json, expected) in cases {
+            #expect(try JSONDecoder().decode(ModeMessage.self, from: Data(json.utf8)) == expected, "\(json)")
+        }
+    }
+
+    @Test func brokenModeMessagesThrow() {
+        for json in [#"{"t":"nope"}"#, #"{"t":"dockOpen"}"#, #"{}"#, #"{"a":{},"b":{}}"#, #"{"t":"macro","macro":{"t":"zzz"}}"#,
+                     #"{"t":"macro","macro":{"t":"run"}}"#] {
+            #expect(throws: (any Error).self) { try JSONDecoder().decode(ModeMessage.self, from: Data(json.utf8)) }
+        }
+    }
+
+    @Test func macroMessageDefaultsForOptionalFields() throws {
+        let id = UUID()
+        let m = try JSONDecoder().decode(MacroMessage.self, from: Data(#"{"t":"runFinished","macroID":"\#(id.uuidString)","outcome":"completed"}"#.utf8))
+        #expect(m == .runFinished(macroID: id, outcome: .completed, message: nil, outputs: []))
+        let r = try JSONDecoder().decode(MacroMessage.self, from: Data(#"{"t":"recordStart"}"#.utf8))
+        #expect(r == .recordStart(windowRelative: false, keepTiming: true))
+    }
+
+    @Test func summaryColourAndProgressFraction() {
+        let rgb = Self.summary.rgb
+        #expect(rgb?.red == 1)
+        #expect(abs((rgb?.green ?? 0) - 69.0 / 255) < 1e-9)
+        #expect(abs((rgb?.blue ?? 0) - 58.0 / 255) < 1e-9)
+        var bad = Self.summary
+        for c in ["red", "#12345", "#GGGGGG", ""] {
+            bad.color = c
+            #expect(bad.rgb == nil)
+        }
+        bad.color = "00ff00"
+        #expect(bad.rgb?.green == 1)
+        #expect(MacroProgress(macroID: UUID(), completedSteps: 1, totalSteps: 4, currentPath: [], currentSummary: "").fraction == 0.25)
+        #expect(MacroProgress(macroID: UUID(), completedSteps: 0, totalSteps: 0, currentPath: [], currentSummary: "").fraction == 1)
+        #expect(GlasspadMode.allCases.contains(.macros))
     }
 
     @Test func settingsRoundTripAllEnums() throws {

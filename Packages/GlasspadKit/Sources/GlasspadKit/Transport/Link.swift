@@ -69,6 +69,16 @@ public enum GlasspadService {
     public static let handshakeTimeout: TimeInterval = 5
     /// Largest TCP frame accepted (Dock icons and clipboard images fit).
     public static let maxFrameLength = 16 << 20
+    /// `bye` reason the Mac sends to a session that another connection replaced. A client that
+    /// receives it stops reconnecting (otherwise two phones would take turns forever) and
+    /// reports `failed(replacedFailure)`.
+    public static let replacedReason = "replaced by another connection"
+    public static let replacedFailure = "Another iPhone is now using this Mac"
+    /// The phone treats the link as dead after this long without any frame from the Mac (the Mac
+    /// pings every second), and reconnects at once.
+    public static let clientSilenceTimeout: TimeInterval = 3.5
+    /// The Mac closes a session after this long without hearing from the phone.
+    public static let serverSilenceTimeout: TimeInterval = 6
 
     static func tcpParameters() -> NWParameters {
         let tcp = NWProtocolTCP.Options()
@@ -76,6 +86,8 @@ public enum GlasspadService {
         let p = NWParameters(tls: nil, tcp: tcp)
         p.includePeerToPeer = true
         p.serviceClass = .responsiveData
+        // Lets the Mac rebind its port right after a restart.
+        p.allowLocalEndpointReuse = true
         return p
     }
 

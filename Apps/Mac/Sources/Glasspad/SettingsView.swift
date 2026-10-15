@@ -8,13 +8,20 @@ struct SettingsView: View {
         TabView {
             GeneralSettings()
                 .tabItem { Label("General", systemImage: "gearshape") }
+                .frame(width: 480)
+                .frame(minHeight: 420)
             TrackpadSettingsPane()
                 .tabItem { Label("Trackpad", systemImage: "rectangle.and.hand.point.up.left") }
+                .frame(width: 480)
+                .frame(minHeight: 420)
             DeckSettings()
                 .tabItem { Label("Deck", systemImage: "square.grid.3x2") }
+                .frame(width: 480)
+                .frame(minHeight: 420)
+            MacrosSettings()
+                .tabItem { Label("Macros", systemImage: "wand.and.stars") }
+                .frame(width: 760, height: 560)
         }
-        .frame(width: 480)
-        .frame(minHeight: 420)
     }
 }
 

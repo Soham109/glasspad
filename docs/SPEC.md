@@ -158,6 +158,26 @@ public var heartbeatsEnabled: Bool                // true while the trackpad scr
   `link(didReceive frame:)` has a default empty implementation.
 - A `bye` from the phone closes its session. TCP frames (including Hello) are
   `UInt32 BE length || payload`, max 16 MiB.
+- Replacing a session: the Mac sends the old one `bye(GlasspadService.replacedReason)`; a client
+  that gets it stops retrying and reports `failed(GlasspadService.replacedFailure)`, so two phones
+  never take turns. `server.onSessionStarted(PairedPhone)` fires for every new active session
+  (the state can stay `connected` through a replacement); the Mac resets input and resends
+  settings and mode data there.
+- Liveness: the client reconnects at once after `clientSilenceTimeout` (3.5 s) with no frame from
+  the Mac, on an `NWPathMonitor` change (interface gone, another Wi-Fi network, back from no
+  network), and on `client.reconnectNow()` (call it on foreground). The Mac closes a session after
+  `serverSilenceTimeout` (6 s) without hearing from the phone.
+- Wake-on-LAN: after each handshake the Mac sends a sealed, transport-internal
+  `{"t":"wake","target":WakeTarget}` (hardware address, subnet broadcast, last IPv4) worked out
+  from the interface the phone connected on (`server.wakeTargetOverride` replaces it). The client
+  exposes `wakeTarget` / `onWakeTarget`; `WakeOnLAN.send(to:)` sends the 102-byte magic packet to
+  the broadcast, 255.255.255.255 and the unicast address. On iPhone broadcast needs the
+  `com.apple.developer.networking.multicast` entitlement.
+- Several Macs: `KnownMacs` (value) + `KnownMacsStore` (Keychain item, thread safe) remember every
+  pairing, when it last connected, its wake target and the last used Mac. `MacConnector` owns one
+  client at a time: `connect(to:)`, `connectToLastUsed()`, `wake(_:)`, optional `manualAddress`.
+  `GlasspadDiscovery` lists every Mac advertising nearby. `server.isAdvertising` reports Bonjour
+  registration.
 - While any finger is down the client resends the last snapshot (phases set to
   `stationary`, fresh timestamp) every 20 ms; otherwise it sends heartbeats when
   `heartbeatsEnabled` and the phone touched within 2 min.
@@ -210,15 +230,21 @@ As built (GlasspadKit):
   (`.touches(TouchFrame)` or `.heartbeat(seq:timestamp:)`), `heartbeat(seq:timestamp: = 0)`.
   Malformed packets throw `TouchCodecError`. A heartbeat is the 18-byte header with count 0.
 - `ControlMessage.jsonData()` and `ControlMessage.from(jsonData:)` are the wire helpers.
-- `ModeMessage` (in `Protocol/ModeMessage.swift`, synthesized Codable, one doc
-  comment per case with its direction): `modeSelected`, `dockRequest`,
+- `ModeMessage` (in `Protocol/ModeMessage.swift`, `"t"`-discriminated JSON like
+  `ControlMessage`, e.g. `{"t":"dockOpen","bundleID":".."}`; the older synthesized shape still
+  decodes; one doc comment per case with its direction): `modeSelected`, `dockRequest`,
   `dockList(apps: [DockApp])`, `dockOpen(bundleID:)` (launch or activate),
   `keysText`, `keysKeystroke(Keystroke)`, `mediaRequest`, `mediaState(MediaState)`,
   `mediaCommand(MediaCommand)`, `mediaSetVolume`, `mediaSetBrightness`,
   `deckRequest`, `deckButtons([DeckButton])`, `deckRun(id:)`,
   `deckResult(id:ok:message:)`, `clipboardPush(ClipboardContent)`, `clipboardPull`,
   `clipboardContent(ClipboardContent?)`, `presentNext`, `presentPrevious`,
-  `presentLaser(on:)`, `presentLaserPosition(x:y:)` (0...1 of the main display).
+  `presentLaser(on:)`, `presentLaserPosition(x:y:)` (0...1 of the main display),
+  `macro(MacroMessage)` (docs/SPEC-macros.md section 6, plus `recordingFailed(message:)`).
+  `GlasspadMode.macros` exists for `modeSelected(.macros)`, which makes the Mac send `macroList`.
+- Measured touch-path latency on loopback (encode + seal + UDP send + receive + open + decode +
+  delegate hop), `ConnectivityTests.loopbackTouchLatency`: p50 about 0.1 to 0.2 ms, p95 about
+  0.2 to 0.4 ms on an M-series Mac. Wi-Fi adds its own air time on top.
 
 ## 6. Gestures (GlasspadKit/Gestures)
 

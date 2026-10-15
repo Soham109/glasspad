@@ -30,6 +30,20 @@ public final class GlasspadServer: @unchecked Sendable {
         get { pairedHandler.get() }
         set { pairedHandler.set(newValue) }
     }
+    /// Called on the delegate queue every time a session becomes the active one, including when a
+    /// phone replaces another phone's session (the link state may stay `connected` through that).
+    /// Reset per-phone state here: release buttons, send settings, push mode data.
+    public var onSessionStarted: (@Sendable (PairedPhone) -> Void)? {
+        get { sessionHandler.get() }
+        set { sessionHandler.set(newValue) }
+    }
+    /// Wake-on-LAN details sent to the phone after each handshake. nil (the default) works them
+    /// out from the interface the phone connected on; nothing is sent when that interface has no
+    /// hardware or broadcast address (loopback, some VPNs).
+    public var wakeTargetOverride: WakeTarget? {
+        get { wakeOverride.get() }
+        set { wakeOverride.set(newValue) }
+    }
 
     public var state: LinkState { stateBox.get() }
     public var stats: LinkStats { statsBox.get() }
@@ -41,6 +55,8 @@ public final class GlasspadServer: @unchecked Sendable {
     }
     /// The phone of the active session.
     public var connectedPhone: PairedPhone? { phoneBox.get() }
+    /// True once mDNSResponder confirmed the Bonjour service is published.
+    public var isAdvertising: Bool { advertisingBox.get() }
 
     private let pairKeyLookup: @Sendable (String) -> Data?
     private let requestedTCPPort: UInt16
@@ -52,10 +68,13 @@ public final class GlasspadServer: @unchecked Sendable {
     private let delegateBox = Locked(WeakDelegate())
     private let pendingKey = Locked<Data?>(nil)
     private let pairedHandler = Locked<(@Sendable (PairedPhone) -> Void)?>(nil)
+    private let sessionHandler = Locked<(@Sendable (PairedPhone) -> Void)?>(nil)
+    private let wakeOverride = Locked<WakeTarget?>(nil)
     private let stateBox = Locked(LinkState.idle)
     private let statsBox = Locked(LinkStats())
     private let portsBox = Locked<(tcp: UInt16?, udp: UInt16?)>((nil, nil))
     private let phoneBox = Locked<PairedPhone?>(nil)
+    private let advertisingBox = Locked(false)
 
     // Queue-confined state.
     private var tcpListener: NWListener?
@@ -68,6 +87,13 @@ public final class GlasspadServer: @unchecked Sendable {
     private var pingSent: [UInt32: TimeInterval] = [:]
     private var rtts: [Double] = []
     private var running = false
+    /// Last authenticated TCP frame or touch datagram from the active phone.
+    private var lastHeard: TimeInterval = 0
+    /// The active session is closed after this long without hearing from the phone (it answers
+    /// a ping every second, so this is several missed pongs). Internal so tests can shorten it.
+    var silenceTimeout: TimeInterval = GlasspadService.serverSilenceTimeout
+    /// Internal so tests can make the phone's liveness check fire.
+    var pingInterval: TimeInterval = GlasspadService.pingInterval
 
     final class Session: @unchecked Sendable {
         enum Phase { case awaitingHello, awaitingConfirm, authenticated }
@@ -110,6 +136,13 @@ public final class GlasspadServer: @unchecked Sendable {
             txt["id"] = macID.uuidString
             txt["v"] = "\(GlasspadService.protocolVersion)"
             tcp.service = NWListener.Service(name: macName, type: GlasspadService.bonjourType, domain: nil, txtRecord: txt)
+            tcp.serviceRegistrationUpdateHandler = { [weak self] change in
+                switch change {
+                case .add: self?.advertisingBox.set(true)
+                case .remove: self?.advertisingBox.set(false)
+                @unknown default: break
+                }
+            }
         }
         tcp.stateUpdateHandler = { [weak self] st in self?.listenerState(st, tcp: true) }
         udp.stateUpdateHandler = { [weak self] st in self?.listenerState(st, tcp: false) }
@@ -144,6 +177,7 @@ public final class GlasspadServer: @unchecked Sendable {
             udpListener = nil
             udpPort = nil
             portsBox.set((nil, nil))
+            advertisingBox.set(false)
             setState(.idle)
         }
     }
@@ -191,8 +225,16 @@ public final class GlasspadServer: @unchecked Sendable {
         let s = Session(channel: ControlChannel(connection: conn, queue: queue))
         let key = ObjectIdentifier(s)
         handshaking[key] = s
-        s.channel.onFrame = { [weak self, unowned s] data in self?.handleFrame(data, from: s) }
-        s.channel.onClosed = { [weak self, unowned s] reason in self?.closed(s, reason: reason) }
+        // Weak, not unowned: a replaced session is released while its last bye is still in
+        // flight, and the channel's close callback arrives after that.
+        s.channel.onFrame = { [weak self, weak s] data in
+            guard let s else { return }
+            self?.handleFrame(data, from: s)
+        }
+        s.channel.onClosed = { [weak self, weak s] reason in
+            guard let s else { return }
+            self?.closed(s, reason: reason)
+        }
         s.channel.start()
         queue.asyncAfter(deadline: .now() + GlasspadService.handshakeTimeout) { [weak s] in
             guard let s, s.phase != .authenticated else { return }
@@ -232,6 +274,7 @@ public final class GlasspadServer: @unchecked Sendable {
                 statsBox.mutate { $0.authFailures += 1 }
                 return
             }
+            if s === active { lastHeard = uptime() }
             guard let msg = try? ControlMessage.from(jsonData: plain) else {
                 statsBox.mutate { $0.malformed += 1 }
                 return
@@ -288,15 +331,41 @@ public final class GlasspadServer: @unchecked Sendable {
         if let old = active {
             active = nil
             old.udp?.cancel()
-            byeAndClose(old, reason: "replaced by a new connection")
+            byeAndClose(old, reason: GlasspadService.replacedReason)
         }
         active = s
         phoneBox.set(s.phone)
         rtts = []
         pingSent = [:]
+        lastHeard = uptime()
         statsBox.mutate { $0.rttMedianMs = nil; $0.rttP95Ms = nil; $0.rttSamples = 0 }
         setState(.connected(rttMs: nil))
+        if let phone = s.phone {
+            let handler = sessionHandler.get()
+            delegateQueue.async { handler?(phone) }
+        }
+        sendWakeTarget(on: s)
         startPinging()
+    }
+
+    /// Tells the phone how to wake this Mac (sealed; handled inside the client, never delivered
+    /// as a `ControlMessage`).
+    private func sendWakeTarget(on s: Session) {
+        var target = wakeOverride.get()
+        if target == nil, case .hostPort(let host, _)? = s.channel.connection.currentPath?.localEndpoint {
+            target = WakeOnLAN.target(forLocalAddress: Self.string(host))
+        }
+        guard let target, let json = try? JSONEncoder().encode(WakeAnnouncement(target: target)) else { return }
+        sendRaw(json, on: s)
+    }
+
+    static func string(_ host: NWEndpoint.Host) -> String {
+        switch host {
+        case .ipv4(let a): return "\(a)"
+        case .ipv6(let a): return "\(a)"
+        case .name(let n, _): return n
+        @unknown default: return "\(host)"
+        }
     }
 
     private func closed(_ s: Session, reason: String?) {
@@ -335,7 +404,7 @@ public final class GlasspadServer: @unchecked Sendable {
     private func startPinging() {
         pingTimer?.cancel()
         let t = DispatchSource.makeTimerSource(queue: queue)
-        t.schedule(deadline: .now() + GlasspadService.pingInterval, repeating: GlasspadService.pingInterval)
+        t.schedule(deadline: .now() + pingInterval, repeating: pingInterval)
         t.setEventHandler { [weak self] in self?.sendPing() }
         t.resume()
         pingTimer = t
@@ -343,6 +412,12 @@ public final class GlasspadServer: @unchecked Sendable {
 
     private func sendPing() {
         guard let s = active else { return }
+        if uptime() - lastHeard > silenceTimeout {
+            // The phone slept, left Wi-Fi or was suspended. Close so the Mac shows it and
+            // releases anything held; a live phone reconnects on its own.
+            byeAndClose(s, reason: "phone went silent")
+            return
+        }
         pingID &+= 1
         pingSent[pingID] = uptime()
         if pingSent.count > 30, let oldest = pingSent.min(by: { $0.value < $1.value }) {
@@ -398,6 +473,7 @@ public final class GlasspadServer: @unchecked Sendable {
             if s.udp !== conn { conn.cancel() }
             return
         }
+        lastHeard = uptime()
         if s.udp !== conn {          // learn (or re-learn after roaming) the phone's UDP address
             s.udp?.cancel()
             s.udp = conn

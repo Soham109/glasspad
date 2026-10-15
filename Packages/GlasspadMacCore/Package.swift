@@ -8,11 +8,15 @@ let package = Package(
     ],
     dependencies: [
         .package(path: "../GlasspadKit"),
+        .package(path: "../GlasspadMacros"),
     ],
     targets: [
         .target(
             name: "GlasspadMacCore",
-            dependencies: [.product(name: "GlasspadKit", package: "GlasspadKit")],
+            dependencies: [
+                .product(name: "GlasspadKit", package: "GlasspadKit"),
+                .product(name: "GlasspadMacros", package: "GlasspadMacros"),
+            ],
             linkerSettings: [
                 .linkedFramework("AppKit"),
                 .linkedFramework("ApplicationServices"),

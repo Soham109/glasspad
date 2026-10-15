@@ -10,6 +10,8 @@ public final class ModeRouter {
     public let deck: DeckMode
     public let clipboard: ClipboardMode
     public let present: PresentMode
+    /// Macros mode. nil until the controller wires one in; macro messages are then ignored.
+    public var macros: MacroCoordinator?
     public var send: (ModeMessage) -> Void = { _ in }
 
     private var mediaTimer: Timer?
@@ -30,6 +32,7 @@ public final class ModeRouter {
         case .modeSelected(let mode):
             if mode != .present { present.setLaser(on: false) }
             if mode == .media { startMediaUpdates() } else { stopMediaUpdates() }
+            if mode == .macros { macros?.handle(.listMacros) }
         case .dockRequest: send(.dockList(apps: dock.currentList()))
         case .dockOpen(let id): dock.open(bundleID: id)
         case .keysText(let text): keys.type(text)
@@ -53,6 +56,7 @@ public final class ModeRouter {
         case .presentPrevious: present.previous()
         case .presentLaser(let on): present.setLaser(on: on)
         case .presentLaserPosition(let x, let y): present.moveLaser(x: x, y: y)
+        case .macro(let m): macros?.handle(m)
         // Mac -> phone messages: ignore if echoed back.
         case .dockList, .mediaState, .deckButtons, .deckResult, .clipboardContent: break
         }

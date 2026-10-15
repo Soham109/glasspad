@@ -10,10 +10,15 @@ import SwiftUI
 
 struct MenuBarLabel: View {
     let state: LinkState
+    @ObservedObject var macros: MacroCoordinator
 
     var body: some View {
+        // While recording a macro the menu bar says so too.
+        if macros.isRecording {
+            Image(systemName: "record.circle.fill")
+                .accessibilityLabel("Glasspad, recording a macro")
         // The template icon from Resources when bundled; an SF Symbol under `swift run`.
-        if let image = Self.icon {
+        } else if let image = Self.icon {
             Image(nsImage: image)
                 .accessibilityLabel("Glasspad, \(state.title)")
         } else {

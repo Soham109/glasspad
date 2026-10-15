@@ -12,6 +12,7 @@ let package = Package(
     dependencies: [
         .package(path: "../../Packages/GlasspadKit"),
         .package(path: "../../Packages/GlasspadMacCore"),
+        .package(path: "../../Packages/GlasspadMacros"),
     ],
     targets: [
         .executableTarget(
@@ -19,6 +20,7 @@ let package = Package(
             dependencies: [
                 .product(name: "GlasspadKit", package: "GlasspadKit"),
                 .product(name: "GlasspadMacCore", package: "GlasspadMacCore"),
+                .product(name: "GlasspadMacros", package: "GlasspadMacros"),
             ],
             linkerSettings: [
                 .linkedFramework("ServiceManagement"),

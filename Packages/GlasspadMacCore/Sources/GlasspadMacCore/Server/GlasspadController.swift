@@ -20,6 +20,8 @@ public final class GlasspadController: ObservableObject {
 
     public let pairing: PairingStore
     public let macName: String
+    /// Macros: the engine, the Settings editor's data, and the phone's Macros screen.
+    public let macros: MacroCoordinator
     private let server: GlasspadServer
     private let watcher: TrackpadPrefsWatcher
     private let pipeline: TouchPipeline
@@ -39,6 +41,8 @@ public final class GlasspadController: ObservableObject {
         let synth = EventSynthesizer(poster: poster, settings: watcher.settings, capabilities: caps)
         self.pipeline = TouchPipeline(settings: watcher.settings, synth: synth)
         self.modes = ModeRouter(poster: poster)
+        self.macros = MacroCoordinator.live(poster: poster)
+        self.modes.macros = macros
         let store = pairing
         self.server = GlasspadServer(macID: pairing.macID, macName: macName) { phoneID in
             store.storedKey(for: phoneID)
@@ -56,6 +60,11 @@ public final class GlasspadController: ObservableObject {
         pipeline.onHaptic = { [weak self] kind in self?.server.send(.haptic(kind)) }
         pipeline.setDisplayWidth(Double(NSScreen.screens.first?.frame.width ?? 0))
         modes.send = { [weak self] message in self?.server.send(.mode(message)) }
+        macros.send = { [weak self] message in self?.server.send(.mode(.macro(message))) }
+        server.onSessionStarted = { [weak self] _ in
+            MainActor.assumeIsolated { self?.sessionStarted() }
+        }
+        macros.start()
         watcher.onChange = { [weak self] s in self?.settingsChanged(s) }
         watcher.start()
         do {
@@ -75,6 +84,7 @@ public final class GlasspadController: ObservableObject {
         statusTimer?.invalidate()
         watcher.stop()
         pipeline.cancelAll()
+        macros.stop()
         server.stop()
     }
 
@@ -125,12 +135,22 @@ public final class GlasspadController: ObservableObject {
 
     // MARK: Link callbacks
 
+    /// A phone's session became active: a fresh connect, or a phone replacing another one (the
+    /// link state can stay `connected` through that, so this is the reliable signal).
+    private func sessionStarted() {
+        // Anything the previous phone was holding (a drag, momentum) ends now.
+        pipeline.cancelAll()
+        modes.sessionEnded()
+        connectedPhoneName = server.connectedPhone?.phoneName
+        server.send(.settings(settings))
+        macros.sessionStarted()
+    }
+
     fileprivate func linkStateChanged(_ state: LinkState) {
         let wasConnected = { if case .connected = linkState { return true } else { return false } }()
         linkState = state
         if case .connected = state {
             connectedPhoneName = server.connectedPhone?.phoneName
-            if !wasConnected { server.send(.settings(settings)) }
         } else {
             connectedPhoneName = nil
             if wasConnected {

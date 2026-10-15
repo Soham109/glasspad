@@ -5,6 +5,8 @@ import CoreGraphics
 public enum SystemAction: Equatable, Sendable {
     case openApplication(URL)
     case runAppleScript(String)
+    /// Open a URL or file with its default app (macro `openURL` / `openFile` steps).
+    case openURL(URL)
 }
 
 /// Where synthesized events go. The live poster sends them into the session; tests use
@@ -37,6 +39,10 @@ public final class LiveEventPoster: EventPoster {
         switch action {
         case .openApplication(let url):
             NSWorkspace.shared.openApplication(at: url, configuration: .init(), completionHandler: nil)
+        case .openURL(let url):
+            let config = NSWorkspace.OpenConfiguration()
+            config.activates = true
+            NSWorkspace.shared.open(url, configuration: config, completionHandler: nil)
         case .runAppleScript(let source):
             let p = Process()
             p.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
