@@ -6,7 +6,8 @@ public enum GestureTuning {
     // MARK: Taps and clicks
     /// Longest finger-down time that still counts as a tap.
     public static let tapMaxDuration: TimeInterval = 0.30
-    /// Farthest any finger may travel and still count as a tap.
+    /// Farthest any finger may travel and still count as a tap (10 pt = 1.65 mm: touch-down
+    /// wobble of up to 0.5 mm plus a lift-off roll of up to 1 mm still clicks).
     public static let tapSlop: Double = 10
     /// Taps closer together than this (and near each other) raise the click count.
     public static let doubleClickInterval: TimeInterval = 0.45
@@ -33,7 +34,9 @@ public enum GestureTuning {
     public static let holdSlop: Double = 8
 
     // MARK: Pointer
-    /// One finger must move this far before the pointer starts moving.
+    /// Once a touch can no longer be a tap (down longer than `tapMaxDuration`), one finger must
+    /// move this far (4 pt = 0.66 mm) from where it landed before the pointer starts moving.
+    /// While it can still be a tap, `touchDownHoldMillimetres` applies instead.
     public static let pointerStartSlop: Double = 4
     /// Movement past which a held button (tap-drag, hold, three-finger) starts dragging.
     public static let dragStartSlop: Double = 4
@@ -55,6 +58,57 @@ public enum GestureTuning {
     /// Frame interval clamp for speed estimates.
     public static let minFrameInterval: TimeInterval = 0.004
     public static let maxFrameInterval: TimeInterval = 0.05
+
+    // MARK: Pointer precision (physical units)
+    // The Mac's own trackpad never moves the pointer for the motion inside a tap, nor for the
+    // pad rolling off the glass at lift. These thresholds do the same with the phone's touch
+    // positions, contact radius (`Touch.majorRadius`) and touch timestamps. Distances are in
+    // millimetres of finger travel on the glass, converted with `points(mm:)`.
+
+    /// Phone points per millimetre (6.04 on iPhone Pro screens).
+    public static let phonePointsPerMillimetre: Double = phonePointsPerInch / 25.4
+    /// Millimetres of finger travel in phone points.
+    public static func points(mm: Double) -> Double { mm * phonePointsPerMillimetre }
+
+    /// Touch-down hysteresis: while a touch can still be a tap, the pointer does not move until
+    /// the finger has travelled this far from where it landed. A pad landing on glass wobbles
+    /// 1 to 3 pt (0.2 to 0.5 mm) as it flattens; 1 mm clears that with margin and is about 20 ms
+    /// of a deliberate move. The held motion is released (`heldMotionReleaseTime`), not lost.
+    public static let touchDownHoldMillimetres: Double = 1.0
+    /// Motion held back by a hold is fed out over this long once the finger is clearly moving,
+    /// on top of the live motion, so the pointer starts without a jump (five 120 Hz frames).
+    public static let heldMotionReleaseTime: TimeInterval = 0.04
+
+    /// Contact radius history kept per finger for spotting a pad peeling off the glass.
+    public static let contactRadiusWindow: TimeInterval = 0.1
+    /// The contact is lifting when its radius has dropped this fraction below its peak over
+    /// `contactRadiusWindow`: a pad rolling onto its tip before it leaves loses a third or more
+    /// of its contact radius, while a moving finger varies by one 2 pt wire step or so.
+    public static let liftRadiusDropFraction: Double = 0.15
+    /// ... and by at least this much (one 2 pt wire step is 0.33 mm, so this needs two).
+    public static let liftRadiusMinDropMillimetres: Double = 0.4
+    /// A roll is also a speed spike: this frame faster than this many times the finger's
+    /// slowest frame over the `rollSpeedWindow` before it. A flick being lifted is steady or
+    /// slowing, so its last motion is never held.
+    public static let rollSpikeRatio: Double = 2.5
+    public static let rollSpeedWindow: TimeInterval = 0.05
+    /// ... and at least this fast (5 mm/s), so a resting finger's sensor noise is never a spike.
+    public static let rollMinSpeedMillimetresPerSecond: Double = 5
+    /// While the contact peels off, motion is held until the finger has travelled this far
+    /// from where the peel began. A lift-off roll is 2 to 6 pt (0.3 to 1 mm).
+    public static let liftRollHoldMillimetres: Double = 1.5
+    /// A roll hold that no lift follows within this long was not a lift (rolls take 30 to
+    /// 60 ms): its motion is released.
+    public static let rollHoldMaxTime: TimeInterval = 0.08
+
+    /// A finger is resting once it has stayed within this radius for `restArmTime`. Aiming
+    /// fingers settle to well under 0.25 mm of drift per 60 ms.
+    public static let restRadiusMillimetres: Double = 0.25
+    public static let restArmTime: TimeInterval = 0.06
+    /// A finger that leaves rest and lifts within this long, having travelled less than
+    /// `liftRollHoldMillimetres`, rolled off: the motion since the rest is taken back, so the
+    /// pointer stays where it was aimed even when the contact radius gave no warning.
+    public static let liftRetractWindow: TimeInterval = 0.08
 
     // MARK: Scroll
     /// Two fingers must translate this far together to start scrolling.

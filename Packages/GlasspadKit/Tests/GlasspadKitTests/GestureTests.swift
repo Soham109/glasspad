@@ -10,6 +10,8 @@ final class Script {
     var events: [GestureEvent] = []
     var haptics: [HapticKind] = []
     var fingers: [UInt8: (x: Double, y: Double)] = [:]
+    /// Contact radius per finger (phone points); 20 when not set.
+    var radii: [UInt8: Double] = [:]
     let surface = CGSize(width: 390, height: 844)
     /// Simulates a different caller clock (the Mac's) from the frame clock (the phone's).
     var localOffset: TimeInterval = 0
@@ -25,10 +27,10 @@ final class Script {
     func send(_ changed: [UInt8: TouchPhase], removing: Set<UInt8> = []) -> [GestureEvent] {
         var touches: [Touch] = []
         for (id, p) in fingers.sorted(by: { $0.key < $1.key }) {
-            touches.append(Touch(id: id, phase: changed[id] ?? .stationary, x: p.x, y: p.y))
+            touches.append(Touch(id: id, phase: changed[id] ?? .stationary, x: p.x, y: p.y, majorRadius: radii[id] ?? 20))
         }
         let ev = r.process(TouchFrame(seq: 0, timestamp: t, touches: touches, surface: surface), receivedAt: t + localOffset)
-        for id in removing { fingers.removeValue(forKey: id) }
+        for id in removing { fingers.removeValue(forKey: id); radii.removeValue(forKey: id) }
         events += ev
         return ev
     }

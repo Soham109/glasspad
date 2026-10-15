@@ -51,6 +51,53 @@ public final class GestureRecognizer {
         var prev: V
         var cur: V
         var downTime: TimeInterval
+        /// Contact radius samples over the last `contactRadiusWindow`.
+        var radii: [(t: TimeInterval, r: Double)] = []
+        /// Rest detection: the finger has stayed within `restRadiusMillimetres` of `restRef`
+        /// since `restRefTime`.
+        var restRef: V
+        var restRefTime: TimeInterval
+        /// Set when this frame finds the finger resting (still for `restArmTime`): the rest position.
+        var restingAt: V?
+
+        init(at p: V, t: TimeInterval) {
+            origin = p; start = p; prev = p; cur = p; downTime = t
+            restRef = p; restRefTime = t
+        }
+
+        /// True when the contact radius has dropped well below its recent peak: the pad is
+        /// rolling onto its tip, which is what a finger does in the last tens of ms before lift.
+        var contactShrinking: Bool {
+            guard let r = radii.last?.r, r > 0, let peak = radii.map(\.r).max(), peak > 0 else { return false }
+            return peak - r >= max(peak * GestureTuning.liftRadiusDropFraction,
+                                   GestureTuning.points(mm: GestureTuning.liftRadiusMinDropMillimetres))
+        }
+    }
+
+    /// Pointer motion held back instead of posted: at touch-down while the touch can still be a
+    /// tap, and while a contact peels off the glass. Released smoothly or discarded on lift.
+    struct Hold {
+        enum Reason { case touchDown, roll }
+        var reason: Reason
+        var anchor: V
+        var held: V = .zero
+        /// Where and when the contact started peeling off, if it has.
+        var rollFrom: V?
+        var rollSince: TimeInterval = 0
+    }
+
+    /// Held motion (Mac points) being fed out over `heldMotionReleaseTime`.
+    struct Backlog {
+        var total: V
+        var released: V = .zero
+        var start: TimeInterval
+    }
+
+    /// Motion posted since the finger left a rest, taken back if it then lifts at once.
+    struct RestRetract {
+        var anchor: V
+        var start: TimeInterval
+        var emitted: V = .zero
     }
 
     struct Session {
@@ -61,6 +108,11 @@ public final class GestureRecognizer {
         var tapDragArmed: Bool
         var firstOrigin: V
         var startedAtRightEdge = false
+        /// Pointer motion (Mac points) posted in this session, taken back if it ends as a tap.
+        var emitted: V = .zero
+        /// One finger was moving the pointer when more fingers landed: if they lift again
+        /// without starting a gesture, the remaining finger goes back to pointing.
+        var resumePointing = false
     }
 
     enum DragSource { case tapDrag, hold, threeFinger }
@@ -117,6 +169,17 @@ public final class GestureRecognizer {
     private var swipeProgress: Double = 0
     private var pageTravel: Double = 0
 
+    private var hold: Hold?
+    private var backlog: Backlog?
+    private var restRetract: RestRetract?
+    /// One-finger speeds (phone points per second) over the last `rollSpeedWindow`.
+    private var speedHistory: [(t: TimeInterval, v: Double)] = []
+    /// This frame looks like a lift-off roll: contact shrinking plus a speed spike.
+    private var rollSignal = false
+    private var lastSpeedSampleTime: TimeInterval?
+    /// A roll hold was let go (no lift came): no new one until the contact stops shrinking.
+    private var rollSpent = false
+
     private var lastClick: (t: TimeInterval, p: V, count: Int)?
     private var lastTapEnd: (t: TimeInterval, p: V)?
     private var pendingTwoTap: (t: TimeInterval, fireRight: Bool)?
@@ -150,7 +213,7 @@ public final class GestureRecognizer {
             touches = [:]
             for tch in frame.touches where tch.phase.isActive {
                 let p = V(tch.x, tch.y)
-                touches[tch.id] = Tracked(origin: p, start: p, prev: p, cur: p, downTime: t)
+                touches[tch.id] = Tracked(at: p, t: t)
             }
             if !touches.isEmpty {
                 session = Session(startTime: t, maxFingers: touches.count, tapCandidate: false,
@@ -161,23 +224,46 @@ public final class GestureRecognizer {
         }
 
         // Stage 1: motion of fingers we already track (including their final position on lift).
-        for id in touches.keys { touches[id]!.prev = touches[id]!.cur }
-        var sum = V.zero
-        var moved = 0
+        for id in touches.keys { touches[id]!.prev = touches[id]!.cur; touches[id]!.restingAt = nil }
+        var all: [V] = [], staying: [V] = [], steering: [V] = []
+        let restRadius = GestureTuning.points(mm: GestureTuning.restRadiusMillimetres)
         for tch in frame.touches {
             guard var tr = touches[tch.id] else { continue }
             tr.cur = V(tch.x, tch.y)
-            sum += tr.cur - tr.prev
-            moved += 1
+            let d = tr.cur - tr.prev
+            all.append(d)
+            if tch.phase.isActive { staying.append(d) }
+            if t - tr.restRefTime >= GestureTuning.restArmTime { tr.restingAt = tr.restRef }
+            if length(tr.cur - tr.restRef) > restRadius {
+                tr.restRef = tr.cur
+                tr.restRefTime = t
+            }
+            if tch.majorRadius > 0 {
+                tr.radii.append((t, tch.majorRadius))
+                tr.radii.removeAll { $0.t < t - GestureTuning.contactRadiusWindow }
+            }
             touches[tch.id] = tr
+            // Fingers that may steer the pointer when several are down: not one still landing
+            // (inside its own touch-down hold) and not one peeling off.
+            let settled = t - tr.downTime > GestureTuning.tapMaxDuration
+                || length(tr.cur - tr.origin) > GestureTuning.points(mm: GestureTuning.touchDownHoldMillimetres)
+            if tch.phase.isActive, settled, !tr.contactShrinking { steering.append(d) }
             if session != nil {
                 session!.maxDisplacement = max(session!.maxDisplacement, length(tr.cur - tr.origin))
             }
         }
-        if moved > 0 {
-            let d = sum / Double(moved)
-            updateSpeed(d, t: t, dt: dt)
-            ev += handleMotion(d, t: t)
+        if !all.isEmpty {
+            // A finger lifting while others stay contributes nothing: its last position is the
+            // pad rolling off, and averaging it in would shift the centroid.
+            let use = staying.isEmpty ? all : staying
+            let d = use.reduce(V.zero, +) / Double(use.count)
+            // Pointer motion with several fingers follows the steering finger that moves most (a
+            // resting thumb does not halve it, a landing or lifting finger's noise never moves
+            // it), and switching between fingers never jumps: only per-finger deltas are used.
+            let pd = use.count == 1 ? use[0] : (steering.max { length($0) < length($1) } ?? .zero)
+            updateSpeed(drivesPointer ? pd : d, t: t, dt: dt)
+            updateRollSignal(t: t)
+            ev += handleMotion(d, pointer: pd, t: t)
         }
 
         // Stage 2: lifts (ended, or missing from the snapshot).
@@ -195,7 +281,9 @@ public final class GestureRecognizer {
             let wasEmpty = touches.isEmpty
             for tch in added {
                 let p = V(tch.x, tch.y)
-                touches[tch.id] = Tracked(origin: p, start: p, prev: p, cur: p, downTime: t)
+                var tr = Tracked(at: p, t: t)
+                if tch.majorRadius > 0 { tr.radii = [(t, tch.majorRadius)] }
+                touches[tch.id] = tr
             }
             ev += handleAdd(wasEmpty: wasEmpty, firstOrigin: V(added[0].x, added[0].y), t: t)
         }
@@ -257,23 +345,38 @@ public final class GestureRecognizer {
 
     // MARK: Motion
 
-    private func handleMotion(_ d: V, t: TimeInterval) -> [GestureEvent] {
+    /// True in the states where finger motion moves the pointer.
+    private var drivesPointer: Bool {
+        switch state {
+        case .pointing, .holding: return true
+        case .possible: return touches.count == 1
+        case .dragging(let src): return src != .threeFinger
+        default: return false
+        }
+    }
+
+    private func handleMotion(_ d: V, pointer pd: V, t: TimeInterval) -> [GestureEvent] {
         switch state {
         case .idle, .consumed, .scrollLifting:
             return []
         case .possible:
             return classify(t: t)
         case .pointing:
-            return [.move(dx: accel(d).x, dy: accel(d).y)]
-        case .dragging:
-            let a = accel(d)
-            return [.drag(dx: a.x, dy: a.y)]
+            return pointerStep(pd, t: t, drag: false)
+        case .dragging(let src):
+            if src == .threeFinger {
+                let a = accel(d)
+                return [.drag(dx: a.x, dy: a.y)]
+            }
+            return pointerStep(pd, t: t, drag: true)
         case .holding:
             let moved = touches.values.contains { length($0.cur - $0.start) > GestureTuning.dragStartSlop }
             guard moved else { return [] }
             state = .dragging(.hold)
-            let a = accel(translation())
-            return [.drag(dx: a.x, dy: a.y)]
+            // The button went down where the finger settled; the travel that started the drag
+            // is fed out smoothly instead of in one jump.
+            startBacklog(accel(translation()), t: t)
+            return pointerStep(.zero, t: t, drag: true)
         case .scrolling:
             let s = scrollVector(d)
             scrollSamples.append((t, s))
@@ -296,19 +399,27 @@ public final class GestureRecognizer {
         let n = touches.count
         let T = translation()
         if n == 1 {
-            guard length(T) > GestureTuning.pointerStartSlop else { return [] }
+            // Touch-down hysteresis: nothing moves until the finger is clearly travelling.
+            guard let tr = touches.values.first else { return [] }
+            var h = hold ?? Hold(reason: .touchDown, anchor: tr.origin)
+            h.held = tr.cur - h.anchor
+            // While a tap is still possible a shrinking contact alone is enough (nothing has
+            // been posted yet, so there is no flick to protect).
+            if tr.contactShrinking, h.rollFrom == nil { h.rollFrom = tr.prev; h.rollSince = t }
+            guard holdReleases(h, cur: tr.cur, t: t, downTime: tr.downTime) else { hold = h; return [] }
+            hold = nil
+            if h.rollFrom != nil { rollSpent = true }
+            rollSignal = false
+            startBacklog(accel(h.held), t: t)
             if session?.tapDragArmed == true {
                 setNotTap()
                 state = .dragging(.tapDrag)
                 haptic(.dragLock)
-                var ev = pressLeft(1)
-                let a = accel(T)
-                ev.append(.drag(dx: a.x, dy: a.y))
-                return ev
+                // The button goes down at the pointer's touch-down position, before any motion.
+                return pressLeft(1) + pointerStep(.zero, t: t, drag: true)
             }
             state = .pointing
-            let a = accel(T)
-            return [.move(dx: a.x, dy: a.y)]
+            return pointerStep(.zero, t: t, drag: false)
         }
         if n == 2 { return classifyTwo(T: T, t: t) }
         if n == 3 && settings.threeFingerDrag {
@@ -474,6 +585,159 @@ public final class GestureRecognizer {
         return [.navigate(back: pageTravel > 0)]
     }
 
+    // MARK: Pointer precision
+
+    /// One frame of one-finger pointer motion (pointing or a drag): holds motion while the
+    /// contact peels off, feeds out held motion, and keeps the records the lift needs.
+    /// `d` is phone points of live finger motion.
+    private func pointerStep(_ d: V, t: TimeInterval, drag: Bool) -> [GestureEvent] {
+        var live = d
+        var holding = false
+        if touches.count == 1, let tr = touches.values.first {
+            // Each frame that finds the finger at rest (re)starts the record of what is posted
+            // after it, so a lift right after leaving the rest can take that motion back.
+            if let restPos = tr.restingAt {
+                if restRetract?.anchor == restPos { restRetract!.start = t } else { restRetract = RestRetract(anchor: restPos, start: t) }
+            }
+            if hold == nil, rollSignal { hold = Hold(reason: .roll, anchor: tr.prev, rollFrom: tr.prev, rollSince: t) }
+            if var h = hold {
+                h.held += d
+                live = .zero
+                if holdReleases(h, cur: tr.cur, t: t, downTime: tr.downTime) {
+                    hold = nil
+                    rollSpent = true
+                    startBacklog(accel(h.held), t: t)
+                } else {
+                    hold = h
+                    holding = true
+                }
+            }
+            if let r = restRetract, t - r.start > GestureTuning.liftRetractWindow
+                || length(tr.cur - r.anchor) > GestureTuning.points(mm: GestureTuning.liftRollHoldMillimetres) {
+                restRetract = nil
+            }
+        }
+        let out = accel(live) + backlogStep(t: t)
+        if holding && out == .zero { return [] }
+        noteEmitted(out)
+        return [pointerEvent(out, drag: drag)]
+    }
+
+    /// Whether held motion should be let go: the finger is clearly travelling (or, for a roll
+    /// hold, no lift came in time). While a tap is still possible, nothing is released by time.
+    private func holdReleases(_ h: Hold, cur: V, t: TimeInterval, downTime: TimeInterval) -> Bool {
+        let tapPending = h.reason == .touchDown && t - downTime <= GestureTuning.tapMaxDuration
+        let base: Bool
+        switch h.reason {
+        case .touchDown:
+            let limit = tapPending ? GestureTuning.points(mm: GestureTuning.touchDownHoldMillimetres)
+                                   : GestureTuning.pointerStartSlop
+            base = length(cur - h.anchor) > limit
+        case .roll:
+            base = true
+        }
+        guard base else { return false }
+        guard let rf = h.rollFrom else { return true }
+        if length(cur - rf) >= GestureTuning.points(mm: GestureTuning.liftRollHoldMillimetres) { return true }
+        return !tapPending && t - h.rollSince >= GestureTuning.rollHoldMaxTime
+    }
+
+    /// Contact shrinking plus a speed spike on the only finger: the start of a lift-off roll.
+    private func updateRollSignal(t: TimeInterval) {
+        rollSignal = false
+        guard touches.count == 1, let tr = touches.values.first else { speedHistory = []; return }
+        // Against the slowest recent frame: a finger that slowed onto its target and then rolls
+        // off is a spike; a flick lifted at speed is not.
+        // A gap in frames means the finger was still (UIKit sends nothing for a still finger).
+        if let last = speedHistory.last?.t ?? lastSpeedSampleTime, t - last > 2 * GestureTuning.speedWindow {
+            speedHistory.append((t - GestureTuning.speedWindow, 0))
+        }
+        lastSpeedSampleTime = t
+        let slowest = speedHistory.filter { $0.t >= t - GestureTuning.rollSpeedWindow && $0.t < t }.map(\.v).min() ?? 0
+        let minSpeed = GestureTuning.points(mm: GestureTuning.rollMinSpeedMillimetresPerSecond)
+        let spike = fingerSpeed >= minSpeed && fingerSpeed >= slowest * GestureTuning.rollSpikeRatio
+        let shrinking = tr.contactShrinking
+        if !shrinking { rollSpent = false }
+        rollSignal = spike && shrinking && !rollSpent
+        speedHistory.append((t, fingerSpeed))
+        speedHistory.removeAll { $0.t < t - GestureTuning.rollSpeedWindow }
+    }
+
+    /// Starts feeding out `total` (Mac points). The first share goes out in this same frame, as
+    /// if the release began one report period ago, so a released hold moves the pointer at once.
+    private func startBacklog(_ total: V, t: TimeInterval) {
+        guard total != .zero else { return }
+        let start = t - GestureTuning.speedWindow
+        if let b = backlog {
+            backlog = Backlog(total: b.total - b.released + total, start: start)
+        } else {
+            backlog = Backlog(total: total, start: start)
+        }
+    }
+
+    /// The share of the backlog due by `t` (Mac points).
+    private func backlogStep(t: TimeInterval) -> V {
+        guard var b = backlog else { return .zero }
+        let f = min(max((t - b.start) / GestureTuning.heldMotionReleaseTime, 0), 1)
+        let step = b.total * f - b.released
+        b.released += step
+        backlog = f >= 1 ? nil : b
+        return step
+    }
+
+    private func noteEmitted(_ out: V) {
+        session?.emitted += out
+        restRetract?.emitted += out
+    }
+
+    private func pointerEvent(_ v: V, drag: Bool) -> GestureEvent {
+        drag ? .drag(dx: v.x, dy: v.y) : .move(dx: v.x, dy: v.y)
+    }
+
+    /// Forgets held motion, the backlog and the rest record (fingers added, gesture changed).
+    private func dropPointerState() {
+        hold = nil
+        backlog = nil
+        restRetract = nil
+    }
+
+    /// The last finger left while moving the pointer. A tap puts the pointer back where the
+    /// finger landed (the click lands there); a lift right after leaving rest takes back the
+    /// roll; otherwise the backlog goes out. Held motion is always discarded.
+    private func finishPointer(tapping: Bool) -> [GestureEvent] {
+        defer { dropPointerState() }
+        let drag: Bool
+        switch state {
+        case .pointing: drag = false
+        case .dragging(let src) where src != .threeFinger: drag = true
+        case .possible, .holding:
+            if tapping, let e = session?.emitted, e != .zero { return [pointerEvent(-e, drag: false)] }
+            return []
+        default: return []
+        }
+        if tapping {
+            guard let e = session?.emitted, e != .zero else { return [] }
+            session?.emitted = .zero
+            return [pointerEvent(-e, drag: drag)]
+        }
+        if let r = restRetract, r.emitted != .zero {
+            return [pointerEvent(-r.emitted, drag: drag)]
+        }
+        if let b = backlog, b.total - b.released != .zero {
+            let rest = b.total - b.released
+            noteEmitted(rest)
+            return [pointerEvent(rest, drag: drag)]
+        }
+        return []
+    }
+
+    /// Whether the session ending at `t` will be recognised as a tap (of any finger count).
+    private func endsAsTap(t: TimeInterval) -> Bool {
+        guard let s = session, s.tapCandidate else { return false }
+        return t - s.startTime <= GestureTuning.tapMaxDuration && s.maxDisplacement <= GestureTuning.tapSlop
+            && s.maxFingers <= 3
+    }
+
     // MARK: Lifts and additions
 
     private func handleLift(t: TimeInterval) -> [GestureEvent] {
@@ -483,7 +747,15 @@ public final class GestureRecognizer {
         case .idle:
             break
         case .possible:
-            if r > 0, (session?.maxFingers ?? 0) >= 2 { state = .consumed }
+            if r == 1, session?.resumePointing == true {
+                // The extra fingers came and went without a gesture: the remaining finger
+                // points again, from where it is now (its motion was never averaged with theirs).
+                state = .pointing
+                dropPointerState()
+                rebase()
+            } else if r > 0, (session?.maxFingers ?? 0) >= 2 {
+                state = .consumed
+            }
         case .pointing, .consumed, .pageSwipe:
             break
         case .dragging(let src):
@@ -505,6 +777,7 @@ public final class GestureRecognizer {
             if r == 0 { ev += endSwipe(kind, cancelled: false) }
         }
         if r == 0 {
+            ev += finishPointer(tapping: endsAsTap(t: t))
             ev += releaseLeft()
             ev += evaluateTap(t: t)
             session = nil
@@ -525,12 +798,20 @@ public final class GestureRecognizer {
             fingerSpeed = 0
             state = .possible
             rebase()
+            dropPointerState()
+            speedHistory = []
+            rollSpent = false
+            if n == 1 { hold = Hold(reason: .touchDown, anchor: firstOrigin) }
             return []
         }
         if let m = session?.maxFingers { session?.maxFingers = max(m, n) }
         var ev: [GestureEvent] = []
+        // A landing finger never moves the pointer: whatever was held back or still being fed
+        // out belonged to the hand settling, not to a move.
+        dropPointerState()
         switch state {
         case .possible, .pointing:
+            if case .pointing = state { session?.resumePointing = true }
             session?.tapDragArmed = false
             state = .possible
             rebase()
@@ -557,6 +838,7 @@ public final class GestureRecognizer {
 
     private func rebase() {
         for id in touches.keys { touches[id]!.start = touches[id]!.cur }
+        if case .holding = state { dropPointerState() }
         if touches.count == 2, case .possible = state {
             let c = centroid(of: \.cur)
             session?.startedAtRightEdge = c.x >= Double(surface.width) - GestureTuning.rightEdgeZone
@@ -768,6 +1050,7 @@ public final class GestureRecognizer {
         session = nil
         state = .idle
         pendingTwoTap = nil
+        dropPointerState()
         return ev
     }
 

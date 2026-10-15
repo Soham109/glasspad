@@ -387,6 +387,22 @@ As built, feel pass (Oct 2026):
   (`clockOffsetCreep`) so drift between the clocks never leaves it stale.
   `learnedClockOffset` exposes it.
 
+As built, precision pass (Oct 2026). Thresholds are in `GestureTuning` in millimetres of finger
+travel (`points(mm:)`, 6.04 pt per mm):
+- Touch-down hold: while a touch can still be a tap, no pointer motion until the finger is 1 mm
+  from where it landed (after `tapMaxDuration`, `pointerStartSlop`). Released motion is fed out
+  over 40 ms on top of live motion (no jump, nothing lost). A tap undoes any motion it posted
+  before clicking, so every tap clicks at the touch-down pointer position.
+- Lift-off roll: a contact radius 15% (and 0.4 mm) under its 100 ms peak plus a speed spike
+  (2.5x the slowest recent frame) holds motion until 1.5 mm from where the peel began or 80 ms;
+  a lift discards it. A lift within 80 ms of leaving a rest (0.25 mm for 60 ms) takes back what
+  was posted since the rest, which covers rolls the radius did not show.
+- Fingers: a lifting finger's last delta is left out while others stay; with several fingers
+  the pointer follows the settled, non-lifting finger that moves most; a landing finger drops
+  held and pending motion; pointing resumes after an extra finger leaves without a gesture.
+- Force-click drags and tap-drags press before any motion and feed their start travel out the
+  same way. Display-synced output adds no extra lag at move start (`PrecisionPipelineTests`).
+
 ## 7. Mac event synthesis (GlasspadMacCore/Synth)
 
 - Pointer, clicks, drags: `CGEvent` mouse events with delta fields set, click
