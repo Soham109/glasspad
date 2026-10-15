@@ -153,6 +153,10 @@ Run the **Glasspad Mac** scheme, then **Glasspad iOS** on your iPhone with your 
 
 Bug reports, ideas and pull requests are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md). To report a security problem, see [SECURITY.md](SECURITY.md).
 
+## Credits
+
+Demo film music: "Brand New World" by Kai Engel, [CC BY 4.0](https://creativecommons.org/licenses/by/4.0), from [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Kai_Engel_-_01_-_Brand_New_World.ogg). Details in [promo/MUSIC.md](promo/MUSIC.md).
+
 ## License
 
 [MIT](LICENSE), copyright 2026 Soham Aggarwal.

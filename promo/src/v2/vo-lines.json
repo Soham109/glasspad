@@ -1,0 +1,17 @@
+[
+  {"id": "hook1", "text": "Your Mac is over there."},
+  {"id": "hook2", "text": "Your phone is right here."},
+  {"id": "reveal", "text": "Glasspad turns it into a trackpad."},
+  {"id": "touch1", "text": "Slide a finger, and the pointer glides, in step with your display."},
+  {"id": "touch2", "text": "Tap, and you feel the click."},
+  {"id": "spaces", "text": "Swipe three fingers, and your Spaces move with your hand."},
+  {"id": "settings", "text": "It follows your Mac's own trackpad settings, so it already feels like yours."},
+  {"id": "modes", "text": "Tap the top for everything else."},
+  {"id": "apps", "text": "Open Word without getting up."},
+  {"id": "actions1", "text": "Actions follow the app in front."},
+  {"id": "actions2", "text": "Switch to Safari, and the buttons switch with you."},
+  {"id": "media", "text": "Play Spotify on your Mac, and scrub it from your phone.", "context": false},
+  {"id": "privacy1", "text": "No account. No cloud."},
+  {"id": "privacy2", "text": "Every touch is encrypted, and stays on your Wi-Fi."},
+  {"id": "end", "text": "Glasspad is free and open source."}
+]

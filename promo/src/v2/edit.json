@@ -1,0 +1,150 @@
+{
+  "_": "The single source of timing. Seconds. Read by the Remotion film (src/v2) and by scripts/film/mix.py. Music grid: bar k of the track starts at 4.0033 + 1.99988 k s (120 BPM).",
+  "fps": 60,
+  "grid": {
+    "offset": 4.0033,
+    "bar": 1.99988
+  },
+  "film": {
+    "duration": 74.8,
+    "music": [
+      {
+        "at": 0.0,
+        "fromBar": 36,
+        "toBar": 40
+      },
+      {
+        "at": 8.0,
+        "fromBar": 8,
+        "toBar": 32
+      },
+      {
+        "at": 56.0,
+        "fromBar": 40,
+        "toBar": 46
+      },
+      {
+        "at": 68.0,
+        "fromBar": 78,
+        "toBar": 81.5
+      }
+    ],
+    "vo": [
+      {
+        "id": "hook1",
+        "at": 1.0
+      },
+      {
+        "id": "hook2",
+        "at": 4.0
+      },
+      {
+        "id": "reveal",
+        "at": 7.96
+      },
+      {
+        "id": "touch1",
+        "at": 16.4
+      },
+      {
+        "id": "touch2",
+        "at": 21.3
+      },
+      {
+        "id": "spaces",
+        "at": 24.5
+      },
+      {
+        "id": "settings",
+        "at": 32.4
+      },
+      {
+        "id": "modes",
+        "at": 40.2
+      },
+      {
+        "id": "apps",
+        "at": 43.7
+      },
+      {
+        "id": "actions1",
+        "at": 48.3
+      },
+      {
+        "id": "actions2",
+        "at": 50.9
+      },
+      {
+        "id": "media",
+        "at": 56.4
+      },
+      {
+        "id": "privacy1",
+        "at": 60.6
+      },
+      {
+        "id": "privacy2",
+        "at": 63.6
+      },
+      {
+        "id": "end",
+        "at": 68.6
+      }
+    ]
+  },
+  "teaser": {
+    "duration": 30.0,
+    "music": [
+      {
+        "at": 0.0,
+        "fromBar": 38,
+        "toBar": 40
+      },
+      {
+        "at": 4.0,
+        "fromBar": 8,
+        "toBar": 12
+      },
+      {
+        "at": 12.0,
+        "fromBar": 40,
+        "toBar": 44
+      },
+      {
+        "at": 20.0,
+        "fromBar": 76,
+        "toBar": 81
+      }
+    ],
+    "vo": [
+      {
+        "id": "hook1",
+        "at": 0.2
+      },
+      {
+        "id": "hook2",
+        "at": 2.15
+      },
+      {
+        "id": "reveal",
+        "at": 3.96
+      },
+      {
+        "id": "spaces",
+        "at": 7.6
+      },
+      {
+        "id": "actions1",
+        "at": 12.3
+      },
+      {
+        "id": "actions2",
+        "at": 14.7
+      },
+      {
+        "id": "end",
+        "at": 24.6
+      }
+    ]
+  }
+}

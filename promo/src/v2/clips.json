@@ -1,0 +1,94 @@
+{
+ "_": "Phone recordings (public/v2/phone/*-60.mp4, 60 fps, Graphite theme, real app in the iPhone 18 Pro simulator, scripted by Apps/iOS/Sources/App/DemoScript.swift). Times are seconds into each clip, measured from the frames with scripts/film/events.py and diffs.py. Positions are 0..1 of the screen.",
+ "trackpad": {
+  "file": "v2/phone/trackpad-60.mp4",
+  "w": 2622,
+  "h": 1206,
+  "appVisible": 2.0,
+  "glide": [
+   3.533,
+   6.13
+  ],
+  "tap": 6.967,
+  "swipeLeft": [
+   8.183,
+   9.5
+  ],
+  "swipeBack": [
+   10.783,
+   12.3
+  ],
+  "theme": "graphite"
+ },
+ "menu": {
+  "file": "v2/phone/menu-60.mp4",
+  "w": 1206,
+  "h": 2622,
+  "appVisible": 2.217,
+  "menuOpen": 3.867,
+  "appsShown": 5.817,
+  "wordFront": 7.767,
+  "pill": [
+   0.5,
+   0.1
+  ],
+  "appsItem": [
+   0.66,
+   0.178
+  ],
+  "wordIcon": [
+   0.38,
+   0.603
+  ]
+ },
+ "actions": {
+  "file": "v2/phone/actions-60.mp4",
+  "w": 1206,
+  "h": 2622,
+  "appVisible": 2.217,
+  "switchToSafari": 6.833,
+  "header": [
+   0.5,
+   0.164
+  ],
+  "frontGrid": [
+   0.03,
+   0.2,
+   0.97,
+   0.405
+  ],
+  "screenshot": [
+   0.146,
+   0.529
+  ],
+  "lock": [
+   0.38,
+   0.529
+  ],
+  "darkMode": [
+   0.6125,
+   0.529
+  ]
+ },
+ "media": {
+  "file": "v2/phone/media-60.mp4",
+  "w": 1206,
+  "h": 2622,
+  "appVisible": 2.2,
+  "scrub": [
+   5.533,
+   6.45
+  ],
+  "scrubY": 0.619,
+  "scrubX": [
+   0.075,
+   0.925
+  ],
+  "art": [
+   0.165,
+   0.158,
+   0.835,
+   0.467
+  ]
+ }
+}

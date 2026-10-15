@@ -5,3 +5,9 @@ out/
 voice/work/
 public/*.wav
 *.mp4
+# film v2: generated audio, recordings, voice cache, exported app icons (trademarked art; scripts/film/icons.swift makes them)
+public/**/*.wav
+*.mov
+voice/cache-film/
+public/v2/icons/
+scripts/film/__pycache__/
