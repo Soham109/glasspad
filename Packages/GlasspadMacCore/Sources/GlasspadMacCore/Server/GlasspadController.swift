@@ -207,10 +207,20 @@ public final class GlasspadController: ObservableObject {
     }
 
     /// Reads Spotify and Music control without asking.
+    private var automationProbeInFlight = false
+
+    /// Never blocks the main thread (see `AutomationProbe.current`); the answer lands later.
     public func refreshAutomation() {
-        let state = AutomationProbe.current(deniedApps: MediaPermissions.shared.deniedApps)
-        if state != automation { automation = state }
-        reportStatus()
+        guard !automationProbeInFlight else { return }
+        automationProbeInFlight = true
+        let denied = MediaPermissions.shared.deniedApps
+        Task { @MainActor [weak self] in
+            let state = await AutomationProbe.current(deniedApps: denied)
+            guard let self else { return }
+            self.automationProbeInFlight = false
+            if state != self.automation { self.automation = state }
+            self.reportStatus()
+        }
     }
 
     /// Asks macOS for Spotify and Music control (only a running player can be asked).
@@ -295,8 +305,19 @@ public final class GlasspadController: ObservableObject {
         server.send(.settings(s))
     }
 
+    private var lastDropLog: TimeInterval = 0
+
     fileprivate func received(_ frame: TouchFrame) {
-        guard accessibilityTrusted else { return }
+        guard accessibilityTrusted else {
+            // Touches are dropped while macOS denies Accessibility; say so (at most every 5 s)
+            // so a stale permission is visible in the log instead of a silent dead trackpad.
+            let now = ProcessInfo.processInfo.systemUptime
+            if now - lastDropLog > 5 {
+                lastDropLog = now
+                GPLog.log("touches dropped: Accessibility is off for this copy of Glasspad (AXIsProcessTrusted \(AXIsProcessTrusted()))")
+            }
+            return
+        }
         pipeline.process(frame)
     }
 

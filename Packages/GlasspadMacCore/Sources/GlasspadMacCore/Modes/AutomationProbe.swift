@@ -26,10 +26,32 @@ public enum AutomationProbe {
         return .notDetermined
     }
 
-    /// Never shows a prompt.
-    @MainActor
-    public static func current(deniedApps: [String] = []) -> AutomationState {
-        combine(players.map { answer(bundleID: $0.bundleID, ask: false) }, deniedApps: deniedApps)
+    /// Never shows a prompt. Runs off the main thread: `AEDeterminePermissionToAutomateTarget`
+    /// can block indefinitely (waiting on tccd or on an unresponsive player), and on the main
+    /// thread that froze the whole app at launch. Gives up after `timeout` and reports
+    /// `notDetermined`; a stuck call keeps one background thread, never the main one.
+    public static func current(deniedApps: [String] = [], timeout: TimeInterval = 2) async -> AutomationState {
+        await current(deniedApps: deniedApps, timeout: timeout) {
+            players.map { answer(bundleID: $0.bundleID, ask: false) }
+        }
+    }
+
+    /// `current` with the per-player probe injected (tests use a probe that never returns).
+    static func current(deniedApps: [String], timeout: TimeInterval,
+                        probe: @escaping @Sendable () -> [Answer]) async -> AutomationState {
+        let fallback: AutomationState = deniedApps.isEmpty ? .notDetermined : .denied
+        // Whichever finishes first resumes; a probe that never returns only keeps its own
+        // background thread busy.
+        return await withCheckedContinuation { continuation in
+            let once = ResumeOnce()
+            DispatchQueue.global(qos: .utility).async {
+                let state = combine(probe(), deniedApps: deniedApps)
+                if once.claim() { continuation.resume(returning: state) }
+            }
+            DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + timeout) {
+                if once.claim() { continuation.resume(returning: fallback) }
+            }
+        }
     }
 
     /// Shows the macOS prompt for each running player not asked yet. Blocks until answered, so
@@ -61,5 +83,17 @@ public enum AutomationProbe {
         case OSStatus(procNotFound): return .notRunning
         default: return .notDetermined
         }
+    }
+}
+
+/// Lets exactly one of two racing callbacks resume a continuation.
+private final class ResumeOnce: @unchecked Sendable {
+    private let lock = NSLock()
+    private var done = false
+    func claim() -> Bool {
+        lock.lock(); defer { lock.unlock() }
+        if done { return false }
+        done = true
+        return true
     }
 }
