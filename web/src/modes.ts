@@ -1,7 +1,8 @@
 import { clamp, lerp, minJerk, reducedMotion, nextFrame, sleep } from "./spring";
 import { APPS, appIcon } from "./apps";
-import { GLYPH, PINNED as PINNED_ESSENTIALS } from "./glyphs";
-import { remoteScreen } from "./surface";
+import { glyph } from "./glyphs";
+import { Scene, Cancel, tl } from "./kit";
+import { menuBar } from "./scenes";
 
 /* Recreations of the iPhone app's own screens (Apps/iOS/Sources/Modes), drawn in iPhone points. */
 
@@ -53,8 +54,7 @@ const G2 = {
 };
 const ic = (g: string) => svg(g);
 const tile = (k: string, cls = "") => appIcon(k, cls);
-const cursorSVG = '<svg class="md-cursor" viewBox="0 0 16 22"><path d="M1 1v17l4.6-4.4 3 6.9 3-1.3-3-6.8H15Z" fill="#1A1A1A" stroke="#fff" stroke-width="1.4" stroke-linejoin="round"/></svg>';
-const menubar = (extra = "") => `<div class="md-menubar"><i></i>${extra}<i></i><i></i><i></i><i class="r"></i></div>`;
+export const cursorSVG = '<svg class="md-cursor" viewBox="0 0 16 22"><path d="M1 1v17l4.6-4.4 3 6.9 3-1.3-3-6.8H15Z" fill="#1A1A1A" stroke="#fff" stroke-width="1.4" stroke-linejoin="round"/></svg>';
 const docLines = '<div class="md-doc"><i class="h"></i><i></i><i style="width:88%"></i><i style="width:94%"></i><i class="p"></i><i></i><i style="width:76%"></i><i style="width:90%"></i><i class="h"></i><i></i><i style="width:82%"></i><i class="p p2"></i><i></i><i style="width:70%"></i></div>';
 const win = (cls: string, body: string, front = true, style = "") => `<div class="md-win ${front ? "front" : ""} ${cls}" style="${style}"><div class="wb"><i></i><i></i><i></i></div><div class="wbody">${body}</div></div>`;
 
@@ -62,102 +62,25 @@ const win = (cls: string, body: string, front = true, style = "") => `<div class
 const DOCK: [string, boolean][] = [["finder", true], ["web", true], ["mail", true], ["msg", false], ["cal", false], ["notes", false], ["rem", false], ["music", true], ["photos", false], ["xcode", true], ["term", false], ["store", false], ["set", false]];
 const MAC_DOCK = ["finder", "web", "mail", "notes", "music", "xcode", "term"];
 
-/* Buttons for the app in front (the app's own shortcuts), and the Pinned grid. */
-type Btn = [string, string, string];
-const FRONT: Record<string, { app: string; name: string; buttons: Btn[] }> = {
-  web: { app: "web", name: "Safari", buttons: [["New Tab", G2.plusSq, "#0A84FF"], ["Reopen Tab", G.undo, "#0A84FF"], ["Reader", G.reader, "#30B0C7"], ["Private", G2.hand, "#8E8E93"], ["Close Other Tabs", G2.xbox, "#FF3B30"], ["Pin Tab", G2.pin, "#FF9500"], ["Copy Link", G.link, "#34C759"], ["Web Inspector", G.hammer, "#5E5CE6"]] },
-  finder: { app: "finder", name: "Finder", buttons: [["New Window", G.window, "#0A84FF"], ["New Folder", G2.folderPlus, "#0A84FF"], ["Go to Folder", G2.goto, "#34C759"], ["Get Info", G2.info, "#8E8E93"], ["Quick Look", G2.eye, "#5E5CE6"], ["Hidden Files", G2.eyeSlash, "#8E8E93"], ["Downloads", G.down, "#34C759"], ["AirDrop", G.wave, "#0A84FF"]] },
-};
-const PINNED: Btn[] = PINNED_ESSENTIALS.map(([n, g, c]) => [n, GLYPH[g], c]);
-const actTile = ([n, g, c]: Btn, i = 0) => `<div class="u-at" data-b="${n}" style="--c:${c};--i:${i}">${ic(g)}<span>${n}</span></div>`;
-const pinTile = (p: Btn, i: number) => actTile(p, i);
-
 interface Mode {
   key: string; title: string; icon: string; accent: string; text: string; land?: boolean;
   phone: () => string; mac: () => string;
   run: (s: Scene) => Promise<void>;
 }
 
-/* ---------- Scene helpers shared by every mode's loop ---------- */
-class Cancel extends Error {}
-class Scene {
-  constructor(public ph: HTMLElement, public mac: HTMLElement, private alive: () => boolean) {}
-  q<T extends Element = HTMLElement>(sel: string, root: Element = this.ph) { return root.querySelector(sel) as unknown as T; }
-  m<T extends Element = HTMLElement>(sel: string) { return this.mac.querySelector(sel) as unknown as T; }
-  check() { if (!this.alive()) throw new Cancel(); }
-  async wait(ms: number) { await sleep(ms); this.check(); }
-  async tween(ms: number, fn: (e: number, u: number) => void, ease = minJerk) {
-    const t0 = performance.now();
-    for (;;) { const t = await nextFrame(); this.check(); const u = Math.min(1, (t - t0) / ms); fn(ease(u), u); if (u >= 1) return; }
-  }
-  /** Centre of an element in the screen's own points. */
-  at(el: HTMLElement): [number, number] {
-    let x = el.offsetWidth / 2, y = el.offsetHeight / 2, n: HTMLElement | null = el;
-    while (n && !n.classList.contains("pt")) { x += n.offsetLeft; y += n.offsetTop; n = n.offsetParent as HTMLElement | null; }
-    return [x, y];
-  }
-  fingers: HTMLElement[] = [];
-  finger(i = 0) {
-    while (this.fingers.length <= i) { const f = document.createElement("div"); f.className = "ms-finger"; this.q(".pt").appendChild(f); this.fingers.push(f); }
-    return this.fingers[i];
-  }
-  put(i: number, x: number, y: number, o = 1, s = 1) { const f = this.finger(i); f.style.transform = `translate(${x}px, ${y}px) scale(${s})`; f.style.opacity = String(o); }
-  ripple(x: number, y: number) {
-    const r = document.createElement("div"); r.className = "ms-ripple"; r.style.transform = `translate(${x}px, ${y}px)`;
-    this.q(".pt").appendChild(r); setTimeout(() => r.remove(), 650);
-  }
-  async touch(i: number, x: number, y: number) { await this.tween(180, e => this.put(i, x, y, e, lerp(0.7, 1, e))); }
-  async lift(i: number, x: number, y: number) { await this.tween(220, e => this.put(i, x, y, 1 - e, lerp(1, 1.12, e))); }
-  async tap(el: HTMLElement, after?: () => void) {
-    const [x, y] = this.at(el);
-    await this.touch(0, x, y);
-    el.classList.add("u-press"); this.ripple(x, y);
-    await this.wait(110);
-    el.classList.remove("u-press");
-    after?.();
-    await this.lift(0, x, y);
-  }
-  clear() { this.fingers.forEach(f => f.remove()); this.fingers = []; this.ph.querySelectorAll(".ms-ripple").forEach(r => r.remove()); }
-}
 const bounce = (el: HTMLElement) => { el.classList.remove("bounce"); void el.offsetWidth; el.classList.add("bounce"); };
 
-/* ---------- The five modes ---------- */
+/* ---------- Keyboard, Media, Dock, Clipboard and Macros ---------- */
 const MODES: Mode[] = [
   {
-    key: "trackpad", title: "Trackpad", icon: "i-trackpad", accent: "#1A1A1A", land: true,
-    text: "A trackpad you can feel. Scroll, pinch, swipe and force click, with a tap on every click.",
-    phone: () => `<div class="pt land"></div>`,
-    mac: () => `${win("w-b", docLines, false)}${win("w-a", docLines)}${menubar()}${cursorSVG}`,
-    async run(s) {
-      const cur = s.m<SVGElement>(".md-cursor"), doc = s.m(".w-a .md-doc"), wa = s.m(".w-a"), wb = s.m(".w-b");
-      const W = s.mac.clientWidth, H = s.mac.clientHeight;
-      let cx = W * 0.6, cy = H * 0.5;
-      const pc = () => { cur.style.transform = `translate(${cx}px, ${cy}px)`; };
-      wa.style.zIndex = "2"; wb.style.zIndex = "1"; doc.style.transform = ""; pc();
-      let fx = 300, fy = 250; await s.touch(0, fx, fy);
-      await s.tween(1100, e => { const nx = lerp(300, 620, e), ny = lerp(250, 160, e) - Math.sin(Math.PI * e) * 40; cx += (nx - fx) * W / 874 * 0.8; cy += (ny - fy) * H / 402 * 0.8; fx = nx; fy = ny; s.put(0, fx, fy); pc(); });
-      await s.lift(0, fx, fy); await s.wait(250);
-      await s.touch(0, fx, fy); s.ripple(fx, fy); cur.classList.add("press"); await s.wait(110); cur.classList.remove("press");
-      wb.style.zIndex = "3"; wb.classList.add("front"); wa.classList.remove("front"); await s.lift(0, fx, fy); await s.wait(500);
-      wa.style.zIndex = "3"; wb.style.zIndex = "1"; wb.classList.remove("front"); wa.classList.add("front");
-      const y0 = 300; await Promise.all([s.touch(0, 400, y0), s.touch(1, 470, y0 + 6)]);
-      await s.tween(700, e => { const dy = -170 * e; s.put(0, 400, y0 + dy); s.put(1, 470, y0 + 6 + dy); doc.style.transform = `translateY(${(-H * 0.32 * e).toFixed(1)}px)`; });
-      await Promise.all([s.lift(0, 400, y0 - 170), s.lift(1, 470, y0 - 164)]);
-      await s.tween(700, e => { doc.style.transform = `translateY(${(-H * 0.32 - H * 0.1 * e).toFixed(1)}px)`; }, u => 1 - Math.pow(1 - u, 3));
-      await s.wait(900);
-      await s.tween(600, e => { doc.style.transform = `translateY(${(-H * 0.42 * (1 - e)).toFixed(1)}px)`; });
-      await s.wait(600);
-    },
-  },
-  {
     key: "keys", title: "Keyboard", icon: "i-keys", accent: "#5856D6",
-    text: "Type on the phone, land on the Mac. Modifier keys, shortcuts and dictation.",
-    phone: () => `<div class="pt"><span class="status-dot"></span><div class="u-keys"><div class="echo">Start typing</div><div class="sub">Text goes straight to your Mac</div>
-      <div class="u-row u-mods"><span>⌘</span><span>⌥</span><span>⌃</span><span>⇧</span></div>
-      <div class="u-row u-sc"><span>⌘C<small>Copy</small></span><span>⌘V<small>Paste</small></span><span>⌘X<small>Cut</small></span><span>⌘Z<small>Undo</small></span><span>⇧⌘Z<small>Redo</small></span></div>
-      <div class="u-row u-nav"><span>esc</span><span>tab</span><span>⌫</span><span>←</span><span class="ud"><b>↑</b><b>↓</b></span><span>→</span></div>
-      <div class="u-kb"><div>${[..."QWERTYUIOP"].map(c => `<span data-k="${c}">${c}</span>`).join("")}</div><div>${[..."ASDFGHJKL"].map(c => `<span data-k="${c}">${c}</span>`).join("")}</div><div><span class="w">⇧</span>${[..."ZXCVBNM"].map(c => `<span data-k="${c}">${c}</span>`).join("")}<span class="w">⌫</span></div><div><span class="w">123</span><span class="sp" data-k=" "></span><span class="w">⏎</span></div></div></div></div>`,
-    mac: () => `${win("w-a", '<div class="mm-type"><span class="txt"></span><span class="caret"></span></div>', true, "left:14%;top:16%;width:62%;height:60%")}${menubar()}`,
+    text: "Type on the phone, and it lands on the Mac. Modifier keys, shortcuts, F1 to F12 and dictation.",
+    phone: () => `<div class="pt"><span class="status-dot"></span><div class="u-keys"><div class="echo">Start typing</div><div class="sub">Typing goes straight to your Mac</div>
+      <div class="k-mods">${[["⌃", "control"], ["⌥", "option"], ["⌘", "command"], ["⇧", "shift"], ["fn", ""]].map(([a, b]) => `<span><b>${a}</b>${b ? `<small>${b}</small>` : ""}</span>`).join("")}</div>
+      <div class="k-sc">${[["Copy", "⌘C"], ["Paste", "⌘V"], ["Cut", "⌘X"], ["Undo", "⌘Z"], ["Redo", "⇧⌘Z"]].map(([a, b]) => `<span>${a}<small>${b}</small></span>`).join("")}</div>
+      <div class="k-nav"><span style="grid-area:1/1">esc</span><span style="grid-area:1/2">tab</span><span style="grid-area:1/4">↑</span><span style="grid-area:2/1/3/3">⌫</span><span style="grid-area:2/3">←</span><span style="grid-area:2/4">↓</span><span style="grid-area:2/5">→</span></div>
+      <div class="u-kb"><div>${[..."QWERTYUIOP"].map(c => `<span data-k="${c}">${c}</span>`).join("")}</div><div>${[..."ASDFGHJKL"].map(c => `<span data-k="${c}">${c}</span>`).join("")}</div><div><span class="w">⇧</span>${[..."ZXCVBNM"].map(c => `<span data-k="${c}">${c}</span>`).join("")}<span class="w">⌫</span></div><div class="kb-b"><span class="w">123</span><span class="sp" data-k=" ">space</span><span class="w">return</span></div></div></div></div>`,
+    mac: () => `${win("w-a", '<div class="mm-type"><span class="txt"></span><span class="caret"></span></div>', true, "left:14%;top:16%;width:62%;height:60%")}${menuBar("Notes", ["File", "Edit", "Format", "View", "Window"])}`,
     async run(s) {
       const echo = s.q(".echo"), out = s.m(".txt"), phrase = "See you at three";
       echo.textContent = "Start typing"; echo.classList.remove("typed"); out.textContent = "";
@@ -176,7 +99,7 @@ const MODES: Mode[] = [
   },
   {
     key: "media", title: "Media", icon: "i-media", accent: "#FF2D55",
-    text: "What is playing on your Mac, with artwork, scrubbing, volume and output.",
+    text: "Spotify, Music or a browser: artwork, scrubbing, sound output, volume and screen brightness.",
     phone: () => `<div class="pt"><span class="status-dot"></span><div class="u-media">
       <div class="art"><i class="a1"></i><i class="a2"></i><i class="a3"></i></div>
       <div class="src"><i></i>SPOTIFY</div><div class="t">Slow Light</div><div class="a">Paper Rooms · Glass Hours</div>
@@ -185,7 +108,7 @@ const MODES: Mode[] = [
       <div class="opts"><span>${ic(G2.shuffle)}</span><span class="on">${ic(G2.output)}</span><span>${ic(G2.repeat)}</span></div>
       <div class="lvl vol">${ic(G.speaker)}<div class="u-bar"><i style="width:56%"></i><b style="left:56%"></b></div></div>
       <div class="lvl bri">${ic(G2.sun)}<div class="u-bar"><i style="width:74%"></i><b style="left:74%"></b></div></div></div></div>`,
-    mac: () => `${win("w-a", docLines, false, "left:6%;top:12%;width:60%;height:62%")}<div class="mm-np"><div class="art"><i class="a1"></i><i class="a2"></i></div><div style="flex:1;min-width:0"><b>Slow Light</b><span>Paper Rooms</span><div class="pb"><i style="width:31%"></i></div></div><span class="mm-state"></span></div>${menubar()}<div class="mm-hud">${svg(G.speaker)}<span class="pb"><i style="width:56%"></i></span></div>`,
+    mac: () => `${win("w-a", docLines, false, "left:6%;top:12%;width:60%;height:62%")}<div class="mm-np"><div class="art"><i class="a1"></i><i class="a2"></i></div><div style="flex:1;min-width:0"><b>Slow Light</b><span>Paper Rooms</span><div class="pb"><i style="width:31%"></i></div></div><span class="mm-state"></span></div>${menuBar("Spotify", ["File", "Edit", "View", "Playback", "Window"])}<div class="mm-hud">${svg(G.speaker)}<span class="pb"><i style="width:56%"></i></span></div>`,
     async run(s) {
       const total = 244;
       const pp = s.q(".pp"), art = s.q(".art"), prog = s.q(".prog"), knob = s.q(".knob"), el = s.q(".el"), rem = s.q(".rem");
@@ -224,13 +147,13 @@ const MODES: Mode[] = [
   },
   {
     key: "dock", title: "Dock", icon: "i-dock", accent: "#0A84FF",
-    text: "Your Mac's Dock, full size. Tap to open, hold to quit or hide.",
+    text: "Your Mac's Dock, full size. Tap to open, hold to quit, and hide the Mac's own Dock to free the screen.",
     phone: () => `<div class="pt"><span class="status-dot"></span><div class="u-apps">
       <div class="hd"><b>Dock</b><span class="sub">Your Mac · <span class="n">5</span> open</span><span class="more">${ic(G2.more)}</span></div>
       <div class="grid">${DOCK.map(([k, r]) => `<div class="at" data-app="${k}">${tile(k)}<i class="run ${r ? "on" : ""} ${k === "web" ? "act" : ""}"></i><span>${APPS[k][0]}</span></div>`).join("")}</div>
       <div class="ctx"><span>${ic(G2.hide)}Hide</span><span>${ic(G2.keep)}Keep in Phone Dock</span><span class="q">${ic(G2.quit)}Quit</span></div>
-      <div class="dim"></div></div></div>`,
-    mac: () => `${win("w-a", docLines, true, "left:8%;top:10%;width:54%;height:58%")}<div class="md-win w-new mm-notes" data-for="notes"><div class="wb"><i></i><i></i><i></i></div><div class="note"><i></i><i></i><i style="width:80%"></i><i style="width:90%"></i><i style="width:60%"></i></div></div>${menubar()}<div class="md-dock">${MAC_DOCK.map(k => `<div class="app-slot" data-app="${k}">${tile(k)}<i class="md-run ${DOCK.find(d => d[0] === k)?.[1] ? "on" : ""}"></i></div>`).join("")}</div>`,
+      <div class="dim"></div><div class="u-menu"><span>${glyph("square.grid.2x2")}Edit Dock</span><span class="hm">${glyph("menubar.dock.rectangle")}Hide Mac Dock</span><span>${glyph("link")}Hide Mac Dock While Connected</span></div></div></div>`,
+    mac: () => `${win("w-a", docLines, true, "left:8%;top:10%;width:54%;height:58%")}<div class="md-win w-new mm-notes" data-for="notes"><div class="wb"><i></i><i></i><i></i></div><div class="note"><i></i><i></i><i style="width:80%"></i><i style="width:90%"></i><i style="width:60%"></i></div></div>${menuBar("Notes", ["File", "Edit", "Format", "View", "Window"])}<div class="md-dock">${MAC_DOCK.map(k => `<div class="app-slot" data-app="${k}">${tile(k)}<i class="md-run ${DOCK.find(d => d[0] === k)?.[1] ? "on" : ""}"></i></div>`).join("")}</div>`,
     async run(s) {
       const n = s.q(".n"), ctx = s.q(".ctx"), dim = s.q(".dim");
       const run = (k: string) => s.q(`.grid [data-app="${k}"] .run`), mrun = (k: string) => s.m(`.app-slot[data-app="${k}"] .md-run`);
@@ -256,7 +179,14 @@ const MODES: Mode[] = [
         ctx.classList.remove("on"); dim.classList.remove("on"); music.classList.remove("lift"); micon.style.transform = "";
         run("music").classList.remove("on"); mrun("music").classList.remove("on"); n.textContent = "5";
       });
-      await s.wait(1600);
+      await s.wait(1000);
+      // the menu: hide the Mac's own Dock
+      const menu = s.q(".u-menu"), mdock = s.m(".md-dock");
+      await s.tap(s.q(".more"), () => menu.classList.add("on"));
+      await s.wait(600);
+      await s.tap(s.q(".u-menu .hm"), () => { menu.classList.remove("on"); mdock.classList.add("hidden"); });
+      await s.wait(1800);
+      mdock.classList.remove("hidden");
       // put things back quietly
       await s.tween(300, e => { notes.style.opacity = String(1 - e); });
       notes.style.transform = "scale(0.6)";
@@ -266,69 +196,64 @@ const MODES: Mode[] = [
     },
   },
   {
-    key: "actions", title: "Actions", icon: "i-actions", accent: "#FF9500",
-    text: "Buttons that follow the app in front, plus Pinned: Do Not Disturb, window tiling, macros, Shortcuts and websites.",
-    phone: () => `<div class="pt"><span class="status-dot"></span><div class="u-act">
-      <div class="fh"><span class="fi">${tile("web")}</span><b>Safari</b><span class="edit">Edit</span></div>
-      <p class="hint">The best buttons for the app in front on your Mac. They change when you switch apps.</p>
-      <div class="ag front">${FRONT.web.buttons.map(actTile).join("")}</div>
-      <div class="ph"><b>Pinned</b></div>
-      <p class="hint">Your favourites. Tap + to add anything; touch and hold one to change it.</p>
-      <div class="ag pinned">${PINNED.map(pinTile).join("")}<div class="u-at add">${ic(G2.plus)}<span>Add</span></div></div></div></div>`,
-    mac: () => `<div class="md-win front mm-safari" style="left:7%;top:11%;width:62%;height:66%"><div class="mm-tabs"><span class="on"></span><span></span></div><div class="wbody" style="top:18cqh">${docLines}</div></div>
-      <div class="md-win front mm-finder" style="left:30%;top:20%;width:62%;height:64%"><div class="wb"><i></i><i></i><i></i></div><div class="wbody"><div class="fside"><i></i><i></i><i></i><i></i></div><div class="fgrid">${'<span class="fold"></span>'.repeat(5)}</div></div></div>
-      <div class="md-menubar"><i></i><b class="mm-app">Safari</b><i></i><i></i><i class="r"></i></div>${cursorSVG}`,
+    key: "clipboard", title: "Clipboard", icon: "i-clipboard", accent: "#34C759",
+    text: "Text and images, both ways. Copy on one, paste on the other.",
+    phone: () => `<div class="pt"><span class="status-dot"></span><div class="u-clip">
+      <h4>Clipboard</h4>
+      <div class="cc to"><div class="ch">${glyph("square.and.arrow.up")}<div><b>To your Mac</b><span>Text or an image copied on this iPhone.</span></div></div>
+        <div class="pv">See you at the station at nine</div>
+        <div class="crow"><span class="cbtn paste">${glyph("doc.on.clipboard")}Paste</span><span class="ok">${glyph("checkmark")}Sent</span></div></div>
+      <div class="cc from"><div class="ch">${glyph("square.and.arrow.down")}<div><b>From your Mac</b><span>Copies what is on the Mac clipboard to this iPhone.</span></div></div>
+        <div class="img"><i class="a1"></i><i class="a2"></i><i class="a3"></i></div>
+        <div class="crow"><span class="cbtn get">${glyph("square.and.arrow.down")}Get Mac Clipboard</span><span class="ok">${glyph("checkmark")}Copied to iPhone</span></div></div>
+    </div></div>`,
+    mac: () => `${win("w-a mm-cnote", '<div class="mm-type"><span class="txt"></span><span class="caret"></span></div>', true, "left:5%;top:12%;width:50%;height:58%")}${win("w-b mm-cphoto", '<div class="ph"><i class="a1"></i><i class="a2"></i><i class="a3"></i></div>', false, "left:47%;top:24%;width:47%;height:58%")}${menuBar("Notes", ["File", "Edit", "Format", "View", "Window"])}<div class="mm-toast">Copied</div>`,
     async run(s) {
-      const head = s.q(".fh"), name = head.querySelector("b")!, fi = s.q(".fi"), grid = s.q(".ag.front");
-      const saf = s.m(".mm-safari"), fin = s.m(".mm-finder"), app = s.m(".mm-app"), cur = s.m<SVGElement>(".md-cursor");
-      const W = s.mac.clientWidth, H = s.mac.clientHeight;
-      const setFront = (k: "web" | "finder") => {
-        const f = FRONT[k];
-        name.textContent = f.name; fi.innerHTML = tile(f.app); app.textContent = f.name;
-        // Swap in place: the header and every tile stay on screen, they only dip and settle.
-        head.animate([{ opacity: 0.35, transform: "translateY(6px)" }, { opacity: 1, transform: "none" }], { duration: 420, easing: "cubic-bezier(.2,.8,.2,1)" });
-        const tiles = Array.from(grid.children) as HTMLElement[];
-        f.buttons.forEach(([n, g, c], i) => {
-          const t = tiles[i]; t.dataset.b = n; t.style.setProperty("--c", c); t.innerHTML = `${ic(g)}<span>${n}</span>`;
-          t.animate([{ opacity: 0.35, transform: "scale(0.94)" }, { opacity: 1, transform: "none" }], { duration: 420, delay: i * 25, easing: "cubic-bezier(.2,.8,.2,1)", fill: "backwards" });
-        });
-        saf.style.zIndex = k === "web" ? "3" : "2"; fin.style.zIndex = k === "finder" ? "3" : "2";
-        saf.classList.toggle("front", k === "web"); fin.classList.toggle("front", k === "finder");
-      };
-      const curAt = (x: number, y: number) => { cur.style.transform = `translate(${x * W}px, ${y * H}px)`; };
-      setFront("web"); s.m(".fgrid").innerHTML = '<span class="fold"></span>'.repeat(5); curAt(0.5, 0.5);
+      const to = s.q(".cc.to"), from = s.q(".cc.from"), txt = s.m(".mm-cnote .txt"), photo = s.m(".mm-cphoto"), note = s.m(".mm-cnote"), toast = s.m(".mm-toast");
+      const front = (a: HTMLElement, b: HTMLElement) => { a.style.zIndex = "3"; b.style.zIndex = "2"; a.classList.add("front"); b.classList.remove("front"); };
+      to.classList.remove("done"); from.classList.remove("done"); txt.textContent = ""; photo.classList.remove("sel"); front(note, photo);
+      await s.wait(900);
+      // iPhone to Mac: the copied line lands where the cursor is
+      await s.tap(s.q(".paste"), () => to.classList.add("done"));
+      const line = "See you at the station at nine";
+      for (let i = 1; i <= line.length; i += 2) { txt.textContent = line.slice(0, i); await s.wait(26); }
+      txt.textContent = line;
       await s.wait(1300);
-      // on the Mac, click the Finder window: the phone follows
-      await s.tween(700, e => curAt(lerp(0.5, 0.82, e), lerp(0.5, 0.74, e)));
-      cur.classList.add("press"); await s.wait(100); cur.classList.remove("press");
-      setFront("finder");
-      await s.wait(1300);
-      // tap New Folder on the phone
-      await s.tap(s.q('[data-b="New Folder"]'), () => { const f = document.createElement("span"); f.className = "fold new"; s.m(".fgrid").appendChild(f); });
-      await s.wait(1400);
-      // back to Safari
-      await s.tween(700, e => curAt(lerp(0.82, 0.24, e), lerp(0.74, 0.4, e)));
-      cur.classList.add("press"); await s.wait(100); cur.classList.remove("press");
-      setFront("web");
-      await s.wait(1700);
+      // Mac to iPhone: copy a photo on the Mac, then fetch it
+      front(photo, note); photo.classList.add("sel"); toast.classList.add("on");
+      await s.wait(900); toast.classList.remove("on");
+      await s.tap(s.q(".get"), () => from.classList.add("done"));
+      await s.wait(2000);
     },
   },
   {
-    key: "remote", title: "Remote", icon: "i-remote", accent: "#E50914",
-    text: "Couch remote for Netflix and YouTube. Smart keys for each app, and type to search.",
-    phone: () => remoteScreen(),
-    mac: () => `<div class="md-win front mm-video" style="left:6%;top:12%;width:88%;height:70%"><div class="wb"><i></i><i></i><i></i></div><div class="wbody mm-vid"><span class="vp"></span><span class="vb"><i></i></span></div></div>${menubar()}`,
+    key: "macros", title: "Macros", icon: "i-macros", accent: "#30B0C7",
+    text: "Record the steps once on your Mac. Replay them with one tap.",
+    phone: () => `<div class="pt"><span class="status-dot"></span><div class="u-mac">
+      <div class="hd"><span class="ai">${tile("finder")}</span><b>Finder</b><span class="sg"><span class="on">This app</span><span>All</span></span></div>
+      <div class="mg">${tl("Clean Desktop", "wand.and.stars", "#30B0C7")}${tl("Zip Folder", "wand.and.stars", "#30B0C7")}${tl("Rename Photos", "wand.and.stars", "#30B0C7")}${tl("New Invoices Folder", "wand.and.stars", "#30B0C7")}</div>
+      <div class="recrow"><span class="rb">${glyph("record.circle")}Record</span></div>
+      <div class="recbar"><i></i><div><b>Recording on your Mac</b><span>Do the steps on the Mac, then stop.</span></div><span class="stop">Stop</span></div>
+    </div></div>`,
+    mac: () => `${win("w-a mm-mfinder", '<div class="fside"><i></i><i></i><i></i><i></i></div><div class="fg"><span class="fold"></span><span class="fold"></span><span class="fold"></span><span class="fold nf"><b>Invoices</b></span></div>', true, "left:10%;top:13%;width:66%;height:62%")}${menuBar("Finder", ["File", "Edit", "View", "Go", "Window"])}<div class="mm-recdot"></div>${cursorSVG}`,
     async run(s) {
-      const bar = s.m(".mm-vid .vb i"), pad = (d: string) => s.q(`.rm-d.${d}`), q = s.q(".rm-q");
-      const tap = async (el: HTMLElement, after?: () => void) => { await s.tap(el, after); };
-      bar.style.width = "30%"; q.textContent = "Search Netflix"; q.classList.remove("typed");
+      const nt = s.q('.bt[data-b="New Invoices Folder"]'), rec = s.q(".recbar"), nf = s.m(".nf"), dot = s.m(".mm-recdot"), cur = s.m<SVGElement>(".md-cursor");
+      const W = s.mac.clientWidth, H = s.mac.clientHeight;
+      const curAt = (x: number, y: number) => { cur.style.transform = `translate(${x * W}px, ${y * H}px)`; };
+      nt.classList.remove("in"); nf.classList.remove("in", "run"); rec.classList.remove("on"); dot.classList.remove("on"); curAt(0.8, 0.8);
+      await s.wait(800);
+      await s.tap(s.q(".rb"), () => { rec.classList.add("on"); dot.classList.add("on"); });
+      // the steps, done on the Mac while it records
+      await s.tween(700, e => curAt(lerp(0.8, 0.62, e), lerp(0.8, 0.62, e)));
+      cur.classList.add("press"); await s.wait(120); cur.classList.remove("press");
+      nf.classList.add("in"); await s.wait(900);
+      await s.tap(s.q(".stop"), () => { rec.classList.remove("on"); dot.classList.remove("on"); nt.classList.add("in"); });
       await s.wait(900);
-      await tap(pad("right")); await s.wait(500);
-      await tap(s.q(".rm-ok"), () => { bar.style.width = "36%"; }); await s.wait(700);
-      await tap(s.q(".rm-k"), () => { bar.style.width = "62%"; }); await s.wait(1200);
-      const word = "Quiet";
-      for (let i = 1; i <= word.length; i++) { q.textContent = word.slice(0, i); q.classList.add("typed"); await s.wait(130); }
-      await s.wait(1500);
+      // undo it quietly, then replay from the phone
+      nf.classList.remove("in"); await s.wait(700);
+      await s.tap(nt, () => { nt.classList.add("busy"); });
+      await s.wait(500); nf.classList.add("in", "run"); nt.classList.remove("busy");
+      await s.wait(1800);
     },
   },
 ];
@@ -391,7 +316,8 @@ export function initModes() {
     copy.style.setProperty("--acc", m.accent);
     copy.innerHTML = `<h3><i></i>${m.title}</h3><p>${m.text}</p>`;
     if (!reduce) { copy.classList.remove("swap"); void copy.offsetWidth; copy.classList.add("swap"); }
-    if (matchMedia("(max-width: 960px)").matches) buttons[i].scrollIntoView({ block: "nearest", inline: "center", behavior: reduce ? "auto" : "smooth" });
+    // narrow screens: slide the rail sideways only, never the page
+    if (matchMedia("(max-width: 960px)").matches) { const b = buttons[i]; rail.scrollTo({ left: b.offsetLeft - (rail.clientWidth - b.offsetWidth) / 2, behavior: reduce ? "auto" : "smooth" }); }
     loop(i, token);
   }
 
