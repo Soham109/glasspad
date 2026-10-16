@@ -316,7 +316,7 @@ private struct ActionOptions: View {
             }
             // Names the button after the site while the user has not named it.
             .task(id: s) { await nameAfterSite(s) }
-            if !s.isEmpty, s != "https://", SiteInfo.webURL(s) == nil {
+            if !s.isEmpty, s != "https://", action.typedWebsite != nil, SiteInfo.webURL(s) == nil {
                 Text("Type a web address, like apple.com.").font(.footnote).foregroundStyle(palette.inkSoftColor)
             }
         case .openFile(let path):
@@ -359,7 +359,7 @@ private struct ActionOptions: View {
         case .runMacro(let id):
             let macros = session.allMacros ?? []
             if macros.isEmpty {
-                Text("No macros yet. Record one from Actions, + then Record New Macro.").foregroundStyle(palette.inkSoftColor)
+                Text("No macros yet. To record one, tap + in Actions, then Record New Macro.").foregroundStyle(palette.inkSoftColor)
             } else {
                 Picker("Macro", selection: Binding(get: { id }, set: { new in
                     action = .runMacro(id: new)
@@ -731,9 +731,11 @@ private struct PageEditor: View {
 
 extension DeckAction {
     /// What the user typed for a Website button (not a System Settings page), even when it is
-    /// not a full link yet.
+    /// not a full link yet. Other kinds of links ("mailto:", "slack://") are kept as they are.
     var typedWebsite: String? {
         guard case .openURL(let s) = self, !s.hasPrefix(SettingsPanes.prefix) else { return nil }
+        if let scheme = URL(string: s)?.scheme?.lowercased(), scheme != "http", scheme != "https",
+           SiteInfo.webURL(s) == nil { return nil }
         return s
     }
 }
