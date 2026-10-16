@@ -10,7 +10,7 @@ struct MediaMode: View {
     @Environment(\.verticalSizeClass) private var verticalSize
     var session = MacSession.shared
     var store = MediaStore.shared
-    private let accent = AppMode.media.accent(.paper)
+    private var accent: Color { AppMode.media.accent(palette) }
 
     @State private var volume: Double = 0.5
     @State private var brightness: Double = 0.5

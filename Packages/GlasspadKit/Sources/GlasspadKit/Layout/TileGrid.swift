@@ -50,9 +50,10 @@ public struct TileGridMetrics: Equatable, Sendable {
     /// Columns for a width at a preferred tile size: the count whose tiles, filling the width
     /// exactly, come closest to `preferred` (in ratio), without going under the minimum.
     public static func columns(width: Double, preferred: Double, spacing: Double, minimum: Double = minimumTile) -> Int {
-        let w = max(0, width)
+        let w = usable(width)
+        guard preferred > 0 else { return 1 }
         let floorTile = max(minimum, preferred * 0.7)
-        let most = max(1, Int(((w + spacing) / (floorTile + spacing)).rounded(.down)))
+        let most = min(64, max(1, Int(((w + spacing) / (floorTile + spacing)).rounded(.down))))
         var best = 1, bestCost = Double.infinity
         for c in 1...most {
             let t = (w - Double(c - 1) * spacing) / Double(c)
@@ -66,7 +67,7 @@ public struct TileGridMetrics: Equatable, Sendable {
     /// The grid for `count` regular tiles.
     public static func fit(count: Int, width: Double, preferred: Double, spacing: Double = 10,
                            maxGrowth: Double = 1.3, minimum: Double = minimumTile) -> TileGridMetrics {
-        let w = max(0, width)
+        let w = usable(width)
         let cols = columns(width: w, preferred: preferred, spacing: spacing, minimum: minimum)
         let rows = BalancedRows.counts(items: count, maxPerRow: cols)
         let widest = max(1, rows.max() ?? cols)
@@ -82,11 +83,15 @@ public struct TileGridMetrics: Equatable, Sendable {
     /// count (`DeckGridPacking`), the block centred. `rows` is left empty.
     public static func packed(width: Double, preferred: Double, spacing: Double = 10,
                               maxGrowth: Double = 1.3, minimum: Double = minimumTile) -> TileGridMetrics {
-        let w = max(0, width)
+        let w = usable(width)
         let cols = columns(width: w, preferred: preferred, spacing: spacing, minimum: minimum)
         let tile = min(max(0, (w - Double(cols - 1) * spacing) / Double(cols)), preferred * maxGrowth)
         return TileGridMetrics(containerWidth: w, columns: cols, tile: tile.rounded(.down), spacing: spacing, rows: [])
     }
+
+    /// A width that can be laid out: an unbounded or invalid one (asked while measuring) is
+    /// treated as no room, never as a crash.
+    static func usable(_ width: Double) -> Double { width.isFinite ? max(0, width) : 0 }
 
     /// Width of a row of `n` tiles.
     public func rowWidth(_ n: Int) -> Double { n <= 0 ? 0 : Double(n) * tile + Double(n - 1) * spacing }

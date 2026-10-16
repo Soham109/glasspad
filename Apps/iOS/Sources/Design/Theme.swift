@@ -2,9 +2,11 @@ import SwiftUI
 import UIKit
 
 /// The looks Glasspad ships with. Paper is a soft warm white, Graphite a near black, System
-/// follows the iPhone's light or dark appearance.
+/// follows the iPhone's light or dark appearance between those two. Mono is pure black and
+/// white with no colour anywhere (it follows the iPhone too). Sand is a warm light beige and
+/// Midnight a deep blue night.
 enum ThemeChoice: String, CaseIterable, Identifiable, Sendable {
-    case paper, graphite, system
+    case paper, graphite, system, mono, sand, midnight
 
     var id: String { rawValue }
 
@@ -13,40 +15,63 @@ enum ThemeChoice: String, CaseIterable, Identifiable, Sendable {
         case .paper: "Paper"
         case .graphite: "Graphite"
         case .system: "System"
+        case .mono: "Mono"
+        case .sand: "Sand"
+        case .midnight: "Midnight"
         }
     }
 
-    /// The window's appearance for this choice. System leaves it unspecified, so the window
-    /// follows the phone and SwiftUI's colour scheme reports the phone's real setting.
+    /// The window's appearance for this choice. System and Mono leave it unspecified, so the
+    /// window follows the phone and SwiftUI's colour scheme reports the phone's real setting.
     var interfaceStyle: UIUserInterfaceStyle {
         switch self {
-        case .paper: .light
-        case .graphite: .dark
-        case .system: .unspecified
+        case .paper, .sand: .light
+        case .graphite, .midnight: .dark
+        case .system, .mono: .unspecified
         }
     }
 
-    /// The palette for this choice. `scheme` is the phone's own setting, used only by System.
-    /// Every colour in it is a semantic token that resolves against the light or dark
+    /// The colours for each appearance. A theme that forces one appearance uses its colours
+    /// for both, so nothing can resolve to another theme's colour.
+    fileprivate var tokens: (light: Palette.Tokens, dark: Palette.Tokens) {
+        switch self {
+        case .paper, .graphite, .system: (.paper, .graphite)
+        case .mono: (.monoLight, .monoDark)
+        case .sand: (.sand, .sand)
+        case .midnight: (.midnight, .midnight)
+        }
+    }
+
+    /// The palette for this choice. `scheme` is the phone's own setting, used by System and
+    /// Mono. Every colour in it is a semantic token that resolves against the light or dark
     /// appearance it is drawn in; the window appearance above makes that match the choice.
     func resolved(_ scheme: ColorScheme) -> Palette {
-        switch self {
-        case .paper: .themed(dark: false)
-        case .graphite: .themed(dark: true)
-        case .system: .themed(dark: scheme == .dark)
+        let dark: Bool = switch interfaceStyle {
+        case .light: false
+        case .dark: true
+        default: scheme == .dark
         }
+        return Palette.themed(self, dark: dark)
+    }
+
+    /// Fixed colours of this theme in one appearance, for the previews in Settings.
+    func preview(dark: Bool) -> Palette {
+        let t = dark ? tokens.dark : tokens.light
+        return Palette(light: t, dark: t, isDark: dark, monochrome: self == .mono)
     }
 }
 
 /// Every colour the app draws with. Views never hard code colours; they read a palette.
 ///
-/// The app palette (`themed`) is made of semantic tokens: each colour carries its Paper value
-/// and its Graphite value and picks one from the trait collection it is drawn in. So text,
+/// The app palette (`themed`) is made of semantic tokens: each colour carries its light value
+/// and its dark value and picks one from the trait collection it is drawn in. So text,
 /// symbols and UIKit-backed controls (menus, pickers, toggles) can never be left holding the
-/// other theme's colour after a change. `paper` and `graphite` are fixed versions, used only
-/// to preview a theme next to the other one.
+/// other appearance's colour after a change. `paper` and `graphite` are fixed versions, used
+/// only to preview a theme next to another one.
 struct Palette: Equatable, Sendable {
     let isDark: Bool
+    /// Mono: no colour anywhere. Tiles, symbols and accents all draw in the ink.
+    let monochrome: Bool
     /// The surface itself.
     let background: UIColor
     /// Cards and buttons that sit on the surface.
@@ -76,45 +101,96 @@ struct Palette: Equatable, Sendable {
         }
     }
 
-    private enum Tokens {
-        static let background = (light: UIColor(hex: 0xF2F1EE), dark: UIColor(hex: 0x141414))
-        static let raised = (light: UIColor(hex: 0xFBFAF8), dark: UIColor(hex: 0x1F1F1F))
-        static let raisedPressed = (light: UIColor(hex: 0xE6E4DF), dark: UIColor(hex: 0x2C2C2C))
-        static let line = (light: UIColor(hex: 0x1A1A1A, alpha: 0.08), dark: UIColor(white: 1, alpha: 0.1))
-        static let ink = (light: UIColor(hex: 0x1A1A1A), dark: UIColor(hex: 0xF2F1EE))
-        static let inkSoft = (light: UIColor(hex: 0x1A1A1A, alpha: 0.56), dark: UIColor(hex: 0xF2F1EE, alpha: 0.58))
-        static let dot = (light: UIColor(hex: 0x1A1A1A, alpha: 0.14), dark: UIColor(white: 1, alpha: 0.18))
+    /// One theme's colours in one appearance.
+    struct Tokens: Sendable {
+        let background, raised, raisedPressed, line, ink, inkSoft, dot: UIColor
+
+        static let paper = Tokens(background: UIColor(hex: 0xF2F1EE), raised: UIColor(hex: 0xFBFAF8),
+                                  raisedPressed: UIColor(hex: 0xE6E4DF), line: UIColor(hex: 0x1A1A1A, alpha: 0.08),
+                                  ink: UIColor(hex: 0x1A1A1A), inkSoft: UIColor(hex: 0x1A1A1A, alpha: 0.56),
+                                  dot: UIColor(hex: 0x1A1A1A, alpha: 0.14))
+        static let graphite = Tokens(background: UIColor(hex: 0x141414), raised: UIColor(hex: 0x1F1F1F),
+                                     raisedPressed: UIColor(hex: 0x2C2C2C), line: UIColor(white: 1, alpha: 0.1),
+                                     ink: UIColor(hex: 0xF2F1EE), inkSoft: UIColor(hex: 0xF2F1EE, alpha: 0.58),
+                                     dot: UIColor(white: 1, alpha: 0.18))
+        static let monoLight = Tokens(background: UIColor(hex: 0xFFFFFF), raised: UIColor(hex: 0xF4F4F4),
+                                      raisedPressed: UIColor(hex: 0xE4E4E4), line: UIColor(white: 0, alpha: 0.1),
+                                      ink: UIColor(hex: 0x000000), inkSoft: UIColor(white: 0, alpha: 0.55),
+                                      dot: UIColor(white: 0, alpha: 0.14))
+        static let monoDark = Tokens(background: UIColor(hex: 0x000000), raised: UIColor(hex: 0x141414),
+                                     raisedPressed: UIColor(hex: 0x262626), line: UIColor(white: 1, alpha: 0.14),
+                                     ink: UIColor(hex: 0xFFFFFF), inkSoft: UIColor(white: 1, alpha: 0.58),
+                                     dot: UIColor(white: 1, alpha: 0.2))
+        static let sand = Tokens(background: UIColor(hex: 0xECE4D6), raised: UIColor(hex: 0xF7F2E9),
+                                 raisedPressed: UIColor(hex: 0xDFD4C2), line: UIColor(hex: 0x3B2F22, alpha: 0.1),
+                                 ink: UIColor(hex: 0x2E261D), inkSoft: UIColor(hex: 0x2E261D, alpha: 0.58),
+                                 dot: UIColor(hex: 0x3B2F22, alpha: 0.16))
+        static let midnight = Tokens(background: UIColor(hex: 0x0B111D), raised: UIColor(hex: 0x151D2D),
+                                     raisedPressed: UIColor(hex: 0x1F2A3F), line: UIColor(hex: 0xA9BCE6, alpha: 0.13),
+                                     ink: UIColor(hex: 0xE8EDF7), inkSoft: UIColor(hex: 0xE8EDF7, alpha: 0.6),
+                                     dot: UIColor(hex: 0xC4D3F5, alpha: 0.2))
     }
 
-    private static func dynamic(_ pair: (light: UIColor, dark: UIColor)) -> UIColor {
-        UIColor { $0.userInterfaceStyle == .dark ? pair.dark : pair.light }
+    private static func dynamic(_ light: UIColor, _ dark: UIColor) -> UIColor {
+        UIColor { $0.userInterfaceStyle == .dark ? dark : light }
     }
 
-    private static let themedLight = themedTokens(dark: false)
-    private static let themedDark = themedTokens(dark: true)
-
-    private static func themedTokens(dark: Bool) -> Palette {
-        Palette(isDark: dark,
-                background: dynamic(Tokens.background), raised: dynamic(Tokens.raised),
-                raisedPressed: dynamic(Tokens.raisedPressed), line: dynamic(Tokens.line),
-                ink: dynamic(Tokens.ink), inkSoft: dynamic(Tokens.inkSoft), dotBase: dynamic(Tokens.dot))
+    init(isDark: Bool, monochrome: Bool, background: UIColor, raised: UIColor, raisedPressed: UIColor,
+         line: UIColor, ink: UIColor, inkSoft: UIColor, dotBase: UIColor) {
+        self.isDark = isDark
+        self.monochrome = monochrome
+        self.background = background
+        self.raised = raised
+        self.raisedPressed = raisedPressed
+        self.line = line
+        self.ink = ink
+        self.inkSoft = inkSoft
+        self.dotBase = dotBase
     }
 
-    /// The app palette. `dark` only says which way the window currently looks; the colours
-    /// themselves follow whatever appearance they are drawn in.
-    static func themed(dark: Bool) -> Palette { dark ? themedDark : themedLight }
+    /// Colours that follow the appearance they are drawn in, between `light` and `dark`.
+    fileprivate init(light: Tokens, dark: Tokens, isDark: Bool, monochrome: Bool) {
+        let d = Palette.dynamic
+        self.init(isDark: isDark, monochrome: monochrome,
+                  background: d(light.background, dark.background), raised: d(light.raised, dark.raised),
+                  raisedPressed: d(light.raisedPressed, dark.raisedPressed), line: d(light.line, dark.line),
+                  ink: d(light.ink, dark.ink), inkSoft: d(light.inkSoft, dark.inkSoft), dotBase: d(light.dot, dark.dot))
+    }
+
+    private static let cache: [String: Palette] = {
+        var all: [String: Palette] = [:]
+        for theme in ThemeChoice.allCases {
+            for dark in [false, true] {
+                let t = theme.tokens
+                all["\(theme.rawValue).\(dark)"] = Palette(light: t.light, dark: t.dark, isDark: dark,
+                                                           monochrome: theme == .mono)
+            }
+        }
+        return all
+    }()
+
+    /// The app palette for a theme. `dark` only says which way the window currently looks;
+    /// the colours themselves follow whatever appearance they are drawn in.
+    static func themed(_ theme: ThemeChoice = .paper, dark: Bool) -> Palette {
+        cache["\(theme.rawValue).\(dark)"]!
+    }
 
     /// Fixed Paper colours, for previews.
-    static let paper = fixed(dark: false)
+    static let paper = ThemeChoice.paper.preview(dark: false)
     /// Fixed Graphite colours, for previews.
-    static let graphite = fixed(dark: true)
+    static let graphite = ThemeChoice.graphite.preview(dark: true)
 
-    private static func fixed(dark: Bool) -> Palette {
-        func pick(_ pair: (light: UIColor, dark: UIColor)) -> UIColor { dark ? pair.dark : pair.light }
-        return Palette(isDark: dark,
-                       background: pick(Tokens.background), raised: pick(Tokens.raised),
-                       raisedPressed: pick(Tokens.raisedPressed), line: pick(Tokens.line),
-                       ink: pick(Tokens.ink), inkSoft: pick(Tokens.inkSoft), dotBase: pick(Tokens.dot))
+    /// A colour the user or a mode chose, or the ink in Mono. Colours too close to the
+    /// surface to read (dark grey on Graphite, yellow on Paper) are moved toward the ink.
+    func tint(_ color: Color) -> Color {
+        if monochrome { return inkColor }
+        let c = UIColor(color).resolvedColor(with: traits)
+        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+        guard c.getRed(&r, green: &g, blue: &b, alpha: &a) else { return color }
+        let luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b
+        if isDark && luminance < 0.42 { return Color(uiColor: c.mixed(with: .white, amount: 0.45)) }
+        if !isDark && luminance > 0.72 { return Color(uiColor: c.mixed(with: .black, amount: 0.22)) }
+        return color
     }
 
     /// The palette with the user's finger dot size, opacity and style applied.
@@ -147,6 +223,17 @@ extension UIColor {
             blue: CGFloat(hex & 0xFF) / 255,
             alpha: alpha
         )
+    }
+}
+
+extension UIColor {
+    /// This colour moved `amount` (0...1) of the way to `other`.
+    func mixed(with other: UIColor, amount: CGFloat) -> UIColor {
+        var r1: CGFloat = 0, g1: CGFloat = 0, b1: CGFloat = 0, a1: CGFloat = 0
+        var r2: CGFloat = 0, g2: CGFloat = 0, b2: CGFloat = 0, a2: CGFloat = 0
+        guard getRed(&r1, green: &g1, blue: &b1, alpha: &a1), other.getRed(&r2, green: &g2, blue: &b2, alpha: &a2) else { return self }
+        let t = min(1, max(0, amount))
+        return UIColor(red: r1 + (r2 - r1) * t, green: g1 + (g2 - g1) * t, blue: b1 + (b2 - b1) * t, alpha: a1)
     }
 }
 

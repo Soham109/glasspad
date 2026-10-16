@@ -32,6 +32,7 @@ struct ActionLibrary: View {
     var body: some View {
         NavigationStack {
             List {
+                if query.isEmpty { pinnedPreview }
                 if query.isEmpty { recordRow }
                 ForEach(groups) { group in
                     Section(group.title) {
@@ -69,6 +70,38 @@ struct ActionLibrary: View {
     }
 
     // MARK: Rows
+
+    /// What is pinned (or in the open folder) right now, small, so each tap shows where it
+    /// went. Tiles are faces only, in balanced rows.
+    @ViewBuilder private var pinnedPreview: some View {
+        let buttons = folder.map { id in PinnedDeck.pinned(in: layout).flattenedDeck.first { $0.id == id }?.children ?? [] }
+            ?? PinnedDeck.pinned(in: layout)
+        Section {
+            if buttons.isEmpty {
+                Text("Nothing yet. Tap something below to pin it.")
+                    .font(.subheadline)
+                    .foregroundStyle(palette.inkSoftColor)
+            } else {
+                TileGrid(preferred: 50) {
+                    ForEach(buttons) { b in
+                        ActionTile(title: b.title, face: b.face(icons: session.icons),
+                                   folder: b.action == .folder ? (b.children ?? []).prefix(4).map { $0.face(icons: session.icons) } : nil,
+                                   showsTitle: false) {}
+                            .allowsHitTesting(false)
+                            .accessibilityLabel(b.title)
+                            .transition(.scale.combined(with: .opacity))
+                    }
+                }
+                .padding(.vertical, 6)
+                .animation(.snappy, value: buttons.map(\.id))
+            }
+        } header: {
+            Text(folder == nil ? "Pinned" : "In This Folder")
+        } footer: {
+            Text("Tap + to pin, tap the check to unpin.")
+        }
+        .listRowBackground(palette.raisedColor)
+    }
 
     private var recordRow: some View {
         Section {
@@ -156,6 +189,8 @@ struct ActionLibrary: View {
                 if let id = item.appID {
                     DockIcon(app: DockApp(bundleID: id, name: item.title, running: false, active: false),
                              icon: session.icons.image(for: id), size: 30)
+                } else if let link = item.button.action.websiteLink {
+                    WebsiteLogo(link: link, tint: item.button.tint, size: 30)
                 } else {
                     LibraryGlyph(symbol: item.button.symbol, color: Color(hexString: item.button.color) ?? .gray)
                 }
@@ -264,8 +299,8 @@ struct ActionLibrary: View {
         let text = [LibraryItem(id: "x.type", title: "Type Text", detail: "A signature, an address, a reply", isReady: false,
                                 button: DeckButton(title: "", symbol: "text.cursor", action: .typeText(""), color: "#5E5CE6"))]
         let open = [
-            LibraryItem(id: "o.url", title: "Website", detail: "A link in the Mac's browser", isReady: false,
-                        button: DeckButton(title: "", symbol: "safari", action: .openURL("https://"), color: "#0A84FF")),
+            LibraryItem(id: "o.url", title: "Website", detail: "Opens in the Mac's browser, with the site's logo", isReady: false,
+                        button: DeckButton(title: "", symbol: "globe", action: .openURL("https://"), color: "#0A84FF")),
             LibraryItem(id: "o.file", title: "File or Folder", detail: "Anything in Finder", isReady: false,
                         button: DeckButton(title: "", symbol: "folder.fill", action: .openFile(path: "~/Downloads"), color: "#34C759")),
         ] + SettingsPanes.all.map { name, pane in
@@ -274,9 +309,12 @@ struct ActionLibrary: View {
         }
         let organize = [LibraryItem(id: "f.new", title: "New Folder", detail: "Group pinned buttons", isReady: false,
                                     button: DeckButton(title: "Folder", symbol: "folder.fill", action: .folder, color: "#8E8E93", children: []))]
-        return [
+        let all: [LibraryGroup] = [
             LibraryGroup(id: "apps", title: "Apps", items: apps),
-            LibraryGroup(id: "mac", title: "Mac Controls", items: from(["mac", "sound", "media", "disks"])),
+        ] + DeckSystemGroup.allCases.map { g in
+            // Mac controls, grouped the way the catalog groups them.
+            LibraryGroup(id: "sys.\(g.rawValue)", title: g == .mac ? "Mac Controls" : g.title, items: from([g.rawValue]))
+        } + [
             LibraryGroup(id: "macros", title: "Macros", items: macros),
             LibraryGroup(id: "shortcuts", title: "Shortcuts", items: shortcuts),
             LibraryGroup(id: "keys", title: "Keystrokes", items: keys),
@@ -284,7 +322,8 @@ struct ActionLibrary: View {
             LibraryGroup(id: "shots", title: "Screenshots", items: from(["screen"])),
             LibraryGroup(id: "open", title: "Open", items: open),
             LibraryGroup(id: "organize", title: "Organize", items: organize),
-        ].filter { !$0.items.isEmpty || $0.id == "apps" }
+        ]
+        return all.filter { !$0.items.isEmpty || $0.id == "apps" }
     }
 }
 
@@ -330,16 +369,17 @@ struct LibraryItem: Identifiable {
 }
 
 /// The small rounded-square symbol Settings uses for rows.
-private struct LibraryGlyph: View {
+struct LibraryGlyph: View {
+    @Environment(\.palette) private var palette
     let symbol: String
     let color: Color
 
     var body: some View {
         Image(systemName: UIImage(systemName: symbol) == nil ? "square.dashed" : symbol)
             .font(.system(size: 15, weight: .semibold))
-            .foregroundStyle(.white)
+            .foregroundStyle(palette.monochrome ? palette.backgroundColor : .white)
             .frame(width: 30, height: 30)
-            .background(color, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+            .background(palette.tint(color), in: RoundedRectangle(cornerRadius: 7, style: .continuous))
             .accessibilityHidden(true)
     }
 }

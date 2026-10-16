@@ -80,6 +80,16 @@ import Testing
         #expect(TileGridMetrics.fit(count: 3, width: 40, preferred: 76).columns == 1)
     }
 
+    @Test func unboundedOrBadWidthsNeverCrash() {
+        for w in [Double.infinity, -.infinity, .nan, -20, 0, 1e9] {
+            let m = TileGridMetrics.fit(count: 5, width: w, preferred: 76)
+            #expect(m.columns >= 1)
+            #expect(m.rows.reduce(0, +) == 5)
+            #expect(m.tile.isFinite)
+            #expect(TileGridMetrics.packed(width: w, preferred: 76).columns >= 1)
+        }
+    }
+
     @Test func packedGridsUseTheFullColumnCount() {
         let m = TileGridMetrics.packed(width: 370, preferred: 76)
         #expect(m.columns == 4)

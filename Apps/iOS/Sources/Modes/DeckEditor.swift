@@ -39,31 +39,7 @@ struct ActionCategory: Identifiable {
                 T.make("area", "Area Screenshot", "Drag out an area on the Mac", "rectangle.dashed", "#0A84FF", .screenshot(DeckScreenshot(area: .selection))),
                 T.make("record", "Screen Recording", "Tap to start, tap again to save", "record.circle", "#FF453A", .screenRecording),
             ]),
-            ActionCategory(id: "mac", title: "Mac", symbol: "macbook", items: [
-                T.make("lock", "Lock Screen", "", "lock.fill", "#8E8E93", .system(.lockScreen)),
-                T.make("sleepDisplay", "Sleep Display", "", "moon.fill", "#5E5CE6", .system(.sleepDisplay)),
-                T.make("sleepMac", "Sleep Mac", "Asks first", "powersleep", "#5E5CE6", .system(.sleepMac)),
-                T.make("dark", "Dark Mode", "Switch light and dark", "circle.lefthalf.filled", "#636366", .system(.toggleDarkMode)),
-                T.make("focus", "Focus", "Runs a Shortcut, as macOS has no Focus switch for apps", "moon.circle.fill", "#5E5CE6", .runShortcut(name: "Toggle Focus")),
-                T.make("desktop", "Show Desktop", "", "menubar.dock.rectangle", "#30B0C7", .system(.showDesktop)),
-                T.make("mission", "Mission Control", "", "rectangle.3.group", "#30B0C7", .system(.missionControl)),
-                T.make("expose", "App Windows", "Every window of the front app", "rectangle.stack", "#30B0C7", .system(.appExpose)),
-                T.make("apps", "Apps", "The Mac's app grid", "square.grid.3x3", "#30B0C7", .system(.launchpad)),
-            ]),
-            ActionCategory(id: "sound", title: "Sound and Display", symbol: "speaker.wave.2.fill", items: [
-                T.make("volUp", "Volume Up", "", "speaker.plus.fill", "#FF9F0A", .system(.volumeUp)),
-                T.make("volDown", "Volume Down", "", "speaker.minus.fill", "#FF9F0A", .system(.volumeDown)),
-                T.make("mute", "Mute", "", "speaker.slash.fill", "#FF9F0A", .system(.mute)),
-                T.make("mic", "Mute Microphone", "", "mic.slash.fill", "#FF375F", .system(.micMute)),
-                T.make("output", "Sound Output", "Switch speakers or headphones", "hifispeaker.2.fill", "#FF9F0A", .setAudioOutput(name: "")),
-                T.make("brightUp", "Brightness Up", "", "sun.max.fill", "#FFD60A", .system(.brightnessUp)),
-                T.make("brightDown", "Brightness Down", "", "sun.min.fill", "#FFD60A", .system(.brightnessDown)),
-            ]),
-            ActionCategory(id: "media", title: "Media", symbol: "playpause.fill", items: [
-                T.make("play", "Play or Pause", "", "playpause.fill", "#FF375F", .system(.playPause)),
-                T.make("next", "Next Track", "", "forward.fill", "#FF375F", .system(.nextTrack)),
-                T.make("prev", "Previous Track", "", "backward.fill", "#FF375F", .system(.previousTrack)),
-            ]),
+        ] + systemCategories + [
             ActionCategory(id: "keyboard", title: "Keyboard", symbol: "keyboard", items: [
                 T.make("keys", "Keyboard Shortcut", "Press keys like ⌘C", "command", "#8A63E8",
                        .keystroke(Keystroke(key: .character("c"), modifiers: [.command]))),
@@ -73,15 +49,24 @@ struct ActionCategory: Identifiable {
                 T.make("shortcut", "Run Shortcut", "Any shortcut on your Mac", "square.stack.3d.up.fill", "#FF2D55", .runShortcut(name: "")),
                 T.make("macro", "Run Macro", "Recorded or built on the Mac", "wand.and.stars", "#12A594", .runMacro(id: UUID())),
             ]),
-            ActionCategory(id: "disks", title: "Disks and Trash", symbol: "externaldrive.fill", items: [
-                T.make("eject", "Eject All Disks", "", "eject.fill", "#8E8E93", .system(.ejectAll)),
-                T.make("trash", "Empty Trash", "Asks first", "trash.fill", "#8E8E93", .system(.emptyTrash)),
-            ]),
             ActionCategory(id: "organize", title: "Organize", symbol: "folder", items: [
                 T.make("folder", "Folder", "Groups buttons; tap to open", "folder.fill", "#64D2FF", .folder),
             ]),
         ]
     }()
+
+    /// Mac controls, one category per `DeckSystemGroup`, straight from `DeckSystemCatalog`,
+    /// so a control added there shows up here (and in the Library) by itself. Sound also
+    /// holds the output switcher.
+    static let systemCategories: [ActionCategory] = DeckSystemGroup.allCases.map { group in
+        var items = DeckSystemAction.allCases.filter { $0.group == group }.map { sys in
+            ActionTemplate.make("sys.\(sys.rawValue)", sys.title, sys.detail, sys.symbol, sys.color, .system(sys))
+        }
+        if group == .sound {
+            items.append(.make("output", "Sound Output", "Switch speakers or headphones", "hifispeaker.2.fill", "#FF9F0A", .setAudioOutput(name: "")))
+        }
+        return ActionCategory(id: group.rawValue, title: group.title, symbol: items.first?.symbol ?? "gearshape", items: items)
+    }
 
     /// The template a saved action came from (for its name in the editor).
     static func template(for action: DeckAction) -> ActionTemplate? {
@@ -154,11 +139,13 @@ struct DeckButtonEditor: View {
                 Section {
                     HStack {
                         Spacer()
-                        ActionTile(title: button.title.isEmpty ? "Button" : button.title, symbol: button.symbol, tint: button.tint,
-                                   appIcon: appIcon, size: .regular, showsTitle: true, badge: button.badge) {}
-                            .frame(width: 96, height: 96)
+                        ActionTile(title: button.title.isEmpty ? "Button" : button.title, face: button.face(icons: session.icons),
+                                   folder: button.action == .folder ? (button.children ?? []).prefix(4).map { $0.face(icons: session.icons) } : nil,
+                                   size: button.size ?? .regular, showsTitle: true, badge: button.badge) {}
+                            .frame(width: previewSize.width, height: previewSize.height)
                             .allowsHitTesting(false)
                             .accessibilityHidden(true)
+                            .animation(.snappy, value: button.size)
                         Spacer()
                     }
                     .listRowBackground(Color.clear)
@@ -213,6 +200,10 @@ struct DeckButtonEditor: View {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
+                        // "apple.com" is saved as the link it means.
+                        if let link = button.action.typedWebsite, let url = SiteInfo.webURL(link) {
+                            button.action = .openURL(url.absoluteString)
+                        }
                         if button.title.trimmingCharacters(in: .whitespaces).isEmpty {
                             button.title = ActionCategory.template(for: button.action)?.title ?? "Button"
                         }
@@ -221,6 +212,7 @@ struct DeckButtonEditor: View {
                         dismiss()
                     }
                     .fontWeight(.semibold)
+                    .disabled(!canSave)
                 }
             }
             .navigationDestination(isPresented: $pickingAction) {
@@ -248,9 +240,18 @@ struct DeckButtonEditor: View {
         .tint(palette.inkColor)
     }
 
-    private var appIcon: UIImage? {
-        if case .openApp(let id) = button.action { return session.icons.image(for: id) }
-        return nil
+    private var previewSize: CGSize {
+        switch button.size ?? .regular {
+        case .regular: CGSize(width: 104, height: 104)
+        case .wide: CGSize(width: 218, height: 104)
+        case .large: CGSize(width: 168, height: 168)
+        }
+    }
+
+    /// A Website button needs a real web address.
+    private var canSave: Bool {
+        if let link = button.action.typedWebsite { return SiteInfo.webURL(link) != nil }
+        return true
     }
 
     private var colorRow: some View {
@@ -284,6 +285,8 @@ private struct ActionOptions: View {
     var session = MacSession.shared
     @Binding var action: DeckAction
     @Binding var title: String
+    /// The label last filled in from a website, so it can follow a changed link.
+    @State private var autoTitle: String?
 
     var body: some View {
         switch action {
@@ -303,10 +306,20 @@ private struct ActionOptions: View {
                 ForEach(SettingsPanes.all, id: \.1) { Text($0.0).tag($0.1) }
             }
         case .openURL(let s):
-            TextField("https://example.com", text: Binding(get: { s }, set: { action = .openURL($0) }))
-                .keyboardType(.URL)
-                .textInputAutocapitalization(.never)
-                .autocorrectionDisabled()
+            HStack(spacing: 12) {
+                WebsiteLogo(link: s, tint: Color(uiColor: .systemBlue), size: 30)
+                TextField("apple.com", text: Binding(get: { s == "https://" ? "" : s }, set: { action = .openURL($0) }))
+                    .keyboardType(.URL)
+                    .textContentType(.URL)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .submitLabel(.done)
+            }
+            // Names the button after the site while the user has not named it.
+            .task(id: s) { await nameAfterSite(s) }
+            if !s.isEmpty, s != "https://", SiteInfo.webURL(s) == nil {
+                Text("Type a web address, like apple.com.").font(.footnote).foregroundStyle(palette.inkSoftColor)
+            }
         case .openFile(let path):
             TextField("~/Documents", text: Binding(get: { path }, set: { action = .openFile(path: $0) }))
                 .textInputAutocapitalization(.never)
@@ -347,7 +360,7 @@ private struct ActionOptions: View {
         case .runMacro(let id):
             let macros = session.allMacros ?? []
             if macros.isEmpty {
-                Text("No macros yet. Record one from My Buttons.").foregroundStyle(palette.inkSoftColor)
+                Text("No macros yet. Record one from Actions, + then Record New Macro.").foregroundStyle(palette.inkSoftColor)
             } else {
                 Picker("Macro", selection: Binding(get: { id }, set: { new in
                     action = .runMacro(id: new)
@@ -376,6 +389,22 @@ private struct ActionOptions: View {
             Text("Tap once to start recording the screen, again to stop. The movie is saved with your screenshots.")
                 .font(.footnote).foregroundStyle(palette.inkSoftColor)
         }
+    }
+
+    /// Fills the label from the site (its own name, else one from the address) unless the
+    /// user typed a label of their own.
+    private func nameAfterSite(_ link: String) async {
+        guard let url = SiteInfo.webURL(link), let host = SiteInfo.key(for: url) else { return }
+        let generic = ["", "Open Website", "Website", autoTitle ?? ""]
+        guard generic.contains(title.trimmingCharacters(in: .whitespaces)) else { return }
+        let quick = SiteInfo.name(fromHost: host)
+        title = quick
+        autoTitle = quick
+        try? await Task.sleep(for: .milliseconds(600))
+        guard !Task.isCancelled, let fetched = await WebsiteIcons.shared.title(for: link),
+              title == quick, !Task.isCancelled else { return }
+        title = fetched
+        autoTitle = fetched
     }
 
     private func appName(_ id: String) -> String {
@@ -701,6 +730,15 @@ private struct PageEditor: View {
         .scrollContentBackground(.hidden)
         .background(palette.backgroundColor.ignoresSafeArea())
         .navigationTitle(page.title)
+    }
+}
+
+extension DeckAction {
+    /// What the user typed for a Website button (not a System Settings page), even when it is
+    /// not a full link yet.
+    var typedWebsite: String? {
+        guard case .openURL(let s) = self, !s.hasPrefix(SettingsPanes.prefix) else { return nil }
+        return s
     }
 }
 
