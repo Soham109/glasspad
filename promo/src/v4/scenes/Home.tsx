@@ -1,6 +1,6 @@
 // Scenes 6 to 8: the couch (Remote), the handoff (Clipboard), two screens (Next Display).
 import React from "react";
-import { AbsoluteFill, Img, useCurrentFrame } from "remotion";
+import { AbsoluteFill, Img, OffthreadVideo, Sequence, useCurrentFrame } from "remotion";
 import { C, E, FPS, SFT, clamp01, lerp, phone, prog, spr, sstep } from "../core";
 import { Footage, Track, cornersAt, lensPoint } from "../footage/Footage";
 import couchTrack from "../tracks/couch-phone.json";
@@ -109,7 +109,7 @@ export const Remote: React.FC = () => {
   } else if (t < R_WIDE) {
     content = <TV t={t} shot={1} skip={0} searchIn={searchIn} search={search} push={lerp(1.1, 1.16, clamp01((t - R_TV3) / (R_WIDE - R_TV3)))} />;
   } else {
-    content = <Footage track={tr} from={6.6 - R_WIDE} lens={(lf) => ({ zoom: lerp(1.12, 1.0, E.glide(clamp01((lf - T(R_WIDE)) / T(3)))), cx: 1900, cy: 1100 })} grade="saturate(0.95) contrast(1.03)" screens={[{ w: PW, h: PH, exposure: 0.84, content: <RemoteScreen t={R_TV3} search /> }]} />;
+    content = <Footage track={tr} from={6.3 - R_WIDE} lens={(lf) => ({ zoom: lerp(1.12, 1.0, E.glide(clamp01((lf - T(R_WIDE)) / T(3)))), cx: 1900, cy: 1100 })} grade="saturate(0.95) contrast(1.03)" screens={[{ w: PW, h: PH, exposure: 0.84, content: <RemoteScreen t={R_TV3} search /> }]} />;
   }
   return (
     <AbsoluteFill style={{ background: C.black }}>
@@ -183,13 +183,16 @@ export const Clipboard: React.FC = () => {
 };
 
 // ---------------------------------------------------------------------------------------
-// 8. Two screens: Next Display moves the window from the monitor to the laptop.
+// 8. Two screens: in Displays on the phone, Safari is dragged from the Studio Display to the
+//    MacBook; in the room, the window leaves the monitor and lands on the laptop.
 // ---------------------------------------------------------------------------------------
 const DI = scene("displays");
-const D_PHONE = 1.4;
-const D_TAP = word("displays", 2) - DI.from + 0.05; // "window"
-const D_BACK = D_TAP + 0.5;
-const D_MOVE = D_BACK + 0.15;
+const D_PHONE = 1.35;
+const D_DROP = word("displays", 6) - DI.from + 0.1; // the drop lands on "display"
+const REC_MOVE = 6.48; // seconds into displays-move.mp4 where the app shows the move
+const D_DRAG0 = D_DROP - 0.62;
+const D_BACK = D_DROP + 0.55;
+const D_MOVE = D_BACK + 0.1;
 
 const MonitorScreen: React.FC<{ move: number }> = ({ move }) => (
   <div style={{ position: "absolute", inset: 0, width: EXT.w, height: EXT.h }}>
@@ -213,13 +216,17 @@ export const Displays: React.FC = () => {
   const t = f / FPS;
   const out = t >= D_MOVE ? prog(f, T(D_MOVE), 22, E.in) : 0;
   const inn = t >= D_MOVE + 0.25 ? spr(f, T(D_MOVE + 0.25), "settle") : 0;
-  const pose: PhonePose = { x: 960, y: 560, size: 480 * lerp(1.0, 1.06, clamp01((t - D_PHONE) / (D_BACK - D_PHONE))), rz: 6, rx: 0, orient: "landscape" };
-  const tap = phonePoint(pose, 2174 / 2622, 430 / 1206);
+  const pose: PhonePose = { x: 960, y: 545, size: 470 * lerp(1.0, 1.07, E.glide(clamp01((t - D_PHONE) / (D_BACK - D_PHONE)))), rz: -5, orient: "portrait" };
+  // the finger picks up Safari in the map (on the Studio Display) and drops it on the MacBook
+  const drag = (lf: number) => {
+    const u = E.inOut(clamp01((lf / FPS - D_DRAG0 - 0.08) / (D_DROP - D_DRAG0 - 0.08)));
+    return phonePoint(pose, lerp(0.523, 0.2, u), lerp(0.262, 0.282, u));
+  };
   const inRoom = t < D_PHONE || t >= D_BACK;
   return (
     <AbsoluteFill style={{ background: C.black }}>
       {inRoom ? (
-        <Footage track={screensTrack as unknown as Track} from={t < D_PHONE ? 0.5 : 0.5 + D_PHONE}
+        <Footage track={screensTrack as unknown as Track} from={0.3}
           lens={(lf) => (t < D_PHONE ? { zoom: lerp(1.0, 1.08, clamp01(lf / T(D_PHONE))), cx: 1500, cy: 1300 } : { zoom: lerp(1.08, 1.2, E.glide(clamp01((lf - T(D_BACK)) / T(3.5)))), cx: lerp(1550, 1050, E.inOut(clamp01((lf - T(D_MOVE)) / T(1.4)))), cy: 1300 })}
           grade="saturate(0.95) contrast(1.04)"
           screens={[
@@ -229,12 +236,24 @@ export const Displays: React.FC = () => {
       ) : (
         <AbsoluteFill style={{ background: "radial-gradient(70% 70% at 50% 40%, #3A3F45 0%, #1C1F23 60%, #0E1012 100%)" }}>
           <StudioPhone pose={pose} shadow={0.55}>
-            <Img src={phone("pinned.png")} style={{ width: 2622, height: 1206 }} />
+            <Sequence from={T(D_DROP) - T(REC_MOVE)} layout="none">
+              <OffthreadVideo src={phone("displays-move.mp4")} muted style={{ width: 1206, height: 2622 }} />
+            </Sequence>
           </StudioPhone>
-          <Touch path={() => tap} down={T(D_TAP - 0.08)} up={T(D_TAP + 0.06)} size={90} />
+          <Touch path={drag} down={T(D_DRAG0)} up={T(D_DROP)} size={90} />
         </AbsoluteFill>
       )}
       <Label text="Displays" inAt={T(0.4)} outAt={T(DI.len - 0.05)} />
     </AbsoluteFill>
   );
+};
+
+/** Sound cues in film seconds (scripts/v4/mix.py reads them through cues.ts). */
+export const HOME_CUES = {
+  tap: [CL.from + C_PASTE - 0.08, ...QUERY.split("").map((_, i) => RE.from + R_TYPE + 0.1 + i * 0.17)],
+  key: QUERY.split("").map((_, i) => RE.from + R_TYPE + 0.1 + i * 0.17),
+  drag: [[RE.from + R_SWIPE, RE.from + R_SWIPE + 0.36], [DI.from + D_DRAG0, DI.from + D_DROP]],
+  whoosh: [CL.from + C_PASTE + 0.1, DI.from + D_MOVE + 0.05],
+  skip: [RE.from + R_TV2],
+  land: [CL.from + C_MAC + 0.25],
 };

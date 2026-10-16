@@ -18,7 +18,6 @@ focus-laptop|https://assets.mixkit.co/active_storage/video_items/100057/17198781
 handoff|https://assets.mixkit.co/videos/42630/42630-2160.mp4|fec78a7934264c28797fb086844f9e16710a9d00f78f7e9c6b7529f52d6976ce
 two-screens|https://assets.mixkit.co/videos/44737/44737-2160.mp4|a51db8be28aa32d3effb14bc49050fe8f1bb12c7b6ec730162fd9776b86317de
 edit-suite|https://assets.mixkit.co/videos/51602/51602-2160.mp4|f57aa3faacec54faa26e1f74a7aa1130adbc958a23de5edec1cf98d0bde9de33
-meeting-room|https://assets.mixkit.co/videos/42643/42643-2160.mp4|0096e66702dd406d4c41dd123373a34d868efa833e3f6e99210ca26e3f3f49c5
 hands-phone|https://assets.mixkit.co/videos/28300/28300-1080.mp4|040e58b001fb158f27d0694772581469ea1bdeee9c897b3cf4f33886618f3d57
 EOF
 )

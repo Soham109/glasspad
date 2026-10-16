@@ -24,7 +24,8 @@ const LAY = scene("layouts");
 const L_PHONE = 1.85; // local: cut to the phone
 const L_DRAG0 = word("layouts", 0) - LAY.from + 0.02; // finger lands on "Split"
 const L_DRAG1 = word("layouts", 3) - LAY.from + 0.15; // and lets go after "itself"
-const DRAG_SHARES = [97, 93, 89, 85, 81, 77, 73, 69, 65, 61, 57, 53, 50];
+const L_BACK = L_DRAG1 + 1.75; // back to her, still writing
+const DRAG_SHARES = [4, 8, 12, 16, 20, 24, 28, 32, 36, 40, 44, 47, 50];
 
 const Writer: React.FC<{ t: number }> = ({ t }) => {
   const text = "Open with what changed since spring, then the questions that are still open. Keep it short, and leave time for the demo.";
@@ -50,28 +51,29 @@ export const Layouts: React.FC = () => {
   const t = f / FPS;
   // the phone, flat on the walnut desk, seen from above; a slow turn and push
   const pose: PhonePose = { x: 960 + lerp(20, -10, t / LAY.len), y: 540, size: 420 * lerp(1.0, 1.08, E.glide(clamp01((t - L_PHONE) / (LAY.len - L_PHONE)))), rz: lerp(-7, -4, t / LAY.len), orient: "landscape" };
-  // which capture is on screen: folded, then the drag frames, then the split layout
-  let img = "layout-fold.png";
-  if (t >= L_DRAG0) {
+  // which capture is on screen: Actions alone, then the clock dragged in from the left edge
+  // (the app's own frames for each place of the line), then the clock beside Actions
+  let img = "pinned.png";
+  if (t >= L_DRAG0 + 0.12) {
     const u = clamp01((t - L_DRAG0 - 0.12) / (L_DRAG1 - L_DRAG0 - 0.12));
     const i = Math.min(DRAG_SHARES.length - 1, Math.floor(E.inOut(u) * DRAG_SHARES.length));
-    img = `layout-drag-${String(DRAG_SHARES[i]).padStart(3, "0")}.png`;
+    img = `layout-clock-drag-${String(DRAG_SHARES[i]).padStart(3, "0")}.png`;
   }
-  if (t >= L_DRAG1 + 0.05) img = "layout.png";
-  const share = t < L_DRAG0 ? 0.985 : lerp(0.985, 0.5, E.inOut(clamp01((t - L_DRAG0 - 0.12) / (L_DRAG1 - L_DRAG0 - 0.12))));
+  if (t >= L_DRAG1 + 0.05) img = "layout-clock.png";
+  const share = t < L_DRAG0 ? 0.015 : lerp(0.015, 0.5, E.inOut(clamp01((t - L_DRAG0 - 0.12) / (L_DRAG1 - L_DRAG0 - 0.12))));
   const fingerAt = () => phonePoint(pose, share, 0.5);
-  const cut = sstep(L_PHONE - 0.2, L_PHONE + 0.2, t);
+  const cut = sstep(L_PHONE - 0.2, L_PHONE + 0.2, t) * (1 - sstep(L_BACK - 0.2, L_BACK + 0.2, t));
   return (
     <AbsoluteFill style={{ background: C.black }}>
-      {t < L_PHONE + 0.3 ? (
+      {t < L_PHONE + 0.3 || t > L_BACK - 0.3 ? (
         <AbsoluteFill style={{ opacity: 1 - cut }}>
-          <Footage track={focusTrack as unknown as Track} from={1.2}
-            lens={(lf) => ({ zoom: lerp(1.04, 1.16, E.glide(clamp01(lf / T(2.2)))), cx: 1300, cy: 1050 })}
+          <Footage track={focusTrack as unknown as Track} from={0.6}
+            lens={(lf) => (lf < T(L_BACK - 0.3) ? { zoom: lerp(1.04, 1.16, E.glide(clamp01(lf / T(2.2)))), cx: 1300, cy: 1050 } : { zoom: lerp(1.3, 1.22, E.glide(clamp01((lf - T(L_BACK)) / T(2.5)))), cx: 2300, cy: 1150 })}
             grade="saturate(0.95) contrast(1.03)"
             screens={[{ w: MBP.w, h: MBP.h, exposure: 0.9, content: <Writer t={t} /> }]} />
         </AbsoluteFill>
       ) : null}
-      {t > L_PHONE - 0.3 ? (
+      {t > L_PHONE - 0.3 && t < L_BACK + 0.3 ? (
         <AbsoluteFill style={{ background: DESK_BG, opacity: cut }}>
           <AbsoluteFill style={{ background: "repeating-linear-gradient(100deg, rgba(255,255,255,0.012) 0 2px, rgba(0,0,0,0.03) 3px 11px)" }} />
           <StudioPhone pose={pose} shadow={0.6}>
@@ -219,3 +221,12 @@ const HandsWithApp: React.FC<{ from: number; t0: number; t: number; timer: numbe
 };
 
 void lineAt; void cornersAt; void lensPoint; void quadPoint; void Sweep;
+
+/** Sound cues in film seconds (scripts/v4/mix.py reads them through cues.ts). */
+export const WORK_CUES = {
+  tap: [LAY.from + L_DRAG0, ED.from + E_TAP - 0.08, PR.from + P_PRESS],
+  drag: [[LAY.from + L_DRAG0, LAY.from + L_DRAG1]],
+  blade: [ED.from + E_BACK + 0.05],
+  whoosh: [PR.from + P_PRESS + 0.05],
+  laser: [PR.from + P_LASER],
+};

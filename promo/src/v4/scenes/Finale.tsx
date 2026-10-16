@@ -56,7 +56,7 @@ export const More: React.FC = () => {
             {beat ? (
               <Img src={phone(beat.img)} style={beat.orient === "landscape" ? { width: 2622, height: 1206 } : { width: 1206, height: 2622 }} />
             ) : (
-              <Sequence from={-T(3.55)} layout="none">
+              <Sequence from={-T(4.3)} layout="none">
                 <OffthreadVideo src={phone("menu.mp4")} muted style={{ width: 1206, height: 2622 }} />
               </Sequence>
             )}
@@ -67,8 +67,8 @@ export const More: React.FC = () => {
       {t >= M_TRACK - 0.1 ? (
         <AbsoluteFill style={{ opacity: clamp01(flat * 1.5) }}>
           {/* the Mac's display, its Space following three fingers */}
-          <div style={{ position: "absolute", left: 960 - 520, top: 70 - (1 - flat) * 40, transform: `scale(${lerp(0.96, 1, flat)})` }}>
-            <ExternalDisplay width={1040} stand={false}>
+          <div style={{ position: "absolute", left: 960 - 440, top: 40 - (1 - flat) * 40, transform: `scale(${lerp(0.96, 1, flat)})` }}>
+            <ExternalDisplay width={880} stand={false}>
               <div style={{ position: "absolute", left: 0, top: 0, width: EXT.w * 2, height: EXT.h, transform: `translateX(${-space * EXT.w}px)` }}>
                 <div style={{ position: "absolute", left: 0, top: 0, width: EXT.w, height: EXT.h, overflow: "hidden" }}>
                   <Wallpaper w={EXT.w} h={EXT.h} />
@@ -84,16 +84,20 @@ export const More: React.FC = () => {
             </ExternalDisplay>
           </div>
           <div style={{ position: "absolute", inset: 0, transform: `translate(${shake}px, 0)` }}>
-            <StudioPhone pose={{ x: 960, y: 830, size: 300, orient: "landscape", rx: lerp(0, 58, flat), rz: 0 }} shadow={0.6} perspective={1600}>
+            <StudioPhone pose={{ x: 960, y: lerp(560, 800, flat), size: lerp(380, 420, flat), orient: "landscape", rx: lerp(0, 52, flat), rz: 0 }} shadow={0.6} perspective={1700}>
               <Sequence from={T(M_TRACK) - T(TP_FROM)} layout="none">
                 <OffthreadVideo src={phone("trackpad.mp4")} muted style={{ width: 2622, height: 1206 }} />
               </Sequence>
             </StudioPhone>
           </div>
-          {tapRing > 0 && tapRing < 1 ? <div style={{ position: "absolute", left: 960 - 60 - tapRing * 140, top: 830 - 30 - tapRing * 70, width: 120 + tapRing * 280, height: 60 + tapRing * 140, borderRadius: "50%", boxShadow: `inset 0 0 0 ${lerp(4, 1, tapRing)}px rgba(255,255,255,0.8)`, opacity: 1 - tapRing }} /> : null}
+          {tapRing > 0 && tapRing < 1 ? <div style={{ position: "absolute", left: 960 - 60 - tapRing * 140, top: 800 - 30 - tapRing * 70, width: 120 + tapRing * 280, height: 60 + tapRing * 140, borderRadius: "50%", boxShadow: `inset 0 0 0 ${lerp(4, 1, tapRing)}px rgba(255,255,255,0.8)`, opacity: 1 - tapRing }} /> : null}
         </AbsoluteFill>
       ) : null}
-      <Label text={idx < 0 ? "Modes" : ["Keyboard", "Media", "Dock", "Macros"][idx]} inAt={T(0.3)} outAt={T(M_TRACK + 0.2)} />
+      {/* one name per screen: each leaves as the next arrives */}
+      <Label text="Modes" inAt={T(0.25)} outAt={T(BEATS[0].at) + 2} />
+      {["Keyboard", "Media", "Dock", "Macros"].map((n, i) => (
+        <Label key={n} text={n} inAt={T(BEATS[i].at) + 2} outAt={i < 3 ? T(BEATS[i + 1].at) + 2 : T(M_TRACK + 0.2)} />
+      ))}
       <Label text="Trackpad" inAt={T(M_TRACK + 0.5)} outAt={T(MO.len - 0.05)} />
     </AbsoluteFill>
   );
@@ -167,12 +171,12 @@ export const End: React.FC = () => {
   return (
     <AbsoluteFill style={{ background: STUDIO }}>
       {/* the dot glides along a short arc, as on the app icon, then becomes the wordmark's lead */}
-      <div style={{ position: "absolute", left: lerp(820, 640, glide) - 18 * dot, top: lerp(560, 470, glide) - 18 * dot + Math.sin(glide * Math.PI) * -40, width: 36 * dot, height: 36 * dot, borderRadius: 36, background: "#F5F5F7", opacity: 1 - sstep(0.85, 1, name) * 0 }} />
-      <div style={{ position: "absolute", left: 690, top: 405, fontFamily: SF, fontSize: 120, fontWeight: 600, letterSpacing: "-0.04em", color: "#F5F5F7", opacity: clamp01(name * 1.3), transform: `translateY(${(1 - name) * 18}px)` }}>Glasspad</div>
-      <div style={{ position: "absolute", left: 696, top: 548, fontFamily: SF, fontSize: 38, fontWeight: 500, letterSpacing: "-0.015em", color: "rgba(245,245,247,0.72)", opacity: clamp01(sub * 1.3), transform: `translateY(${(1 - sub) * 12}px)` }}>Free and open source.</div>
-      <div style={{ position: "absolute", left: 698, top: 622, fontFamily: SFT, fontSize: 24, fontWeight: 500, color: "rgba(245,245,247,0.5)", opacity: meta }}>github.com/Soham109/glasspad</div>
+      <div style={{ position: "absolute", left: lerp(700, 520, glide) - 18 * dot, top: lerp(560, 470, glide) - 18 * dot + Math.sin(glide * Math.PI) * -40, width: 36 * dot, height: 36 * dot, borderRadius: 36, background: "#F5F5F7", opacity: 1 - sstep(0.85, 1, name) * 0 }} />
+      <div style={{ position: "absolute", left: 570, top: 405, fontFamily: SF, fontSize: 120, fontWeight: 600, letterSpacing: "-0.04em", color: "#F5F5F7", opacity: clamp01(name * 1.3), transform: `translateY(${(1 - name) * 18}px)` }}>Glasspad</div>
+      <div style={{ position: "absolute", left: 576, top: 548, fontFamily: SF, fontSize: 38, fontWeight: 500, letterSpacing: "-0.015em", color: "rgba(245,245,247,0.72)", opacity: clamp01(sub * 1.3), transform: `translateY(${(1 - sub) * 12}px)` }}>Free and open source.</div>
+      <div style={{ position: "absolute", left: 578, top: 622, fontFamily: SFT, fontSize: 24, fontWeight: 500, color: "rgba(245,245,247,0.5)", opacity: meta }}>github.com/Soham109/glasspad</div>
       <div style={{ position: "absolute", left: 0, right: 0, bottom: 52, textAlign: "center", fontFamily: SFT, fontSize: 17, color: "rgba(245,245,247,0.36)", opacity: meta }}>Music: &ldquo;Uplifting Electronic Indie&rdquo; by WinnieTheMoog, CC BY 4.0</div>
-      <StudioPhone pose={{ x: 1460, y: 540 + (1 - phoneIn) * 60, size: 250, orient: "landscape", rz: -4, opacity: phoneIn }} shadow={0.4}>
+      <StudioPhone pose={{ x: 1420, y: 520 + (1 - phoneIn) * 60, size: 250, orient: "landscape", rz: -4, opacity: phoneIn }} shadow={0.4}>
         <Img src={phone(themes[ti])} style={{ width: 2622, height: 1206 }} />
       </StudioPhone>
     </AbsoluteFill>
@@ -180,3 +184,13 @@ export const End: React.FC = () => {
 };
 
 void lineAt; void C;
+
+/** Sound cues in film seconds (scripts/v4/mix.py reads them through cues.ts). */
+export const FINALE_CUES = {
+  tap: BEATS.map((b) => MO.from + b.at - 0.1),
+  haptic: [MO.from + M_TRACK + (TP.tap - TP_FROM)],
+  swipe: [[MO.from + M_TRACK + (TP.swipe[0] - TP_FROM), MO.from + M_TRACK + (TP.swipe[1] - TP_FROM)]],
+  whoosh: [MO.from + M_TRACK],
+  lock: [PV.from + PW_(6)],
+  dot: [EN.from],
+};

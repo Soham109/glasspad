@@ -5,6 +5,7 @@
 //  2 Pinned    the phone, low and close; Split Screen snaps the windows; Do Not Disturb.
 import React from "react";
 import { AbsoluteFill, Freeze, Img, OffthreadVideo, Sequence, staticFile, useCurrentFrame } from "remotion";
+import { CameraMotionBlur } from "@remotion/motion-blur";
 import { C, E, FPS, SF, clamp01, keys, lerp, phone, prog, s, spr, sstep } from "../core";
 import { DeskSet, DESK } from "../set/Desk";
 import { camPath, project, Cam, CamKey } from "../set/Stage3D";
@@ -119,11 +120,12 @@ const KEYS: CamKey[] = [
   // Open: inside the glass, the dot; then out along the phone's line of sight and up to the desk
   { t: 0, pos: along(70), look: SC, fov: 30, aperture: 26, focus: 900 },
   { t: 1.25, pos: along(92), look: SC, fov: 30, aperture: 22 },
-  { t: 3.9, pos: along(680, -150, -60), look: { x: 330, y: -360, z: 60 }, fov: 32, aperture: 9, ease: E.inOut },
+  { t: 3.9, pos: along(620, -330, 80), look: { x: 380, y: -300, z: 80 }, fov: 32, aperture: 9, ease: E.inOut },
   { t: 6.62, pos: WIDE.pos, look: WIDE.look, fov: 34, aperture: 6, ease: E.glide },
   // Actions (CG from T_CG_IN): the display and the phone in one frame, drifting; then in to the phone
   { t: T_CG_IN - 0.45, pos: { x: -120, y: -500, z: 1700 }, look: { x: 180, y: -420, z: -40 }, fov: 33, aperture: 6, focus: 1700 },
   { t: T_CLICK + 0.05, pos: { x: 40, y: -490, z: 1560 }, look: { x: 210, y: -420, z: -40 }, fov: 33, aperture: 6, focus: 1600, ease: E.linear },
+  { t: T_CLICK + 1.0, pos: { x: 520, y: -430, z: 1150 }, look: { x: 450, y: -260, z: 120 }, fov: 32, aperture: 8, ease: E.inOut },
   { t: T_CLICK + 2.0, pos: along(330, -10, 20), look: SC, fov: 30, aperture: 12, ease: E.inOut },
   { t: PIN.from, pos: along(300, 0, 40), look: SC, fov: 30, aperture: 12, ease: E.linear },
   // Pinned: low and close on the phone, slowly orbiting
@@ -139,14 +141,36 @@ const KEYS: CamKey[] = [
 
 const camAt = (t: number): Cam => camPath(KEYS, t);
 
-export const Morning: React.FC = () => {
+/** The CG desk at this frame: devices, screens, the touches on the phone's glass, the light. */
+const CGDesk: React.FC = () => {
   const f = useCurrentFrame();
   const t = f / FPS;
   const cam = camAt(t);
   const wake = clamp01(prog(f, T(T_WAKE), 40, E.out));
   // the touch that opens the film: on the phone's glass, in world space -> on screen
-  const tw = phoneScreenWorld(1311, 603);
-  const tp = project(cam, tw);
+  const tp = project(cam, phoneScreenWorld(1311, 603));
+  // the display's own light, blooming slightly into the room
+  const dc = project(cam, { x: 0, y: -560, z: DESK.display.z });
+  return (
+    <AbsoluteFill>
+      <DeskSet cam={cam} light={lerp(0.4, 1, wake)}
+        display={<DisplayScreen t={t} wake={wake} />}
+        laptop={<LaptopScreen wake={wake} />}
+        phone={<div style={{ opacity: clamp01(prog(f, T(T_WAKE - 0.35), 24, E.out)) }}><PhoneScreen t={t} /></div>}
+        phoneSweep={t > PIN.from + 0.6 && t < PIN.from + 1.6 ? (t - PIN.from - 0.6) : -1} />
+      <AbsoluteFill style={{ pointerEvents: "none", mixBlendMode: "screen", opacity: 0.5 * wake, background: `radial-gradient(${Math.max(200, 900 * dc.k)}px ${Math.max(120, 520 * dc.k)}px at ${dc.x}px ${dc.y}px, rgba(190,170,255,0.18) 0%, rgba(190,170,255,0) 100%)` }} />
+      {/* dawn: a soft warm beam from the window, back right */}
+      <AbsoluteFill style={{ pointerEvents: "none", mixBlendMode: "screen", opacity: 0.55 * lerp(0.4, 1, wake), background: "linear-gradient(118deg, rgba(255,190,140,0) 38%, rgba(255,190,140,0.10) 52%, rgba(255,190,140,0) 66%)" }} />
+      {t < 4 ? <Touch path={() => ({ x: tp.x, y: tp.y })} down={T(0.35)} up={T(T_WAKE)} size={Math.max(40, 22 * tp.k)} /> : null}
+      {t > T_SPLIT - 0.4 && t < T_SPLIT + 0.8 ? (() => { const q = project(cam, phoneScreenWorld(TILE.split.x, TILE.split.y)); return <Touch path={() => ({ x: q.x, y: q.y })} down={T(T_SPLIT - 0.12)} up={T(T_SPLIT + 0.02)} size={Math.max(30, 60 * q.k)} />; })() : null}
+      {t > T_DND - 0.4 && t < T_DND + 0.8 ? (() => { const q = project(cam, phoneScreenWorld(TILE.dnd.x, TILE.dnd.y)); return <Touch path={() => ({ x: q.x, y: q.y })} down={T(T_DND - 0.12)} up={T(T_DND + 0.02)} size={Math.max(24, 60 * q.k)} />; })() : null}
+    </AbsoluteFill>
+  );
+};
+
+export const Morning: React.FC = () => {
+  const f = useCurrentFrame();
+  const t = f / FPS;
   const cgVisible = t < T_FOOT_IN + 0.45 || t >= T_CG_IN - 0.45;
   const footVisible = t >= T_FOOT_IN - 0.45 && t < T_CG_IN + 0.45;
   // cross blur dissolves between live action and the CG desk
@@ -157,16 +181,14 @@ export const Morning: React.FC = () => {
     <AbsoluteFill style={{ background: C.black }}>
       {cgVisible ? (
         <AbsoluteFill style={{ filter: footVisible ? `blur(${(footOpacity * 14).toFixed(2)}px)` : undefined }}>
-          <DeskSet cam={cam} light={lerp(0.4, 1, wake)}
-            display={<DisplayScreen t={t} wake={wake} />}
-            laptop={<LaptopScreen wake={wake} />}
-            phone={<div style={{ opacity: clamp01(prog(f, T(T_WAKE - 0.35), 24, E.out)) }}><PhoneScreen t={t} /></div>}
-            phoneSweep={t > PIN.from + 0.6 && t < PIN.from + 1.6 ? (t - PIN.from - 0.6) : -1} />
-          {/* first touch: the dot lands on the glass and wakes the Mac */}
-          {t < 4 ? <Touch path={() => ({ x: tp.x, y: tp.y })} down={T(0.35)} up={T(T_WAKE)} size={Math.max(40, 22 * tp.k)} /> : null}
-          {/* Split Screen and Do Not Disturb taps, placed on the phone's glass */}
-          {t > T_SPLIT - 0.4 && t < T_SPLIT + 0.8 ? (() => { const q = project(cam, phoneScreenWorld(TILE.split.x, TILE.split.y)); return <Touch path={() => ({ x: q.x, y: q.y })} down={T(T_SPLIT - 0.12)} up={T(T_SPLIT + 0.02)} size={Math.max(30, 60 * q.k)} />; })() : null}
-          {t > T_DND - 0.4 && t < T_DND + 0.8 ? (() => { const q = project(cam, phoneScreenWorld(TILE.dnd.x, TILE.dnd.y)); return <Touch path={() => ({ x: q.x, y: q.y })} down={T(T_DND - 0.12)} up={T(T_DND + 0.02)} size={Math.max(24, 60 * q.k)} />; })() : null}
+          {/* the whip to the display on Split Screen is shot with a real shutter: motion blur */}
+          {t > T_SPLIT && t < T_SPLIT + 0.5 ? (
+            <CameraMotionBlur shutterAngle={200} samples={7}>
+              <CGDesk />
+            </CameraMotionBlur>
+          ) : (
+            <CGDesk />
+          )}
         </AbsoluteFill>
       ) : null}
       {footVisible ? (
@@ -198,3 +220,12 @@ const Wordmark: React.FC<{ t: number }> = ({ t }) => {
 
 export const MORNING_LEN = Math.round(scene("pinned").to * FPS);
 void lineAt; void keys; void extScreen; void OPEN;
+
+/** Sound cues in film seconds (scripts/v4/mix.py reads them through cues.ts). */
+export const MORNING_CUES = {
+  tap: [0.35, T_SPLIT - 0.12, T_DND - 0.12],
+  click: [T_CLICK],
+  whoosh: [T_FOOT_IN - 0.3, T_CG_IN - 0.3, T_SPLIT + 0.05],
+  chime: [T_BANNER],
+  wake: [T_WAKE],
+};
