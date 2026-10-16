@@ -23,7 +23,7 @@ public struct PhotoTone: Hashable, Sendable {
             while true {
                 let veiled = samples.map { (dark ? RGBA.black : RGBA.white).alpha(veil).over($0) }
                 let t = PhotoTone(isDark: dark, veil: veil, samples: veiled)
-                if t.tokens.meetsContrast() || veil >= 0.9 { return t }
+                if t.plainTokens.meetsContrast() || veil >= 0.9 { return t }
                 veil = min(0.9, veil + 0.02)
             }
         }
@@ -39,6 +39,17 @@ public struct PhotoTone: Hashable, Sendable {
     /// stand-in for the surface (the photo's average colour) and an accent taken from the
     /// photo's most colourful part, made readable.
     public var tokens: ThemeTokens {
+        var t = plainTokens
+        if let vivid = samples.max(by: { $0.saturation < $1.saturation }), vivid.saturation > 0.25 {
+            let accent = vivid.mixed(with: t.ink, amount: 0.15).readable(on: t.raisedSurfaces + t.surfaces, toward: t.ink,
+                                                                         minimum: ContrastLevel.text.rawValue)
+            if accent.worstContrast(on: t.raisedSurfaces) >= ContrastLevel.text.rawValue { t.accent = accent }
+        }
+        return t
+    }
+
+    /// The colours with the ink as the accent: what the veil must make readable.
+    var plainTokens: ThemeTokens {
         let ink = isDark ? RGBA(hex: 0xF5F6F8) : RGBA(hex: 0x101216)
         let average = Self.average(samples)
         var t = ThemeTokens(isDark: isDark, background: average, backdrop: nil,
@@ -51,11 +62,6 @@ public struct PhotoTone: Hashable, Sendable {
         // Text on an ink filled button: the photo's average, or plain white or black when the
         // average sits too close to the ink.
         if t.solid.contrast(with: ink) < ContrastLevel.text.rawValue { t.solid = isDark ? RGBA(hex: 0x101216) : .white }
-        if let vivid = samples.max(by: { $0.saturation < $1.saturation }), vivid.saturation > 0.25 {
-            let accent = vivid.mixed(with: ink, amount: 0.15).readable(on: t.raisedSurfaces + t.surfaces, toward: ink,
-                                                                       minimum: ContrastLevel.text.rawValue)
-            if accent.worstContrast(on: t.raisedSurfaces) >= ContrastLevel.text.rawValue { t.accent = accent }
-        }
         return t
     }
 

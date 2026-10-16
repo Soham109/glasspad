@@ -144,10 +144,10 @@ final class PhotoBackdrop: @unchecked Sendable {
         return Current(tile: tile, preview: preview, tone: tone, version: version)
     }
 
-    /// Colours on a 12 by 12 grid over the part of the tile a screen can show.
+    /// Colours on an 8 by 8 grid over the part of the tile a screen can show.
     private static func samples(_ image: UIImage) -> [RGBA] {
         guard let cg = image.cgImage else { return [] }
-        let n = 12
+        let n = 8
         var pixels = [UInt8](repeating: 0, count: n * n * 4)
         let drawn = pixels.withUnsafeMutableBytes { buffer -> Bool in
             guard let ctx = CGContext(data: buffer.baseAddress, width: n, height: n, bitsPerComponent: 8, bytesPerRow: n * 4,

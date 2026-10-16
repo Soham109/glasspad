@@ -31,7 +31,10 @@ struct SettingsView: View {
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     if #available(iOS 26.0, *) {
+                        // Filled with the ink, like every primary button, so its tick reads on
+                        // light accents too.
                         Button("Done", systemImage: "checkmark", role: .confirm) { dismiss() }
+                            .tint(palette.inkColor)
                     } else {
                         Button("Done") { dismiss() }.fontWeight(.semibold)
                     }

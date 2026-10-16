@@ -364,7 +364,7 @@ extension ThemeTokens {
                              solid: 0x170A07, ink: 0xFBF1EA, accent: 0xFFC89C, soft: 0.8)
     static let citrus = glass(dark: false, ThemeBackdrop(base: 0xF6F3E3, corner: 0xFFEC9E, middle: 0xFFD9B8,
                                                          side: 0xDDF0AE, edge: 0xFFE7C2),
-                              solid: 0xF7F4E6, ink: 0x221D0E, accent: 0x7A5200, soft: 0.68)
+                              solid: 0xF7F4E6, ink: 0x221D0E, accent: 0xA34E00, soft: 0.68)
     static let smoke = glass(dark: true, ThemeBackdrop(base: 0x0D0E10, corner: 0x2E3138, middle: 0x3A3C42,
                                                        side: 0x23272D, edge: 0x34363B),
                              solid: 0x111214, ink: 0xF2F3F5, accent: 0xF2F3F5, soft: 0.72)
