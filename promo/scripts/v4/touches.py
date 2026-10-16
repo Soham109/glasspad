@@ -38,6 +38,18 @@ for i, f in enumerate(frames):
 json.dump(dict(fps=60, frames=out), open(os.path.join(ROOT, "src/v4/tracks/trackpad-touches.json"), "w"))
 counts = [len(p) for p in out]
 print(len(out), "frames;", "first touch", next((i / 60 for i, c in enumerate(counts) if c), None), "s; most fingers", max(counts))
+# a lone frame or two is the launch, not a finger: dropped
+i = 0
+while i < len(out):
+    if out[i]:
+        j = i
+        while j + 1 < len(out) and out[j + 1]: j += 1
+        if j - i < 2:
+            for k in range(i, j + 1): out[k] = []
+        i = j + 1
+    else:
+        i += 1
+json.dump(dict(fps=60, frames=out), open(os.path.join(ROOT, "src/v4/tracks/trackpad-touches.json"), "w"))
 # the gestures, as runs of frames with the same number of fingers
 runs, cur = [], None
 for i, p in enumerate(out):

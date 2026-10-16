@@ -7,6 +7,7 @@ import UIKit
 /// Each scene is the real app fed the data a Mac would send, so the film shows the app as it is.
 ///
 ///   -GPFilm v4-actions    Actions, Mail in front; three seconds in, the Mac switches to Safari
+///   -GPFilm v4-mail       Actions with Mail in front (no switch)
 ///   -GPFilm v4-pinned     Actions with Safari in front (Pinned holds Split Screen, Do Not Disturb, Next Display)
 ///   -GPFilm v4-finalcut   Actions with Final Cut Pro in front
 ///   -GPFilm v4-keynote    Actions with Keynote in front
@@ -22,7 +23,7 @@ enum FilmV4 {
     static func start(scene: String, iconFolder: String?) -> Bool {
         let front: String
         switch scene {
-        case "v4-actions": front = "com.apple.mail"
+        case "v4-actions", "v4-mail": front = "com.apple.mail"
         case "v4-pinned": front = "com.apple.Safari"
         case "v4-finalcut": front = "com.apple.FinalCut"
         case "v4-keynote": front = "com.apple.iWork.Keynote"
