@@ -125,6 +125,9 @@ final class PhoneSession {
         #expect(await eventually { self.client.state == .connected(rttMs: nil) && server.connectedPhone != nil })
     }
 
+    /// An app id no Mac has, for the round trip in `send`.
+    static let flushID = "qa.flush"
+
     func close() {
         router.sessionEnded()
         router.appWillTerminate()
@@ -139,8 +142,12 @@ final class PhoneSession {
         let start = inbox.messages.count
         client.send(message: .mode(message))
         guard let match else {
-            // No answer expected: give the Mac a moment to act on it.
-            _ = await eventually(0.15) { false }
+            // No answer expected: a request that is always answered, sent after it, comes back
+            // once the Mac has handled it (one TCP stream, handled in order on the main queue).
+            client.send(message: .mode(.dockIconRequest(bundleIDs: [Self.flushID])))
+            _ = await eventually(timeout) {
+                self.inbox.messages.dropFirst(start).contains { if case .dockIcons = $0 { true } else { false } }
+            }
             return nil
         }
         var found: ModeMessage?
@@ -613,6 +620,56 @@ func isCase(_ m: ModeMessage, _ tag: String) -> Bool { m.tag == tag }
         #expect(s.server.stats.malformed == 0)
     }
 
+    // MARK: Layouts
+
+    /// Several panes on screen: the phone reports one primary screen (`LayoutWirePlan`). Each
+    /// pane must still get its live data from the Mac: the frontmost app for Dock, Actions and
+    /// Remote, and Dock list pushes for Dock.
+    @Test func layoutsTellTheMacEnoughForEveryPane() async throws {
+        let s = try await PhoneSession()
+        defer { s.close() }
+        var app = 0
+        func gaps(_ modes: [GlasspadMode]) async -> [String] {
+            let plan = LayoutWirePlan(modes: modes)
+            await s.send(.modeSelected(plan.primary))
+            if plan.requestsMedia {
+                #expect(await s.send(.mediaRequest) { isCase($0, "mediaState") } != nil)
+            }
+            let start = s.inbox.messages.count
+            app += 1
+            let bundle = "com.example.app\(app)"
+            s.router.workspaceChanged(activated: bundle, name: "App", url: nil)
+            var missing: [String] = []
+            let name = modes.map(\.rawValue).joined(separator: "+")
+            if modes.contains(where: [.dock, .deck, .remote].contains) {
+                let got = await eventually(0.5) { s.inbox.messages.dropFirst(start).contains(.frontmostApp(bundleID: bundle)) }
+                if !got { missing.append("\(name): no frontmost app") }
+            }
+            if modes.contains(.dock) {
+                let got = await eventually(1) { s.inbox.messages.dropFirst(start).contains { isCase($0, "dockList") } }
+                if !got { missing.append("\(name): no Dock updates") }
+            }
+            return missing
+        }
+        // The built-in templates, with their phone mode names.
+        let wire: [String: GlasspadMode] = ["actions": .deck]
+        for t in LayoutTemplate.builtIn {
+            let modes = t.panes.compactMap { wire[$0] ?? GlasspadMode(rawValue: $0) }
+            #expect(modes.count == t.panes.count, "\(t.id)")
+            let missing = await gaps(modes)
+            #expect(missing.isEmpty, "\(t.name): \(missing)")
+        }
+        // Any two panes the editor can put together.
+        var pairGaps: [String] = []
+        let all = GlasspadMode.allCases
+        for (i, a) in all.enumerated() { for b in all[(i + 1)...] { pairGaps += await gaps([a, b]) } }
+        withKnownIssue("Present beside Dock, Actions or Remote takes the primary screen, so that pane gets no live updates") {
+            #expect(pairGaps.isEmpty, "\(pairGaps)")
+        }
+        #expect(pairGaps.allSatisfy { $0.hasPrefix("dock+present") || $0.hasPrefix("deck+present") || $0.contains("present+remote") },
+                "\(pairGaps)")
+    }
+
     // MARK: Echoes and newer or older builds
 
     @Test func macToPhoneMessagesEchoedBackAreIgnored() async throws {
@@ -629,7 +686,7 @@ func isCase(_ m: ModeMessage, _ tag: String) -> Bool { m.tag == tag }
         ]
         for m in echoes { await s.send(m) }
         // Only the Dock state the first message of a session announces; nothing answers the echoes.
-        let answers = s.inbox.messages.filter { !isCase($0, "macDockState") }
+        let answers = s.inbox.messages.filter { !isCase($0, "macDockState") && !isCase($0, "dockIcons") }
         #expect(answers.isEmpty, "\(answers.map(\.tag))")
         #expect(s.env.runs.isEmpty && s.env.opened.isEmpty)
         #expect(s.dockDefaults.writes == 0)
