@@ -83,22 +83,35 @@
   </div>
   <h1 class="hero-title">Glasspad</h1>
   <p class="hero-line">Your iPhone, as a Mac trackpad.</p>
-  <p class="hero-sub">Wireless, with clicks you can feel. Plus a keyboard, a media remote, your Mac's Dock, and buttons that follow the app in front. Free, private and open source.</p>
+  
   <div class="hero-actions">
     <a class="btn btn-ink" href="https://github.com/Soham109/glasspad">
       <svg width="18" height="18" aria-hidden="true"><use href="#i-github"/></svg>
       View on GitHub
     </a>
-    <a class="btn btn-quiet" href="#try">Try the trackpad</a>
+    <a class="btn btn-quiet" href="#film">Watch the film</a>
   </div>
-  <p class="hero-note">Version 0.1.0, for macOS 14 and iOS 18 or later.</p>
+  <p class="hero-note">Free and open source. macOS 14 and iOS 18 or later.</p>
+</section>
+
+<!-- Demo film: a still until clicked, so nothing loads from YouTube before then -->
+<section class="film" id="film" aria-label="Demo film">
+  <div class="wrap">
+    <div class="film-frame" id="filmFrame">
+      <button class="film-play" type="button" id="filmPlay" aria-label="Play the Glasspad demo film">
+        <img src="/film.jpg" alt="" width="1280" height="720" loading="lazy" decoding="async">
+        <span class="film-btn" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.4-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5Z"/></svg></span>
+      </button>
+    </div>
+    <p class="film-credit">Music: <a href="https://commons.wikimedia.org/wiki/File:Uplifting_Electronic_Indie_by_WinnieTheMoog.ogg">&ldquo;Uplifting Electronic Indie&rdquo; by WinnieTheMoog</a>, <span style="white-space:nowrap">CC BY 4.0</span></p>
+  </div>
 </section>
 
 <!-- How it works: the full setup -->
 <section class="how" id="how" aria-labelledby="how-title">
   <div class="wrap">
     <div class="section-head center">
-      <h2 id="how-title" class="reveal">Lay it by your Mac. Touch the glass.</h2>
+      <h2 id="how-title" class="reveal">Lay it down. Touch the glass.</h2>
     </div>
     <div class="scene" id="scene" role="img" aria-label="An iPhone lying in front of a MacBook Pro. Finger dots on the phone move the Mac pointer, scroll a window, swipe between Spaces, open an app from Dock, then show Actions: the buttons for the app in front beside Pinned.">
       <div class="sc-desk"></div>
@@ -132,12 +145,12 @@
       </div>
     </div>
     <ol class="how-steps" id="howSteps">
-      <li><button data-step="0"><span class="hs-bar"><i></i></span><b>Move</b><span class="t">One finger moves the pointer, with your Mac's own speed and acceleration.</span></button></li>
-      <li><button data-step="1"><span class="hs-bar"><i></i></span><b>Click</b><span class="t">Tap to click. The phone answers with a small tap you can feel.</span></button></li>
-      <li><button data-step="2"><span class="hs-bar"><i></i></span><b>Scroll</b><span class="t">Two fingers scroll, with the same glide as your trackpad.</span></button></li>
-      <li><button data-step="3"><span class="hs-bar"><i></i></span><b>Spaces</b><span class="t">Three fingers slide between desktops, following your hand.</span></button></li>
-      <li><button data-step="4"><span class="hs-bar"><i></i></span><b>Dock</b><span class="t">Switch to Dock and tap an app to open it on the Mac.</span></button></li>
-      <li><button data-step="5"><span class="hs-bar"><i></i></span><b>Actions</b><span class="t">Buttons for the app in front, with Pinned beside them.</span></button></li>
+      <li><button data-step="0"><span class="hs-bar"><i></i></span><b>Move</b><span class="t">One finger moves the pointer.</span></button></li>
+      <li><button data-step="1"><span class="hs-bar"><i></i></span><b>Click</b><span class="t">Tap to click. Feel it land.</span></button></li>
+      <li><button data-step="2"><span class="hs-bar"><i></i></span><b>Scroll</b><span class="t">Two fingers scroll.</span></button></li>
+      <li><button data-step="3"><span class="hs-bar"><i></i></span><b>Spaces</b><span class="t">Three fingers switch desktops.</span></button></li>
+      <li><button data-step="4"><span class="hs-bar"><i></i></span><b>Dock</b><span class="t">Open any app in your Dock.</span></button></li>
+      <li><button data-step="5"><span class="hs-bar"><i></i></span><b>Actions</b><span class="t">Buttons for the app in front.</span></button></li>
     </ol>
     <p class="how-caption" id="howCaption" aria-live="polite"><b>Move</b><span>One finger moves the pointer.</span></p>
   </div>
@@ -148,7 +161,7 @@
   <div class="wrap">
     <div class="section-head center">
       <h2 id="try-title" class="reveal">Try it here.</h2>
-      <p class="lede reveal" data-touch-copy="Put one, two or three fingers on the phone. Scroll, pinch, and swipe sideways with three." data-mouse-copy="Move your pointer over the phone. Click, scroll, or pinch on your trackpad. Tap a gesture below to see the rest.">Move your pointer over the phone. Click, scroll, or pinch on your trackpad. Tap a gesture below to see the rest.</p>
+      <p class="lede reveal" data-touch-copy="Put one, two or three fingers on the phone." data-mouse-copy="Move, click and scroll on the phone.">Move, click and scroll on the phone.</p>
     </div>
 
     <div class="stage">
@@ -197,46 +210,12 @@
   </div>
 </section>
 
-<!-- Settings -->
-<section class="settings" id="settings" aria-labelledby="settings-title">
-  <div class="wrap split">
-    <div class="split-text">
-      <h2 id="settings-title" class="reveal">It follows your Mac's own trackpad settings.</h2>
-      <p class="lede reveal">Change a trackpad setting in System Settings and the phone follows.</p>
-      <p class="small reveal">Tracking speed, natural scrolling, tap to click, secondary click, three finger drag, Look Up, swipe between pages and Spaces, Mission Control, App Exposé, Launchpad, Show Desktop and click firmness all come from your Mac.</p>
-      <p class="small reveal">One difference: a phone screen cannot be pressed down, so a tap always clicks, even if tap to click is off on your Mac.</p>
-      <p class="small reveal">Prefer it different? The phone has its own speed, scrolling and haptics, and three looks: Paper, Graphite or System.</p>
-    </div>
-    <div class="sync" id="sync">
-      <div class="pane mac-pane">
-        <p class="pane-title">Trackpad <span>on your Mac</span></p>
-        <div class="row"><span>Tracking speed</span>
-          <input type="range" min="0" max="3" step="0.25" value="1.5" id="speed" aria-label="Tracking speed">
-        </div>
-        <div class="row"><span>Natural scrolling</span><button class="toggle" role="switch" aria-checked="true" data-key="natural" aria-label="Natural scrolling"><i></i></button></div>
-        <div class="row"><span>Three finger drag</span><button class="toggle" role="switch" aria-checked="false" data-key="drag" aria-label="Three finger drag"><i></i></button></div>
-        <div class="row"><span>Swipe between pages</span><button class="toggle" role="switch" aria-checked="true" data-key="pages" aria-label="Swipe between pages"><i></i></button></div>
-        <div class="row"><span>Mission Control</span><button class="toggle" role="switch" aria-checked="true" data-key="mission" aria-label="Mission Control"><i></i></button></div>
-      </div>
-      <div class="wire" aria-hidden="true"><i class="pulse" id="pulse"></i></div>
-      <div class="pane phone-pane" aria-label="What the phone uses">
-        <p class="pane-title">Glasspad <span>on your phone</span></p>
-        <div class="row"><span>Tracking speed</span><span class="meter"><i id="speedOut"></i></span></div>
-        <div class="row"><span>Natural scrolling</span><span class="state" data-out="natural">On</span></div>
-        <div class="row"><span>Three finger drag</span><span class="state" data-out="drag">Off</span></div>
-        <div class="row"><span>Swipe between pages</span><span class="state" data-out="pages">On</span></div>
-        <div class="row"><span>Mission Control</span><span class="state" data-out="mission">On</span></div>
-      </div>
-    </div>
-  </div>
-</section>
-
 <!-- Modes -->
 <section class="modes" id="modes" aria-labelledby="modes-title">
   <div class="wrap">
-    <div class="section-head">
+    <div class="section-head center">
       <h2 id="modes-title" class="reveal">More than a trackpad.</h2>
-      <p class="lede reveal">Touch the pill at the top to switch modes. Two quick tools live there too: Clipboard, to copy between phone and Mac, and Present, a slide remote with a timer and a laser dot.</p>
+      <p class="lede reveal">Five modes, one touch on the pill away.</p>
     </div>
   </div>
   <div class="modes-scroll" id="modesScroll">
@@ -266,8 +245,8 @@
 <section class="ax" id="actions" aria-labelledby="ax-title">
   <div class="wrap">
     <div class="section-head center">
-      <h2 id="ax-title" class="reveal">Buttons that follow the app in front.</h2>
-      <p class="lede reveal">Switch apps on your Mac and Actions switches with it. Your Pinned essentials stay beside them.</p>
+      <h2 id="ax-title" class="reveal">Buttons that follow your app.</h2>
+      <p class="lede reveal">Switch apps on your Mac. Actions switches too.</p>
     </div>
 
     <div class="ax-stage" id="axStage">
@@ -308,22 +287,6 @@
     </div>
     <p class="sr-only" id="axLive" aria-live="polite"></p>
 
-    <div class="record split">
-      <div class="split-text">
-        <h3 class="h3 reveal">Record it once. Replay it with a tap.</h3>
-        <p class="reveal">In Actions, tap + and choose Record New Macro, then do the steps on your Mac. Typing becomes text, shortcuts become keystrokes and pauses become waits, in a list you can edit.</p>
-        <p class="reveal">The same + adds any other app, Mac controls and your Apple Shortcuts.</p>
-        <p class="small reveal">Scripts never run unless you turn them on for that macro. Passwords typed into secure fields are never recorded.</p>
-      </div>
-      <ol class="steps-list" id="steps" aria-label="An example recorded macro">
-        <li><span class="step-kind">Open app</span><span class="step-val">Safari</span></li>
-        <li><span class="step-kind">Keystroke</span><span class="step-val"><kbd>⌘</kbd><kbd>L</kbd></span></li>
-        <li><span class="step-kind">Type text</span><span class="step-val">github.com/Soham109/glasspad</span></li>
-        <li><span class="step-kind">Keystroke</span><span class="step-val"><kbd>Return</kbd></span></li>
-        <li><span class="step-kind">Wait</span><span class="step-val">0.8 s</span></li>
-        <li><span class="step-kind">Run Shortcut</span><span class="step-val">Start focus</span></li>
-      </ol>
-    </div>
   </div>
 </section>
 
@@ -331,8 +294,8 @@
 <section class="privacy dark" id="privacy" aria-labelledby="privacy-title">
   <div class="wrap">
     <div class="section-head center">
-      <h2 id="privacy-title" class="reveal">It controls your Mac, so it is locked down.</h2>
-      <p class="lede reveal">Your phone and your Mac talk directly over your own Wi-Fi. There is no server in between and nothing to sign up for.</p>
+      <h2 id="privacy-title" class="reveal">Private by design.</h2>
+      <p class="lede reveal">Paired by QR code. Encrypted. Nothing leaves your Wi-Fi.</p>
     </div>
 
     <div class="net" aria-hidden="true">
@@ -349,53 +312,15 @@
       </svg>
     </div>
 
-    <ul class="facts">
-      <li class="reveal">
-        <svg width="28" height="28" aria-hidden="true"><use href="#i-qr"/></svg>
-        <h3>Pair with a QR code</h3>
-        <p>Your Mac shows a QR code holding a random secret key. The phone scans it once and keeps the key in the iOS Keychain, Apple's encrypted store for secrets. No key, no connection.</p>
-      </li>
-      <li class="reveal">
-        <svg width="28" height="28" aria-hidden="true"><use href="#i-lock"/></svg>
-        <h3>Encrypted, every message</h3>
-        <p>After the first hello, everything is encrypted and checked with ChaCha20-Poly1305, a widely used encryption method. Recorded traffic cannot be played back later.</p>
-      </li>
-      <li class="reveal">
-        <svg width="28" height="28" aria-hidden="true"><use href="#i-home"/></svg>
-        <h3>Nothing leaves your network</h3>
-        <p>It does not work over the internet, by design. Touches go from the phone to the Mac and nowhere else. Unpaired devices on your Wi-Fi are ignored.</p>
-      </li>
-      <li class="reveal">
-        <svg width="28" height="28" aria-hidden="true"><use href="#i-noaccount"/></svg>
-        <h3>No accounts, no tracking</h3>
-        <p>No sign up, no servers, no analytics. Remove a phone from the Mac's menu and its key stops working.</p>
-      </li>
-    </ul>
-  </div>
-</section>
-
-<!-- Phone safety -->
-<section class="safety" id="safety" aria-labelledby="safety-title">
-  <div class="wrap split">
-    <div class="split-text">
-      <h2 id="safety-title" class="reveal">Gentle on your phone.</h2>
-      <p class="lede reveal">Glasspad uses only public iOS features, the same ones any App Store app may use.</p>
-    </div>
-    <ul class="plain-list">
-      <li class="reveal"><span class="pl-dot" aria-hidden="true"></span>The screen dims after a minute without a touch.</li>
-      <li class="reveal"><span class="pl-dot" aria-hidden="true"></span>It never turns your brightness up.</li>
-      <li class="reveal"><span class="pl-dot" aria-hidden="true"></span>The phone only stays awake while the trackpad is on screen.</li>
-      <li class="reveal"><span class="pl-dot" aria-hidden="true"></span>If the phone gets warm, it pauses haptics and background traffic and tells you calmly.</li>
-    </ul>
   </div>
 </section>
 
 <!-- Install -->
 <section class="get" id="get" aria-labelledby="get-title">
   <div class="wrap">
-    <div class="section-head">
-      <h2 id="get-title" class="reveal">Install it with one command.</h2>
-      <p class="lede reveal">Free, but not on the App Store: real Spaces and Mission Control swipes need things Apple does not allow there. A script builds it on your Mac and puts it on your iPhone.</p>
+    <div class="section-head center">
+      <h2 id="get-title" class="reveal">Install with one command.</h2>
+      <p class="lede reveal">A script builds it on your Mac and puts it on your iPhone.</p>
     </div>
 
     <div class="ig">
@@ -409,7 +334,7 @@
         </div>
         <pre class="term-body"><code><span class="pr" aria-hidden="true">~ % </span>curl -fsSL https://<wbr>raw.githubusercontent.com/<wbr>Soham109/<wbr>glasspad/<wbr>main/<wbr>install.sh&nbsp;|&nbsp;bash</code></pre>
       </div>
-      <p class="ig-note">Paste it into Terminal and press Return. It waits at each step until it sees you have done it. Safe to run again: finished steps are skipped.</p>
+      <p class="ig-note">Paste into Terminal. It waits for you at each step, and is safe to run again.</p>
 
       <div class="ig-block">
         <h3 class="ig-label">You need</h3>

@@ -124,7 +124,7 @@ const bounce = (el: HTMLElement) => { el.classList.remove("bounce"); void el.off
 const MODES: Mode[] = [
   {
     key: "trackpad", title: "Trackpad", icon: "i-trackpad", accent: "#1A1A1A", land: true,
-    text: "A plain surface with a soft dot under each finger. The pointer moves in step with your Mac's display and speeds up the way a real trackpad does. Taps never nudge it, and only clicks buzz. Scroll, pinch, rotate, swipe between Spaces, or hold still for a force click.",
+    text: "A plain surface with a dot under each finger. Scroll, pinch, rotate, swipe and force click.",
     phone: () => `<div class="pt land"></div>`,
     mac: () => `${win("w-b", docLines, false)}${win("w-a", docLines)}${menubar()}${cursorSVG}`,
     async run(s) {
@@ -150,7 +150,7 @@ const MODES: Mode[] = [
   },
   {
     key: "keys", title: "Keyboard", icon: "i-keys", accent: "#5856D6",
-    text: "Type on the phone and it lands on the Mac. Command, Option, Control and Shift, common shortcuts, Esc, Tab and arrow keys sit above the keyboard. Dictation works too.",
+    text: "Type on the phone, land on the Mac. Modifier keys, shortcuts and dictation.",
     phone: () => `<div class="pt"><span class="status-dot"></span><div class="u-keys"><div class="echo">Start typing</div><div class="sub">Text goes straight to your Mac</div>
       <div class="u-row u-mods"><span>⌘</span><span>⌥</span><span>⌃</span><span>⇧</span></div>
       <div class="u-row u-sc"><span>⌘C<small>Copy</small></span><span>⌘V<small>Paste</small></span><span>⌘X<small>Cut</small></span><span>⌘Z<small>Undo</small></span><span>⇧⌘Z<small>Redo</small></span></div>
@@ -175,7 +175,7 @@ const MODES: Mode[] = [
   },
   {
     key: "media", title: "Media", icon: "i-media", accent: "#FF2D55",
-    text: "What is playing on the Mac, in Spotify or any other player: artwork, a bar you can scrub, and play and pause that answer the moment you tap. Pick where the sound goes, and set volume and brightness.",
+    text: "What's playing on your Mac, with artwork, scrubbing, volume and output.",
     phone: () => `<div class="pt"><span class="status-dot"></span><div class="u-media">
       <div class="art"><i class="a1"></i><i class="a2"></i><i class="a3"></i></div>
       <div class="src"><i></i>SPOTIFY</div><div class="t">Slow Light</div><div class="a">Paper Rooms · Glass Hours</div>
@@ -223,7 +223,7 @@ const MODES: Mode[] = [
   },
   {
     key: "dock", title: "Dock", icon: "i-dock", accent: "#0A84FF",
-    text: "Your Mac's Dock on the phone, in Dock order, with full-size icons and dots for what is running. Tap to open or switch. Touch and hold for Quit, Hide or Keep. You can even hide the Mac's own Dock.",
+    text: "Your Mac's Dock, full size. Tap to open, hold to quit or hide.",
     phone: () => `<div class="pt"><span class="status-dot"></span><div class="u-apps">
       <div class="hd"><b>Dock</b><span class="sub">Your Mac · <span class="n">5</span> open</span><span class="more">${ic(G2.more)}</span></div>
       <div class="grid">${DOCK.map(([k, r]) => `<div class="at" data-app="${k}">${tile(k)}<i class="run ${r ? "on" : ""} ${k === "web" ? "act" : ""}"></i><span>${APPS[k][0]}</span></div>`).join("")}</div>
@@ -266,7 +266,7 @@ const MODES: Mode[] = [
   },
   {
     key: "actions", title: "Actions", icon: "i-actions", accent: "#FF9500",
-    text: "Buttons for the app in front on your Mac, and Pinned: six everyday Mac controls to start. Tap + to add any other app, more Mac controls, macros or Shortcuts. Turn the phone sideways and the two sit side by side.",
+    text: "Buttons for the app in front, plus your Pinned controls.",
     phone: () => `<div class="pt"><span class="status-dot"></span><div class="u-act">
       <div class="fh"><span class="fi">${tile("web")}</span><b>Safari</b><span class="edit">Edit</span></div>
       <p class="hint">The best buttons for the app in front on your Mac. They change when you switch apps.</p>

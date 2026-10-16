@@ -445,3 +445,30 @@
   .req { grid-template-columns: 1fr; gap: 10px; }
   .req li { font-size: 15px; }
 }
+
+/* ---------- Final type and rhythm ---------- */
+h2 { font-size: clamp(40px, 6.6vw, 84px); line-height: 1.02; letter-spacing: -0.045em; max-width: 13ch; }
+.lede { margin-top: 18px; font-size: clamp(19px, 1.9vw, 24px); line-height: 1.4; max-width: 28em; }
+.section-head { margin-bottom: clamp(48px, 7vw, 96px); }
+.section-head.center .lede { text-wrap: balance; }
+.hero-note { margin-top: 28px; }
+.privacy .net { margin-top: 0; }
+
+/* ---------- Demo film ---------- */
+.film { padding: 0 0 clamp(24px, 4vw, 48px); }
+.film-frame { position: relative; aspect-ratio: 16 / 9; overflow: hidden; border-radius: clamp(16px, 2.4vw, 28px); background: #E2E0DB; box-shadow: 0 0 0 1px var(--line); }
+.film-play { all: unset; position: absolute; inset: 0; display: block; cursor: pointer; }
+.film-play img { width: 100%; height: 100%; object-fit: cover; transition: transform 900ms var(--ease-soft); }
+.film-play:hover img { transform: scale(1.012); }
+.film-btn { position: absolute; left: 50%; top: 50%; display: grid; place-items: center; width: clamp(64px, 8vw, 92px); height: clamp(64px, 8vw, 92px); border-radius: 50%; background: var(--ink); transform: translate(-50%, -50%); transition: transform var(--snappy-ms) var(--ease-snappy); }
+.film-btn svg { width: 36%; height: 36%; margin-left: 6%; fill: var(--paper); }
+.film-play:hover .film-btn { transform: translate(-50%, -50%) scale(1.06); }
+.film-play:active .film-btn { transform: translate(-50%, -50%) scale(0.95); }
+.film-play:focus-visible { outline: 3px solid var(--ink); outline-offset: -3px; border-radius: inherit; }
+.film-frame iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+.film-credit { margin-top: 14px; text-align: center; font-size: 13px; color: var(--ink-3); }
+.film-credit a { color: inherit; text-underline-offset: 2px; }
+.film-credit a:hover { color: var(--ink-2); }
+@media (prefers-reduced-motion: reduce) { .film-play img, .film-btn { transition: none; } }
+.foot-mark { --mark: #D9D5CC; box-sizing: border-box; max-width: var(--max); margin: 0 auto; padding: 0 var(--gutter); }
+.foot-mark span { color: var(--mark); }

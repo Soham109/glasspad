@@ -194,7 +194,7 @@ export function initInstall() {
     const box = mark.parentElement!;
     let last = 0;
     const fit = () => {
-      const avail = box.clientWidth - 24; if (!avail || avail === last) return; last = avail;
+      const cs = getComputedStyle(box); const avail = box.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight) - 2; if (!avail || avail === last) return; last = avail;
       box.style.fontSize = "100px"; const w = mark.getBoundingClientRect().width;
       box.style.fontSize = `${(100 * avail / w).toFixed(2)}px`;
     };
