@@ -42,7 +42,7 @@
 | **Displays** | Every display and its windows. Move a window to another display or tile it, and set brightness, resolution and Night Shift. |
 | **Layouts** | Up to three modes on one screen. The divider rests on thirds and the middle; your layouts sit in the mode menu. |
 | **StandBy** | A clock beside Now Playing or your calendar while the iPhone charges, in dim red at night. |
-| **Themes** | 28 themes in four groups: Classic, Glass, Color, and Photo, which blurs a picture of yours behind everything. |
+| **Themes** | 39 themes in six groups: Classic, Glass, Color, Grain (a fine still grain, like paper or film), Tinted (one color for everything, app icons included, or any color you pick), and Photo, which blurs a picture of yours behind everything. |
 | **Private** | Paired by QR code, encrypted, no account. Nothing leaves your Wi-Fi, except Website buttons fetching their site's name and logo. |
 
 <p align="center">

@@ -397,13 +397,12 @@ struct DockIcon: View {
     var body: some View {
         Group {
             if let icon {
-                Image(uiImage: icon)
+                // Grey in Mono, in the theme's hue in the tinted themes.
+                Image(uiImage: palette.appIcon(icon))
                     .resizable()
                     .interpolation(.high)
                     .antialiased(true)
                     .aspectRatio(contentMode: .fit)
-                    // Mono has no colour anywhere, app icons included.
-                    .saturation(palette.monochrome ? 0 : 1)
             } else {
                 // macOS icons sit inside a rounded square at about 82% of the canvas.
                 RoundedRectangle(cornerRadius: size * 0.82 * 0.225, style: .continuous)

@@ -346,14 +346,13 @@ struct ActionsMode: View {
 
     @ViewBuilder private func frontGlyph(size: CGFloat) -> some View {
         if let id = frontID, let icon = session.icons.image(for: id) {
-            Image(uiImage: icon)
+            Image(uiImage: palette.appIcon(icon))
                 .resizable()
                 .interpolation(.high)
                 .antialiased(true)
                 .aspectRatio(contentMode: .fit)
                 .frame(width: size * 1.15, height: size * 1.15)
                 .frame(width: size, height: size)
-                .saturation(palette.monochrome ? 0 : 1)
                 .accessibilityHidden(true)
         } else {
             Image(systemName: session.isConnected ? "macwindow" : "bolt.horizontal.circle")

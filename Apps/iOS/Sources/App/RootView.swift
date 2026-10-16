@@ -38,6 +38,8 @@ struct RootView: View {
     var body: some View {
         // Read so a new photo redraws everything even when Photo is already the theme.
         let photo = settings.photoVersion
+        // Read so a new Custom Tint colour redraws everything too.
+        let tint = settings.customTint
         let palette = settings.theme.resolved(systemScheme).customized(settings)
         @Bindable var router = router
         ZStack {
@@ -57,7 +59,7 @@ struct RootView: View {
         // Paper and Graphite force the window light or dark; System leaves it to the phone.
         // Set on the window, not with preferredColorScheme, so that system text, controls,
         // sheets already on screen, menus, alerts and the keyboard all follow a change at once.
-        .background(WindowAppearance(style: settings.theme.interfaceStyle, photo: photo))
+        .background(WindowAppearance(style: settings.theme.interfaceStyle, photo: photo, tint: tint))
         .tint(palette.inkColor)
         .statusBarHidden(true)
         .sheet(isPresented: $router.showSettings, onDismiss: ScreenAwake.update) {
@@ -306,6 +308,7 @@ private struct WarmNotice: View {
 ///   -GPSettings / -GPMenu / -GPPairSheet open Settings, the mode menu or the pair sheet
 ///   -GPOrientation <automatic|portrait|landscape>  set the orientation choice (it is saved)
 ///   -GPTheme / -GPThemeLater <paper|graphite|system|...>  set the theme at launch, or two seconds later
+///   -GPTint <RRGGBB>                    the Custom Tint colour
 ///   -GPPhoto <image file>               use that image for the Photo theme and switch to it
 ///   -GPDemo <icon folder>               fill the screens with sample Mac data (no Mac needed)
 ///   -GPActionsPage <library|front|folder|clipboard|present|remote|displays>  open that Actions sheet or tool; -GPEdit starts editing
@@ -324,6 +327,7 @@ enum DebugLaunch {
             PhoneSettings.shared.orientation = choice
         }
         if let t = value("-GPTheme"), let theme = ThemeChoice(rawValue: t) { PhoneSettings.shared.theme = theme }
+        if let hex = value("-GPTint").flatMap({ UInt32($0, radix: 16) }) { PhoneSettings.shared.customTint = hex }
         // Switches the theme two seconds after launch, the way a person does from Settings.
         if let t = value("-GPThemeLater"), let theme = ThemeChoice(rawValue: t) {
             Task { @MainActor in

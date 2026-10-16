@@ -320,7 +320,10 @@ As built (GlasspadKit):
   (`brightness`, `resolution`, `mirror`, `makeMain`, `arrange`, `keepChanges`, `revertChanges`)
   are answered with `displaysResult(id:ok:message:)`. Frames for tiles, splits and moves come
   from `DisplaysState.frames(for:window:)`, the same code on both sides, so the phone shows the
-  result before the Mac confirms. A new resolution or mirroring is applied for Glasspad's run
+  result before the Mac confirms. `windowHighlight(windowID:)` has the Mac outline that window for
+  about a second in a click-through overlay (no fade with Reduce Motion; nothing moves or comes
+  forward, no answer), sent only when `DisplaysState.highlightsWindows` is true.
+  A new resolution or mirroring is applied for Glasspad's run
   only and shows as `pending`; `keepChanges` makes it permanent, and without it the Mac restores
   the permanent setup after 15 seconds by itself (`CGRestorePermanentDisplayConfiguration`), like
   macOS's own "Keep these display settings?". Other display changes wait until then. Night Shift
@@ -681,6 +684,14 @@ As built, UX pass (Oct 2026):
   WCAG AA on every surface. Mode accents and status colours are Apple's system colours, moved
   toward the ink only as far as a theme needs for 3:1. Unknown saved themes fall back to System.
   Remote and StandBy stay dark.
+  Grain and Tinted (Oct 2026): 38 themes plus Photo. Grain: Grain (warm paper), Grain Dark
+  (charcoal), Risograph (pink stock, riso blue), Film (teal shadows, warm highlights), each with a
+  still grain from a fixed seed drawn once at the screen's pixel density. Tinted: Mono Blue, Green,
+  Rose, Amber, Violet, Slate, light and dark with the phone, and Custom Tint (a colour picker on
+  the Theme page). One hue for everything: surface, cards, text, accents, mode colours, and app
+  icons and website logos, recoloured along the hue by their brightness like the tinted Home
+  Screen. Status colours in the tinted themes work as in Mono. Remote uses the tinted dark colours.
+  `scripts/web-themes.sh` regenerates the website's theme list from the catalog.
 - Layouts (Oct 2026): one to three modes on one screen (GlasspadKit `Layouts/`, views in
   `Apps/iOS/Sources/Layouts`). `ScreenLayout` keeps panes by mode name (unknown names
   survive), a direction (`automatic`: side by side in landscape, stacked upright; or fixed),

@@ -117,6 +117,7 @@ extension ModeMessage {
         case "displaysResult":
             self = .displaysResult(id: try f.value(UUID.self, "id"), ok: try f.value(Bool.self, "ok"),
                                    message: try f.optional(String.self, "message"))
+        case "windowHighlight": self = .windowHighlight(windowID: try f.value(UInt32.self, "windowID"))
         case "macro": self = .macro(try f.value(MacroMessage.self, "macro", unlabeled: true))
         default:
             throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath,
@@ -193,6 +194,7 @@ extension ModeMessage {
             try put(id, "id")
             try put(ok, "ok")
             try c.encodeIfPresent(message, forKey: AnyCodingKey("message"))
+        case .windowHighlight(let windowID): try put(windowID, "windowID")
         case .macro(let m): try put(m, "macro")
         case .dockRequest, .mediaRequest, .deckRequest, .clipboardPull, .presentNext, .presentPrevious,
              .dockCatalogRequest, .deckCatalogRequest:
@@ -252,6 +254,7 @@ extension ModeMessage {
         case .windowCommand: "windowCommand"
         case .displayCommand: "displayCommand"
         case .displaysResult: "displaysResult"
+        case .windowHighlight: "windowHighlight"
         case .macro: "macro"
         }
     }
