@@ -182,7 +182,7 @@ final class MediaStore {
     // MARK: Demo
 
     #if DEBUG
-    /// Debug builds only (`-GPMediaDemo [title|empty|denied]`): a fake now-playing feed for
+    /// Debug builds only (`-GPMediaDemo [title|movie|empty|denied]`): a fake now-playing feed for
     /// simulator screenshots. Taps change the fake state as a Mac would.
     func applyDemo(_ kind: String?) {
         isDemo = true
@@ -196,6 +196,20 @@ final class MediaStore {
         switch kind {
         case "empty":
             break
+        case "movie":
+            // A film in a browser, for the Remote.
+            state.title = "The Quiet Coast"
+            state.artist = "Netflix"
+            state.isPlaying = true
+            state.playbackRate = 1
+            state.duration = 6840
+            state.elapsed = 2710
+            state.canSeek = true
+            state.sourceBundleID = "com.apple.Safari"
+            state.sourceName = "Safari"
+            state.artworkID = "demo"
+            artwork = Self.demoArtwork()
+            artworkID = "demo"
         case "denied":
             state.notice = MediaNotice(kind: MediaNotice.automationDenied,
                                        message: "To show what Spotify is playing, allow Glasspad to control Spotify in System Settings > Privacy & Security > Automation on your Mac.",

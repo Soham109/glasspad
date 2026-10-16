@@ -82,9 +82,9 @@ public final class ModeRouter {
         case .modeSelected(let mode):
             phoneMode = mode
             if mode != .present { present.setLaser(on: false) }
-            if mode == .media { startMediaUpdates() } else { stopMediaUpdates() }
+            if mode == .media || mode == .remote { startMediaUpdates() } else { stopMediaUpdates() }
             if mode == .macros { macros?.handle(.listMacros) }
-            if mode == .dock || mode == .deck { send(.frontmostApp(bundleID: dock.workspace.frontmostBundleID())) }
+            if mode == .dock || mode == .deck || mode == .remote { send(.frontmostApp(bundleID: dock.workspace.frontmostBundleID())) }
         case .dockRequest:
             send(.dockList(apps: dock.currentList()))
             send(.macDockState(macDock.state))
@@ -155,6 +155,17 @@ public final class ModeRouter {
         case .presentPrevious: present.previous()
         case .presentLaser(let on): present.setLaser(on: on)
         case .presentLaserPosition(let x, let y): present.moveLaser(x: x, y: y)
+        case .remoteSystem(let id, let action):
+            // Only the one-tap controls; anything that needs confirming stays a Deck button.
+            guard !action.needsConfirmation else {
+                send(.deckResult(id: id, ok: false, message: "Use a Deck button for that."))
+                return
+            }
+            Task { [weak self] in
+                guard let self else { return }
+                let outcome = await self.deck.perform(.system(action))
+                self.send(.deckResult(id: id, ok: outcome.ok, message: outcome.ok ? nil : outcome.message))
+            }
         case .macro(let m): macros?.handle(m)
         // Mac -> phone messages: ignore if echoed back.
         case .dockList, .mediaState, .deckButtons, .deckResult, .clipboardContent, .dockOpenResult,
@@ -232,7 +243,7 @@ public final class ModeRouter {
     func workspaceChanged(activated bundleID: String?, name: String?, url: URL?) {
         if let bundleID {
             dock.noteActivated(DockMode.Entry(bundleID: bundleID, name: name ?? bundleID, url: url))
-            if phoneMode == .deck || phoneMode == .dock { send(.frontmostApp(bundleID: bundleID)) }
+            if phoneMode == .deck || phoneMode == .dock || phoneMode == .remote { send(.frontmostApp(bundleID: bundleID)) }
         }
         scheduleDockPush()
     }

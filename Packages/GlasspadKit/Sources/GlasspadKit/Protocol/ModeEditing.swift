@@ -321,16 +321,34 @@ public struct ModeListLayout: Codable, Equatable, Sendable {
     public static let actions = "actions"
     /// Never hidden: the app is a trackpad first.
     public static let alwaysShown = "trackpad"
-    public static let defaultOrder = ["trackpad", "keys", "media", "dock", "actions", "deck", "macros", "clipboard", "present"]
+    public static let defaultOrder = ["trackpad", "keys", "media", "dock", "actions", "deck", "macros", "clipboard", "present", "remote"]
+    /// Modes that start hidden, so the default pill stays at five. They still open from the
+    /// mode menu's tools until Settings turns them on.
+    public static let hiddenAtFirst: Set<String> = ["remote"]
 
     public var order: [String]
     public var hidden: Set<String>
     public var splitActions: Bool
 
-    public init(order: [String] = ModeListLayout.defaultOrder, hidden: Set<String> = [], splitActions: Bool = false) {
+    public init(order: [String] = ModeListLayout.defaultOrder, hidden: Set<String> = ModeListLayout.hiddenAtFirst,
+                splitActions: Bool = false) {
         self.order = order
         self.hidden = hidden
         self.splitActions = splitActions
+    }
+
+    private enum CodingKeys: String, CodingKey { case order, hidden, splitActions }
+
+    /// A list saved before a mode in `hiddenAtFirst` existed gets that mode added, hidden.
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        order = try c.decode([String].self, forKey: .order)
+        hidden = try c.decode(Set<String>.self, forKey: .hidden)
+        splitActions = try c.decode(Bool.self, forKey: .splitActions)
+        for name in Self.defaultOrder where Self.hiddenAtFirst.contains(name) && !order.contains(name) {
+            order.append(name)
+            hidden.insert(name)
+        }
     }
 
     /// Modes in the switcher, in order. Unknown names are dropped; known ones missing from

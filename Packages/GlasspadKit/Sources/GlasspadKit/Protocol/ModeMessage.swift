@@ -5,6 +5,9 @@ public enum GlasspadMode: String, Codable, Sendable, CaseIterable {
     case trackpad, dock, keys, media, deck, clipboard, present
     /// The Macros screen (docs/SPEC-macros.md).
     case macros
+    /// The couch remote. The Mac sends media states and the frontmost app, as for Media and
+    /// Deck. Added Oct 2026: an older Mac drops the message and keeps the previous screen.
+    case remote
 }
 
 /// One app tile in Dock mode.
@@ -341,6 +344,12 @@ public enum ModeMessage: Codable, Equatable, Sendable {
     case presentLaser(on: Bool)
     /// Phone -> Mac: laser position, normalized 0...1 across the main display, origin top left.
     case presentLaserPosition(x: Double, y: Double)
+
+    // Remote
+    /// Phone -> Mac: run one Mac control (Sleep Display, Do Not Disturb) without a Deck button.
+    /// The Mac answers with `deckResult` for `id`. Actions that need confirming are refused.
+    /// Added Oct 2026: an older Mac drops it.
+    case remoteSystem(id: UUID, action: DeckSystemAction)
 
     // Macros
     /// Both ways: Macros mode (docs/SPEC-macros.md section 6). Direction is noted on each `MacroMessage` case.
