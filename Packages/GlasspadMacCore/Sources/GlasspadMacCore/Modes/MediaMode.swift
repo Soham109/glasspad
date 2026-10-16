@@ -582,4 +582,22 @@ enum Brightness {
         guard let h = handle, let sym = dlsym(h, "DisplayServicesSetBrightness") else { return }
         _ = unsafeBitCast(sym, to: SetFn.self)(display, v)
     }
+
+    /// The display the brightness buttons change: the main one when its brightness can be read,
+    /// else the built-in one (a MacBook whose external display has the menu bar).
+    static func buttonDisplay(main: CGDirectDisplayID, builtIn: CGDirectDisplayID?,
+                              readable: (CGDirectDisplayID) -> Bool) -> CGDirectDisplayID? {
+        if readable(main) { return main }
+        if let builtIn, builtIn != main, readable(builtIn) { return builtIn }
+        return nil
+    }
+
+    /// `buttonDisplay` on this Mac.
+    static func buttonDisplay() -> CGDirectDisplayID? {
+        var count: UInt32 = 0
+        var ids = [CGDirectDisplayID](repeating: 0, count: 16)
+        let active = CGGetActiveDisplayList(16, &ids, &count) == .success ? Array(ids.prefix(Int(count))) : []
+        return buttonDisplay(main: CGMainDisplayID(), builtIn: active.first { CGDisplayIsBuiltin($0) != 0 },
+                             readable: { get(display: $0) != nil })
+    }
 }

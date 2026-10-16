@@ -120,8 +120,11 @@ public final class LiveDeckEnvironment: DeckEnvironment {
         return AudioInput.setVolume(savedInputVolume ?? 0.75)
     }
 
-    public var brightness: Double? { Brightness.get().map(Double.init) }
-    public func setBrightness(_ value: Double) { Brightness.set(Float(value)) }
+    public var brightness: Double? { Brightness.buttonDisplay().flatMap { Brightness.get(display: $0) }.map(Double.init) }
+    public func setBrightness(_ value: Double) {
+        guard let display = Brightness.buttonDisplay() else { return }
+        Brightness.set(Float(value), display: display)
+    }
 
     public func audioOutputs() -> [String] { AudioDevices.outputs().map(\.name) }
 
@@ -130,19 +133,21 @@ public final class LiveDeckEnvironment: DeckEnvironment {
         return AudioDevices.setDefaultOutput(device.id)
     }
 
-    public func ejectAll() -> (ejected: Int, failed: Int) {
+    /// FileManager's unmount answers in a callback, so a disk that is slow to let go never holds
+    /// the main thread (NSWorkspace's eject waits for it there).
+    public func ejectAll() async -> (ejected: Int, failed: Int) {
         let keys: [URLResourceKey] = [.volumeIsEjectableKey, .volumeIsRemovableKey, .volumeIsInternalKey]
         let volumes = FileManager.default.mountedVolumeURLs(includingResourceValuesForKeys: keys, options: [.skipHiddenVolumes]) ?? []
         var ok = 0, failed = 0
         for v in volumes {
             guard let r = try? v.resourceValues(forKeys: Set(keys)),
                   r.volumeIsEjectable == true || (r.volumeIsRemovable == true && r.volumeIsInternal != true) else { continue }
-            do {
-                try NSWorkspace.shared.unmountAndEjectDevice(at: v)
-                ok += 1
-            } catch {
-                failed += 1
+            let ejected = await withCheckedContinuation { c in
+                FileManager.default.unmountVolume(at: v, options: [.allPartitionsAndEjectDisk, .withoutUI]) { error in
+                    c.resume(returning: error == nil)
+                }
             }
+            if ejected { ok += 1 } else { failed += 1 }
         }
         return (ok, failed)
     }

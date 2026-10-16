@@ -193,7 +193,10 @@ public final class LiveDisplays: DisplaysBackend {
         let fullScreen = AXUI.bool(window, "AXFullScreen") == true
         switch operation {
         case .setFrame(let frame):
-            if fullScreen { return WindowFailure.fullScreen(appName(app)).message }
+            // Out of full screen first, as macOS does (and as the window buttons do).
+            if fullScreen, !WindowMover.arranger(WindowMover.screens()).leaveFullScreen(AXMovableWindow(app: app, window: window)) {
+                return WindowFailure.fullScreen(appName(app)).message
+            }
             return WindowMover.set(window, app: app, to: frame) ? nil : WindowFailure.refused(appName(app)).message
         case .split(let otherID, let visible, let gap, let display):
             if axWindows[otherID] == nil, let pid = ownerPID(otherID) { refreshAccessibility(pids: [pid], force: true) }
@@ -215,6 +218,9 @@ public final class LiveDisplays: DisplaysBackend {
         case .raise:
             AXUIElementSetAttributeValue(window, kAXMainAttribute as CFString, kCFBooleanTrue)
             AXUIElementPerformAction(window, kAXRaiseAction as CFString)
+            // A menu bar app's activate request is ignored while another app is in front;
+            // through Accessibility it is not (as WindowMover brings windows forward).
+            AXUI.set(app, kAXFrontmostAttribute, true)
             if let pid = ownerPID(id) { NSRunningApplication(processIdentifier: pid)?.activate(options: []) }
             return nil
         case .minimize:
