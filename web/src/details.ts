@@ -119,17 +119,17 @@ const CARDS: Card[] = [
       // one theme from each group, a different one each pass, then back to Paper
       const box = s.q(".mk-th"), sw = s.q(".sw"), nm = s.q(".nm");
       const show = (t: Theme) => {
-        box.setAttribute("style", themeVars(t)); box.classList.toggle("mono", !!t.mono);
+        box.setAttribute("style", themeVars(t)); box.classList.toggle("mono", !!t.mono); box.classList.toggle("tinted", !!t.tinted);
         const group = THEMES.filter(x => x.group === t.group);
         sw.innerHTML = group.map(x => `<span class="${x === t ? "on" : ""}" style="background:${x.swatch}"></span>`).join("");
         nm.textContent = t.group === t.name ? t.name : `${t.name} · ${t.group}`;
       };
       show(THEMES[1]);
       const pick = (g: Theme["group"]) => { const l = THEMES.filter(t => t.group === g); return l[Math.floor(Math.random() * l.length)]; };
-      for (const t of [pick("Glass"), pick("Color"), pick("Classic"), pick("Glass"), pick("Photo"), THEMES[1]]) { await s.wait(1500); show(t); }
+      for (const t of [pick("Glass"), pick("Tinted"), pick("Color"), pick("Grain"), pick("Classic"), pick("Photo"), THEMES[1]]) { await s.wait(1500); show(t); }
       await s.wait(600);
     },
-    reset: el => { const b = el.querySelector(".mk-th"); if (b) { b.setAttribute("style", themeVars(THEMES[1])); b.classList.remove("mono"); } },
+    reset: el => { const b = el.querySelector(".mk-th"); if (b) { b.setAttribute("style", themeVars(THEMES[1])); b.classList.remove("mono", "tinted"); } },
   },
 ];
 

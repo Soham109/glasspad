@@ -38,19 +38,27 @@ extension ThemeChoice {
                 Palette(light: photo.tone.tokens, dark: photo.tone.tokens, theme: self, isDark: photo.tone.isDark, patternBackdrop: false)
             }
         }
-        return Palette.cached("\(rawValue).\(dark).preview") {
+        return Palette.cached("\(cacheName).\(dark).preview") {
             let t = tokens(dark: dark)
             return Palette(light: t, dark: t, theme: self, isDark: dark, patternBackdrop: false)
         }
     }
 
     /// Remote is always dark: the theme's own dark colours when it has plain ones that suit a
-    /// dim room (Mono, Pure Black, High Contrast), Graphite otherwise.
+    /// dim room (Mono, Pure Black, High Contrast, the tinted themes), Graphite otherwise.
     var remotePalette: Palette {
-        switch self {
+        if tint != nil { return preview(dark: true) }
+        return switch self {
         case .mono, .pureBlack, .highContrast: preview(dark: true)
         default: .graphite
         }
+    }
+
+    /// Names this theme's palettes in the cache. Custom Tint's colours change with the
+    /// person's colour, so its name carries the colour.
+    fileprivate var cacheName: String {
+        guard self == .customTint, let tint else { return rawValue }
+        return "\(rawValue).\(tint.hue).\(tint.saturation)"
     }
 }
 
@@ -68,9 +76,15 @@ struct Palette: Equatable, Sendable {
     let tokens: ThemeTokens
     /// Mono: no colour anywhere. Tiles, symbols and accents all draw in the ink.
     var monochrome: Bool { theme.isMonochrome }
+    /// The tinted themes: one hue for everything. Colours chosen by modes and by the person
+    /// move onto it (see `tint`), and app icons take it too (see `appIcon`).
+    var tinted: Bool { tokens.tint != nil }
     /// Glass themes: the surface is a soft coloured backdrop and raised things are frosted
     /// and translucent. Floating controls use the system's Liquid Glass.
     var glass: Bool { theme.isGlass }
+    /// The surface is a pattern (a glass backdrop, a photo or grain) that SwiftUI cannot draw
+    /// as a colour, so the window draws it behind everything.
+    var patterned: Bool { glass || tokens.grain != nil }
     /// The surface itself. In the glass themes this is a soft gradient (a pattern colour), so
     /// use it only to fill an area, never for text or symbols; those take `solid`.
     private(set) var background: UIColor
@@ -121,6 +135,9 @@ struct Palette: Equatable, Sendable {
         if patternBackdrop, let lb = light.backdrop, let db = dark.backdrop {
             let l = Backdrop.color(lb), dk = Backdrop.color(db)
             background = lb == db ? l : UIColor { $0.userInterfaceStyle == .dark ? dk : l }
+        } else if patternBackdrop, let lg = light.grain, let dg = dark.grain {
+            let l = Grain.color(light.background, lg), dk = Grain.color(dark.background, dg)
+            background = light == dark ? l : UIColor { $0.userInterfaceStyle == .dark ? dk : l }
         } else {
             background = d(light.background, dark.background)
         }
@@ -147,6 +164,8 @@ struct Palette: Equatable, Sendable {
         cache.lock.lock()
         defer { cache.lock.unlock() }
         if let p = cache.palettes[key] { return p }
+        // Each Custom Tint colour tried makes palettes of its own; start over now and then.
+        if cache.palettes.count > 160 { cache.palettes.removeAll() }
         let p = make()
         cache.palettes[key] = p
         return p
@@ -163,7 +182,7 @@ struct Palette: Equatable, Sendable {
                 return p
             }
         }
-        return cached("\(theme.rawValue).\(dark)") {
+        return cached("\(theme.cacheName).\(dark)") {
             Palette(light: theme.tokens(dark: false), dark: theme.tokens(dark: true), theme: theme, isDark: dark, patternBackdrop: true)
         }
     }
@@ -173,16 +192,21 @@ struct Palette: Equatable, Sendable {
 
     /// A colour the user or a mode chose, or the ink in Mono. Colours too close to the
     /// surface to read (dark grey on Graphite, yellow on Paper, green on Forest) are moved
-    /// toward the ink just far enough to read.
+    /// toward the ink just far enough to read. In a tinted theme the colour first moves onto
+    /// the theme's hue, keeping its brightness, so modes and tiles still differ a little.
     func tint(_ color: Color) -> Color {
         if monochrome { return inkColor }
         let c = UIColor(color).resolvedColor(with: traits)
         var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
         guard c.getRed(&r, green: &g, blue: &b, alpha: &a) else { return color }
         let rgba = RGBA(r: r, g: g, b: b, a: a)
-        let readable = tokens.readable(rgba)
+        let readable = tokens.readable(tokens.tint?.mapped(rgba) ?? rgba)
         return readable == rgba ? color : Color(uiColor: UIColor(readable))
     }
+
+    /// Symbols on a tile filled with a `tint` colour: white, or the surface colour where the
+    /// fills are the ink (Mono) or light (the tinted themes in dark).
+    var onFill: Color { monochrome || (tinted && isDark) ? solidColor : .white }
 
     /// The palette with the user's finger dot size, opacity and style applied.
     @MainActor
@@ -213,10 +237,13 @@ struct Palette: Equatable, Sendable {
     /// The surface as a SwiftUI colour. Clear in the glass themes: SwiftUI cannot draw a
     /// pattern, so the window draws the backdrop behind everything (see `WindowAppearance`) and
     /// views that must hide what is under them use `SurfaceBackground`.
-    var backgroundColor: Color { glass ? .clear : Color(uiColor: background) }
+    var backgroundColor: Color { patterned ? .clear : Color(uiColor: background) }
     /// A sunken area inside a raised card (a text preview): the surface, or in the glass
     /// themes a deeper frost.
-    var wellColor: Color { glass ? raisedPressedColor : backgroundColor }
+    var wellColor: Color { patterned ? raisedPressedColor : backgroundColor }
+
+    /// The grain themes' surface with its grain, as a pattern colour, in this appearance.
+    var grainSurface: UIColor? { tokens.grain.map { Grain.color(tokens.background, $0) } }
     /// The surface as a plain colour: text and symbols on an ink filled button.
     var solidColor: Color { Color(uiColor: solid) }
     var raisedColor: Color { Color(uiColor: raised) }
@@ -229,16 +256,19 @@ struct Palette: Equatable, Sendable {
 
     // Status colours: Apple's green, orange and red, deepened where a theme needs it to read.
     // Mono keeps them out of colour: good is the ink, waiting is the soft ink, and a problem
-    // is the ink too (the symbol beside it says which).
+    // is the ink too (the symbol beside it says which). The tinted themes do the same in
+    // their accent.
 
     /// Connected, passed, done.
-    var good: Color { monochrome ? inkColor : Color(uiColor: UIColor(tokens.good)) }
+    var good: Color { monochrome ? inkColor : tinted ? accentColor : Color(uiColor: UIColor(tokens.good)) }
     /// Waiting or needs a look.
-    var caution: Color { monochrome ? inkSoftColor : Color(uiColor: UIColor(tokens.caution)) }
+    var caution: Color { monochrome || tinted ? inkSoftColor : Color(uiColor: UIColor(tokens.caution)) }
     /// Failed or recording.
-    var bad: Color { monochrome ? inkColor : Color(uiColor: UIColor(tokens.bad)) }
+    var bad: Color { monochrome ? inkColor : tinted ? accentColor : Color(uiColor: UIColor(tokens.bad)) }
     /// Idle, or another iPhone has the Mac.
-    private var quiet: Color { monochrome ? inkSoftColor : Color(uiColor: UIColor(tokens.readable(SystemHue.gray.value(dark: isDark)))) }
+    private var quiet: Color {
+        monochrome || tinted ? inkSoftColor : Color(uiColor: UIColor(tokens.readable(SystemHue.gray.value(dark: isDark))))
+    }
 
     /// The connection dot: good when connected, caution while looking, bad on failure, and a
     /// quiet grey when idle or another iPhone has the Mac. In Mono the dot keeps its meaning
@@ -367,6 +397,8 @@ struct WindowAppearance: UIViewRepresentable {
     var theme: ThemeChoice = PhoneSettings.shared.theme
     /// The Photo theme's photo, so picking a new one repaints the window.
     var photo = 0
+    /// The Custom Tint colour, so picking a new one repaints the window.
+    var tint: UInt32 = 0
 
     func makeUIView(context: Context) -> Probe {
         let view = Probe()
@@ -426,7 +458,11 @@ struct SurfaceBackground: View {
     @Environment(\.palette) private var palette
 
     var body: some View {
-        if let backdrop = palette.backdropImage {
+        if let grain = palette.grainSurface {
+            PatternFill(color: grain)
+                .ignoresSafeArea()
+                .accessibilityHidden(true)
+        } else if let backdrop = palette.backdropImage {
             GeometryReader { proxy in
                 let frame = proxy.frame(in: .global)
                 Image(uiImage: backdrop)

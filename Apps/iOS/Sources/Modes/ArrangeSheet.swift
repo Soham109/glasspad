@@ -211,7 +211,7 @@ struct ArrangeSheet: View {
                             Text(w.appName)
                             if let detail = state.distinction(of: w) { Text(detail) }
                             if let icon = w.bundleID.flatMap({ session.icons.image(for: $0) }) {
-                                Image(uiImage: icon)
+                                Image(uiImage: palette.appIcon(icon))
                             } else {
                                 Image(systemName: "macwindow")
                             }
@@ -447,7 +447,7 @@ private struct WindowPlaceCard: View {
         return VStack(spacing: roomy ? 8 : 4) {
             Group {
                 if let icon {
-                    Image(uiImage: icon).resizable().interpolation(.high)
+                    Image(uiImage: palette.appIcon(icon)).resizable().interpolation(.high)
                 } else {
                     Image(systemName: "macwindow").resizable().scaledToFit().foregroundStyle(palette.inkSoftColor).padding(side * 0.12)
                 }
