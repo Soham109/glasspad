@@ -2,6 +2,25 @@
 
 All notable changes are listed here. The format follows [Keep a Changelog](https://keepachangelog.com), and the project follows [semantic versioning](https://semver.org).
 
+## [0.1.2] - 2026-10-16
+
+### Added
+
+- **Arrange:** Split Screen opens a sheet showing which windows go where before anything moves. Choose Left & Right, Top & Bottom, Quarters or Full Screen (Split View), pick the windows and the display, then one tap.
+- Window buttons for the four quarters and Return to Previous Size.
+
+### Fixed
+
+- Mission Control, Show Desktop and App Windows did nothing: macOS stopped Mission Control when it was started directly. They now ask the Dock.
+- Split Screen failed when the two windows were on different displays, and refused windows in full screen. The second window now moves to the right display first, and full-screen windows leave full screen first, as macOS does.
+- Window tiling finds the Mac's Move & Resize items by their internal names, so it works in every language, and never makes the menu bar icon wait.
+- Tiling leaves room for Stage Manager's strip.
+- Eject All could freeze the menu bar icon while a disk was busy.
+- Brightness buttons now reach the laptop screen when an external display is the main one.
+- Displays moves full-screen windows and brings background windows forward.
+- When paste access is denied in macOS, getting the Mac's clipboard says why instead of coming back empty.
+- Labels on bright buttons are dark so they stay readable.
+
 ## [0.1.1] - 2026-10-16
 
 ### Fixed
