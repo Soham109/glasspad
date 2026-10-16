@@ -108,7 +108,9 @@ final class WebsiteIcons {
         // The best few, fetched together; the largest real image wins.
         let session = self.session
         let results = await withTaskGroup(of: (answered: Bool, image: CGImage?).self) { group in
-            for c in candidates.prefix(5) { group.addTask { await Self.download(c.url, session: session) } }
+            for c in candidates.filter({ SiteFetch.mayFetch($0.url, site: target) }).prefix(5) {
+                group.addTask { await Self.download(c.url, site: target, session: session) }
+            }
             var all: [(answered: Bool, image: CGImage?)] = []
             for await result in group { all.append(result) }
             return all
@@ -144,35 +146,20 @@ final class WebsiteIcons {
     private func page(_ url: URL) async -> (html: String, finalURL: URL)? {
         var request = URLRequest(url: url)
         request.setValue("text/html", forHTTPHeaderField: "Accept")
-        guard let (data, response) = try? await session.data(for: request),
-              let http = response as? HTTPURLResponse, (200..<400).contains(http.statusCode) else { return nil }
-        let head = data.prefix(Self.pageLimit)
+        guard let (head, http) = await SiteFetch.data(for: request, site: url, limit: Self.pageLimit, cut: true, session: session),
+              (200..<400).contains(http.statusCode) else { return nil }
         let html = String(data: head, encoding: .utf8) ?? String(decoding: head, as: UTF8.self)
         return (html, http.url ?? url)
     }
 
-    /// Downloads an image and decodes its largest frame (an `.ico` holds several sizes),
-    /// scaled down to `storedPixels` while decoding, so a huge logo never becomes a huge bitmap.
-    /// `answered` says whether the site replied at all.
-    private nonisolated static func download(_ url: URL, session: URLSession) async -> (answered: Bool, image: CGImage?) {
-        guard let (data, response) = try? await session.data(from: url) else { return (false, nil) }
-        guard let http = response as? HTTPURLResponse, http.statusCode == 200, data.count < 3_000_000,
-              let source = CGImageSourceCreateWithData(data as CFData, nil) else { return (true, nil) }
-        // Pick the frame by its size alone, and decode only that one.
-        var best: (index: Int, side: Int)?
-        for i in 0..<min(CGImageSourceGetCount(source), 32) {
-            guard let props = CGImageSourceCopyPropertiesAtIndex(source, i, nil) as? [CFString: Any],
-                  let w = props[kCGImagePropertyPixelWidth] as? Int, let h = props[kCGImagePropertyPixelHeight] as? Int else { continue }
-            if best == nil || min(w, h) > best!.side { best = (i, min(w, h)) }
-        }
-        guard let best else { return (true, nil) }
-        let options: [CFString: Any] = [
-            kCGImageSourceCreateThumbnailFromImageAlways: true,
-            kCGImageSourceCreateThumbnailWithTransform: true,
-            kCGImageSourceShouldCacheImmediately: true,
-            kCGImageSourceThumbnailMaxPixelSize: Int(storedPixels),
-        ]
-        return (true, CGImageSourceCreateThumbnailAtIndex(source, best.index, options as CFDictionary))
+    /// Downloads an image (at most 3 MB) and decodes its largest frame, scaled down to
+    /// `storedPixels` while decoding (`LogoImage.thumbnail`). `answered` says whether the site
+    /// replied at all.
+    private nonisolated static func download(_ url: URL, site: URL, session: URLSession) async -> (answered: Bool, image: CGImage?) {
+        guard let (data, http) = await SiteFetch.data(for: URLRequest(url: url), site: site, limit: 3_000_000, session: session)
+        else { return (false, nil) }
+        guard http.statusCode == 200 else { return (true, nil) }
+        return (true, LogoImage.thumbnail(data, maxPixelSize: Int(storedPixels)))
     }
 
     // MARK: Disk

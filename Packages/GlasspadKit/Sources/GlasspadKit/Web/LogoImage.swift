@@ -31,6 +31,32 @@ public enum LogoImage {
         return CGImageDestinationFinalize(dest) ? data as Data : nil
     }
 
+    /// Frames with more pixels than this are never decoded: a logo file of a few kilobytes can
+    /// say it is 50000 pixels square, which would take gigabytes before any scaling down.
+    public static let maxSourcePixels = 4096 * 4096
+
+    /// The largest frame of a downloaded logo (an `.ico` holds several sizes), scaled down to
+    /// `maxPixelSize` on a side while it decodes, so a huge logo never becomes a huge bitmap.
+    /// Only the chosen frame is decoded, and only when it is within `maxSourcePixels`.
+    public static func thumbnail(_ data: Data, maxPixelSize: Int) -> CGImage? {
+        guard let source = CGImageSourceCreateWithData(data as CFData, nil) else { return nil }
+        var best: (index: Int, side: Int)?
+        for i in 0..<min(CGImageSourceGetCount(source), 32) {
+            guard let props = CGImageSourceCopyPropertiesAtIndex(source, i, nil) as? [CFString: Any],
+                  let w = props[kCGImagePropertyPixelWidth] as? Int, let h = props[kCGImagePropertyPixelHeight] as? Int,
+                  w > 0, h > 0, w * h <= maxSourcePixels else { continue }
+            if best == nil || min(w, h) > best!.side { best = (i, min(w, h)) }
+        }
+        guard let best else { return nil }
+        let options: [CFString: Any] = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceShouldCacheImmediately: true,
+            kCGImageSourceThumbnailMaxPixelSize: maxPixelSize,
+        ]
+        return CGImageSourceCreateThumbnailAtIndex(source, best.index, options as CFDictionary)
+    }
+
     /// Decodes image data now; nil when it cannot be read (an SVG, a web page, damage).
     public static func decode(_ data: Data) -> CGImage? {
         guard let source = CGImageSourceCreateWithData(data as CFData, nil), CGImageSourceGetCount(source) > 0 else { return nil }

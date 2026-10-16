@@ -299,6 +299,10 @@ As built (GlasspadKit):
   uses `remoteSystem(.nightShift)`. An older Mac drops every Displays message; the phone says so
   after four seconds without a state. Tests: `DisplayGeometryTests`, `WindowPlanTests`,
   `DisplaysProtocolTests`, `DisplaysModeTests`, `ResolutionChoicesTests`.
+  Checks on the Mac (Oct 2026): an arrangement must leave one piece of desk, no overlaps and
+  every display sharing part of an edge with another, within 100,000 points
+  (`DisplayGeometry.isReachableArrangement`), naming each display with its own picture once; a
+  display that copies another cannot be copied (no mirroring loops or chains). `ArrangementTests`.
 - `ControlMessage.macStatus(MacStatus)` (Oct 2026, additive), Mac -> phone, JSON
   `{"t":"macStatus","status":{"accessibilityTrusted":false,"automationMedia":"notDetermined","macName":"Soham's MacBook Pro"}}`.
   `MacStatus` (`Protocol/MacStatus.swift`): `accessibilityTrusted: Bool` (required; when false the
@@ -574,7 +578,16 @@ As built, UX pass (Oct 2026):
 - Website buttons show the site's own logo: the phone reads the page's icon links, then
   `/apple-touch-icon.png` and `/favicon.ico`, keeps the largest, caches it by host, and falls back
   to the site's first letter. It asks the site only (no favicon services). A new Website button is
-  named after the site.
+  named after the site. Every fetch and redirect goes through `SiteFetch`: https only, never a
+  device on the local network or a numeric address unless the typed link is that device, the
+  page read to 400 KB and an image to 3 MB (counted after decompression). A logo frame over
+  4096 × 4096 pixels is never decoded (`LogoImage.thumbnail`). `SiteFetchTests`.
+- Deck safety on the Mac: Open File refuses what runs when opened (scripts such as `.command`,
+  programs, installers, Automator, Terminal and link files, following symbolic links;
+  `DeckMode.runsWhenOpened`), Open URL refuses `file`, `x-man-page` and `help` links, and the log
+  names only the kind of action. A clipboard image from the phone over 100 million pixels is
+  refused before it is decoded. A phone forgotten during its handshake is closed before it
+  becomes active (`TransportTests.phoneRevokedMidHandshakeNeverConnects`).
 
 ## 9. iPhone app (Apps/iOS)
 

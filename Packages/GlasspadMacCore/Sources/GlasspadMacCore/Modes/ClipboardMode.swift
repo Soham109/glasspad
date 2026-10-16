@@ -84,10 +84,15 @@ public final class ClipboardMode {
             return bytes > ClipboardContent.maxTextBytes ? ClipboardContent.tooLargeMessage(bytes: bytes, holder: "This text") : nil
         case .imagePNG(let data):
             if data.count > ClipboardContent.maxImageBytes { return ClipboardLimits.imageTooLarge(bytes: data.count) }
-            guard let source = CGImageSourceCreateWithData(data as CFData, nil), CGImageSourceGetCount(source) > 0 else {
+            guard let source = CGImageSourceCreateWithData(data as CFData, nil), CGImageSourceGetCount(source) > 0,
+                  let props = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
+                  let width = props[kCGImagePropertyPixelWidth] as? Int, let height = props[kCGImagePropertyPixelHeight] as? Int
+            else {
                 return ClipboardLimits.unreadableImage
             }
-            return nil
+            // A small file can hold a huge picture (one colour packs gigabytes of pixels into a few
+            // kilobytes); turning it into the TIFF copy would take all of the Mac's memory.
+            return width * height > ClipboardLimits.maxImagePixels ? ClipboardLimits.tooManyPixels : nil
         }
     }
 
@@ -190,6 +195,9 @@ public enum ClipboardLimits {
     /// Images, in PNG bytes (the message carries them as base64, 4/3 the size). A full-screen
     /// screenshot scaled to this is still sharp on a phone.
     public static let maxImageBytes = 3 << 20
+    /// Pixels in an image from the phone: more than a 48 MP iPhone photo, far less than a picture
+    /// made to fill the Mac's memory once decoded.
+    public static let maxImagePixels = 100_000_000
 
     public static func tooLargeMessage(bytes: Int) -> String {
         ClipboardContent.tooLargeMessage(bytes: bytes, holder: "The Mac clipboard")
@@ -201,6 +209,7 @@ public enum ClipboardLimits {
     }
 
     static let imageNotSendable = "The image on the Mac clipboard could not be made small enough to send. Copy a smaller part of it."
+    static let tooManyPixels = "This image is too large for the Mac clipboard. Try a smaller one."
     static let unreadableImage = "Your Mac could not read this image. Try copying it again."
     static let notWritten = "The Mac clipboard did not take it. Try again."
 }

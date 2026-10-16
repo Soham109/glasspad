@@ -394,9 +394,15 @@ public final class GlasspadServer: @unchecked Sendable {
                 s.channel.close("key confirmation failed")
                 return
             }
+            guard let phone = s.phone else { return }
+            // The phone may have been revoked since its hello: ask again, so a Forget that lands
+            // mid-handshake never lets the phone in for the whole session.
+            if !s.isNewPairing, pairKeyLookup(phone.phoneID) != phone.pairKey {
+                s.channel.close("revoked during handshake")
+                return
+            }
             s.phase = .authenticated
             s.channel.maxIncomingFrame = GlasspadService.maxFrameLength
-            guard let phone = s.phone else { return }
             if s.isNewPairing {
                 pendingKey.mutate { if $0 == phone.pairKey { $0 = nil } }
                 let handler = pairedHandler.get()
