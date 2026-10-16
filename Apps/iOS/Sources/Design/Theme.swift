@@ -9,7 +9,9 @@ extension ThemeChoice {
     /// The window's appearance for this choice. Themes that follow the phone leave it
     /// unspecified, so SwiftUI's colour scheme reports the phone's real setting.
     var interfaceStyle: UIUserInterfaceStyle {
-        switch appearance {
+        // Photo takes the light or dark its photo needs, once there is one.
+        if self == .photo, let photo = PhotoBackdrop.shared.current { return photo.tone.isDark ? .dark : .light }
+        return switch appearance {
         case .light: .light
         case .dark: .dark
         case .followsPhone: .unspecified
@@ -20,10 +22,10 @@ extension ThemeChoice {
     /// that follow it. Every colour in it is a semantic token that resolves against the light
     /// or dark appearance it is drawn in; the window appearance above makes that match.
     func resolved(_ scheme: ColorScheme) -> Palette {
-        let dark: Bool = switch appearance {
+        let dark: Bool = switch interfaceStyle {
         case .light: false
         case .dark: true
-        case .followsPhone: scheme == .dark
+        default: scheme == .dark
         }
         return Palette.themed(self, dark: dark)
     }
@@ -31,7 +33,12 @@ extension ThemeChoice {
     /// Fixed colours of this theme in one appearance, for the previews in Settings. The glass
     /// backdrop is left to the preview to draw small.
     func preview(dark: Bool) -> Palette {
-        Palette.cached("\(rawValue).\(dark).preview") {
+        if self == .photo, let photo = PhotoBackdrop.shared.current {
+            return Palette.cached("photo.\(photo.version).preview") {
+                Palette(light: photo.tone.tokens, dark: photo.tone.tokens, theme: self, isDark: photo.tone.isDark, patternBackdrop: false)
+            }
+        }
+        return Palette.cached("\(rawValue).\(dark).preview") {
             let t = tokens(dark: dark)
             return Palette(light: t, dark: t, theme: self, isDark: dark, patternBackdrop: false)
         }
@@ -66,7 +73,7 @@ struct Palette: Equatable, Sendable {
     var glass: Bool { theme.isGlass }
     /// The surface itself. In the glass themes this is a soft gradient (a pattern colour), so
     /// use it only to fill an area, never for text or symbols; those take `solid`.
-    let background: UIColor
+    private(set) var background: UIColor
     /// A plain colour that matches the surface, for text and symbols on an ink filled button.
     let solid: UIColor
     /// Cards and buttons that sit on the surface.
@@ -148,7 +155,15 @@ struct Palette: Equatable, Sendable {
     /// The app palette for a theme. `dark` only says which way the window currently looks;
     /// the colours themselves follow whatever appearance they are drawn in.
     static func themed(_ theme: ThemeChoice = .paper, dark: Bool) -> Palette {
-        cached("\(theme.rawValue).\(dark)") {
+        if theme == .photo, let photo = PhotoBackdrop.shared.current {
+            return cached("photo.\(photo.version)") {
+                var p = Palette(light: photo.tone.tokens, dark: photo.tone.tokens, theme: theme, isDark: photo.tone.isDark,
+                                patternBackdrop: false)
+                p.background = UIColor(patternImage: photo.tile)
+                return p
+            }
+        }
+        return cached("\(theme.rawValue).\(dark)") {
             Palette(light: theme.tokens(dark: false), dark: theme.tokens(dark: true), theme: theme, isDark: dark, patternBackdrop: true)
         }
     }
@@ -181,6 +196,19 @@ struct Palette: Equatable, Sendable {
 
     /// The traits this palette is meant for, for drawing outside SwiftUI (layers, images).
     var traits: UITraitCollection { UITraitCollection(userInterfaceStyle: isDark ? .dark : .light) }
+
+    /// The glass backdrop at full size (the picked photo in the Photo theme), lined up with the
+    /// window's. Nil in the plain themes.
+    var backdropImage: UIImage? {
+        if theme == .photo, tokens.photoSamples != nil { return PhotoBackdrop.shared.current?.tile }
+        return tokens.backdrop.map(Backdrop.image)
+    }
+
+    /// The part of the backdrop a screen shows, small, for previews.
+    var backdropPreview: UIImage? {
+        if theme == .photo, tokens.photoSamples != nil { return PhotoBackdrop.shared.current?.preview }
+        return tokens.backdrop.map(Backdrop.preview)
+    }
 
     /// The surface as a SwiftUI colour. Clear in the glass themes: SwiftUI cannot draw a
     /// pattern, so the window draws the backdrop behind everything (see `WindowAppearance`) and
@@ -396,10 +424,10 @@ struct SurfaceBackground: View {
     @Environment(\.palette) private var palette
 
     var body: some View {
-        if let backdrop = palette.tokens.backdrop {
+        if let backdrop = palette.backdropImage {
             GeometryReader { proxy in
                 let frame = proxy.frame(in: .global)
-                Image(uiImage: Backdrop.image(backdrop))
+                Image(uiImage: backdrop)
                     .resizable()
                     .frame(width: Backdrop.side, height: Backdrop.side)
                     .offset(x: -frame.minX, y: -frame.minY)

@@ -22,7 +22,8 @@ struct StandByStyle {
 
     init(_ palette: Palette) {
         monochrome = palette.monochrome
-        good = palette.good
+        // The dark green whatever the theme: a light theme's deeper green would sink into black.
+        good = Palette.graphite.good
     }
 
     static let backgroundColor = Color(uiColor: .black)

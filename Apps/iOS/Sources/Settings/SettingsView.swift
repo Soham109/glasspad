@@ -1,5 +1,6 @@
-import SwiftUI
 import GlasspadKit
+import PhotosUI
+import SwiftUI
 
 /// Phone settings. The main page holds what people change; rare
 /// options live under Advanced.
@@ -391,20 +392,77 @@ struct ThemeSettings: View {
     @Environment(\.palette) private var palette
     @Bindable var settings = PhoneSettings.shared
 
+    @State private var pick: PhotosPickerItem?
+    @State private var hasPhoto = PhotoBackdrop.shared.current != nil
+    @State private var working = false
+    @State private var failed = false
+
     var body: some View {
         Form {
-            ForEach(ThemeChoice.Group.allCases) { group in
+            ForEach(ThemeChoice.Group.allCases.filter { $0 != .photo }) { group in
                 Section(group.title) {
                     ThemeGrid(themes: group.themes, selection: $settings.theme)
                         .listRowInsets(EdgeInsets(top: 14, leading: 14, bottom: 12, trailing: 14))
                 }
                 .listRowBackground(palette.raisedColor)
             }
+            photo
         }
         .scrollContentBackground(.hidden)
         .background(SurfaceBackground())
         .navigationTitle("Theme")
         .navigationBarTitleDisplayMode(.inline)
+        .onChange(of: pick) { _, item in
+            guard let item else { return }
+            Task { await use(item) }
+        }
+        .alert("This photo could not be used", isPresented: $failed) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("Try another photo.")
+        }
+    }
+
+    /// A photo of the person's own, blurred into the backdrop of a glass theme.
+    private var photo: some View {
+        Section {
+            if hasPhoto {
+                ThemeGrid(themes: [.photo], selection: $settings.theme)
+                    .listRowInsets(EdgeInsets(top: 14, leading: 14, bottom: 12, trailing: 14))
+            }
+            // Worked out here: the picker builds its label outside the main actor.
+            let title = hasPhoto ? "Choose Another Photo" : "Choose a Photo", busy = working
+            PhotosPicker(selection: $pick, matching: .images) {
+                LabeledContent {
+                    if busy { ProgressView() }
+                } label: {
+                    Label(title, systemImage: "photo")
+                }
+            }
+            .disabled(working)
+        } header: {
+            Text(ThemeChoice.Group.photo.title)
+        } footer: {
+            Text("Your photo is blurred into a soft backdrop. It stays on this iPhone.")
+        }
+        .listRowBackground(palette.raisedColor)
+    }
+
+    private func use(_ item: PhotosPickerItem) async {
+        working = true
+        defer {
+            working = false
+            pick = nil
+        }
+        guard let data = try? await item.loadTransferable(type: Data.self),
+              await PhotoBackdrop.shared.use(data, screen: PhotoBackdrop.screenSize) else {
+            failed = true
+            return
+        }
+        hasPhoto = true
+        Haptics.shared.tap()
+        // Set even when Photo is already the theme, so every screen picks up the new photo.
+        ThemeTransition.run { settings.theme = .photo }
     }
 }
 
@@ -490,7 +548,7 @@ struct ThemePreview: View {
 }
 
 /// A theme drawn small: the mode pill, four tiles (two in system colours as that theme shows
-/// them, one in the ink and one in the theme's accent) on the theme's own surface. `half`
+/// them, one in the ink and one in the theme's accent) and a slider on the theme's own surface. `half`
 /// draws only that side of the layout, so a light and a dark half join into one screen.
 private struct ThemeMiniature: View {
     let palette: Palette
@@ -529,14 +587,23 @@ private struct ThemeMiniature: View {
                     self.tile(palette.inkColor, "moon.fill", side: tile)
                     self.tile(palette.accentColor, "speaker.wave.2.fill", side: tile)
                 }
+                // A slider, its filled part in the accent.
+                Capsule()
+                    .fill(Color(uiColor: palette.raised))
+                    .overlay(alignment: .leading) {
+                        Capsule().fill(palette.accentColor).frame(width: (width - gap * 2) * 0.6)
+                    }
+                    .overlay(Capsule().strokeBorder(Color(uiColor: palette.line), lineWidth: 0.5))
+                    .frame(width: width - gap * 2, height: max(3, width * 0.05))
+                    .padding(.top, gap * 0.6)
             }
         }
     }
 
     @ViewBuilder private func surface(width: CGFloat, height: CGFloat) -> some View {
-        if let backdrop = palette.tokens.backdrop {
+        if let backdrop = palette.backdropPreview {
             // The top left of the backdrop, as a screen shows it.
-            Image(uiImage: Backdrop.preview(backdrop))
+            Image(uiImage: backdrop)
                 .resizable()
                 .scaledToFill()
                 .frame(width: width, height: height, alignment: .topLeading)

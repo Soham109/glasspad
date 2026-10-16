@@ -140,3 +140,49 @@ import Testing
         #expect(abs(half.r - 0.5) < 0.0001 && half.a == 1)
     }
 }
+
+/// The Photo theme must read on any photo.
+@Suite struct PhotoToneTests {
+    /// A small fixed random source, so the test is the same every run.
+    struct Seeded: RandomNumberGenerator {
+        var state: UInt64
+        mutating func next() -> UInt64 {
+            state = state &* 6364136223846793005 &+ 1442695040888963407
+            return state
+        }
+    }
+
+    @Test func everyPhotoGetsReadableColours() {
+        var rng = Seeded(state: 7)
+        for _ in 0..<120 {
+            // A photo is mostly one mood with a few brighter or darker patches.
+            let base = RGBA(r: .random(in: 0...1, using: &rng), g: .random(in: 0...1, using: &rng), b: .random(in: 0...1, using: &rng))
+            let samples = (0..<64).map { _ in
+                base.mixed(with: RGBA(r: .random(in: 0...1, using: &rng), g: .random(in: 0...1, using: &rng),
+                                      b: .random(in: 0...1, using: &rng)), amount: .random(in: 0...0.8, using: &rng))
+            }
+            let tone = PhotoTone.fit(samples: samples)
+            #expect(tone.tokens.meetsContrast(), "\(base) veil \(tone.veil)")
+            #expect(tone.tokens.good.worstContrast(on: tone.tokens.allSurfaces) >= ContrastLevel.ui.rawValue)
+        }
+    }
+
+    @Test func plainPhotosNeedNoVeil() {
+        let white = PhotoTone.fit(samples: [RGBA(white: 0.97)])
+        #expect(!white.isDark && white.veil == 0)
+        let black = PhotoTone.fit(samples: [RGBA(hex: 0x080A10)])
+        #expect(black.isDark && black.veil == 0)
+    }
+
+    @Test func busyPhotoIsCalmedByAVeil() {
+        let tone = PhotoTone.fit(samples: [.white, .black, RGBA(hex: 0xFF3B30), RGBA(hex: 0x007AFF)])
+        #expect(tone.veil > 0)
+        #expect(tone.tokens.meetsContrast())
+    }
+
+    @Test func catalogThemesPassTheSameCheck() {
+        for (theme, dark) in ThemeContrastTests.cases {
+            #expect(theme.tokens(dark: dark).meetsContrast(text: theme.isHighContrast ? 7 : 4.5), "\(theme.title)")
+        }
+    }
+}

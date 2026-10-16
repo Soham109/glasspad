@@ -10,6 +10,8 @@ public enum ThemeChoice: String, CaseIterable, Identifiable, Sendable {
     case glass, glassDark, clear, aurora, ocean, dusk, rose, mint, lavender, ember, citrus, smoke
     // Colour
     case sand, midnight, forest, plum, slate, espresso, solar, frost, dawn
+    // A photo the person picks, blurred into the backdrop
+    case photo
 
     public var id: String { rawValue }
 
@@ -47,11 +49,12 @@ public enum ThemeChoice: String, CaseIterable, Identifiable, Sendable {
         case .solar: "Solar"
         case .frost: "Frost"
         case .dawn: "Dawn"
+        case .photo: "Photo"
         }
     }
 
     public enum Group: String, CaseIterable, Identifiable, Sendable {
-        case classic, glass, colour
+        case classic, glass, colour, photo
 
         public var id: String { rawValue }
 
@@ -60,6 +63,7 @@ public enum ThemeChoice: String, CaseIterable, Identifiable, Sendable {
             case .classic: "Classic"
             case .glass: "Glass"
             case .colour: "Colour"
+            case .photo: "Photo"
             }
         }
 
@@ -71,6 +75,7 @@ public enum ThemeChoice: String, CaseIterable, Identifiable, Sendable {
         case .system, .paper, .graphite, .mono, .pureBlack, .highContrast: .classic
         case .glass, .glassDark, .clear, .aurora, .ocean, .dusk, .rose, .mint, .lavender, .ember, .citrus, .smoke: .glass
         case .sand, .midnight, .forest, .plum, .slate, .espresso, .solar, .frost, .dawn: .colour
+        case .photo: .photo
         }
     }
 
@@ -82,7 +87,8 @@ public enum ThemeChoice: String, CaseIterable, Identifiable, Sendable {
 
     public var appearance: Appearance {
         switch self {
-        case .system, .mono, .highContrast, .clear: .followsPhone
+        // Photo follows the phone only until a photo is picked; then the photo decides.
+        case .system, .mono, .highContrast, .clear, .photo: .followsPhone
         case .paper, .glass, .ocean, .rose, .mint, .lavender, .citrus, .sand, .slate, .solar, .dawn: .light
         case .graphite, .pureBlack, .glassDark, .aurora, .dusk, .ember, .smoke,
              .midnight, .forest, .plum, .espresso, .frost: .dark
@@ -92,8 +98,8 @@ public enum ThemeChoice: String, CaseIterable, Identifiable, Sendable {
     /// No colour anywhere: tiles, symbols and accents all draw in the ink.
     public var isMonochrome: Bool { self == .mono }
 
-    /// Translucent surfaces over a soft coloured backdrop.
-    public var isGlass: Bool { group == .glass }
+    /// Translucent surfaces over a soft coloured backdrop (or the person's photo).
+    public var isGlass: Bool { group == .glass || self == .photo }
 
     /// Text must reach AAA (7:1) rather than AA.
     public var isHighContrast: Bool { self == .highContrast }
@@ -114,7 +120,7 @@ public enum ThemeChoice: String, CaseIterable, Identifiable, Sendable {
         case .mono: .monoLight
         case .highContrast: .highContrastLight
         case .clear: .clearLight
-        case .glass: .glassLight
+        case .glass, .photo: .glassLight
         case .ocean: .ocean
         case .rose: .rose
         case .mint: .mint
@@ -135,7 +141,7 @@ public enum ThemeChoice: String, CaseIterable, Identifiable, Sendable {
         case .pureBlack: .pureBlack
         case .highContrast: .highContrastDark
         case .clear: .clearDark
-        case .glassDark: .glassDark
+        case .glassDark, .photo: .glassDark
         case .aurora: .aurora
         case .dusk: .dusk
         case .ember: .ember
@@ -211,9 +217,11 @@ public struct ThemeTokens: Hashable, Sendable {
     public var solid: RGBA
     /// The theme's own colour: controls, switches and links.
     public var accent: RGBA
+    /// The Photo theme: colours sampled across the blurred photo, standing for its surface.
+    public var photoSamples: [RGBA]? = nil
 
     /// Plain colours for every part of the surface.
-    public var surfaces: [RGBA] { backdrop?.samples ?? [background] }
+    public var surfaces: [RGBA] { photoSamples ?? backdrop?.samples ?? [background] }
 
     /// Raised cards as they look over every part of the surface.
     public var raisedSurfaces: [RGBA] { surfaces.map { raised.over($0) } }
@@ -225,6 +233,17 @@ public struct ThemeTokens: Hashable, Sendable {
     /// the ink only as far as 3:1 on every surface needs.
     public func readable(_ color: RGBA, minimum: Double = ContrastLevel.ui.rawValue) -> RGBA {
         color.readable(on: allSurfaces, toward: ink, minimum: minimum)
+    }
+
+    /// Whether every pair of colours that carries text or a control reads: the ink and the
+    /// secondary text on the surface and on cards (at `text`), the accent as text on cards and
+    /// as a control on the surface, and labels on ink filled buttons.
+    public func meetsContrast(text: Double = ContrastLevel.text.rawValue) -> Bool {
+        ink.worstContrast(on: surfaces) >= text && ink.worstContrast(on: raisedSurfaces) >= text
+            && inkSoft.worstContrast(on: surfaces) >= text && inkSoft.worstContrast(on: raisedSurfaces) >= text
+            && accent.worstContrast(on: raisedSurfaces) >= ContrastLevel.text.rawValue
+            && accent.worstContrast(on: surfaces) >= ContrastLevel.ui.rawValue
+            && solid.a == 1 && solid.contrast(with: ink) >= text
     }
 
     /// Connected, passed, done.
@@ -316,8 +335,8 @@ extension ThemeTokens {
         (0.05, 0.05, 0.55, 0x2B3A8C), (0.36, 0.36, 0.4, 0x4A2A78), (0.12, 0.66, 0.42, 0x0E5560), (0.0, 0.95, 0.36, 0x5A2050),
     ]), solid: 0x10121C, ink: 0xF3F4F9, accent: 0xF3F4F9, soft: 0.8)
     /// As much see-through as legibility allows, like the clear icons on the Home Screen.
-    static let clearLight = glass(dark: false, ThemeBackdrop(base: 0xE4E9EF, corner: 0xC9D6E6, middle: 0xE2DCEB,
-                                                             side: 0xD6E6E1, edge: 0xE9E1D8),
+    static let clearLight = glass(dark: false, ThemeBackdrop(base: 0xE4E9EF, corner: 0xBFD2EC, middle: 0xE0D4F0,
+                                                             side: 0xCBE7DC, edge: 0xF0DCC8),
                                   solid: 0xE6EBF1, ink: 0x0B0D12, accent: 0x0B0D12, soft: 0.68, raised: 0.24, pressed: 0.42, line: 0.9)
     static let clearDark = glass(dark: true, ThemeBackdrop(base: 0x08090C, corner: 0x1C2431, middle: 0x231E2E,
                                                            side: 0x15262A, edge: 0x2A221E),
