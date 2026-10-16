@@ -219,20 +219,23 @@ extension AppModel {
         model.launchNeedsApproval = login.needsApproval
         model.allowShellButtons = DeckConfig.load().allowShellCommands
 
-        controller.$linkState.assign(to: &model.$link)
-        controller.$stats.assign(to: &model.$stats)
-        controller.$phones.assign(to: &model.$phones)
-        controller.$connectedPhoneName.assign(to: &model.$connectedPhoneName)
-        controller.$capabilities.assign(to: &model.$capabilities)
-        controller.$settings.assign(to: &model.$settings)
-        controller.$accessibilityTrusted.assign(to: &model.$accessibilityTrusted)
-        controller.$pairingPhase.assign(to: &model.$pairing)
-        controller.$automation.assign(to: &model.$automation)
-        controller.$lastError.assign(to: &model.$lastError)
-        controller.$clipboardRefusal.assign(to: &model.$clipboardRefusal)
-        controller.$gesturePreferences.assign(to: &model.$gesturePreferences)
-        hider.$published.assign(to: &model.$dock)
-        media.$deniedApps.assign(to: &model.$automationDenied)
+        // Only real changes reach the views: the controller republishes some values unchanged.
+        // The round trip inside `.connected` changes with every ping; the views read it from
+        // `stats`, so it is left out here and the views redraw on real state changes only.
+        controller.$linkState.map(\.withoutRoundTrip).removeDuplicates().assign(to: &model.$link)
+        controller.$stats.removeDuplicates().assign(to: &model.$stats)
+        controller.$phones.removeDuplicates().assign(to: &model.$phones)
+        controller.$connectedPhoneName.removeDuplicates().assign(to: &model.$connectedPhoneName)
+        controller.$capabilities.removeDuplicates().assign(to: &model.$capabilities)
+        controller.$settings.removeDuplicates().assign(to: &model.$settings)
+        controller.$accessibilityTrusted.removeDuplicates().assign(to: &model.$accessibilityTrusted)
+        controller.$pairingPhase.removeDuplicates().assign(to: &model.$pairing)
+        controller.$automation.removeDuplicates().assign(to: &model.$automation)
+        controller.$lastError.removeDuplicates().assign(to: &model.$lastError)
+        controller.$clipboardRefusal.removeDuplicates().assign(to: &model.$clipboardRefusal)
+        controller.$gesturePreferences.removeDuplicates().assign(to: &model.$gesturePreferences)
+        hider.$published.removeDuplicates().assign(to: &model.$dock)
+        media.$deniedApps.removeDuplicates().assign(to: &model.$automationDenied)
         return model
     }
 }

@@ -33,6 +33,9 @@ public final class MacDockHider: ObservableObject {
     private let runner: ProcessRunning
     /// Writes Glasspad's own preferences to disk now.
     private let flushOwn: () -> Void
+    /// Runs the Dock restart. Off the main thread in the app: `killall` is a process launch and
+    /// a wait, which held the menu bar icon still. Tests run it in place.
+    private let restartQueue: (@escaping @Sendable () -> Void) -> Void
 
     /// The manual switch. Not remembered across launches: a fresh start always shows the Dock.
     public private(set) var manual = false
@@ -44,11 +47,15 @@ public final class MacDockHider: ObservableObject {
     @Published public private(set) var published = MacDockState(hidden: false, hideWhileConnected: false, isHiddenNow: false)
 
     public init(dock: DefaultsStore = CFPreferencesStore(), own: UserDefaults = .standard,
-                runner: ProcessRunning = LiveProcessRunner(), flushOwn: (() -> Void)? = nil) {
+                runner: ProcessRunning = LiveProcessRunner(), flushOwn: (() -> Void)? = nil,
+                restartQueue: ((@escaping @Sendable () -> Void) -> Void)? = nil) {
         self.dock = dock
         self.own = own
         self.runner = runner
         self.flushOwn = flushOwn ?? { _ = own.synchronize() }
+        // One serial queue keeps restarts in order (hide, then show, never the other way round).
+        let queue = DispatchQueue(label: "com.soham109.glasspad.dock-restart", qos: .userInitiated)
+        self.restartQueue = restartQueue ?? { queue.async(execute: $0) }
         hideWhileConnected = own.bool(forKey: Self.hideWhileConnectedKey)
         published = state
     }
@@ -94,9 +101,9 @@ public final class MacDockHider: ObservableObject {
         apply()
     }
 
-    /// App is quitting: always put the Dock back.
+    /// App is quitting: always put the Dock back, waiting for the restart (the process ends next).
     public func appWillTerminate() {
-        if isHidden { restore() }
+        if isHidden { restore(wait: true) }
         published = state
     }
 
@@ -131,7 +138,7 @@ public final class MacDockHider: ObservableObject {
         GPLog.log("mac dock: hidden (saved \(saved))")
     }
 
-    private func restore() {
+    private func restore(wait: Bool = false) {
         let saved = own.dictionary(forKey: Self.savedKey) ?? [:]
         for key in Self.keys {
             dock.set(saved[key], forKey: key, domain: Self.domain)
@@ -139,13 +146,23 @@ public final class MacDockHider: ObservableObject {
         dock.synchronize(domain: Self.domain)
         own.removeObject(forKey: Self.savedKey)
         flushOwn()
-        restartDock()
+        restartDock(wait: wait)
         GPLog.log("mac dock: restored \(saved)")
     }
 
-    private func restartDock() {
-        // The Dock reads these keys at start; launchd restarts it at once.
-        _ = runner.run("/usr/bin/killall", ["Dock"])
+    private func restartDock(wait: Bool = false) {
+        // The Dock reads these keys at start; launchd restarts it at once. The keys are already
+        // written and synchronized, so the restart itself can happen off the main thread.
+        nonisolated(unsafe) let runner = runner
+        let restart: @Sendable () -> Void = { _ = runner.run("/usr/bin/killall", ["Dock"]) }
+        if wait {
+            // Behind any restart still queued, so the last one to run is this one.
+            let done = DispatchSemaphore(value: 0)
+            restartQueue { restart(); done.signal() }
+            _ = done.wait(timeout: .now() + 2)
+        } else {
+            restartQueue(restart)
+        }
     }
 }
 

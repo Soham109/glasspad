@@ -47,6 +47,9 @@ public struct AXWindowProvider: FrontmostWindowProviding {
 
     static func axFrame(pid: pid_t) -> CGRect? {
         let appElement = AXUIElementCreateApplication(pid)
+        // A busy app answers late or never; the default wait is 6 s per call, and recording
+        // reads this for every click. Half a second, then the window server's frame instead.
+        AXUIElementSetMessagingTimeout(appElement, 0.5)
         for attribute in [kAXFocusedWindowAttribute, kAXMainWindowAttribute] {
             var value: CFTypeRef?
             guard AXUIElementCopyAttributeValue(appElement, attribute as CFString, &value) == .success,

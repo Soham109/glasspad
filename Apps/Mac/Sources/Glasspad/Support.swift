@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 import GlasspadKit
 import GlasspadMacCore
 import ServiceManagement
@@ -7,28 +8,22 @@ import SwiftUI
 // MARK: - Menu bar label
 
 struct MenuBarLabel: View {
-    @ObservedObject var model: AppModel
-    @ObservedObject var macros: MacroCoordinator
-
-    init(model: AppModel) {
-        self.model = model
-        self.macros = model.macros
-    }
+    @ObservedObject var status: MenuBarStatus
 
     var body: some View {
         // While recording a macro the menu bar says so too.
-        if macros.isRecording {
+        if status.look.recording {
             Image(systemName: "record.circle.fill")
                 .accessibilityLabel("Glasspad, recording a macro")
         // The template icon from Resources when bundled; an SF Symbol under `swift run`.
         } else if let image = Self.icon {
             Image(nsImage: image)
-                .opacity(model.isPaused ? 0.45 : 1)
-                .accessibilityLabel("Glasspad, \(model.statusTitle)")
+                .opacity(status.look.paused ? 0.45 : 1)
+                .accessibilityLabel("Glasspad, \(status.look.title)")
         } else {
-            Image(systemName: model.isConnected ? "hand.point.up.left.fill" : "hand.point.up.left")
-                .opacity(model.isPaused ? 0.45 : 1)
-                .accessibilityLabel("Glasspad, \(model.statusTitle)")
+            Image(systemName: status.look.connected ? "hand.point.up.left.fill" : "hand.point.up.left")
+                .opacity(status.look.paused ? 0.45 : 1)
+                .accessibilityLabel("Glasspad, \(status.look.title)")
         }
     }
 
@@ -45,20 +40,54 @@ struct MenuBarLabel: View {
     }()
 }
 
+/// The few things the menu bar icon shows, kept apart from the rest of the model. The icon
+/// observes only this, so it redraws when one of them changes, not on every signal reading,
+/// frontmost app (the macro profile follows it) or Settings change.
+@MainActor
+final class MenuBarStatus: ObservableObject {
+    struct Look: Equatable {
+        var recording = false
+        var paused = false
+        var connected = false
+        var title = ""
+    }
+
+    @Published private(set) var look: Look
+
+    init(model: AppModel) {
+        look = Look(recording: model.macros.isRecording, paused: model.isPaused, connected: model.isConnected,
+                    title: model.statusTitle)
+        // `$x` publishers send the new value before the property changes, so the look is
+        // built from the values sent, not read back from the model.
+        Publishers.CombineLatest4(model.macros.$isRecording, model.$isPaused, model.$link, model.$phones.map(\.isEmpty))
+            .map { recording, paused, link, noPhones in
+                Look(recording: recording, paused: paused, connected: link.isConnected && !paused,
+                     title: AppModel.statusTitle(paused: paused, link: link, noPhones: noPhones))
+            }
+            .removeDuplicates()
+            .assign(to: &$look)
+    }
+}
+
 // MARK: - Status text
 
 extension LinkState {
     var isConnected: Bool { if case .connected = self { true } else { false } }
+
+    /// The state with `.connected`'s round trip dropped (the views read it from `LinkStats`).
+    var withoutRoundTrip: LinkState { if case .connected = self { .connected(rttMs: nil) } else { self } }
 }
 
 extension AppModel {
     /// One or two words for the state, used as the headline when no phone is connected and
     /// in VoiceOver labels.
-    var statusTitle: String {
-        if isPaused { return "Paused" }
+    var statusTitle: String { Self.statusTitle(paused: isPaused, link: link, noPhones: phones.isEmpty) }
+
+    static func statusTitle(paused: Bool, link: LinkState, noPhones: Bool) -> String {
+        if paused { return "Paused" }
         switch link {
         case .idle: return "Starting"
-        case .searching: return phones.isEmpty ? "No iPhone Paired" : "Waiting for iPhone"
+        case .searching: return noPhones ? "No iPhone Paired" : "Waiting for iPhone"
         case .connecting: return "Connecting"
         case .connected: return "Connected"
         case .failed: return "Not Available"
