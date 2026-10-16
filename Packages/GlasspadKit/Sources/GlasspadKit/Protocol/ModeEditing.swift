@@ -322,10 +322,10 @@ public struct ModeListLayout: Codable, Equatable, Sendable {
     /// Never hidden: the app is a trackpad first.
     public static let alwaysShown = "trackpad"
     public static let defaultOrder = ["trackpad", "keys", "media", "dock", "actions", "deck", "macros", "clipboard", "present", "remote",
-                                             "clock", "nowPlaying", "calendar"]
-    /// Modes that start hidden, so the default pill stays at five. Remote still opens from the
-    /// mode menu's tools, the StandBy screens from layouts, until Settings turns them on.
-    public static let hiddenAtFirst: Set<String> = ["remote", "clock", "nowPlaying", "calendar"]
+                                      "displays", "clock", "nowPlaying", "calendar"]
+    /// Modes that start hidden, so the default pill stays at five. Remote and Displays still open
+    /// from the mode menu's tools, the StandBy screens from layouts, until Settings turns them on.
+    public static let hiddenAtFirst: Set<String> = ["remote", "displays", "clock", "nowPlaying", "calendar"]
 
     public var order: [String]
     public var hidden: Set<String>

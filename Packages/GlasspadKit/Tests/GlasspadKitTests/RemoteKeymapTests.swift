@@ -167,9 +167,9 @@ import Testing
         // A list saved before Remote existed gets it, hidden, so nothing changes in the pill.
         let old = #"{"order":["keys","trackpad","media"],"hidden":["media"],"splitActions":false}"#
         let decoded = try JSONDecoder().decode(ModeListLayout.self, from: Data(old.utf8))
-        // (The StandBy screens, added later, join the same way.)
-        #expect(decoded.order == ["keys", "trackpad", "media", "remote", "clock", "nowPlaying", "calendar"])
-        #expect(decoded.hidden == ["media", "remote", "clock", "nowPlaying", "calendar"])
+        // (Displays and the StandBy screens, added later, join the same way.)
+        #expect(decoded.order == ["keys", "trackpad", "media", "remote", "displays", "clock", "nowPlaying", "calendar"])
+        #expect(decoded.hidden == ["media", "remote", "displays", "clock", "nowPlaying", "calendar"])
         // Once shown, it stays shown after saving and loading.
         var shown = decoded
         shown.hidden.remove("remote")

@@ -32,6 +32,8 @@ final class AppRouter {
     }
     /// Remote, full screen, opened as a tool (when it is not shown as a mode).
     var showRemote = false
+    /// Displays, full screen, opened as a tool.
+    var showDisplays = false
     /// A pairing link that arrived from outside the app (the Camera app, a web page, another
     /// app), waiting for the user to confirm it. Applying it unasked would let any link switch
     /// this iPhone to another Mac, or replace the key of the paired one.
@@ -119,6 +121,7 @@ final class AppRouter {
         case .clipboard: showClipboard = true
         case .present: showPresenter = true
         case .remote: showRemote = true
+        case .displays: showDisplays = true
         default: break
         }
     }

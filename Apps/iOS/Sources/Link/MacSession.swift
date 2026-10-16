@@ -472,6 +472,7 @@ final class MacSession {
             PairingStore.shared.reload()
             let modes = AppRouter.shared.screenModes
             modesDidChange(to: modes)
+            DisplaysStore.shared.linkConnected()
             // Refresh whatever the screen shows (every pane of a layout).
             for mode in modes {
                 switch mode {
@@ -606,6 +607,8 @@ final class MacSession {
             Haptics.shared.play(content == nil ? .error : .snap)
         case .macro(let macro):
             received(macro)
+        case .displaysState, .displaysResult:
+            DisplaysStore.shared.receive(message)
         default:
             // Phone -> Mac messages never arrive here.
             break
@@ -753,6 +756,7 @@ final class MacSession {
         UserDefaults.standard.removeObject(forKey: Self.dockListCacheKey)
         media = nil
         MediaStore.shared.reset()
+        DisplaysStore.shared.reset()
         deckButtons = nil
         deckOutcomes = [:]
         deckPending = []
