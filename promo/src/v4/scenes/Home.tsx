@@ -30,7 +30,7 @@ const R_TV3 = R_TYPE + 1.25; // the TV's search field
 const R_WIDE = R_TV3 + 1.7; // back to her
 const QUERY = "coast";
 // keys of "coast" on the Remote's keyboard (u, v of the capture)
-const KEYS: Record<string, [number, number]> = { c: [0.4, 0.832], o: [0.844, 0.708], a: [0.106, 0.771], s: [0.206, 0.771], t: [0.451, 0.708] };
+const KEYS: Record<string, [number, number]> = { c: [0.395, 0.815], o: [0.827, 0.694], a: [0.105, 0.755], s: [0.2, 0.755], t: [0.441, 0.694] };
 
 const typedAt = (t: number) => QUERY.slice(0, Math.max(0, Math.min(QUERY.length, Math.floor((t - R_TYPE - 0.1) / 0.17) + 1)));
 
@@ -47,8 +47,8 @@ const RemoteScreen: React.FC<{ t: number; search: boolean }> = ({ t, search }) =
       {search ? (
         <>
           {/* what is typed shows in the field, as in the app */}
-          {typed ? <div style={{ position: "absolute", left: 160, top: 1368, width: 780, height: 76, background: "#1F1F1F" }} /> : null}
-          {typed ? <div style={{ position: "absolute", left: 176, top: 1374, fontFamily: SFT, fontSize: 46, color: "#F5F5F7" }}>{typed}</div> : null}
+          {typed ? <div style={{ position: "absolute", left: 150, top: 1352, width: 800, height: 96, background: "#1F1F1F" }} /> : null}
+          {typed ? <div style={{ position: "absolute", left: 180, top: 1370, fontFamily: SFT, fontSize: 46, color: "#F5F5F7" }}>{typed}</div> : null}
           {QUERY.split("").map((ch, i) => {
             const at = T(R_TYPE + 0.1 + i * 0.17);
             const [u, v] = KEYS[ch];
@@ -153,7 +153,7 @@ export const Clipboard: React.FC = () => {
             screens={[{ w: PW, h: PH, exposure: 0.86, content: (
               <div style={{ position: "relative", width: PW, height: PH }}>
                 <Img src={phone("clipboard-text.png")} style={{ width: PW, height: PH }} />
-                <Touch path={() => ({ x: 0.209 * PW, y: 0.693 * PH })} down={T(C_PASTE - 0.08)} up={T(C_PASTE + 0.06)} size={150} color="rgba(30,30,30,0.55)" />
+                <Touch path={() => ({ x: 0.205 * PW, y: 0.68 * PH })} down={T(C_PASTE - 0.08)} up={T(C_PASTE + 0.06)} size={150} color="rgba(30,30,30,0.55)" />
               </div>
             ) }]} />
           {chip}
@@ -189,7 +189,7 @@ export const Clipboard: React.FC = () => {
 const DI = scene("displays");
 const D_PHONE = 1.35;
 const D_DROP = word("displays", 6) - DI.from + 0.1; // the drop lands on "display"
-const REC_MOVE = 6.48; // seconds into displays-move.mp4 where the app shows the move
+const REC_MOVE = 6.82; // seconds into displays-move.mp4 where the app shows the move
 const D_DRAG0 = D_DROP - 0.62;
 const D_BACK = D_DROP + 0.55;
 const D_MOVE = D_BACK + 0.1;
@@ -220,7 +220,7 @@ export const Displays: React.FC = () => {
   // the finger picks up Safari in the map (on the Studio Display) and drops it on the MacBook
   const drag = (lf: number) => {
     const u = E.inOut(clamp01((lf / FPS - D_DRAG0 - 0.08) / (D_DROP - D_DRAG0 - 0.08)));
-    return phonePoint(pose, lerp(0.523, 0.2, u), lerp(0.262, 0.282, u));
+    return phonePoint(pose, lerp(0.524, 0.232, u), lerp(0.259, 0.278, u));
   };
   const inRoom = t < D_PHONE || t >= D_BACK;
   return (

@@ -25,7 +25,7 @@ const T_WAKE = 1.55; // the first touch wakes the Mac
 const T_FOOT_IN = ACT.from; // the real desk
 const T_CG_IN = ACT.from + 3.45; // back to the CG desk
 const T_CLICK = word("actions2", 1) + 0.12; // the pointer clicks Safari on "Safari"
-const REC_SWITCH = 6.95; // seconds into actions-switch.mp4 where the app shows the new front app
+const REC_SWITCH = 5.77; // seconds into actions-switch.mp4 where the app shows the new front app
 const T_SPLIT = word("pinned2", 0) + 0.05;
 const T_BANNER = T_SPLIT + 0.75;
 const T_DND = word("pinned2", 2) + 0.1;
@@ -36,7 +36,7 @@ const PhoneScreen: React.FC<{ t: number }> = ({ t }) => {
   if (t < T_CG_IN - 0.5) {
     // before the click the app shows Mail in front (a held frame of the recording)
     return (
-      <Freeze frame={T(5.2)}>
+      <Freeze frame={T(4.6)}>
         <OffthreadVideo src={phone("actions-switch.mp4")} muted style={{ width: 2622, height: 1206 }} />
       </Freeze>
     );
@@ -54,7 +54,7 @@ const PhoneScreen: React.FC<{ t: number }> = ({ t }) => {
 };
 
 // Tile centres in the landscape capture (px).
-const TILE = { split: { x: 1562, y: 430 }, dnd: { x: 1868, y: 430 } };
+const TILE = { split: { x: 1472, y: 424 }, dnd: { x: 1736, y: 424 } };
 
 // ---------- Mac screens ----------
 const DisplayScreen: React.FC<{ t: number; wake: number }> = ({ t, wake }) => {

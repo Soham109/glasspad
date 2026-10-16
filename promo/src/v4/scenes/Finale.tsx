@@ -20,7 +20,7 @@ const STUDIO = "radial-gradient(70% 70% at 50% 42%, #1B1C20 0%, #0B0B0D 60%, #05
 const MO = scene("more");
 const W = (i: number) => word("more1", i) - MO.from;
 const BEATS = [
-  { at: W(0) - 0.08, img: "keys.png", orient: "landscape" as const, x: 960, rz: 0 },
+  { at: 0, img: "keys.png", orient: "landscape" as const, x: 960, rz: 0 },
   { at: W(1) - 0.08, img: "media.png", orient: "portrait" as const, x: 980, rz: 0 },
   { at: W(3) - 0.08, img: "dock.png", orient: "portrait" as const, x: 940, rz: 0 },
   { at: W(5) - 0.08, img: "macros.png", orient: "portrait" as const, x: 960, rz: 0 },
@@ -28,7 +28,7 @@ const BEATS = [
 const M_TRACK = word("more2", 0) - MO.from - 1.8; // the phone lies down
 // trackpad.mp4 (the real app, scripted touches): glide, tap, three finger swipe left, half back;
 // times measured from the app's own touch dots (scripts/v4/touches.py)
-const TP = { start: 3.58, tap: 6.07, swipe: [7.18, 8.52] as [number, number], back: [9.72, 11.25] as [number, number] };
+const TP = { start: 4.33, tap: 6.55, swipe: [7.68, 9.02] as [number, number], back: [10.2, 11.73] as [number, number] };
 const TP_FROM = TP.tap - (word("more2", 8) - MO.from - M_TRACK) + 0.1; // the tap lands on "feel"
 
 export const More: React.FC = () => {
@@ -101,9 +101,8 @@ export const More: React.FC = () => {
         </AbsoluteFill>
       ) : null}
       {/* one name per screen: each leaves as the next arrives */}
-      <Label text="Modes" inAt={T(0.25)} outAt={T(BEATS[0].at) + 2} />
       {["Keyboard", "Media", "Dock", "Macros"].map((n, i) => (
-        <Label key={n} text={n} inAt={T(BEATS[i].at) + 2} outAt={i < 3 ? T(BEATS[i + 1].at) + 2 : T(M_TRACK + 0.2)} />
+        <Label key={n} text={n} inAt={i === 0 ? T(0.3) : T(BEATS[i].at) + 2} outAt={i < 3 ? T(BEATS[i + 1].at) + 2 : T(M_TRACK + 0.2)} />
       ))}
       <Label text="Trackpad" inAt={T(M_TRACK + 0.5)} outAt={T(MO.len - 0.05)} />
     </AbsoluteFill>
