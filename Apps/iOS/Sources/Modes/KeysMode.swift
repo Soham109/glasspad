@@ -251,7 +251,7 @@ struct KeysMode: View {
                 } else {
                     VStack(spacing: 1) {
                         Text("fn").font(.body.weight(.medium))
-                        Text("F1–F12").font(.caption2)
+                        Text("F1 to F12").font(.caption2)
                             .foregroundStyle(showsFunctionRow ? Color.white.opacity(0.85) : palette.inkSoftColor)
                     }
                 }
