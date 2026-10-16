@@ -211,6 +211,26 @@ public protocol DeckEnvironment: AnyObject {
     func phoneImageData(_ url: URL) -> Data?
     func copyImageToClipboard(_ url: URL) -> Bool
     func shortcutNames() async -> [String]
+    /// True while the default output is muted; nil when it has no mute.
+    var outputMuted: Bool? { get }
+    /// How many displays are connected (one screenshot file each).
+    var displayCount: Int { get }
+    /// Locks the screen directly; false when that is not available (the caller then presses
+    /// control command Q).
+    func lockScreen() -> Bool
+    /// Switches light and dark without the Automation prompt; the new state (true is dark), or
+    /// nil when that did not work and AppleScript should do it.
+    func toggleDarkMode() -> Bool?
+    func toggleDoNotDisturb() async -> DeckSwitchResult
+    func toggleNightShift() -> DeckSwitchResult
+    func toggleKeepAwake() -> DeckSwitchResult
+    func openNotificationCenter() -> Bool
+    /// Moves the front window; nil when done, else why not.
+    func placeFrontWindow(_ placement: WindowPlacement) -> String?
+    /// The two front windows side by side; nil when done, else why not.
+    func splitFrontWindows() -> String?
+    /// The front window to the next display; nil when done, else why not.
+    func moveFrontWindowToNextDisplay() -> String?
 }
 
 extension DeckEnvironment {
@@ -227,6 +247,9 @@ public final class DeckMode {
     private let env: DeckEnvironment
     private let url: URL
     private var recording: DeckProcess?
+    /// How long a new recording must keep running to count as started (it quits at once when
+    /// Screen Recording is not allowed). Tests set it to zero.
+    var recordingStartCheck: Duration = .milliseconds(700)
 
     /// Volume and brightness step for the up/down buttons: one of the Mac's 16 keyboard steps.
     public static let step = 1.0 / 16
@@ -286,7 +309,8 @@ public final class DeckMode {
         }
         GPLog.log("deck: run \(button.title) \(Self.logLabel(button.action))")
         let outcome = await perform(button.action)
-        var out: [ModeMessage] = [.deckResult(id: id, ok: outcome.ok, message: outcome.ok ? nil : outcome.message)]
+        // On success the message is the new state of a switch ("Do Not Disturb is on"), if any.
+        var out: [ModeMessage] = [.deckResult(id: id, ok: outcome.ok, message: outcome.message)]
         if let image = outcome.image { out.append(.deckImage(id: id, imageData: image.data, destination: image.destination)) }
         return out
     }
@@ -329,8 +353,7 @@ public final class DeckMode {
             guard env.fileExists(file) else { return .fail("\(file.lastPathComponent) is not on this Mac") }
             return env.open(url: file) ? .done : .fail("Could not open \(file.lastPathComponent)")
         case .runShortcut(let name):
-            let r = await env.run(executable: "/usr/bin/shortcuts", arguments: ["run", name], timeout: 60)
-            return r.ok ? .done : .fail("Shortcut \u{201C}\(name)\u{201D} failed")
+            return await runShortcut(name)
         case .runMacro(let id):
             let r = await env.runMacro(id)
             return r.ok ? .done : .fail(r.message ?? "Macro failed")
@@ -347,11 +370,11 @@ public final class DeckMode {
         case .screenshot(let shot):
             return await screenshot(shot)
         case .screenRecording:
-            return toggleRecording()
+            return await toggleRecording()
         case .system(let s):
             return await system(s)
         case .setAudioOutput(let name):
-            return env.setAudioOutput(name: name) ? .done : .fail("No sound output named \(name)")
+            return env.setAudioOutput(name: name) ? .done : .fail("No sound output named \u{201C}\(name)\u{201D} is connected")
         case .folder:
             return .fail("Folders open on the phone")
         }
@@ -378,14 +401,24 @@ public final class DeckMode {
     // MARK: Screenshots and recording
 
     /// `screencapture` arguments for a capture into `file`, or nil when there is no front window.
+    /// A full screen capture names one file per display, as macOS does ("... (2).png").
     public func screencaptureArguments(_ area: DeckCaptureArea, file: URL) -> [String]? {
         switch area {
-        case .fullScreen: return [file.path]
+        case .fullScreen:
+            let count = max(1, env.displayCount)
+            return [file.path] + (count > 1 ? (2...count).map { Self.numbered(file, $0).path } : [])
         case .frontWindow:
             guard let wid = env.frontWindowID() else { return nil }
             return ["-l", String(wid), file.path]
+        // Interactive, mouse selection only: the crosshair, never the screenshot toolbar.
         case .selection: return ["-i", "-s", file.path]
         }
+    }
+
+    /// "Screenshot ... (2).png" for the second display.
+    nonisolated static func numbered(_ file: URL, _ n: Int) -> URL {
+        let base = file.deletingPathExtension().lastPathComponent
+        return file.deletingLastPathComponent().appendingPathComponent("\(base) (\(n)).\(file.pathExtension)")
     }
 
     private func screenshot(_ shot: DeckScreenshot) async -> Outcome {
@@ -396,7 +429,7 @@ public final class DeckMode {
                               timeout: shot.area == .selection ? 120 : 20)
         guard env.fileExists(file) else {
             if shot.area == .selection, r.ok { return .fail("Screenshot cancelled") }
-            return .fail("Allow Glasspad in System Settings > Privacy & Security > Screen & System Audio Recording.")
+            return .fail(Self.screenRecordingHint)
         }
         if shot.copyToMacClipboard == true { _ = env.copyImageToClipboard(file) }
         var outcome = Outcome.done
@@ -407,45 +440,73 @@ public final class DeckMode {
         return outcome
     }
 
+    public static let screenRecordingHint =
+        "Allow Glasspad in System Settings > Privacy & Security > Screen & System Audio Recording."
+
     public var isRecording: Bool { recording?.isRunning == true }
 
-    private func toggleRecording() -> Outcome {
+    private func toggleRecording() async -> Outcome {
         if let rec = recording, rec.isRunning {
             rec.interrupt()
             recording = nil
-            return .done
+            return Outcome(ok: true, message: "Recording saved")
         }
         let file = env.screenshotFolder().appendingPathComponent(Self.fileName("Screen Recording", date: env.now(), ext: "mov"))
         guard let p = env.start(executable: "/usr/sbin/screencapture", arguments: ["-v", "-k", file.path]) else {
             return .fail("Could not start recording")
         }
+        if recordingStartCheck > .zero { try? await Task.sleep(for: recordingStartCheck) }
+        guard p.isRunning else { return .fail(Self.screenRecordingHint) }
         recording = p
-        return .done
+        return Outcome(ok: true, message: "Recording")
     }
+
+    // MARK: Shortcuts
+
+    /// Runs a shortcut; a missing one is named as missing rather than "failed".
+    private func runShortcut(_ name: String) async -> Outcome {
+        let r = await env.run(executable: "/usr/bin/shortcuts", arguments: ["run", name], timeout: 60)
+        if r.ok { return .done }
+        let names = await env.shortcutNames()
+        if !names.isEmpty, !names.contains(where: { $0.caseInsensitiveCompare(name) == .orderedSame }) {
+            return .fail("There is no shortcut named \u{201C}\(name)\u{201D} on this Mac")
+        }
+        if r.output == "Timed out" { return .fail("Shortcut \u{201C}\(name)\u{201D} took too long") }
+        return .fail("Shortcut \u{201C}\(name)\u{201D} stopped with an error")
+    }
+
+    /// Shortcuts the user may already have for Do Not Disturb, used only when Control Center
+    /// cannot be reached.
+    public static let doNotDisturbShortcuts = ["Toggle Do Not Disturb", "Do Not Disturb", "Toggle Focus"]
 
     // MARK: System controls
 
     private func system(_ s: DeckSystemAction) async -> Outcome {
         switch s {
         case .lockScreen:
-            env.press(Keystroke(key: .character("q"), modifiers: [.command, .control]))
+            if !env.lockScreen() { env.press(Keystroke(key: .character("q"), modifiers: [.command, .control])) }
             return .done
         case .sleepDisplay:
             return await tool("/usr/bin/pmset", ["displaysleepnow"], "Could not sleep the display")
         case .sleepMac:
             return await tool("/usr/bin/pmset", ["sleepnow"], "Could not sleep the Mac")
         case .toggleDarkMode:
+            if let dark = env.toggleDarkMode() { return Outcome(ok: true, message: dark ? "Dark" : "Light") }
             return await tool(Self.osascript, ["-e", "tell application \"System Events\" to tell appearance preferences to set dark mode to not dark mode"],
                               Self.automationHint)
         case .volumeUp, .volumeDown:
             guard let v = env.outputVolume else { return .fail("This sound output has no volume control") }
+            // Like the volume keys: turning it up unmutes.
+            if s == .volumeUp, env.outputMuted == true { _ = env.toggleOutputMute() }
             env.setOutputVolume(min(1, max(0, v + (s == .volumeUp ? Self.step : -Self.step))))
             return .done
         case .mute:
-            return env.toggleOutputMute() ? .done : .fail("This sound output cannot be muted")
+            guard env.toggleOutputMute() else { return .fail("This sound output cannot be muted") }
+            return Outcome(ok: true, message: env.outputMuted.map { $0 ? "Muted" : "Sound on" })
         case .micMute:
             guard let muted = env.inputMuted else { return .fail("No microphone found") }
-            return env.setInputMuted(!muted) ? .done : .fail("This microphone cannot be muted")
+            guard env.setInputMuted(!muted) else { return .fail("This microphone cannot be muted") }
+            return Outcome(ok: true, message: muted ? "Microphone on" : "Microphone muted")
         case .brightnessUp, .brightnessDown:
             guard let b = env.brightness else { return .fail("This display's brightness cannot be changed from Glasspad") }
             env.setBrightness(min(1, max(0, b + (s == .brightnessUp ? Self.step : -Self.step))))
@@ -457,6 +518,7 @@ public final class DeckMode {
         case .missionControl: return await tool(Self.missionControlPath, [], "Could not open Mission Control")
         case .appExpose: return await tool(Self.missionControlPath, ["2"], "Could not show App Exposé")
         case .launchpad:
+            // macOS 26 replaced Launchpad with the Apps launcher; older Macs still have Launchpad.
             if await env.openApp(bundleID: "com.apple.apps.launcher") { return .done }
             return await env.openApp(bundleID: "com.apple.launchpad.launcher") ? .done : .fail("Could not open Apps")
         case .emptyTrash:
@@ -464,9 +526,39 @@ public final class DeckMode {
         case .ejectAll:
             let r = env.ejectAll()
             if r.failed > 0 { return .fail("\(r.failed) disk\(r.failed == 1 ? "" : "s") could not be ejected (in use)") }
-            return .done
-        default:
-            return .fail("Not built yet")
+            return Outcome(ok: true, message: r.ejected == 0 ? "Nothing to eject" : nil)
+        case .doNotDisturb:
+            let r = await env.toggleDoNotDisturb()
+            if case .failed(let why) = r {
+                let names = await env.shortcutNames()
+                if let name = Self.doNotDisturbShortcuts.first(where: names.contains) { return await runShortcut(name) }
+                return .fail(why)
+            }
+            return Self.outcome(r, "Do Not Disturb")
+        case .nightShift: return Self.outcome(env.toggleNightShift(), "Night Shift")
+        case .keepAwake:
+            let r = env.toggleKeepAwake()
+            if r == .on { return Outcome(ok: true, message: "Staying awake") }
+            return Self.outcome(r, "Keep Awake")
+        case .notificationCenter:
+            return env.openNotificationCenter() ? .done : .fail("Could not open Notification Center. " + AXUI.permissionHint)
+        case .windowLeft, .windowRight, .windowTop, .windowBottom, .windowFill, .windowCenter:
+            guard let placement = WindowPlacement(s) else { return .fail("Unknown window position") }
+            return env.placeFrontWindow(placement).map(Outcome.fail) ?? .done
+        case .windowSplit:
+            return env.splitFrontWindows().map(Outcome.fail) ?? .done
+        case .windowNextDisplay:
+            return env.moveFrontWindowToNextDisplay().map(Outcome.fail) ?? .done
+        }
+    }
+
+    /// "Night Shift is on" for the phone, or the failure.
+    static func outcome(_ r: DeckSwitchResult, _ name: String) -> Outcome {
+        switch r {
+        case .on: Outcome(ok: true, message: "\(name) is on")
+        case .off: Outcome(ok: true, message: "\(name) is off")
+        case .changed: .done
+        case .failed(let why): .fail(why)
         }
     }
 
