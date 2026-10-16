@@ -147,7 +147,7 @@ public enum LiveCheckRestorer {
         notes += await restoreDisplays(s.displays, on: mac)
         for (i, frame) in s.testWindows.enumerated() {
             guard let frame, let now = mac.testWindowFrame(i), !WindowTiling.isClose(now, frame) else { continue }
-            mac.setTestWindowFrame(i, frame)
+            _ = await mac.setTestWindowFrame(i, frame)
             let ok = mac.testWindowFrame(i).map { WindowTiling.isClose($0, frame) } ?? false
             note(ok, "Put the test window back", "Could not put the test window back")
         }

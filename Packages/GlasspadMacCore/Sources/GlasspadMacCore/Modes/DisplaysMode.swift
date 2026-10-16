@@ -12,7 +12,7 @@ public protocol DisplaysBackend: AnyObject {
     var canArrangeWindows: Bool { get }
     var tileMargin: CGFloat { get }
     /// nil on success, else why not, in words for the phone.
-    func perform(_ operation: WindowOperation, window: UInt32) -> String?
+    func perform(_ operation: WindowOperation, window: UInt32) async -> String?
     /// `permanently` false: macOS undoes it when Glasspad quits, so a crash mid-way never
     /// leaves a blank display behind.
     func apply(_ change: DisplayChange, permanently: Bool) -> Bool
@@ -67,6 +67,8 @@ public final class DisplaysMode {
     private var last: DisplaysState?
     private var iconsSent: Set<String> = []
     private var pending: Pending?
+    /// The window command running now, which the next one waits for.
+    private var windowWork: Task<Void, Never>?
 
     private struct Pending {
         var token = UUID()
@@ -127,13 +129,22 @@ public final class DisplaysMode {
 
     // MARK: Windows
 
-    public func handle(id: UUID, windowID: UInt32, command: WindowCommand) {
-        let message = run(windowID: windowID, command: command)
-        send(.displaysResult(id: id, ok: message == nil, message: message))
-        push()
+    /// Runs one window command after the ones before it (windows take a moment to land, and
+    /// the main thread stays free meanwhile). The task is for tests to wait on.
+    @discardableResult
+    public func handle(id: UUID, windowID: UInt32, command: WindowCommand) -> Task<Void, Never> {
+        let before = windowWork
+        let task = Task { @MainActor in
+            await before?.value
+            let message = await self.run(windowID: windowID, command: command)
+            self.send(.displaysResult(id: id, ok: message == nil, message: message))
+            self.push()
+        }
+        windowWork = task
+        return task
     }
 
-    private func run(windowID: UInt32, command: WindowCommand) -> String? {
+    private func run(windowID: UInt32, command: WindowCommand) async -> String? {
         let s = DisplaysState(displays: backend.displays(), windows: backend.windows(), tileMargin: Double(backend.tileMargin))
         guard s.window(windowID) != nil else { return "That window has closed." }
         if command != .raise, !backend.canArrangeWindows {
@@ -141,7 +152,7 @@ public final class DisplaysMode {
         }
         guard let steps = Self.plan(command, window: windowID, in: s) else { return "That display is not connected any more." }
         for step in steps {
-            if let failure = backend.perform(step.operation, window: step.window) { return failure }
+            if let failure = await backend.perform(step.operation, window: step.window) { return failure }
         }
         return nil
     }

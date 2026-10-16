@@ -12,9 +12,9 @@ import GlasspadKit
 public protocol SplitViewSteps {
     /// Presses Window > Full-Screen Tile > Left of Screen for this window. False when the app
     /// has no such item or it is off.
-    func tileLeft(_ w: MovableWindow) -> Bool
+    func tileLeft(_ w: MovableWindow) async -> Bool
     /// Makes this window the one on the right of the Split View that is waiting for it.
-    func pickPartner(_ w: MovableWindow) -> Bool
+    func pickPartner(_ w: MovableWindow) async -> Bool
 }
 
 @MainActor
@@ -34,14 +34,15 @@ public struct FullScreenSplit {
 
     /// `left` and `right` side by side in full screen on the display `left` is on. nil when
     /// it worked.
-    public func fullScreenSplit(left: MovableWindow, right: MovableWindow) -> WindowFailure? {
-        for w in [left, right] where !arranger.leaveFullScreen(w) { return .fullScreen(w.appName) }
-        guard steps.tileLeft(left) else { return .noSplitView(left.appName) }
-        guard waitUntil({ left.isFullScreen }) else { return .noSplitView(left.appName) }
-        arranger.pause(Self.pickerTime)
-        if steps.pickPartner(right), waitUntil({ right.isFullScreen && sideBySide(left, right) }) { return nil }
+    public func fullScreenSplit(left: MovableWindow, right: MovableWindow) async -> WindowFailure? {
+        for w in [left, right] {
+            guard await arranger.leaveFullScreen(w) else { return .fullScreen(w.appName) }
+        }
+        guard await steps.tileLeft(left), await waitUntil({ left.isFullScreen }) else { return .noSplitView(left.appName) }
+        await arranger.pause(Self.pickerTime)
+        if await steps.pickPartner(right), await waitUntil({ right.isFullScreen && sideBySide(left, right) }) { return nil }
         // Back to how they were: neither left alone in full screen.
-        for w in [right, left] where w.isFullScreen { _ = arranger.leaveFullScreen(w) }
+        for w in [right, left] where w.isFullScreen { _ = await arranger.leaveFullScreen(w) }
         return .splitViewUnfinished
     }
 
@@ -55,11 +56,11 @@ public struct FullScreenSplit {
         return l.midX < displays[d].midX && r.midX > displays[d].midX
     }
 
-    private func waitUntil(_ done: () -> Bool) -> Bool {
+    private func waitUntil(_ done: () -> Bool) async -> Bool {
         var waited: TimeInterval = 0
         while !done() {
             guard waited < Self.enterTime else { return false }
-            arranger.pause(WindowArranger.readInterval)
+            await arranger.pause(WindowArranger.readInterval)
             waited += WindowArranger.readInterval
         }
         return true
@@ -70,18 +71,18 @@ public struct FullScreenSplit {
 /// UNVERIFIED on a real Mac: how the second window joins (see `pickPartner`).
 @MainActor
 struct LiveSplitViewSteps: SplitViewSteps {
-    func tileLeft(_ w: MovableWindow) -> Bool {
+    func tileLeft(_ w: MovableWindow) async -> Bool {
         guard let w = w as? AXMovableWindow else { return false }
         WindowMover.bringForward((w.app, w.window))
         // The app's menu acts on its front window once it is active.
-        _ = WindowMover.wait(0.5) { AXUI.bool(w.app, kAXFrontmostAttribute) == true }
+        _ = await WindowMover.wait(0.5) { AXUI.bool(w.app, kAXFrontmostAttribute) == true }
         guard let items = Self.tileItems(w.app) else { return false }
         return AXUI.press(items.left)
     }
 
     /// First the window as macOS offers it on the free half (an element in the Dock's picker
     /// named like the window); else the window's own Full-Screen Tile > Right of Screen.
-    func pickPartner(_ w: MovableWindow) -> Bool {
+    func pickPartner(_ w: MovableWindow) async -> Bool {
         guard let w = w as? AXMovableWindow else { return false }
         if let title = w.title, !title.isEmpty, let dock = AXUI.app("com.apple.dock") {
             // Never a Dock icon: an app named like the window would only open.
@@ -92,18 +93,18 @@ struct LiveSplitViewSteps: SplitViewSteps {
             if let tile, AXUI.press(tile) { return true }
         }
         WindowMover.bringForward((w.app, w.window))
-        _ = WindowMover.wait(0.5) { AXUI.bool(w.app, kAXFrontmostAttribute) == true }
+        _ = await WindowMover.wait(0.5) { AXUI.bool(w.app, kAXFrontmostAttribute) == true }
         guard let items = Self.tileItems(w.app) else { return false }
         return AXUI.press(items.right)
     }
 
     /// Window > Full-Screen Tile > Left of Screen and Right of Screen, while enabled.
     static func tileItems(_ app: AXUIElement) -> (left: AXUIElement, right: AXUIElement)? {
-        guard let menu = WindowMover.moveResizeMenu(app), menu.window.indices.contains(menu.index + 1) else { return nil }
-        let tile = menu.window[menu.index + 1]
+        guard let menu = WindowMover.tilingMenu(app), menu.window.indices.contains(menu.moveResize + 1) else { return nil }
+        let tile = menu.window[menu.moveResize + 1]
         let items = AXUI.children(tile).first.map(AXUI.children) ?? []
         guard let found = MoveResizeMenu.fullScreenTileIndices(windowMenu: menu.window.map(WindowMover.entry),
-                                                               moveResize: menu.index, tile: items.map(WindowMover.entry)),
+                                                               moveResize: menu.moveResize, tile: items.map(WindowMover.entry)),
               AXUI.bool(items[found.left], kAXEnabledAttribute) != false else { return nil }
         return (items[found.left], items[found.right])
     }
@@ -111,8 +112,8 @@ struct LiveSplitViewSteps: SplitViewSteps {
 
 extension WindowMover {
     /// Split View for two windows (`FullScreenSplit`). nil when it worked.
-    static func fullScreenSplit(left: Pair, right: Pair) -> WindowFailure? {
+    static func fullScreenSplit(left: Pair, right: Pair) async -> WindowFailure? {
         let split = FullScreenSplit(steps: LiveSplitViewSteps(), arranger: arranger(screens()))
-        return split.fullScreenSplit(left: AXMovableWindow(left), right: AXMovableWindow(right))
+        return await split.fullScreenSplit(left: AXMovableWindow(left), right: AXMovableWindow(right))
     }
 }

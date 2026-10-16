@@ -33,18 +33,21 @@ final class AXMovableWindow: MovableWindow {
 
 /// Moves real windows with the Accessibility API, preferring macOS's own Arrange items where
 /// they do the same thing and falling back to the app's Move & Resize items when a window
-/// refuses to be set directly.
+/// refuses to be set directly. Every wait is a task sleep, so the main thread (and the menu
+/// bar icon) never stops while windows animate.
 @MainActor
 enum WindowMover {
     typealias Pair = (app: AXUIElement, window: AXUIElement)
 
-    /// Every display, Quartz coordinates.
+    /// Every display, Quartz coordinates. `visible` leaves room for Stage Manager's strip.
     static func screens() -> [TilingScreen] {
         let all = NSScreen.screens
         guard let main = all.first else { return [] }
         let h = main.frame.height
-        return all.map { TilingScreen(frame: WindowTiling.quartz($0.frame, mainHeight: h),
-                                      visible: WindowTiling.quartz($0.visibleFrame, mainHeight: h), name: $0.localizedName) }
+        return all.map {
+            TilingScreen(frame: WindowTiling.quartz($0.frame, mainHeight: h),
+                         visible: tilingArea(WindowTiling.quartz($0.visibleFrame, mainHeight: h)), name: $0.localizedName)
+        }
     }
 
     /// The gap from "Tiled windows have margins" (on unless the user turned it off).
@@ -54,36 +57,47 @@ enum WindowMover {
         return on ?? true ? WindowTiling.margin : 0
     }
 
-    static func arranger(_ screens: [TilingScreen]) -> WindowArranger {
-        WindowArranger(displays: screens.map(\.frame), history: .shared) { Thread.sleep(forTimeInterval: $0) }
+    /// `visible` without Stage Manager's strip while it is on and shows recent apps.
+    static func tilingArea(_ visible: CGRect) -> CGRect {
+        let wm = "com.apple.WindowManager" as CFString, dock = "com.apple.dock" as CFString
+        CFPreferencesAppSynchronize(wm)
+        CFPreferencesAppSynchronize(dock)
+        let on = CFPreferencesCopyAppValue("GloballyEnabled" as CFString, wm) as? Bool ?? false
+        let hidden = CFPreferencesCopyAppValue("AutoHide" as CFString, wm) as? Bool ?? false
+        let dockSide = CFPreferencesCopyAppValue("orientation" as CFString, dock) as? String
+        return StageManager.tilingArea(visible, enabled: on, recentAppsHidden: hidden, dockOnLeft: dockSide == "left")
     }
 
-    static func place(_ placement: WindowPlacement) -> Result<Void, WindowFailure> {
+    static func arranger(_ screens: [TilingScreen]) -> WindowArranger {
+        WindowArranger(displays: screens.map(\.frame), history: .shared) { try? await Task.sleep(for: .seconds($0)) }
+    }
+
+    static func place(_ placement: WindowPlacement) async -> Result<Void, WindowFailure> {
         guard AXIsProcessTrusted() else { return .failure(.noPermission) }
         guard let (app, window) = frontWindow() else { return .failure(.noWindow) }
         let w = AXMovableWindow(app: app, window: window)
         let all = screens()
-        if !arranger(all).leaveFullScreen(w) { return .failure(.fullScreen(w.appName)) }
+        if !(await arranger(all).leaveFullScreen(w)) { return .failure(.fullScreen(w.appName)) }
         guard let current = w.frame, let i = WindowTiling.screenIndex(for: current, in: all) else { return .failure(.noWindow) }
         let target = WindowTiling.frame(placement, window: current, in: all[i].visible, gap: gap())
-        if set(window, app: app, to: target) { return .success(()) }
+        if await set(window, app: app, to: target) { return .success(()) }
         WindowHistory.shared.remember(w)
-        return pressMenuItem(placement, app: app) ? .success(()) : .failure(.refused(w.appName))
+        return press(app, { MoveResizeMenu.index(placement, in: $0) }) ? .success(()) : .failure(.refused(w.appName))
     }
 
     /// Return to Previous Size: back where Glasspad found the front window before it last
     /// moved it, else macOS's own item (for a window macOS tiled).
-    static func returnToPreviousSize() -> Result<Void, WindowFailure> {
+    static func returnToPreviousSize() async -> Result<Void, WindowFailure> {
         guard AXIsProcessTrusted() else { return .failure(.noPermission) }
         guard let (app, window) = frontWindow() else { return .failure(.noWindow) }
         let w = AXMovableWindow(app: app, window: window)
-        let failure = withoutEnhancedUI([app]) { arranger(screens()).returnToPreviousSize(w) }
-        if failure == .noPreviousSize, pressReturnToPreviousSize(app: app) { return .success(()) }
+        let failure = await withoutEnhancedUI([app]) { await arranger(screens()).returnToPreviousSize(w) }
+        if failure == .noPreviousSize, press(app, MoveResizeMenu.returnIndex) { return .success(()) }
         return failure.map { .failure($0) } ?? .success(())
     }
 
     /// The front window on the left half of its display and the one behind it on the right.
-    static func split() -> Result<Void, WindowFailure> {
+    static func split() async -> Result<Void, WindowFailure> {
         guard AXIsProcessTrusted() else { return .failure(.noPermission) }
         let windows = frontWindows(limit: 2)
         let all = screens()
@@ -97,8 +111,9 @@ enum WindowMover {
         case .failure(let f): return .failure(f)
         }
         let screen = all[choice.display]
-        return arrange([windows[choice.left], windows[choice.right]], .leftAndRight, in: screen.visible, gap: gap(),
-                       displayName: screen.name).map { .failure($0) } ?? .success(())
+        let failure = await arrange([windows[choice.left], windows[choice.right]], .leftAndRight, in: screen.visible, gap: gap(),
+                                    displayName: screen.name)
+        return failure.map { .failure($0) } ?? .success(())
     }
 
     /// Windows in their places on `visible`, first window first. macOS's own Arrange item when
@@ -106,39 +121,41 @@ enum WindowMover {
     /// checked once it has landed; otherwise, or when it did not land, Glasspad brings the
     /// windows over and sizes them itself. nil when it worked.
     static func arrange(_ pairs: [Pair], _ arrangement: WindowArrangement, in visible: CGRect, gap: CGFloat,
-                        displayName: String) -> WindowFailure? {
+                        displayName: String) async -> WindowFailure? {
         let windows = pairs.map(AXMovableWindow.init)
         let all = screens()
         let arranger = arranger(all)
-        for w in windows where !arranger.leaveFullScreen(w) { return .fullScreen(w.appName) }
-        if tryNative(windows, arrangement, in: visible, screens: all) { return nil }
-        let failure = withoutEnhancedUI(pairs.map(\.app)) {
-            arranger.arrange(windows, arrangement, in: visible, gap: gap, displayName: displayName)
+        for w in windows {
+            guard await arranger.leaveFullScreen(w) else { return .fullScreen(w.appName) }
+        }
+        if await tryNative(windows, arrangement, in: visible, screens: all) { return nil }
+        let failure = await withoutEnhancedUI(pairs.map(\.app)) {
+            await arranger.arrange(windows, arrangement, in: visible, gap: gap, displayName: displayName)
         }
         // Bring them forward, the last first, so none is left behind other windows.
         for w in windows.reversed() { bringForward((w.app, w.window)) }
         return failure
     }
 
-    static func toNextScreen() -> Result<Void, WindowFailure> {
+    static func toNextScreen() async -> Result<Void, WindowFailure> {
         guard AXIsProcessTrusted() else { return .failure(.noPermission) }
         let all = screens()
         guard all.count > 1 else { return .failure(.oneScreen) }
         guard let (app, window) = frontWindow() else { return .failure(.noWindow) }
         let w = AXMovableWindow(app: app, window: window)
-        if !arranger(all).leaveFullScreen(w) { return .failure(.fullScreen(w.appName)) }
+        if !(await arranger(all).leaveFullScreen(w)) { return .failure(.fullScreen(w.appName)) }
         guard let current = w.frame, let i = WindowTiling.screenIndex(for: current, in: all),
               let next = WindowTiling.nextScreenIndex(after: i, in: all) else { return .failure(.noWindow) }
         let target = WindowTiling.moved(current, from: all[i].visible, to: all[next].visible)
-        return set(window, app: app, to: target) ? .success(()) : .failure(.refused(w.appName))
+        return await set(window, app: app, to: target) ? .success(()) : .failure(.refused(w.appName))
     }
 
     /// Moves one window to `target` the way that works across displays (`WindowArranger`),
     /// remembering where it was for Return to Previous Size. True once it is there, or as
     /// close as its own minimum or maximum size allows.
-    static func set(_ window: AXUIElement, app: AXUIElement, to target: CGRect) -> Bool {
-        withoutEnhancedUI([app]) {
-            arranger(screens()).place(AXMovableWindow(app: app, window: window), to: target).frame != nil
+    static func set(_ window: AXUIElement, app: AXUIElement, to target: CGRect) async -> Bool {
+        await withoutEnhancedUI([app]) {
+            await arranger(screens()).place(AXMovableWindow(app: app, window: window), to: target).frame != nil
         }
     }
 
@@ -147,60 +164,52 @@ enum WindowMover {
     /// macOS's Arrange item for the windows, when it can do exactly this: true once every
     /// window sits in its place.
     private static func tryNative(_ windows: [AXMovableWindow], _ arrangement: WindowArrangement, in visible: CGRect,
-                                  screens all: [TilingScreen]) -> Bool {
+                                  screens all: [TilingScreen]) async -> Bool {
         let frames = all.map(\.frame)
         guard let target = DisplayGeometry.displayIndex(for: visible, in: frames) else { return false }
         let ids = windows.compactMap(\.windowID)
         let displays = windows.map { $0.frame.flatMap { DisplayGeometry.displayIndex(for: $0, in: frames) } }
-        func fits() -> Bool {
-            ArrangementLayout.nativeFits(arrangement, windowDisplays: displays, target: target,
-                                         frontOrder: frontWindowIDs(limit: windows.count), windows: ids)
+        func fits(_ order: [UInt32]) -> Bool {
+            ArrangementLayout.nativeFits(arrangement, windowDisplays: displays, target: target, frontOrder: order, windows: ids)
         }
-        guard ids.count == windows.count,
-              ArrangementLayout.nativeFits(arrangement, windowDisplays: displays, target: target,
-                                           frontOrder: ids, windows: ids) else { return false }
-        if !fits() {
+        guard ids.count == windows.count, fits(ids) else { return false }
+        if !fits(frontWindowIDs(limit: windows.count)) {
             // In front, in order: the last first.
             for w in windows.reversed() { bringForward((w.app, w.window)) }
-            guard wait(0.5, until: fits) else { return false }
+            guard await wait(0.5, until: { fits(frontWindowIDs(limit: windows.count)) }) else { return false }
         }
-        guard let item = arrangeItem(arrangement, app: windows[0].app) else { return false }
+        guard let menu = tilingMenu(windows[0].app), let i = MoveResizeMenu.index(arrangement, in: menu.entries),
+              AXUI.bool(menu.items[i], kAXEnabledAttribute) != false else { return false }
         for w in windows { WindowHistory.shared.remember(w) }
-        guard AXUI.press(item) else { return false }
+        guard AXUI.press(menu.items[i]) else { return false }
         // macOS animates there.
-        return wait(0.8) {
+        return await wait(0.8) {
             let now = windows.compactMap(\.frame)
             return now.count == windows.count && ArrangementLayout.looksArranged(arrangement, frames: now, in: visible)
         }
     }
 
-    /// Window > Move & Resize > Arrange > this arrangement, found by its shortcut (Quarters, which
-    /// has none, by its place after the others). nil when the app does not have it or it is off.
-    private static func arrangeItem(_ arrangement: WindowArrangement, app: AXUIElement) -> AXUIElement? {
-        guard let menu = moveResizeMenu(app) else { return nil }
-        let entries = menu.items.map(entry)
-        let index = arrangement == .quarters
-            ? MoveResizeMenu.quartersArrangeIndex(in: entries)
-            : entries.firstIndex { $0.shortcut.flatMap(MoveResizeMenu.arrangement) == arrangement }
-        guard let index, AXUI.bool(menu.items[index], kAXEnabledAttribute) != false else { return nil }
-        return menu.items[index]
-    }
-
     // MARK: Menus
 
-    /// The app's Move & Resize items, and the Window menu's items with Move & Resize's index
-    /// among them, found from the Left half item by its shortcut.
-    static func moveResizeMenu(_ app: AXUIElement) -> (items: [AXUIElement], window: [AXUIElement], index: Int)? {
+    /// The app's Window menu and Move & Resize items together (Fill and Center sit in the
+    /// first, the rest in the second), and the Window menu alone with Move & Resize's index.
+    /// The Window menu is found from the right of the menu bar, where it always is, by what
+    /// its items do, so no menu is walked further than needed.
+    static func tilingMenu(_ app: AXUIElement) -> (items: [AXUIElement], entries: [MoveResizeMenu.Entry],
+                                                   window: [AXUIElement], moveResize: Int)? {
         guard let bar = AXUI.element(app, kAXMenuBarAttribute) else { return nil }
-        let left = AXUI.first(in: bar, maxDepth: 6, budget: 3000) { e in
-            guard AXUI.string(e, kAXRoleAttribute) == kAXMenuItemRole as String, let s = shortcut(e) else { return false }
-            return MoveResizeMenu.matches(s, .left)
+        for top in AXUI.children(bar).reversed() {
+            guard let menu = AXUI.children(top).first else { continue }
+            let items = AXUI.children(menu)
+            for (i, item) in items.enumerated() {
+                guard let sub = AXUI.children(item).first else { continue }
+                let subItems = AXUI.children(sub)
+                let subEntries = subItems.map(entry)
+                guard MoveResizeMenu.isTilingMenu(subEntries) else { continue }
+                return (items + subItems, items.map(entry) + subEntries, items, i)
+            }
         }
-        guard let left, let menu = AXUI.element(left, kAXParentAttribute), let item = AXUI.element(menu, kAXParentAttribute),
-              let windowMenu = AXUI.element(item, kAXParentAttribute) else { return nil }
-        let windowItems = AXUI.children(windowMenu)
-        guard let index = windowItems.firstIndex(where: { CFEqual($0, item) }) else { return nil }
-        return (AXUI.children(menu), windowItems, index)
+        return nil
     }
 
     static func shortcut(_ e: AXUIElement) -> MoveResizeMenu.Shortcut? {
@@ -213,46 +222,35 @@ enum WindowMover {
     static func entry(_ e: AXUIElement) -> MoveResizeMenu.Entry {
         let submenu = AXUI.children(e).first { AXUI.string($0, kAXRoleAttribute) == kAXMenuRole as String }
         return MoveResizeMenu.Entry(AXUI.string(e, kAXTitleAttribute) ?? "", shortcut(e),
-                                    submenu: submenu.map { !AXUI.children($0).isEmpty } ?? false)
+                                    submenu: submenu.map { !AXUI.children($0).isEmpty } ?? false, id: AXUI.identifier(e))
     }
 
-    /// Window > Move & Resize > the item for this placement: by its shortcut, a quarter by its place.
-    private static func pressMenuItem(_ placement: WindowPlacement, app: AXUIElement) -> Bool {
-        guard let menu = moveResizeMenu(app) else { return false }
-        let entries = menu.items.map(entry)
-        let index: Int?
-        switch placement {
-        case .topLeft, .topRight, .bottomLeft, .bottomRight: index = MoveResizeMenu.quarterIndex(placement, in: entries)
-        default: index = entries.firstIndex { $0.shortcut.map { MoveResizeMenu.matches($0, placement) } ?? false }
-        }
-        guard let index, AXUI.bool(menu.items[index], kAXEnabledAttribute) != false else { return false }
-        return AXUI.press(menu.items[index])
-    }
-
-    private static func pressReturnToPreviousSize(app: AXUIElement) -> Bool {
-        guard let menu = moveResizeMenu(app) else { return false }
-        guard let item = menu.items.first(where: { shortcut($0).map(MoveResizeMenu.isReturnToPreviousSize) ?? false }),
-              AXUI.bool(item, kAXEnabledAttribute) != false else { return false }
-        return AXUI.press(item)
+    /// Presses the item `find` picks, while it is enabled.
+    private static func press(_ app: AXUIElement, _ find: ([MoveResizeMenu.Entry]) -> Int?) -> Bool {
+        guard let menu = tilingMenu(app), let i = find(menu.entries), AXUI.bool(menu.items[i], kAXEnabledAttribute) != false
+        else { return false }
+        return AXUI.press(menu.items[i])
     }
 
     // MARK: Private
 
     /// "Enhanced user interface", which some apps turn on for assistive tools, animates every
     /// change and makes sizes land wrong, so it is off while moving.
-    static func withoutEnhancedUI<T>(_ apps: [AXUIElement], _ body: () -> T) -> T {
+    static func withoutEnhancedUI<T>(_ apps: [AXUIElement], _ body: () async -> T) async -> T {
         let enhanced = apps.filter { AXUI.bool($0, "AXEnhancedUserInterface") == true }
         for app in enhanced { AXUI.set(app, "AXEnhancedUserInterface", false) }
-        defer { for app in enhanced { AXUI.set(app, "AXEnhancedUserInterface", true) } }
-        return body()
+        let result = await body()
+        for app in enhanced { AXUI.set(app, "AXEnhancedUserInterface", true) }
+        return result
     }
 
-    /// Reads until `done` or `seconds` pass (macOS animates moves and activation).
-    static func wait(_ seconds: TimeInterval, until done: () -> Bool) -> Bool {
+    /// Reads until `done` or `seconds` pass (macOS animates moves and activation), sleeping a
+    /// task in between.
+    static func wait(_ seconds: TimeInterval, until done: () -> Bool) async -> Bool {
         let deadline = Date().addingTimeInterval(seconds)
         repeat {
             if done() { return true }
-            Thread.sleep(forTimeInterval: 0.05)
+            try? await Task.sleep(for: .milliseconds(50))
         } while Date() < deadline
         return done()
     }

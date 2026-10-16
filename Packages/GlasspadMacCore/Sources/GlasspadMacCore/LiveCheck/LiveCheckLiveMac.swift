@@ -234,7 +234,7 @@ public final class LiveCheckLiveMac: LiveCheckMac {
         let v = main.visible
         for (i, w) in testWindows.enumerated() {
             let frame = CGRect(x: v.minX + 120 + CGFloat(i) * 60, y: v.minY + 90 + CGFloat(i) * 50, width: 640, height: 420)
-            _ = WindowMover.set(w.window, app: w.app, to: frame)
+            _ = await WindowMover.set(w.window, app: w.app, to: frame)
         }
         return true
     }
@@ -266,10 +266,10 @@ public final class LiveCheckLiveMac: LiveCheckMac {
         testWindows.indices.contains(index) ? AXUI.frame(testWindows[index].window) : nil
     }
 
-    public func setTestWindowFrame(_ index: Int, _ frame: CGRect) -> Bool {
+    public func setTestWindowFrame(_ index: Int, _ frame: CGRect) async -> Bool {
         guard testWindows.indices.contains(index) else { return false }
         let w = testWindows[index]
-        return WindowMover.set(w.window, app: w.app, to: frame)
+        return await WindowMover.set(w.window, app: w.app, to: frame)
     }
 
     public func testWindowID(_ index: Int) -> UInt32? {

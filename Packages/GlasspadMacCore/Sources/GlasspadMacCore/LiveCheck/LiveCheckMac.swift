@@ -85,7 +85,7 @@ public protocol LiveCheckMac: AnyObject {
     func focusTestWindow(_ index: Int) async -> Bool
     func testWindowFrame(_ index: Int) -> CGRect?
     @discardableResult
-    func setTestWindowFrame(_ index: Int, _ frame: CGRect) -> Bool
+    func setTestWindowFrame(_ index: Int, _ frame: CGRect) async -> Bool
     func testWindowID(_ index: Int) -> UInt32?
 
     /// Closes the test windows and anything else the check opened or started.

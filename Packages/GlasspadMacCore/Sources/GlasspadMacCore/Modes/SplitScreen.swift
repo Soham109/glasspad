@@ -150,8 +150,9 @@ public protocol MovableWindow: AnyObject {
 public struct WindowArranger {
     /// Every display's whole frame.
     public var displays: [CGRect]
-    /// Waits this long (the live one sleeps; tests move a fake clock).
-    public var pause: (TimeInterval) -> Void
+    /// Waits this long without holding the main thread (the live one sleeps a task; tests move
+    /// a fake clock).
+    public var pause: (TimeInterval) async -> Void
     /// Where each window was before Glasspad last moved it; nil keeps no record.
     public var history: WindowHistory?
 
@@ -159,7 +160,7 @@ public struct WindowArranger {
     public static let settleTime: TimeInterval = 0.3
     public static let readInterval: TimeInterval = 0.05
 
-    public init(displays: [CGRect], history: WindowHistory? = nil, pause: @escaping (TimeInterval) -> Void) {
+    public init(displays: [CGRect], history: WindowHistory? = nil, pause: @escaping (TimeInterval) async -> Void) {
         self.displays = displays
         self.history = history
         self.pause = pause
@@ -182,22 +183,22 @@ public struct WindowArranger {
         }
     }
 
-    public func move(_ w: MovableWindow, to target: CGRect) -> Landing {
+    public func move(_ w: MovableWindow, to target: CGRect) async -> Landing {
         guard let start = w.frame else { return .gone }
         let display = DisplayGeometry.displayIndex(for: target, in: displays)
         if display != nil, DisplayGeometry.displayIndex(for: start, in: displays) != display {
             guard w.setPosition(target.origin) else { return .refused }
-            _ = settle(w) { DisplayGeometry.displayIndex(for: $0, in: displays) == display }
+            _ = await settle(w) { DisplayGeometry.displayIndex(for: $0, in: displays) == display }
         }
         let sized = w.setSize(target.size)
         let moved = w.setPosition(target.origin)
         guard sized || moved else { return .refused }
-        var now = settle(w) { WindowTiling.isClose($0, target) }
+        var now = await settle(w) { WindowTiling.isClose($0, target) }
         if let f = now, !WindowTiling.isClose(f, target) {
             // A new size near a display's edge can make macOS nudge the window: once more.
             w.setSize(target.size)
             w.setPosition(target.origin)
-            now = settle(w) { WindowTiling.isClose($0, target) }
+            now = await settle(w) { WindowTiling.isClose($0, target) }
         }
         guard let f = now else { return .gone }
         if WindowTiling.isClose(f, target) { return .placed(f) }
@@ -207,8 +208,8 @@ public struct WindowArranger {
 
     /// Side by side on `visible`, `left` on the left. nil when it worked.
     public func split(left: MovableWindow, right: MovableWindow, in visible: CGRect, gap: CGFloat,
-                      displayName: String) -> WindowFailure? {
-        arrange([left, right], .leftAndRight, in: visible, gap: gap, displayName: displayName)
+                      displayName: String) async -> WindowFailure? {
+        await arrange([left, right], .leftAndRight, in: visible, gap: gap, displayName: displayName)
     }
 
     /// The windows in their places on `visible`, in order, the last first (each may come from
@@ -216,17 +217,19 @@ public struct WindowArranger {
     /// its neighbours get the rest. Split View is not done here (`FullScreenSplit`). nil when
     /// it worked.
     public func arrange(_ windows: [MovableWindow], _ arrangement: WindowArrangement, in visible: CGRect, gap: CGFloat,
-                        displayName: String) -> WindowFailure? {
+                        displayName: String) async -> WindowFailure? {
         guard windows.count >= 2, windows.count <= arrangement.slots.count else { return .noSecondWindow }
         // Out of full screen first, as macOS does when a full-screen window is tiled.
-        for w in windows where !leaveFullScreen(w) { return .fullScreen(w.appName) }
+        for w in windows {
+            guard await leaveFullScreen(w) else { return .fullScreen(w.appName) }
+        }
         for w in windows { history?.remember(w) }
         var minimums = [CGSize](repeating: .zero, count: windows.count)
         // Each pass learns every window that stayed larger than its place; four settle any grid.
         for _ in 0..<4 {
             guard let frames = ArrangementLayout.frames(arrangement, in: visible, gap: gap, minimums: minimums) else { break }
             var landings = [Landing](repeating: .refused, count: windows.count)
-            for i in windows.indices.reversed() { landings[i] = move(windows[i], to: frames[i]) }
+            for i in windows.indices.reversed() { landings[i] = await move(windows[i], to: frames[i]) }
             for i in windows.indices.reversed() {
                 if landings[i] == .gone { return .closed }
                 if landings[i] == .refused { return .refused(windows[i].appName) }
@@ -243,20 +246,20 @@ public struct WindowArranger {
     }
 
     /// One window to `target`, remembered for Return to Previous Size first.
-    public func place(_ w: MovableWindow, to target: CGRect) -> Landing {
+    public func place(_ w: MovableWindow, to target: CGRect) async -> Landing {
         history?.remember(w)
-        return move(w, to: target)
+        return await move(w, to: target)
     }
 
     /// Back where the window was before Glasspad last moved it. nil when it worked.
-    public func returnToPreviousSize(_ w: MovableWindow) -> WindowFailure? {
+    public func returnToPreviousSize(_ w: MovableWindow) async -> WindowFailure? {
         guard let id = w.windowID, let previous = history?.previous(id) else { return .noPreviousSize }
         guard displays.contains(where: { $0.intersects(previous.insetBy(dx: 40, dy: 40)) }) else {
             history?.forget(id)
             return .previousDisplayGone
         }
-        guard leaveFullScreen(w) else { return .fullScreen(w.appName) }
-        switch move(w, to: previous) {
+        guard await leaveFullScreen(w) else { return .fullScreen(w.appName) }
+        switch await move(w, to: previous) {
         case .gone: return .closed
         case .refused: return .refused(w.appName)
         case .placed, .closest:
@@ -272,26 +275,26 @@ public struct WindowArranger {
 
     /// Takes the window out of full screen, as macOS does when you tile a full-screen window,
     /// and waits until it is back on the desktop. True when it is not in full screen.
-    public func leaveFullScreen(_ w: MovableWindow) -> Bool {
+    public func leaveFullScreen(_ w: MovableWindow) async -> Bool {
         guard w.isFullScreen else { return true }
         guard w.exitFullScreen() else { return false }
         var waited: TimeInterval = 0
         while w.isFullScreen && waited < Self.fullScreenExitTime {
-            pause(Self.readInterval)
+            await pause(Self.readInterval)
             waited += Self.readInterval
         }
         guard !w.isFullScreen else { return false }
-        pause(Self.afterFullScreen)
+        await pause(Self.afterFullScreen)
         return true
     }
 
     /// Reads the frame until `done` or the settle time is up (some apps land a move later).
-    private func settle(_ w: MovableWindow, until done: (CGRect) -> Bool) -> CGRect? {
+    private func settle(_ w: MovableWindow, until done: (CGRect) -> Bool) async -> CGRect? {
         var waited: TimeInterval = 0
         while true {
             guard let f = w.frame else { return nil }
             if done(f) || waited >= Self.settleTime - 0.0001 { return f }
-            pause(Self.readInterval)
+            await pause(Self.readInterval)
             waited += Self.readInterval
         }
     }

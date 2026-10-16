@@ -312,7 +312,7 @@ final class FakeLiveCheckMac: LiveCheckMac {
 
     func testWindowFrame(_ index: Int) -> CGRect? { windows.indices.contains(index) ? windows[index] : nil }
 
-    func setTestWindowFrame(_ index: Int, _ frame: CGRect) -> Bool {
+    func setTestWindowFrame(_ index: Int, _ frame: CGRect) async -> Bool {
         windows[index] = frame
         return true
     }

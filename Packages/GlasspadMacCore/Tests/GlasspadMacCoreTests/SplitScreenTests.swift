@@ -15,7 +15,9 @@ final class FakeWindow: MovableWindow {
     private var shown: CGRect
     private var readsLeft = 0
     var minimumWidth: CGFloat = 0
+    var minimumHeight: CGFloat = 0
     var maximumWidth: CGFloat = .infinity
+    var windowID: UInt32?
     /// Reads before a change shows.
     var lag = 0
     var fullScreen = false
@@ -37,8 +39,9 @@ final class FakeWindow: MovableWindow {
     let displays: [CGRect]
     private(set) var log: [String] = []
 
-    init(_ app: String, _ frame: CGRect, displays: [CGRect]) {
+    init(_ app: String, _ frame: CGRect, displays: [CGRect], id: UInt32? = nil) {
         appName = app
+        windowID = id
         actual = frame
         shown = frame
         self.displays = displays
@@ -73,7 +76,8 @@ final class FakeWindow: MovableWindow {
         guard !refuses, !closed else { return false }
         log.append("size \(Int(size.width))x\(Int(size.height))")
         let on = DisplayGeometry.displayIndex(for: actual, in: displays).map { displays[$0] } ?? .infinite
-        actual.size = CGSize(width: min(max(size.width, minimumWidth), maximumWidth, on.width), height: min(size.height, on.height))
+        actual.size = CGSize(width: min(max(size.width, minimumWidth), maximumWidth, on.width),
+                             height: min(max(size.height, minimumHeight), on.height))
         changed()
         return true
     }
@@ -98,20 +102,21 @@ final class FakeWindow: MovableWindow {
     nonisolated static let left = studio(CGPoint(x: -2560, y: -458))
     nonisolated static let above = studio(CGPoint(x: -524, y: -1440))
 
-    private func arranger(_ screens: [TilingScreen], waited: @escaping (TimeInterval) -> Void = { _ in }) -> WindowArranger {
-        WindowArranger(displays: screens.map(\.frame), pause: waited)
+    private func arranger(_ screens: [TilingScreen], history: WindowHistory? = nil,
+                          waited: @escaping (TimeInterval) -> Void = { _ in }) -> WindowArranger {
+        WindowArranger(displays: screens.map(\.frame), history: history, pause: waited)
     }
 
     // MARK: Choosing
 
-    @Test func frontWindowLeftTheOneBehindRightOnTheFrontWindowsDisplay() throws {
+    @Test func frontWindowLeftTheOneBehindRightOnTheFrontWindowsDisplay() async throws {
         let windows = [SplitScreen.Candidate(app: "Safari", frame: CGRect(x: 1600, y: -400, width: 1200, height: 900)),
                        SplitScreen.Candidate(app: "Notes", frame: CGRect(x: 100, y: 100, width: 700, height: 600))]
         let choice = try SplitScreen.choose(windows, displays: [Self.laptop.frame, Self.right.frame]).get()
         #expect(choice == SplitScreen.Choice(left: 0, right: 1, display: 1))
     }
 
-    @Test func minimizedWindowsAreSkipped() throws {
+    @Test func minimizedWindowsAreSkipped() async throws {
         let windows = [SplitScreen.Candidate(app: "Safari", frame: CGRect(x: 100, y: 100, width: 700, height: 600)),
                        SplitScreen.Candidate(app: "Mail", frame: CGRect(x: 200, y: 100, width: 700, height: 600), isMinimized: true),
                        SplitScreen.Candidate(app: "Notes", frame: CGRect(x: 300, y: 100, width: 700, height: 600))]
@@ -120,7 +125,7 @@ final class FakeWindow: MovableWindow {
         #expect(SplitScreen.choose([], displays: [Self.laptop.frame]) == .failure(.noWindow))
     }
 
-    @Test func aWindowInFullScreenIsStillChosen() {
+    @Test func aWindowInFullScreenIsStillChosen() async {
         let windows = [SplitScreen.Candidate(app: "Terminal", frame: CGRect(x: 0, y: 0, width: 1512, height: 982), isFullScreen: true),
                        SplitScreen.Candidate(app: "Notes", frame: CGRect(x: 300, y: 100, width: 700, height: 600))]
         #expect(SplitScreen.choose(windows, displays: [Self.laptop.frame]) == .success(SplitScreen.Choice(left: 0, right: 1, display: 0)))
@@ -129,7 +134,7 @@ final class FakeWindow: MovableWindow {
 
     // MARK: Halves
 
-    @Test func aWindowWiderThanHalfKeepsItsEdgeAndTheOtherGetsTheRest() throws {
+    @Test func aWindowWiderThanHalfKeepsItsEdgeAndTheOtherGetsTheRest() async throws {
         let v = Self.laptop.visible
         let even = try #require(SplitScreen.halves(in: v, gap: 8))
         #expect(even == DisplayGeometry.split(in: v, gap: 8))
@@ -146,11 +151,11 @@ final class FakeWindow: MovableWindow {
 
     // MARK: Moving
 
-    @Test func bothOnOneDisplayLandOnTheirHalves() {
+    @Test func bothOnOneDisplayLandOnTheirHalves() async {
         let screens = [Self.laptop]
         let a = FakeWindow("Safari", CGRect(x: 100, y: 100, width: 700, height: 600), displays: screens.map(\.visible))
         let b = FakeWindow("Notes", CGRect(x: 300, y: 200, width: 500, height: 500), displays: screens.map(\.visible))
-        #expect(arranger(screens).split(left: a, right: b, in: Self.laptop.visible, gap: 8, displayName: "Built-in Retina Display") == nil)
+        #expect(await arranger(screens).split(left: a, right: b, in: Self.laptop.visible, gap: 8, displayName: "Built-in Retina Display") == nil)
         let halves = DisplayGeometry.split(in: Self.laptop.visible, gap: 8)
         #expect(a.actual == halves.left && b.actual == halves.right)
     }
@@ -158,13 +163,13 @@ final class FakeWindow: MovableWindow {
     /// The report: the front window on the monitor, the other on the laptop. The laptop's window
     /// goes over to the monitor first, then gets its size, so the laptop never limits it.
     @Test(arguments: [("right", SplitScreenTests.right), ("left", SplitScreenTests.left), ("above", SplitScreenTests.above)])
-    func theWindowOnTheOtherDisplayMovesOverFirstThenIsSized(_ place: String, _ monitor: TilingScreen) {
+    func theWindowOnTheOtherDisplayMovesOverFirstThenIsSized(_ place: String, _ monitor: TilingScreen) async {
         let screens = [Self.laptop, monitor]
         let visibles = screens.map(\.visible)
         let front = FakeWindow("Safari", CGRect(x: monitor.visible.minX + 200, y: monitor.visible.minY + 100, width: 1400, height: 1000),
                                displays: visibles)
         let behind = FakeWindow("Notes", CGRect(x: 100, y: 100, width: 1300, height: 800), displays: visibles)
-        let failure = arranger(screens).split(left: front, right: behind, in: monitor.visible, gap: 8, displayName: monitor.name)
+        let failure = await arranger(screens).split(left: front, right: behind, in: monitor.visible, gap: 8, displayName: monitor.name)
         #expect(failure == nil, "monitor \(place)")
         let halves = DisplayGeometry.split(in: monitor.visible, gap: 8)
         #expect(front.actual == halves.left, "monitor \(place)")
@@ -174,107 +179,107 @@ final class FakeWindow: MovableWindow {
         #expect(behind.log.first == "position \(Int(halves.right.minX)),\(Int(halves.right.minY))", "monitor \(place)")
     }
 
-    @Test func toTheSmallerDisplayToo() {
+    @Test func toTheSmallerDisplayToo() async {
         let screens = [Self.laptop, Self.right]
         let visibles = screens.map(\.visible)
         let front = FakeWindow("Safari", CGRect(x: 100, y: 100, width: 900, height: 700), displays: visibles)
         let behind = FakeWindow("Xcode", CGRect(x: 1600, y: -400, width: 2400, height: 1400), displays: visibles)
-        #expect(arranger(screens).split(left: front, right: behind, in: Self.laptop.visible, gap: 0, displayName: "Built-in Retina Display") == nil)
+        #expect(await arranger(screens).split(left: front, right: behind, in: Self.laptop.visible, gap: 0, displayName: "Built-in Retina Display") == nil)
         let halves = DisplayGeometry.split(in: Self.laptop.visible)
         #expect(front.actual == halves.left && behind.actual == halves.right)
     }
 
     /// A 1x 1920 x 1080 display beside a 2x laptop: frames are points either way, whole points.
-    @Test func displaysWithDifferentScaleFactorsUsePointsAlike() {
+    @Test func displaysWithDifferentScaleFactorsUsePointsAlike() async {
         let hd = TilingScreen(frame: CGRect(x: 1512, y: 0, width: 1920, height: 1080), visible: CGRect(x: 1512, y: 0, width: 1920, height: 1080),
                               name: "HD Display")
         let screens = [Self.laptop, hd]
         let front = FakeWindow("Pages", CGRect(x: 1600, y: 100, width: 1000, height: 700), displays: screens.map(\.visible))
         let behind = FakeWindow("Preview", CGRect(x: 10, y: 60, width: 1001, height: 701), displays: screens.map(\.visible))
-        #expect(arranger(screens).split(left: front, right: behind, in: hd.visible, gap: 8, displayName: hd.name) == nil)
+        #expect(await arranger(screens).split(left: front, right: behind, in: hd.visible, gap: 8, displayName: hd.name) == nil)
         let halves = DisplayGeometry.split(in: hd.visible, gap: 8)
         #expect(front.actual == halves.left && behind.actual == halves.right)
         for f in [front.actual, behind.actual] { #expect(f == f.integral) }
     }
 
-    @Test func aWindowWithAMinimumWidthKeepsItAndTheOtherGetsTheRest() {
+    @Test func aWindowWithAMinimumWidthKeepsItAndTheOtherGetsTheRest() async {
         let screens = [Self.laptop]
         let a = FakeWindow("Safari", CGRect(x: 100, y: 100, width: 700, height: 600), displays: screens.map(\.visible))
         let b = FakeWindow("Xcode", CGRect(x: 300, y: 200, width: 1000, height: 700), displays: screens.map(\.visible))
         b.minimumWidth = 900
-        #expect(arranger(screens).split(left: a, right: b, in: Self.laptop.visible, gap: 8, displayName: "Built-in Retina Display") == nil)
+        #expect(await arranger(screens).split(left: a, right: b, in: Self.laptop.visible, gap: 8, displayName: "Built-in Retina Display") == nil)
         #expect(b.actual.width == 900 && b.actual.maxX == Self.laptop.visible.maxX - 8)
         #expect(a.actual.minX == 8 && b.actual.minX - a.actual.maxX == 8)
     }
 
-    @Test func twoWindowsTooWideToShareSaySoByName() {
+    @Test func twoWindowsTooWideToShareSaySoByName() async {
         let screens = [Self.laptop]
         let a = FakeWindow("Xcode", CGRect(x: 100, y: 100, width: 1000, height: 600), displays: screens.map(\.visible))
         let b = FakeWindow("Logic Pro", CGRect(x: 300, y: 200, width: 1000, height: 700), displays: screens.map(\.visible))
         a.minimumWidth = 820
         b.minimumWidth = 820
-        let failure = arranger(screens).split(left: a, right: b, in: Self.laptop.visible, gap: 8, displayName: "Built-in Retina Display")
+        let failure = await arranger(screens).split(left: a, right: b, in: Self.laptop.visible, gap: 8, displayName: "Built-in Retina Display")
         #expect(failure == .bothTooWide("Xcode", "Logic Pro", display: "Built-in Retina Display"))
         #expect(failure?.message == "Xcode and Logic Pro can't both fit on Built-in Retina Display. Try a wider display.")
         #expect(WindowFailure.bothTooWide("Safari", "Safari", display: "Studio Display").message
                 == "These Safari windows can't both fit on Studio Display. Try a wider display.")
     }
 
-    @Test func aWindowWiderThanTheDisplayCanBeSaysTryAWiderDisplay() {
+    @Test func aWindowWiderThanTheDisplayCanBeSaysTryAWiderDisplay() async {
         let screens = [Self.laptop]
         let a = FakeWindow("Safari", CGRect(x: 100, y: 100, width: 700, height: 600), displays: screens.map(\.visible))
         let b = FakeWindow("Notes", CGRect(x: 0, y: 40, width: 1512, height: 700), displays: screens.map(\.visible))
         b.minimumWidth = 1500
-        let failure = arranger(screens).split(left: a, right: b, in: Self.laptop.visible, gap: 8, displayName: "Built-in Retina Display")
+        let failure = await arranger(screens).split(left: a, right: b, in: Self.laptop.visible, gap: 8, displayName: "Built-in Retina Display")
         #expect(failure == .tooWide("Notes"))
         #expect(failure?.message == "Notes can't be resized that small. Try a wider display.")
     }
 
-    @Test func aFixedWidthWindowCountsOnceItIsInPlace() {
+    @Test func aFixedWidthWindowCountsOnceItIsInPlace() async {
         let screens = [Self.laptop]
         let a = FakeWindow("System Settings", CGRect(x: 100, y: 100, width: 700, height: 600), displays: screens.map(\.visible))
         a.maximumWidth = 715
         let target = DisplayGeometry.split(in: Self.laptop.visible, gap: 8).left
-        guard case .closest(let f) = arranger(screens).move(a, to: target) else { Issue.record("not placed"); return }
+        guard case .closest(let f) = await arranger(screens).move(a, to: target) else { Issue.record("not placed"); return }
         #expect(f.origin == target.origin && f.width == 715)
     }
 
-    @Test func aMoveThatLandsAMomentLaterStillCounts() {
+    @Test func aMoveThatLandsAMomentLaterStillCounts() async {
         let screens = [Self.laptop, Self.right]
         var waited: TimeInterval = 0
         let w = FakeWindow("Slack", CGRect(x: 100, y: 100, width: 900, height: 700), displays: screens.map(\.visible))
         w.lag = 3
         let target = DisplayGeometry.split(in: Self.right.visible, gap: 8).right
-        let landing = arranger(screens) { waited += $0 }.move(w, to: target)
+        let landing = await arranger(screens) { waited += $0 }.move(w, to: target)
         #expect(landing == .placed(target))
         // A short wait, never long: within the settle time for each step.
         #expect(waited > 0 && waited <= WindowArranger.settleTime * 3)
     }
 
-    @Test func refusalsAndClosedWindowsSayWhatHappened() {
+    @Test func refusalsAndClosedWindowsSayWhatHappened() async {
         let screens = [Self.laptop]
         let a = FakeWindow("Safari", CGRect(x: 100, y: 100, width: 700, height: 600), displays: screens.map(\.visible))
         let b = FakeWindow("Finder", CGRect(x: 300, y: 200, width: 500, height: 500), displays: screens.map(\.visible))
         b.refuses = true
-        let refused = arranger(screens).split(left: a, right: b, in: Self.laptop.visible, gap: 8, displayName: "Built-in Retina Display")
+        let refused = await arranger(screens).split(left: a, right: b, in: Self.laptop.visible, gap: 8, displayName: "Built-in Retina Display")
         #expect(refused == .refused("Finder"))
         #expect(refused?.message == "Finder won't let Glasspad move its window. Try again, or drag it into place.")
         b.refuses = false
         b.closed = true
-        #expect(arranger(screens).split(left: a, right: b, in: Self.laptop.visible, gap: 8, displayName: "") == .closed)
+        #expect(await arranger(screens).split(left: a, right: b, in: Self.laptop.visible, gap: 8, displayName: "") == .closed)
         b.closed = false
         // In full screen: taken out of it first, then split.
         b.fullScreen = true
-        #expect(arranger(screens).split(left: a, right: b, in: Self.laptop.visible, gap: 8, displayName: "") == nil)
+        #expect(await arranger(screens).split(left: a, right: b, in: Self.laptop.visible, gap: 8, displayName: "") == nil)
         #expect(b.log.first == "exit full screen")
         #expect(!b.isFullScreen)
         // One that will not leave full screen is named.
         b.fullScreen = true
         b.staysFullScreen = true
-        #expect(arranger(screens).split(left: a, right: b, in: Self.laptop.visible, gap: 8, displayName: "") == .fullScreen("Finder"))
+        #expect(await arranger(screens).split(left: a, right: b, in: Self.laptop.visible, gap: 8, displayName: "") == .fullScreen("Finder"))
     }
 
-    @Test func leftAndRightCountsOnlyWithEachWindowOnItsSide() {
+    @Test func leftAndRightCountsOnlyWithEachWindowOnItsSide() async {
         let v = Self.laptop.visible
         let halves = DisplayGeometry.split(in: v, gap: 8)
         #expect(SplitScreen.looksSplit(left: halves.left, right: halves.right, in: v))

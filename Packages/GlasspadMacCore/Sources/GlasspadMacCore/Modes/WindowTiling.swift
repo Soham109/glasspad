@@ -104,11 +104,12 @@ public enum WindowTiling {
 
 // MARK: - Move & Resize menu
 
-/// Finds an app's Window > Move & Resize items. Those with a keyboard shortcut (fn control plus
-/// an arrow, F, C or R since macOS 15; shift for Arrange, option and shift for "& Quarters")
-/// are found by it, so it works in every language. The ones without (the single quarters,
-/// Arrange > Quarters, Full-Screen Tile) are found by where they sit next to those, and only
-/// when the menu looks exactly as macOS 15 and later lay it out.
+/// Finds an app's Window > Move & Resize items by the action each one sends (its Accessibility
+/// identifier, such as `_zoomLeft:`), which is the same in every language. An app whose items
+/// do not say falls back to the shortcuts (fn control plus an arrow, F, C or R since macOS 15;
+/// shift for Arrange, option and shift for "& Quarters"), and the items without one (the single
+/// quarters, Arrange > Quarters) to where they sit next to those, only when the menu is laid
+/// out exactly as macOS 15 and later lay it out.
 public enum MoveResizeMenu {
     /// What the Accessibility API says about a menu item's shortcut.
     public struct Shortcut: Equatable, Sendable {
@@ -147,16 +148,91 @@ public enum MoveResizeMenu {
         public var title: String
         public var shortcut: Shortcut?
         public var hasSubmenu: Bool
+        /// The action it sends, as the Accessibility API names it (`_zoomLeft:`).
+        public var identifier: String?
 
-        public init(_ title: String, _ shortcut: Shortcut? = nil, submenu: Bool = false) {
+        public init(_ title: String, _ shortcut: Shortcut? = nil, submenu: Bool = false, id: String? = nil) {
             self.title = title
             self.shortcut = shortcut
             self.hasSubmenu = submenu
+            self.identifier = id
         }
 
         var isSeparator: Bool { title.isEmpty && shortcut == nil && !hasSubmenu }
         /// A plain item: a title, no shortcut, no submenu.
         var isPlain: Bool { !title.isEmpty && shortcut == nil && !hasSubmenu }
+    }
+
+    /// The action of each placement's item, as AppKit names it (macOS 15 and later).
+    public static func identifier(_ placement: WindowPlacement) -> String {
+        switch placement {
+        case .left: "_zoomLeft:"
+        case .right: "_zoomRight:"
+        case .top: "_zoomTop:"
+        case .bottom: "_zoomBottom:"
+        case .fill: "_zoomFill:"
+        case .center: "_zoomCenter:"
+        case .topLeft: "_zoomTopLeft:"
+        case .topRight: "_zoomTopRight:"
+        case .bottomLeft: "_zoomBottomLeft:"
+        case .bottomRight: "_zoomBottomRight:"
+        }
+    }
+
+    /// The action of each Arrange item; nil for Split View, which is not one.
+    public static func identifier(_ arrangement: WindowArrangement) -> String? {
+        switch arrangement {
+        case .leftAndRight: "_zoomLeftAndRight:"
+        case .rightAndLeft: "_zoomRightAndLeft:"
+        case .topAndBottom: "_zoomTopAndBottom:"
+        case .bottomAndTop: "_zoomBottomAndTop:"
+        case .leftAndQuarters: "_zoomLeftThreeUp:"
+        case .rightAndQuarters: "_zoomRightThreeUp:"
+        case .topAndQuarters: "_zoomTopThreeUp:"
+        case .bottomAndQuarters: "_zoomBottomThreeUp:"
+        case .quarters: "_zoomQuarters:"
+        case .fullScreen: nil
+        }
+    }
+
+    /// Return to Previous Size's action.
+    public static let returnIdentifier = "_zoomUntile:"
+
+    /// True when the items say which Move & Resize action they send (Zoom's own `_zoom:` aside):
+    /// then an item that does not is not one, whatever its shortcut.
+    static func namesActions(_ items: [Entry]) -> Bool {
+        items.contains { ($0.identifier?.hasPrefix("_zoom") ?? false) && $0.identifier != "_zoom:" }
+    }
+
+    /// True for a menu holding Move & Resize items (the Window menu, or Move & Resize itself).
+    public static func isTilingMenu(_ items: [Entry]) -> Bool {
+        namesActions(items) || items.contains { $0.shortcut.map { matches($0, .left) } ?? false }
+    }
+
+    /// Where a placement's item is: by its action, else by its shortcut or, for a quarter, its place.
+    public static func index(_ placement: WindowPlacement, in items: [Entry]) -> Int? {
+        if let i = items.firstIndex(where: { $0.identifier == identifier(placement) }) { return i }
+        guard !namesActions(items) else { return nil }
+        switch placement {
+        case .topLeft, .topRight, .bottomLeft, .bottomRight: return quarterIndex(placement, in: items)
+        default: return items.firstIndex { $0.shortcut.map { matches($0, placement) } ?? false }
+        }
+    }
+
+    /// Where an Arrange item is: by its action, else by its shortcut (Quarters by its place).
+    public static func index(_ arrangement: WindowArrangement, in items: [Entry]) -> Int? {
+        guard let id = identifier(arrangement) else { return nil }
+        if let i = items.firstIndex(where: { $0.identifier == id }) { return i }
+        guard !namesActions(items) else { return nil }
+        if arrangement == .quarters { return quartersArrangeIndex(in: items) }
+        return items.firstIndex { $0.shortcut.flatMap(self.arrangement) == arrangement }
+    }
+
+    /// Where Return to Previous Size is: by its action, else by fn control R.
+    public static func returnIndex(in items: [Entry]) -> Int? {
+        if let i = items.firstIndex(where: { $0.identifier == returnIdentifier }) { return i }
+        guard !namesActions(items) else { return nil }
+        return items.firstIndex { $0.shortcut.map(isReturnToPreviousSize) ?? false }
     }
 
     /// True for Arrange > Left & Right: shift, control and the left arrow, no command or option.
@@ -217,9 +293,24 @@ public enum MoveResizeMenu {
     /// Resize in the Window menu, while it holds just those two plain items (with a window
     /// already tiled it offers other things instead).
     public static func fullScreenTileIndices(windowMenu: [Entry], moveResize: Int, tile: [Entry]) -> (left: Int, right: Int)? {
-        guard windowMenu.indices.contains(moveResize + 1), windowMenu[moveResize + 1].hasSubmenu,
-              tile.count == 2, tile.allSatisfy(\.isPlain) else { return nil }
+        guard windowMenu.indices.contains(moveResize + 1), windowMenu[moveResize + 1].hasSubmenu, tile.count == 2,
+              tile.allSatisfy({ !$0.title.isEmpty && $0.shortcut == nil && !$0.hasSubmenu }) else { return nil }
         return (0, 1)
+    }
+}
+
+/// Stage Manager keeps a strip of recent apps at the side of the display; tiled windows leave
+/// room for it, as macOS's own tiling does.
+public enum StageManager {
+    /// The strip's width in points, as macOS leaves it beside tiled windows.
+    public static let stripWidth: CGFloat = 190
+
+    /// Where tiled windows go: `visible` without the strip while Stage Manager is on and shows
+    /// recent apps. The strip is on the left, or the right when the Dock is on the left.
+    public static func tilingArea(_ visible: CGRect, enabled: Bool, recentAppsHidden: Bool, dockOnLeft: Bool) -> CGRect {
+        guard enabled, !recentAppsHidden, visible.width > stripWidth * 3 else { return visible }
+        if dockOnLeft { return CGRect(x: visible.minX, y: visible.minY, width: visible.width - stripWidth, height: visible.height) }
+        return CGRect(x: visible.minX + stripWidth, y: visible.minY, width: visible.width - stripWidth, height: visible.height)
     }
 }
 
