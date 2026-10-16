@@ -602,6 +602,17 @@ As built, UX pass (Oct 2026):
   As built (Oct 2026): also System (Paper or Graphite with the phone), Mono (pure white or black
   with the phone, no colour anywhere: accents, tiles and icons draw in the ink), Sand (warm light)
   and Midnight (deep blue dark). Settings shows a live miniature of each.
+  Themes (Oct 2026): 27 themes plus Photo, in groups on Settings > Theme. Classic: System, Paper,
+  Graphite, Mono, Pure Black (true black for OLED), High Contrast (text at 7:1 or more). Glass
+  (frosted cards over a soft backdrop of colour pools): Glass, Glass Dark, Clear, Aurora, Ocean,
+  Dusk, Rose, Mint, Lavender, Ember, Citrus, Smoke. Colour: Sand, Midnight, Forest, Plum, Slate,
+  Espresso, Solar, Frost, Dawn. Photo blurs a picked photo (PhotosPicker, no permission prompt)
+  into the backdrop and veils it just enough for text to read (`PhotoTone`). Every theme defines
+  every colour (GlasspadKit `ThemeCatalog`), including its own accent (app tint, Trackpad's mode
+  colour); a test checks text, secondary text, accent, button labels and status colours reach
+  WCAG AA on every surface. Mode accents and status colours are Apple's system colours, moved
+  toward the ink only as far as a theme needs for 3:1. Unknown saved themes fall back to System.
+  Remote and StandBy stay dark.
 
 ## 10. Mac app (Apps/Mac)
 
