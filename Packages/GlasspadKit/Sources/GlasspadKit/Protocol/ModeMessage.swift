@@ -8,6 +8,9 @@ public enum GlasspadMode: String, Codable, Sendable, CaseIterable {
     /// The couch remote. The Mac sends media states and the frontmost app, as for Media and
     /// Deck. Added Oct 2026: an older Mac drops the message and keeps the previous screen.
     case remote
+    /// The Mac's displays and windows. Live data comes from `displaysWatch`, so this only tells
+    /// the Mac what shows. Added Oct 2026: an older Mac drops the message.
+    case displays
 }
 
 /// One app tile in Dock mode.
@@ -350,6 +353,19 @@ public enum ModeMessage: Codable, Equatable, Sendable {
     /// The Mac answers with `deckResult` for `id`. Actions that need confirming are refused.
     /// Added Oct 2026: an older Mac drops it.
     case remoteSystem(id: UUID, action: DeckSystemAction)
+
+    // Displays (Oct 2026, additive: an older Mac drops all of these, an older phone never sends them)
+    /// Phone -> Mac: start or stop `displaysState` updates (while a Displays screen or pane shows).
+    case displaysWatch(on: Bool)
+    /// Mac -> phone: displays and windows now, sent again on every change while watched.
+    case displaysState(DisplaysState)
+    /// Phone -> Mac: move, tile, raise or close one window. Answered with `displaysResult`.
+    case windowCommand(id: UUID, windowID: UInt32, command: WindowCommand)
+    /// Phone -> Mac: change a display (brightness, resolution, mirroring, arrangement).
+    /// Answered with `displaysResult`.
+    case displayCommand(id: UUID, command: DisplayCommand)
+    /// Mac -> phone: how `windowCommand` or `displayCommand` `id` went; `message` says why on failure.
+    case displaysResult(id: UUID, ok: Bool, message: String?)
 
     // Macros
     /// Both ways: Macros mode (docs/SPEC-macros.md section 6). Direction is noted on each `MacroMessage` case.
