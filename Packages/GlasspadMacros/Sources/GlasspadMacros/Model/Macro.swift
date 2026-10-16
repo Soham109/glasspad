@@ -120,6 +120,10 @@ public indirect enum MacroStep: Hashable, Sendable {
     case runShell(command: String, timeoutMs: Int)
     case setClipboard(String)
     case notify(title: String, body: String)
+    /// One of Glasspad's Mac controls, by its id: a Do Not Disturb or window tiling button
+    /// (`DeckSystemAction` raw values such as `doNotDisturb` or `windowLeft`). The Mac app runs
+    /// it exactly as the Actions button would.
+    case macControl(String)
     case repeatBlock(count: Int, steps: [MacroStep])
 
     /// Shell and AppleScript steps can do anything the user can, so a macro
@@ -151,6 +155,7 @@ public indirect enum MacroStep: Hashable, Sendable {
         case .runShell: "runShell"
         case .setClipboard: "setClipboard"
         case .notify: "notify"
+        case .macControl: "macControl"
         case .repeatBlock: "repeat"
         }
     }
@@ -175,8 +180,20 @@ public indirect enum MacroStep: Hashable, Sendable {
         case .runShell(let c, _): "Run \(c.count > 40 ? String(c.prefix(40)) + "…" : c)"
         case .setClipboard: "Set clipboard"
         case .notify(let t, _): "Notify \"\(t)\""
+        case .macControl(let id): MacControlName.title(id)
         case .repeatBlock(let n, let s): "Repeat \(n)× (\(s.count) steps)"
         }
+    }
+}
+
+/// A readable name for a Mac control id: "doNotDisturb" is "Do Not Disturb".
+public enum MacControlName {
+    public static func title(_ id: String) -> String {
+        var words: [String] = []
+        for ch in id {
+            if ch.isUppercase || words.isEmpty { words.append(String(ch).uppercased()) } else { words[words.count - 1].append(ch) }
+        }
+        return words.joined(separator: " ")
     }
 }
 
@@ -195,7 +212,7 @@ extension MacroStep: Codable {
     enum CodingKeys: String, CodingKey {
         case type, key, modifiers, text, button, at, count, to, from, durationMs
         case dx, dy, ms, bundleID, timeoutMs, url, path, shortcut, input, source
-        case command, title, body, steps
+        case command, title, body, steps, control
     }
 
     public init(from decoder: Decoder) throws {
@@ -249,6 +266,8 @@ extension MacroStep: Codable {
         case "notify":
             self = .notify(title: try c.decode(String.self, forKey: .title),
                            body: try c.decodeIfPresent(String.self, forKey: .body) ?? "")
+        case "macControl":
+            self = .macControl(try c.decode(String.self, forKey: .control))
         case "repeat":
             self = .repeatBlock(count: try c.decode(Int.self, forKey: .count),
                                 steps: try c.decode([MacroStep].self, forKey: .steps))
@@ -306,6 +325,8 @@ extension MacroStep: Codable {
         case .notify(let t, let b):
             try c.encode(t, forKey: .title)
             try c.encode(b, forKey: .body)
+        case .macControl(let id):
+            try c.encode(id, forKey: .control)
         case .repeatBlock(let n, let s):
             try c.encode(n, forKey: .count)
             try c.encode(s, forKey: .steps)

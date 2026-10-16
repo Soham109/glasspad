@@ -310,6 +310,26 @@ import Testing
         #expect(await outcome(d, .system(.windowLeft)) == DeckMode.Outcome(ok: false, message: "No window to move"))
     }
 
+    @Test func oldFocusShortcutButtonBecomesDoNotDisturb() throws {
+        let url = tempURL("deck.json")
+        let focus = DeckButton(title: "Focus", symbol: "moon.circle.fill", action: .runShortcut(name: "Toggle Focus"))
+        let mine = DeckButton(title: "Mine", symbol: "bolt", action: .runShortcut(name: "Morning"))
+        let folder = DeckButton(title: "Mac", symbol: "macbook", action: .folder, children: [focus])
+        let page = DeckPage(id: DeckConfig.myPageID, title: "Pinned", buttons: [folder, mine])
+        try DeckConfig(buttons: [focus, mine], pages: [page]).save(to: url)
+        let loaded = DeckConfig.load(from: url)
+        let all = loaded.layout.allButtons
+        #expect(all.first { $0.id == focus.id }?.action == .system(.doNotDisturb))
+        #expect(all.first { $0.id == focus.id }?.title == "Do Not Disturb")
+        #expect(all.first { $0.id == mine.id }?.action == .runShortcut(name: "Morning"))
+        #expect(!DeckConfig.macStarterButtons().contains { $0.action == .runShortcut(name: "Toggle Focus") })
+        // Written back, so ids and the fix stick.
+        let d = DeckMode(env: FakeDeckEnvironment(), url: url)
+        #expect(d.config.layout.allButtons.contains { $0.action == .system(.doNotDisturb) })
+        let onDisk = try JSONDecoder().decode(DeckConfig.self, from: Data(contentsOf: url))
+        #expect(!onDisk.layout.allButtons.contains { $0.action == .runShortcut(name: "Toggle Focus") })
+    }
+
     @Test func everyMacControlIsBuilt() async throws {
         let (d, _) = try deck([])
         for action in DeckSystemAction.allCases {

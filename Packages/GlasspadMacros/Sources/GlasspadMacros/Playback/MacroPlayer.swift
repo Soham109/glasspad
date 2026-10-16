@@ -13,10 +13,13 @@ public struct MacroEnvironment: Sendable {
     public var notifier: any Notifying
     public var clock: any MacroClock
     public var inputMonitor: (any UserInputMonitoring)?
+    /// Runs Mac control steps. nil outside the Glasspad app: such steps then fail clearly.
+    public var controls: (any MacControlRunning)?
 
     public init(output: any MacroEventOutput, windows: any FrontmostWindowProviding, apps: any AppLaunching,
                 shortcuts: any ShortcutsRunning, scripts: any ScriptRunning, clipboard: any ClipboardWriting,
-                notifier: any Notifying, clock: any MacroClock, inputMonitor: (any UserInputMonitoring)?) {
+                notifier: any Notifying, clock: any MacroClock, inputMonitor: (any UserInputMonitoring)?,
+                controls: (any MacControlRunning)? = nil) {
         self.output = output
         self.windows = windows
         self.apps = apps
@@ -26,6 +29,7 @@ public struct MacroEnvironment: Sendable {
         self.notifier = notifier
         self.clock = clock
         self.inputMonitor = inputMonitor
+        self.controls = controls
     }
 
     public static func live() -> MacroEnvironment {
@@ -60,6 +64,7 @@ public enum ResolvedAction: Equatable, Sendable {
     case runShell(command: String, timeoutMs: Int)
     case setClipboard(String)
     case notify(title: String, body: String)
+    case macControl(String)
 }
 
 public struct PlannedAction: Equatable, Sendable {
@@ -177,6 +182,9 @@ public final class MacroPlayer: Sendable {
             case .typeText(let t):
                 guard !t.isEmpty else { throw bad("Nothing to type.") }
                 total += 1
+            case .macControl(let id):
+                guard !id.isEmpty else { throw bad("Missing Mac control.") }
+                total += 1
             default:
                 total += 1
             }
@@ -252,6 +260,7 @@ public final class MacroPlayer: Sendable {
         case .runShell(let c, let t): return .runShell(command: c, timeoutMs: t)
         case .setClipboard(let t): return .setClipboard(t)
         case .notify(let t, let b): return .notify(title: t, body: b)
+        case .macControl(let id): return .macControl(id)
         case .repeatBlock:
             preconditionFailure("repeat blocks are expanded before resolving")
         }
@@ -360,6 +369,9 @@ public final class MacroPlayer: Sendable {
         case .runShell(let c, let t): return try await env.scripts.runShell(c, timeoutMs: t)
         case .setClipboard(let t): env.clipboard.setString(t)
         case .notify(let t, let b): try await env.notifier.notify(title: t, body: b)
+        case .macControl(let id):
+            guard let controls = env.controls else { throw MacroError.macControlFailed("Mac controls need the Glasspad app.") }
+            try await controls.run(id)
         }
         return nil
     }

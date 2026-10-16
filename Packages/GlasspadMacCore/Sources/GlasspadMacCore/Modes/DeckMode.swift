@@ -67,7 +67,7 @@ public struct DeckConfig: Codable, Equatable, Sendable {
             b("Lock", "lock.fill", .system(.lockScreen), "#8E8E93"),
             b("Sleep Display", "moon.fill", .system(.sleepDisplay), "#5E5CE6"),
             b("Dark Mode", "circle.lefthalf.filled", .system(.toggleDarkMode), "#636366"),
-            b("Focus", "moon.circle.fill", .runShortcut(name: "Toggle Focus"), "#5E5CE6"),
+            b("Do Not Disturb", "moon.circle.fill", .system(.doNotDisturb), "#5E5CE6"),
             b("Volume Down", "speaker.minus.fill", .system(.volumeDown), "#FF9F0A"),
             b("Volume Up", "speaker.plus.fill", .system(.volumeUp), "#FF9F0A"),
             b("Mute", "speaker.slash.fill", .system(.mute), "#FF9F0A"),
@@ -86,8 +86,8 @@ public struct DeckConfig: Codable, Equatable, Sendable {
     /// Brings an older file up to date without losing anything: a version 1 flat list becomes
     /// the "My Buttons" page, and the Mac page is added in front once.
     public func migrated() -> DeckConfig {
-        guard version < Self.currentVersion else { return self }
-        var cfg = self
+        guard version < Self.currentVersion else { return replacingRetiredActions() }
+        var cfg = replacingRetiredActions()
         var pages = self.pages ?? [DeckPage(id: Self.myPageID, title: "My Buttons", symbol: "star", buttons: buttons)]
         if !pages.contains(where: { $0.id == Self.macPageID }) {
             pages.insert(DeckPage(id: Self.macPageID, title: "Mac", symbol: "macbook", buttons: Self.macStarterButtons()), at: 0)
@@ -95,6 +95,31 @@ public struct DeckConfig: Codable, Equatable, Sendable {
         cfg.pages = pages
         cfg.version = Self.currentVersion
         cfg.buttons = DeckLayout(pages: pages).allButtons.filter { $0.action != .folder }
+        return cfg
+    }
+
+    /// The old Mac page's Focus button ran a shortcut named "Toggle Focus" that nobody had, so
+    /// it never worked. It becomes the built-in Do Not Disturb switch. Buttons the user pointed
+    /// at a shortcut of their own are left alone.
+    public static let retiredFocusShortcut = "Toggle Focus"
+
+    func replacingRetiredActions() -> DeckConfig {
+        func fix(_ b: DeckButton) -> DeckButton {
+            var b = b
+            if b.action == .runShortcut(name: Self.retiredFocusShortcut) {
+                b.action = .system(.doNotDisturb)
+                if b.title == "Focus" { b.title = "Do Not Disturb" }
+            }
+            b.children = b.children?.map(fix)
+            return b
+        }
+        var cfg = self
+        cfg.buttons = buttons.map(fix)
+        cfg.pages = pages?.map { p in
+            var p = p
+            p.buttons = p.buttons.map(fix)
+            return p
+        }
         return cfg
     }
 
@@ -270,7 +295,7 @@ public final class DeckMode {
     public func reload() {
         let onDisk = (try? Data(contentsOf: url)).flatMap { try? JSONDecoder().decode(DeckConfig.self, from: $0) }
         config = DeckConfig.load(from: url)
-        if onDisk == nil || onDisk?.version != config.version { try? config.save(to: url) }
+        if onDisk == nil || onDisk != config { try? config.save(to: url) }
     }
 
     public func update(_ cfg: DeckConfig) throws {
