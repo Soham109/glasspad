@@ -10,7 +10,7 @@ struct PresentMode: View {
     @Environment(\.modeTopClearance) private var topClearance
     @Bindable var settings = PhoneSettings.shared
     var session = MacSession.shared
-    private let accent = AppMode.present.accent(.paper)
+    private var accent: Color { AppMode.present.accent(palette) }
 
     @State private var timer = PresentTimer()
 

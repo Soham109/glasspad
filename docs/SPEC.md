@@ -259,6 +259,11 @@ As built (GlasspadKit):
   when the Mac will not send what it has. Text over `ClipboardContent.maxTextBytes` (2 MB,
   UTF-8) is refused whole, never cut. The phone shows "Sent" only after `ok: true`.
   `GlasspadMode.macros` exists for `modeSelected(.macros)`, which makes the Mac send `macroList`.
+  Remote (Oct 2026, additive): `modeSelected(.remote)` makes the Mac send media states (as for
+  Media) and `frontmostApp` (as for Dock and Deck). `remoteSystem(id:action:)` runs one
+  `DeckSystemAction` without a Deck button (Sleep Display, Do Not Disturb, volume keys); the
+  Mac answers `deckResult` for `id` and refuses actions that need confirming. An older Mac
+  drops both, and the phone falls back to plain media and key messages.
 - `ControlMessage.macStatus(MacStatus)` (Oct 2026, additive), Mac -> phone, JSON
   `{"t":"macStatus","status":{"accessibilityTrusted":false,"automationMedia":"notDetermined","macName":"Soham's MacBook Pro"}}`.
   `MacStatus` (`Protocol/MacStatus.swift`): `accessibilityTrusted: Bool` (required; when false the
@@ -501,6 +506,7 @@ Each mode is a `ModeMessage` case pair handled by `GlasspadMacCore/Modes`.
 | Actions (Deck) | one screen: the front app's best buttons (6 by default, up to 8 chosen and ordered per app) above Pinned (favourites of every kind, + opens a searchable Library whose Apps group lists every installed Mac app); folders, sizes, colours, edit on the phone. Sideways it splits: front app on the left half, Pinned on the right. Clipboard and Present are tools in the mode menu. Older Decks move into Pinned once, losslessly (`PinnedDeck.migrated`) | executes actions directly (screencapture, pmset, CoreAudio...), config v3 on the Mac, phone edits via `deckSave` (never shell) |
 | Clipboard | send phone clipboard to Mac, pull Mac clipboard to phone (text, images) | NSPasteboard |
 | Present | big next/previous buttons, timer, laser dot (move a highlight on the Mac) | arrow keys + transparent overlay window for the laser |
+| Remote | couch remote: touch surface (tap play or pause, swipe sideways to skip, up and down for volume), back 10 / play / forward 10, Search, Subtitles, Full Screen, Mute, Sleep Display and Do Not Disturb. Keys follow the player in front (`RemoteKeymap`: web players, Apple TV, QuickTime, IINA, VLC, Infuse, Spotify and Music). Hidden at first: a tool in the mode menu until Settings shows it | media commands and seeking through now playing, keystrokes, CoreAudio volume |
 
 As built, UX pass (Oct 2026):
 - The mode once called Apps is called Dock again (SF Symbol `dock.rectangle`), and mirrors the
@@ -513,6 +519,15 @@ As built, UX pass (Oct 2026):
   layout from before Actions (it has the Mac page or no Pinned page). Existing Pinned pages are
   never trimmed on their own: over 12 tiles, Actions offers Tidy Up once, and edit mode has
   Reset to Defaults (`PinnedDeck.resetPinned`), both behind a confirmation.
+
+- Tile grids (Actions, Pinned, folders, the Library's Pinned preview, Dock) size themselves from
+  the space they get, not the screen (`TileGridMetrics`, `BalancedRows` in GlasspadKit): tiles near
+  the preferred size and never under 44 pt, rows that differ by at most one (7 is 4 + 3, 6 is
+  3 + 3), every row centred. Mac controls in the Library come from `DeckSystemCatalog`, grouped.
+- Website buttons show the site's own logo: the phone reads the page's icon links, then
+  `/apple-touch-icon.png` and `/favicon.ico`, keeps the largest, caches it by host, and falls back
+  to the site's first letter. It asks the site only (no favicon services). A new Website button is
+  named after the site.
 
 ## 9. iPhone app (Apps/iOS)
 
@@ -537,6 +552,9 @@ As built, UX pass (Oct 2026):
 - Pairing: camera QR scan (`AVCaptureMetadataOutput`), Keychain storage.
 - Themes: Paper (#F2F1EE background, dots #1A1A1A at 14% opacity) and
   Graphite (#141414, dots white at 18%). Dots 44 pt, soft edge, fade on lift.
+  As built (Oct 2026): also System (Paper or Graphite with the phone), Mono (pure white or black
+  with the phone, no colour anywhere: accents, tiles and icons draw in the ink), Sand (warm light)
+  and Midnight (deep blue dark). Settings shows a live miniature of each.
 
 ## 10. Mac app (Apps/Mac)
 

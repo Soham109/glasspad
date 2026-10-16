@@ -199,7 +199,7 @@ struct ModeSwitcher: View {
             }
             LayoutMenuRow(close: close)
             Divider().padding(.horizontal, 8).padding(.vertical, 2)
-            let tools = [AppMode.clipboard, .present].filter { !modes.contains($0) }
+            let tools = [AppMode.clipboard, .present, .remote].filter { !modes.contains($0) }
             if !tools.isEmpty {
                 HStack(spacing: 6) {
                     ForEach(tools) { tool in
@@ -208,10 +208,10 @@ struct ModeSwitcher: View {
                             close()
                             router.openTool(tool)
                         } label: {
-                            utilityLabel(tool.title, symbol: tool == .present ? "play.rectangle" : "doc.on.clipboard")
+                            utilityLabel(tool.title, symbol: tool.toolSymbol)
                         }
                         .buttonStyle(TileStyle())
-                        .accessibilityHint(tool == .present ? "Opens the slide remote full screen" : "Copies between this iPhone and your Mac")
+                        .accessibilityHint(tool.toolHint)
                     }
                 }
             }

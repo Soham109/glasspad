@@ -226,7 +226,7 @@
 /* ---------- Modes: pinned stage ---------- */
 .modes { padding-bottom: 0; }
 .modes .section-head { margin-bottom: 0; }
-.modes-scroll { position: relative; height: calc(100svh + 5 * 62svh); }
+.modes-scroll { position: relative; height: calc(100svh + 6 * 62svh); }
 .modes-pin { position: sticky; top: 0; height: 100svh; display: flex; align-items: center; }
 .modes-stage {
   width: 100%; max-width: 1280px; margin: 0 auto; padding: 64px var(--gutter) 24px;

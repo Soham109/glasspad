@@ -12,7 +12,7 @@ struct MediaMode: View {
     @Environment(\.modeTopClearance) private var topClearance
     var session = MacSession.shared
     var store = MediaStore.shared
-    private let accent = AppMode.media.accent(.paper)
+    private var accent: Color { AppMode.media.accent(palette) }
 
     @State private var volume: Double = 0.5
     @State private var brightness: Double = 0.5
