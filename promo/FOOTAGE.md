@@ -12,7 +12,7 @@ Every live action shot in the v4 film is a stock clip from Mixkit, used under th
 The User Terms forbid reselling the clips as they are, using them to build a competing stock
 service, and bulk downloading by script. The film modifies every clip (the real app is
 composited onto its green screens, the hands are keyed onto drawn sets, all of it graded and
-cut), and `scripts/fetch-footage.sh` fetches only the seven clips below, one at a time.
+cut), and `scripts/fetch-footage.sh` fetches only the nine clips below, one at a time.
 
 No clip shows a person endorsing anything, and nobody in them is named or quoted. The one
 visible brand mark is the "MacBook Pro" lettering on a laptop in the Clipboard shot, which
@@ -27,6 +27,8 @@ the framing crops out.
 | couch-phone | [A young woman relaxing on the couch with mobile phone](https://mixkit.co/free-stock-video/a-young-woman-relaxing-on-the-couch-with-mobile-phone-100059/) | Remote: the couch | 3840x2160, 23.976 fps |
 | handoff | [Copying from a cell phone to the computer](https://mixkit.co/free-stock-video/copying-from-a-cell-phone-to-the-computer-42630/) | Clipboard | 3840x2160, 23.976 fps |
 | two-screens | [Man working on computer with chroma green background](https://mixkit.co/free-stock-video/man-working-on-computer-with-chroma-green-background-44737/) | Displays: a monitor and a laptop | 3840x2160, 23.976 fps |
+| coast-a | [Landscape of the sea at sunset from the heights](https://mixkit.co/free-stock-video/landscape-of-the-sea-at-sunset-from-the-heights-50195/) | "The Quiet Coast", the film on the TV; the slide photograph; the edit's clips | 1920x1080, 23.976 fps (plays inside a screen) |
+| coast-b | [Red sunset sun on a coast](https://mixkit.co/free-stock-video/red-sunset-sun-on-a-coast-4492/) | the same film after the skip; the edit's viewer | 1920x1080, 30 fps (plays inside a screen) |
 
 Exact download URLs and SHA-256 checksums are in `scripts/fetch-footage.sh`.
 
@@ -42,6 +44,8 @@ corners (the four longest sides of the outline, intersected, so rounded corners 
 over an edge do not pull them in), smooths the track over time, and writes:
 
 - `src/v4/tracks/<name>.json` (committed): the corners per frame.
+- `public/footage/coast-*/still*.jpg` (not committed): eight frames of each coast clip, for
+  thumbnails, the edit's filmstrip and the slide.
 - `public/footage/<name>/fg.mov` (not committed): ProRes 4444 with alpha, cropped around the
   screen: everything that is not green (hands, bezels, fingers) over the screen. Tracking
   markers on the screen are removed; spill is removed only at the key's edges.

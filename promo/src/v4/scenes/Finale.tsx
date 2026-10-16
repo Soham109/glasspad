@@ -72,8 +72,8 @@ export const More: React.FC = () => {
       {t >= M_TRACK - 0.1 ? (
         <AbsoluteFill style={{ opacity: sstep(M_TRACK - 0.04, M_TRACK + 0.16, t) }}>
           {/* the Mac's display, its Space following three fingers */}
-          <div style={{ position: "absolute", left: 960 - 440, top: 40 - (1 - flat) * 40, transform: `scale(${lerp(0.96, 1, flat)})` }}>
-            <ExternalDisplay width={880} stand={false}>
+          <div style={{ position: "absolute", left: 960 - 410, top: 30 - (1 - flat) * 40, transform: `scale(${lerp(0.96, 1, flat)})` }}>
+            <ExternalDisplay width={820} stand={false}>
               <div style={{ position: "absolute", left: 0, top: 0, width: EXT.w * 2, height: EXT.h, transform: `translateX(${-space * EXT.w}px)` }}>
                 <div style={{ position: "absolute", left: 0, top: 0, width: EXT.w, height: EXT.h, overflow: "hidden" }}>
                   <Wallpaper w={EXT.w} h={EXT.h} />
@@ -90,14 +90,14 @@ export const More: React.FC = () => {
             </ExternalDisplay>
           </div>
           <div style={{ position: "absolute", inset: 0, transform: `translate(${shake}px, 0)` }}>
-            <StudioPhone pose={{ x: 960, y: lerp(560, 800, flat), size: lerp(380, 420, flat), orient: "landscape", rx: lerp(0, 52, flat), rz: 0 }} shadow={0.6} perspective={1700}>
+            <StudioPhone pose={{ x: 960, y: lerp(560, 810, flat), size: lerp(380, 470, flat), orient: "landscape", rx: lerp(0, 46, flat), rz: 0 }} shadow={0.6} perspective={1700}>
               <Sequence from={T(M_TRACK) - T(TP_FROM)} layout="none">
                 <OffthreadVideo src={phone("trackpad.mp4")} muted style={{ width: 2622, height: 1206 }} />
               </Sequence>
               <TrackpadTouches tp={tpTime} />
             </StudioPhone>
           </div>
-          {tapRing > 0 && tapRing < 1 ? <div style={{ position: "absolute", left: 960 - 60 - tapRing * 140, top: 800 - 30 - tapRing * 70, width: 120 + tapRing * 280, height: 60 + tapRing * 140, borderRadius: "50%", boxShadow: `inset 0 0 0 ${lerp(4, 1, tapRing)}px rgba(255,255,255,0.8)`, opacity: 1 - tapRing }} /> : null}
+          {tapRing > 0 && tapRing < 1 ? <div style={{ position: "absolute", left: 960 - 60 - tapRing * 140, top: 810 - 30 - tapRing * 70, width: 120 + tapRing * 280, height: 60 + tapRing * 140, borderRadius: "50%", boxShadow: `inset 0 0 0 ${lerp(4, 1, tapRing)}px rgba(255,255,255,0.8)`, opacity: 1 - tapRing }} /> : null}
         </AbsoluteFill>
       ) : null}
       {/* one name per screen: each leaves as the next arrives */}
@@ -161,7 +161,7 @@ export const Private: React.FC = () => {
   const t = f / FPS;
   const fadeOut = (at: number) => clamp01(1 - prog(f, T(at), 22, E.in));
   const appear = (at: number) => spr(f, T(at), "settle");
-  const account = appear(PW_(0) - 0.25) * fadeOut(PW_(1) + 0.45);
+  const account = appear(Math.min(0.15, PW_(0) - 0.25)) * fadeOut(PW_(1) + 0.45);
   const cloud = appear(PW_(2) - 0.25) * fadeOut(PW_(3) + 0.45);
   const devices = appear(PW_(4) - 0.3);
   const line = prog(f, T(PW_(4)), 26, E.inOut);

@@ -19,6 +19,8 @@ handoff|https://assets.mixkit.co/videos/42630/42630-2160.mp4|fec78a7934264c28797
 two-screens|https://assets.mixkit.co/videos/44737/44737-2160.mp4|a51db8be28aa32d3effb14bc49050fe8f1bb12c7b6ec730162fd9776b86317de
 edit-suite|https://assets.mixkit.co/videos/51602/51602-2160.mp4|f57aa3faacec54faa26e1f74a7aa1130adbc958a23de5edec1cf98d0bde9de33
 hands-phone|https://assets.mixkit.co/videos/28300/28300-1080.mp4|040e58b001fb158f27d0694772581469ea1bdeee9c897b3cf4f33886618f3d57
+coast-a|https://assets.mixkit.co/videos/50195/50195-1080.mp4|333cffb702fc73d4bc2b951653f6af461a728e3e47cfd73ef56f192fc08287c1
+coast-b|https://assets.mixkit.co/videos/4492/4492-1080.mp4|e6866efd9692ee04281b3b340bc525d1eaef491432a253428ab0323217b89d33
 EOF
 )
 

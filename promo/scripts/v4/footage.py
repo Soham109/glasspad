@@ -235,7 +235,30 @@ def process(name, cfg):
     print(f"{name}: {T} frames at {fps:.3f} fps, crop {cw}x{ch}, screens {screens}")
 
 
+# Clips shown inside the film's screens (the film inside the film): only still frames are
+# needed, for thumbnails and filmstrips; the screens play the clips themselves.
+STILLS = {"coast-a": 8, "coast-b": 8}
+
+
+def stills(name, n):
+    out = os.path.join(OUT, name)
+    os.makedirs(out, exist_ok=True)
+    src = os.path.join(SRC, name + ".mp4")
+    cap = cv2.VideoCapture(src)
+    T = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    for k in range(n):
+        cap.set(cv2.CAP_PROP_POS_FRAMES, int((k + 0.5) * T / n))
+        ok, fr = cap.read()
+        if ok:
+            cv2.imwrite(os.path.join(out, f"still{k}.jpg"), cv2.resize(fr, (480, 270), interpolation=cv2.INTER_AREA), [cv2.IMWRITE_JPEG_QUALITY, 90])
+    cap.release()
+    print(f"{name}: {n} stills")
+
+
 if __name__ == "__main__":
-    names = sys.argv[1:] or list(CLIPS)
+    names = sys.argv[1:] or list(CLIPS) + list(STILLS)
     for n in names:
-        process(n, CLIPS[n])
+        if n in STILLS:
+            stills(n, STILLS[n])
+        else:
+            process(n, CLIPS[n])

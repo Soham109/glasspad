@@ -165,8 +165,9 @@ Purpose: a TV remote for whatever the Mac is playing.
 
 1. Real footage: a person relaxing on a couch with a phone (green screen phone, tracked):
    the Remote is composited on it, following the phone as she moves.
-2. Cut to the TV (drawn, in a dim room): a film plays. A swipe on the phone (dot trail) skips
-   it forward: the picture jumps, a small skip mark shows.
+2. Cut to the TV in a dim room: a film plays ("The Quiet Coast": two licensed stock shots of a
+   coast at sunset, the same title the app's Remote shows). A swipe on the phone (dot trail)
+   skips it forward: the picture jumps to the next shot, a skip mark shows.
 3. Search: letters typed on the phone appear in the player's search field on the TV.
 
 ### 7. Handoff (bars 40 to 44). Clipboard.

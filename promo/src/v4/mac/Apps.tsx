@@ -1,38 +1,24 @@
 // The Mac apps the film shows, drawn at screen points. Content is the film's own: fictional
 // mail, the Glasspad site in Safari, an edit, a slide deck, a film still. No invented numbers.
 import React from "react";
-import { Img } from "remotion";
+import { Img, OffthreadVideo, staticFile } from "remotion";
 import { SF, SFT, icon } from "../core";
 import { Sym, Window } from "./Desktop";
 
-// ---------- The Quiet Coast: the film inside the film (drawn, animated by `t` seconds) ----------
-export const Coast: React.FC<{ w: number; h: number; t: number; shot?: number }> = ({ w, h, t, shot = 0 }) => {
-  // Two shots of the same evening: wide (0) and closer on the water (1).
-  const sunY = shot === 0 ? 0.47 : 0.36;
-  const horizon = shot === 0 ? 0.58 : 0.5;
-  const drift = t * 6;
-  return (
-    <div style={{ position: "absolute", left: 0, top: 0, width: w, height: h, overflow: "hidden", background: "#0A0E1C" }}>
-      <div style={{ position: "absolute", inset: 0, background: `linear-gradient(180deg, #1B2350 0%, #5B4A86 ${horizon * 55}%, #E9877A ${horizon * 92}%, #FFC48A ${horizon * 100}%, #2B3A6E ${horizon * 100}%, #0E1634 100%)` }} />
-      <div style={{ position: "absolute", left: w * (shot === 0 ? 0.62 : 0.45) - h * 0.07, top: h * sunY - h * 0.07, width: h * 0.14, height: h * 0.14, borderRadius: "50%", background: "radial-gradient(circle, #FFF2D6 0%, #FFD39A 45%, rgba(255,190,130,0) 72%)" }} />
-      <div style={{ position: "absolute", left: 0, right: 0, top: h * horizon, bottom: 0, overflow: "hidden" }}>
-        {Array.from({ length: 18 }).map((_, i) => {
-          const y = Math.pow(i / 18, 1.6) * h * (1 - horizon);
-          const len = w * (0.05 + 0.12 * (i / 18));
-          const x = ((i * 337 + drift * (1 + i * 0.15)) % (w * 0.5)) + w * (shot === 0 ? 0.42 : 0.25);
-          return <div key={i} style={{ position: "absolute", left: x, top: y, width: len, height: 1 + i * 0.25, borderRadius: 4, background: "rgba(255,214,170,0.55)", opacity: 0.25 + 0.5 * (1 - i / 18) }} />;
-        })}
-      </div>
-      {shot === 0 ? (
-        <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} style={{ position: "absolute", inset: 0 }}>
-          <path d={`M0 ${h * 0.5} L${w * 0.08} ${h * 0.46} L${w * 0.16} ${h * 0.49} L${w * 0.24} ${h * 0.53} L${w * 0.31} ${h * 0.6} L${w * 0.36} ${h} L0 ${h} Z`} fill="#0B0F22" />
-          <path d={`M${w * 0.82} ${h * 0.56} L${w * 0.9} ${h * 0.52} L${w} ${h * 0.5} L${w} ${h} L${w * 0.78} ${h} Z`} fill="#0D1228" />
-        </svg>
-      ) : null}
-      <div style={{ position: "absolute", inset: 0, background: "radial-gradient(120% 90% at 50% 50%, rgba(0,0,0,0) 60%, rgba(0,0,0,0.45) 100%)" }} />
-    </div>
-  );
-};
+// ---------- The Quiet Coast: the film inside the film ----------
+// Two licensed stock shots of a coast at sunset (FOOTAGE.md): shot 0 a wide from the heights,
+// shot 1 the sun low over the water. `still` shows one of eight frames (thumbnails, a slide);
+// otherwise the shot plays, `from` seconds in at this Sequence's first frame.
+const COAST = ["coast-a", "coast-b"];
+export const Coast: React.FC<{ w: number; h: number; t?: number; shot?: number; still?: number; from?: number }> = ({ w, h, shot = 0, still, from = 2 }) => (
+  <div style={{ position: "absolute", left: 0, top: 0, width: w, height: h, overflow: "hidden", background: "#0A0E1C" }}>
+    {still !== undefined ? (
+      <Img src={staticFile(`footage/${COAST[shot]}/still${still % 8}.jpg`)} style={{ width: w, height: h, objectFit: "cover" }} />
+    ) : (
+      <OffthreadVideo src={staticFile(`footage/src/${COAST[shot]}.mp4`)} startFrom={Math.round(from * 60)} muted style={{ width: w, height: h, objectFit: "cover" }} />
+    )}
+  </div>
+);
 
 // ---------- Mail ----------
 const MAIL = [
@@ -125,14 +111,14 @@ export const EditorApp: React.FC<{ x: number; y: number; w: number; h: number; t
         <div style={{ position: "absolute", left: 10, top: 10, width: w * 0.22, height: tlTop - 20, borderRadius: 8, background: "#232325", padding: 10, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, alignContent: "start" }}>
           {Array.from({ length: 8 }).map((_, i) => (
             <div key={i} style={{ height: (w * 0.22 - 28) / 2 * 0.56, borderRadius: 4, overflow: "hidden", position: "relative", outline: i === 2 ? "2px solid #F5C542" : "none" }}>
-              <Coast w={(w * 0.22 - 28) / 2} h={(w * 0.22 - 28) / 2 * 0.56} t={i * 3} shot={i % 2} />
+              <Coast w={(w * 0.22 - 28) / 2} h={(w * 0.22 - 28) / 2 * 0.56} shot={i % 2} still={i} />
             </div>
           ))}
         </div>
         {/* viewer */}
         <div style={{ position: "absolute", left: w * 0.22 + 20, top: 10, width: w * 0.52, height: tlTop - 20, borderRadius: 8, background: "#0E0E10", display: "flex", alignItems: "center", justifyContent: "center" }}>
           <div style={{ position: "relative", width: w * 0.48, height: w * 0.48 * 0.5625, overflow: "hidden" }}>
-            <Coast w={w * 0.48} h={w * 0.48 * 0.5625} t={t} shot={1} />
+            <Coast w={w * 0.48} h={w * 0.48 * 0.5625} shot={1} from={6} />
           </div>
         </div>
         {/* inspector */}
@@ -155,7 +141,7 @@ export const EditorApp: React.FC<{ x: number; y: number; w: number; h: number; t
                   <div style={{ position: "absolute", left: s0 * w + 1 + off, width: (s1 - s0) * w - 2, top: 30, height: tlH * 0.36, borderRadius: 6, background: i % 2 ? Clip.b : Clip.a, overflow: "hidden", boxShadow: split && j === 1 ? `inset 0 0 0 2px rgba(245,197,66,${cut})` : "none" }}>
                     {Array.from({ length: Math.max(1, Math.floor(((s1 - s0) * w) / 90)) }).map((_, k) => (
                       <div key={k} style={{ position: "absolute", left: k * 90 + 4, top: 18, width: 82, height: tlH * 0.36 - 22, borderRadius: 3, overflow: "hidden", opacity: 0.85 }}>
-                        <Coast w={82} h={tlH * 0.36 - 22} t={k * 2 + i} shot={(k + i) % 2} />
+                        <Coast w={82} h={tlH * 0.36 - 22} shot={(k + i) % 2} still={k + i * 3} />
                       </div>
                     ))}
                     <div style={{ position: "absolute", left: 6, top: 2, fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,0.92)" }}>{["Arrival", "The water", "Evening"][i]}</div>
@@ -200,7 +186,7 @@ export const Slide: React.FC<{ w: number; h: number; n: number; t: number }> = (
     );
   return (
     <div style={{ position: "absolute", inset: 0, width: w, height: h, background: "#0E0E10", overflow: "hidden" }}>
-      <Coast w={w} h={h} t={t} shot={0} />
+      <Coast w={w} h={h} shot={0} still={4} />
       <div style={{ position: "absolute", left: w * 0.06, bottom: h * 0.09, fontFamily: SF, color: "#fff", fontSize: h * 0.075, fontWeight: 700, letterSpacing: "-0.03em", textShadow: "0 2px 20px rgba(0,0,0,0.35)" }}>Listen first.</div>
     </div>
   );
@@ -231,7 +217,7 @@ export const NotesApp: React.FC<{ x: number; y: number; w: number; h: number; ph
 /** A web player, full screen, playing The Quiet Coast. */
 export const PlayerApp: React.FC<{ w: number; h: number; t: number; shot?: number; controls?: number; skip?: number; search?: string; searchIn?: number }> = ({ w, h, t, shot = 0, controls = 0, skip = 0, search = "", searchIn = 0 }) => (
   <div style={{ position: "absolute", left: 0, top: 0, width: w, height: h, background: "#000", overflow: "hidden", fontFamily: SFT }}>
-    <Coast w={w} h={h} t={t} shot={shot} />
+    <Coast w={w} h={h} shot={shot} from={shot === 0 ? 3 : 9} />
     {/* controls */}
     <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: h * 0.22, background: "linear-gradient(180deg, rgba(0,0,0,0), rgba(0,0,0,0.6))", opacity: controls }}>
       <div style={{ position: "absolute", left: w * 0.05, bottom: h * 0.1, fontSize: h * 0.034, color: "#fff", fontWeight: 600 }}>The Quiet Coast</div>

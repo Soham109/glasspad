@@ -7,6 +7,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 CHUNK=${CHUNK:-600} # frames (10 s)
+MAX_CHUNKS=${MAX_CHUNKS:-0} # for a test: stop after this many chunks (0 = all)
 DIR=out/v4-4k-chunks
 mkdir -p "$DIR"
 pnpm -s v4:cues
@@ -19,6 +20,7 @@ for ((a = 0; a < TOTAL; a += CHUNK)); do
   b=$((a + CHUNK - 1)); [ $b -ge $TOTAL ] && b=$((TOTAL - 1))
   out=$(printf "%s/%03d.mp4" "$DIR" $i); i=$((i + 1))
   [ -s "$out" ] && continue
+  if [ "$MAX_CHUNKS" -gt 0 ] && [ $i -gt "$MAX_CHUNKS" ]; then echo "stopping after $MAX_CHUNKS chunk(s)"; exit 0; fi
   while [ "$(free_pct)" -lt 20 ]; do echo "memory: $(free_pct)% free, waiting"; sleep 30; done
   echo "frames $a-$b -> $out"
   npx remotion render src/index.ts GlasspadFilmV4 "$out.part.mp4" --frames=$a-$b --scale=2 --concurrency=4 \
