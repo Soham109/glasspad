@@ -37,16 +37,16 @@ pinned-paper|BASE|s|3|-GPFilm v4-pinned -GPOrientation landscape -GPTheme paper
 pinned-mono|BASE|s|3|-GPFilm v4-pinned -GPOrientation landscape -GPTheme mono
 actions-portrait|BASE|s|3|-GPFilm v4-pinned -GPOrientation portrait -GPTheme paper
 finalcut|BASE|s|3|-GPFilm v4-finalcut -GPOrientation portrait -GPTheme graphite
-present|BASE|s|4|-GPActionsPage present -GPOrientation portrait -GPTheme graphite
-remote|BASE|s|4|-GPActionsPage remote -GPMediaDemo movie -GPOrientation portrait -GPTheme graphite
-remote-search|BASE|s|4|-GPActionsPage remote -GPMediaDemo movie -GPRemoteSearch -GPOrientation portrait -GPTheme graphite
-clipboard|BASE|s|4|-GPActionsPage clipboard -GPOrientation portrait -GPTheme paper
-menu|BASE|v9|0|-GPFilm menu -GPOrientation portrait -GPTheme graphite
+present|BASE|s|4|-GPMode actions -GPActionsPage present -GPOrientation portrait -GPTheme graphite
+remote|BASE|s|4|-GPMode actions -GPActionsPage remote -GPMediaDemo movie -GPOrientation portrait -GPTheme graphite
+remote-search|BASE|s|4|-GPMode actions -GPActionsPage remote -GPMediaDemo movie -GPRemoteSearch -GPOrientation portrait -GPTheme graphite
+clipboard|BASE|s|4|-GPMode actions -GPActionsPage clipboard -GPOrientation portrait -GPTheme paper
+menu|BASE|v9|0|-GPMode trackpad -GPFilm menu -GPOrientation portrait -GPTheme graphite
 keys|BASE|s|4|-GPMode keys -GPOrientation landscape -GPTheme graphite
-media|BASE|s|4|-GPFilm media -GPOrientation portrait -GPTheme graphite
+media|BASE|s|4|-GPMode media -GPFilm media -GPOrientation portrait -GPTheme graphite
 dock|BASE|s|4|-GPMode dock -GPOrientation portrait -GPTheme graphite
 macros|BASE|s|4|-GPMode macros -GPOrientation portrait -GPTheme graphite
-trackpad|BASE|v14|0|-GPFilm trackpad -GPOrientation landscape -GPTheme graphite
+trackpad|BASE|v14|0|-GPMode trackpad -GPFilm trackpad -GPOrientation landscape -GPTheme graphite
 layout|LAYOUTS|s|4|-GPFilm v4-layout -GPLayout media-actions -GPLayoutSplit 0.5 -GPOrientation landscape -GPTheme graphite
 layout-drag|LAYOUTS|s|4|-GPFilm v4-layout -GPLayout media-actions -GPLayoutSplit 0.5 -GPLayoutDragDemo 0.62 -GPOrientation landscape -GPTheme graphite
 layout-after|LAYOUTS|s|4|-GPFilm v4-layout -GPLayout media-actions -GPLayoutSplit 0.62 -GPOrientation landscape -GPTheme graphite
@@ -88,7 +88,8 @@ xcrun simctl ui "$UDID" appearance dark
 xcrun simctl status_bar "$UDID" override --time "9:41" --batteryState charged --batteryLevel 100 --cellularBars 4 --wifiBars 3 > /dev/null 2>&1 || true
 
 installed=""
-echo "$SHOTS" | while IFS='|' read -r name app kind wait args; do
+# The shot list is read on its own descriptor, so nothing in the loop can swallow it.
+while IFS='|' read -r name app kind wait args <&3; do
   [ -z "$name" ] && continue
   if [ $# -gt 0 ]; then
     keep=0; for p in "$@"; do case $name in "$p"*) keep=1;; esac; done
@@ -98,9 +99,9 @@ echo "$SHOTS" | while IFS='|' read -r name app kind wait args; do
   appdir=$(build "$ref")
   if [ "$installed" != "$appdir" ]; then
     xcrun simctl uninstall "$UDID" $BID 2>/dev/null || true
-    xcrun simctl install "$UDID" "$appdir"; installed=$appdir
+    xcrun simctl install "$UDID" "$appdir" < /dev/null; installed=$appdir
   fi
-  xcrun simctl terminate "$UDID" $BID 2>/dev/null || true
+  xcrun simctl terminate "$UDID" $BID 2>/dev/null < /dev/null || true
   # shellcheck disable=SC2086
   if [ "${kind:0:1}" = v ]; then
     secs=${kind:1}
@@ -108,19 +109,21 @@ echo "$SHOTS" | while IFS='|' read -r name app kind wait args; do
     xcrun simctl io "$UDID" recordVideo --codec=h264 --force "$CACHE/$name.mov" > /dev/null 2>&1 &
     rec=$!
     sleep 1.5
-    xcrun simctl launch "$UDID" $BID -GPDemo "$ICONS" $args > /dev/null
+    xcrun simctl launch "$UDID" $BID -GPDemo "$ICONS" $args > /dev/null < /dev/null
     sleep "$secs"
     kill -INT $rec; wait $rec || true
     # Constant 60 fps, every frame a keyframe-friendly GOP for exact seeking in Remotion.
-    ffmpeg -v error -y -i "$CACHE/$name.mov" -vf "fps=60" -c:v libx264 -preset slow -crf 12 -g 30 -pix_fmt yuv420p "$OUT/$name.mp4"
+    # The simulator records in the device's portrait frame; sideways shots are turned upright.
+    rot=""; case "$args" in *"-GPOrientation landscape"*) rot=",transpose=2";; esac
+    ffmpeg -nostdin -v error -y -i "$CACHE/$name.mov" -vf "fps=60$rot" -c:v libx264 -preset slow -crf 12 -g 30 -pix_fmt yuv420p "$OUT/$name.mp4"
     echo "$name.mp4 ($ref)"
   else
-    xcrun simctl launch "$UDID" $BID -GPDemo "$ICONS" $args > /dev/null
+    xcrun simctl launch "$UDID" $BID -GPDemo "$ICONS" $args > /dev/null < /dev/null
     sleep "$wait"
-    xcrun simctl io "$UDID" screenshot --type=png "$OUT/$name.png" > /dev/null 2>&1
+    xcrun simctl io "$UDID" screenshot --type=png "$OUT/$name.png" > /dev/null 2>&1 < /dev/null
     echo "$name.png ($ref)"
   fi
-done
+done 3<<< "$SHOTS"
 
 # A record of where each shot came from.
 python3 -I - "$OUT" <<'PY'

@@ -26,6 +26,7 @@ enum FilmV4 {
         case "v4-layout": front = "com.apple.Safari"
         default: return false
         }
+        PhoneSettings.shared.hasOnboarded = true
         PhoneSettings.shared.seenTips.formUnion(["actions.front", "actions.pinned"])
         MacSession.shared.applyDemo(data(iconFolder: iconFolder, front: front))
         song(elapsed: 41, iconFolder: iconFolder)
