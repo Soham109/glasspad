@@ -126,47 +126,30 @@ public final class DisplaysMode {
     }
 
     private func run(windowID: UInt32, command: WindowCommand) -> String? {
-        let s = DisplaysState(displays: backend.displays(), windows: backend.windows())
-        guard let window = s.window(windowID) else { return "That window has closed." }
+        let s = DisplaysState(displays: backend.displays(), windows: backend.windows(), tileMargin: Double(backend.tileMargin))
+        guard s.window(windowID) != nil else { return "That window has closed." }
         if command != .raise, !backend.canArrangeWindows {
             return "Allow Glasspad in System Settings > Privacy & Security > Accessibility to move windows."
         }
-        guard let target = Self.plan(command, window: window, in: s, gap: backend.tileMargin) else {
-            return "That display is not connected any more."
-        }
-        for step in target {
+        guard let steps = Self.plan(command, window: windowID, in: s) else { return "That display is not connected any more." }
+        for step in steps {
             if let failure = backend.perform(step.operation, window: step.window) { return failure }
         }
         return nil
     }
 
-    /// The steps for a command: frames worked out from the state the Mac has now.
-    nonisolated static func plan(_ command: WindowCommand, window: MacWindow, in s: DisplaysState,
-                                 gap: CGFloat) -> [(window: UInt32, operation: WindowOperation)]? {
-        let shown = s.shownDisplays
-        guard let current = s.display(of: window) else { return nil }
+    /// The steps for a command: new frames first, then what brings windows forward.
+    nonisolated static func plan(_ command: WindowCommand, window id: UInt32,
+                                 in s: DisplaysState) -> [(window: UInt32, operation: WindowOperation)]? {
+        guard let moves = s.frames(for: command, window: id) else { return nil }
+        let framed = moves.map { (window: $0.window, operation: WindowOperation.setFrame($0.frame)) }
         switch command {
-        case .raise: return [(window.id, .raise)]
-        case .minimize: return [(window.id, .minimize)]
-        case .close: return [(window.id, .close)]
-        case .fullScreen: return [(window.id, .fullScreen)]
-        case .tile(let tile):
-            let frame = DisplayGeometry.tile(tile, window: window.frame, in: current.visibleFrame, gap: gap)
-            return [(window.id, .setFrame(frame)), (window.id, .raise)]
-        case .split(let other):
-            guard s.window(other) != nil, other != window.id else { return nil }
-            let halves = DisplayGeometry.split(in: current.visibleFrame, gap: gap)
-            return [(window.id, .setFrame(halves.left)), (other, .setFrame(halves.right)), (other, .raise), (window.id, .raise)]
-        case .move(let displayID, let origin):
-            guard let to = shown.first(where: { $0.id == displayID }) else { return nil }
-            let frame = if let origin {
-                DisplayGeometry.placed(window.frame, origin: origin, in: to.visibleFrame)
-            } else if to.id == current.id {
-                window.frame
-            } else {
-                DisplayGeometry.moved(window.frame, from: current.visibleFrame, to: to.visibleFrame)
-            }
-            return [(window.id, .setFrame(frame)), (window.id, .raise)]
+        case .raise: return [(id, .raise)]
+        case .minimize: return [(id, .minimize)]
+        case .close: return [(id, .close)]
+        case .fullScreen: return [(id, .fullScreen)]
+        case .split(let other): return framed + [(other, .raise), (id, .raise)]
+        case .tile, .move: return framed + [(id, .raise)]
         }
     }
 

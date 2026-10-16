@@ -179,6 +179,39 @@ private enum Arrangement {
     }
 }
 
+@Suite struct WindowPlanTests {
+    private let state = DisplaysState(displays: [
+        MacDisplay(id: 1, name: "Built-in Retina Display", frame: Arrangement.laptop,
+                   visibleFrame: CGRect(x: 0, y: 37, width: 1512, height: 875), isMain: true),
+        MacDisplay(id: 2, name: "Studio Display", frame: Arrangement.right, visibleFrame: Arrangement.right, isMain: false),
+    ], windows: [
+        MacWindow(id: 1, bundleID: "a", appName: "A", frame: CGRect(x: 100, y: 100, width: 600, height: 400)),
+        MacWindow(id: 2, bundleID: "b", appName: "B", frame: CGRect(x: 1600, y: -400, width: 1000, height: 700)),
+        MacWindow(id: 3, bundleID: "c", appName: "C", frame: CGRect(x: 200, y: 200, width: 600, height: 400)),
+    ], tileMargin: 8)
+
+    @Test func thePreviewMatchesWhatTheMacWillDo() {
+        // Tiles use the margin, and the window comes to the front.
+        let tiled = state.applying(.tile(.fill), window: 3)
+        #expect(tiled.windows.map(\.id) == [3, 1, 2])
+        #expect(tiled.windows[0].frame == CGRect(x: 8, y: 45, width: 1496, height: 859))
+        // Split: both on the first window's display, the first one in front.
+        let split = state.applying(.split(with: 2), window: 1)
+        #expect(split.windows.map(\.id) == [1, 2, 3])
+        #expect(split.windows[1].frame.minX > 756 && split.display(of: split.windows[1])?.id == 1)
+        // Moved to the other display keeps its share; closed and minimized windows go away.
+        #expect(state.applying(.move(display: 2, origin: nil), window: 1).display(of: state.windows[0])?.id == 1)
+        #expect(state.applying(.move(display: 2, origin: nil), window: 1).windows[0].frame.minX >= 1512)
+        #expect(state.applying(.close, window: 2).windows.map(\.id) == [1, 3])
+        #expect(state.applying(.minimize, window: 1).windows.map(\.id) == [2, 3])
+        // Impossible commands change nothing.
+        #expect(state.frames(for: .move(display: 9, origin: nil), window: 1) == nil)
+        #expect(state.frames(for: .split(with: 1), window: 1) == nil)
+        #expect(state.applying(.tile(.fill), window: 99) == state)
+        #expect(state.frames(for: .raise, window: 1)?.isEmpty == true)
+    }
+}
+
 @Suite struct DisplaysProtocolTests {
     private func roundTrip(_ m: ModeMessage) throws -> ModeMessage? {
         let data = try ControlMessage.mode(m).jsonData()

@@ -140,6 +140,53 @@ public enum DisplayGeometry {
     }
 }
 
+extension DisplaysState {
+    /// Where a command puts windows, worked out from this state: the new frame of each window
+    /// it moves, in order. Empty for commands that move nothing (raise, close). nil when it
+    /// cannot be done (the window, the other window or the display is gone). The Mac moves
+    /// windows with it; the phone uses it to show the result before the Mac confirms.
+    public func frames(for command: WindowCommand, window id: UInt32) -> [(window: UInt32, frame: CGRect)]? {
+        guard let window = window(id), let current = display(of: window) else { return nil }
+        let gap = CGFloat(tileMargin)
+        switch command {
+        case .raise, .minimize, .close, .fullScreen:
+            return []
+        case .tile(let tile):
+            return [(id, DisplayGeometry.tile(tile, window: window.frame, in: current.visibleFrame, gap: gap))]
+        case .split(let other):
+            guard other != id, self.window(other) != nil else { return nil }
+            let halves = DisplayGeometry.split(in: current.visibleFrame, gap: gap)
+            return [(id, halves.left), (other, halves.right)]
+        case .move(let displayID, let origin):
+            guard let to = shownDisplays.first(where: { $0.id == displayID }) else { return nil }
+            if let origin { return [(id, DisplayGeometry.placed(window.frame, origin: origin, in: to.visibleFrame))] }
+            if to.id == current.id { return [(id, window.frame)] }
+            return [(id, DisplayGeometry.moved(window.frame, from: current.visibleFrame, to: to.visibleFrame))]
+        }
+    }
+
+    /// This state as it will look once the command is done (for the phone's instant preview).
+    public func applying(_ command: WindowCommand, window id: UInt32) -> DisplaysState {
+        var s = self
+        guard let moves = frames(for: command, window: id) else { return s }
+        for (w, frame) in moves {
+            if let i = s.windows.firstIndex(where: { $0.id == w }) { s.windows[i].frame = frame }
+        }
+        func toFront(_ w: UInt32) {
+            guard let i = s.windows.firstIndex(where: { $0.id == w }) else { return }
+            s.windows.insert(s.windows.remove(at: i), at: 0)
+        }
+        switch command {
+        case .minimize, .close: s.windows.removeAll { $0.id == id }
+        case .split(let other):
+            toFront(other)
+            toFront(id)
+        default: toFront(id)
+        }
+        return s
+    }
+}
+
 /// Maps global display coordinates to a miniature drawn in a view and back, the way System
 /// Settings fits every display into its arrangement box: the same scale for all, centred.
 public struct DisplayMiniature: Equatable, Sendable {
