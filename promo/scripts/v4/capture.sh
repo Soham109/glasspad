@@ -35,6 +35,7 @@ actions-switch|BASE|v10|0|-GPFilm v4-actions -GPOrientation landscape -GPTheme g
 pinned|BASE|s|3|-GPFilm v4-pinned -GPOrientation landscape -GPTheme graphite
 pinned-paper|BASE|s|3|-GPFilm v4-pinned -GPOrientation landscape -GPTheme paper
 pinned-mono|BASE|s|3|-GPFilm v4-pinned -GPOrientation landscape -GPTheme mono
+actions-mail|BASE|s|3.5|-GPFilm v4-actions -GPOrientation portrait -GPTheme paper
 actions-portrait|BASE|s|3|-GPFilm v4-pinned -GPOrientation portrait -GPTheme paper
 finalcut|BASE|s|3|-GPFilm v4-finalcut -GPOrientation portrait -GPTheme graphite
 present|BASE|s|4|-GPMode actions -GPActionsPage present -GPOrientation portrait -GPTheme graphite
@@ -114,10 +115,11 @@ while IFS='|' read -r name app kind wait args <&3; do
     xcrun simctl launch "$UDID" $BID -GPDemo "$ICONS" $args > /dev/null < /dev/null
     sleep "$secs"
     kill -INT $rec 2>/dev/null || echo "recording of $name stopped early" >&2; wait $rec || true
-    # Constant 60 fps, every frame a keyframe-friendly GOP for exact seeking in Remotion.
+    # Constant 60 fps (the simulator writes frames only when the screen changes, so the last
+    # still moment is held for a few seconds), short GOPs for exact seeking in Remotion.
     # The simulator records in the device's portrait frame; sideways shots are turned upright.
     rot=""; case "$args" in *"-GPOrientation landscape"*) rot=",transpose=2";; esac
-    ffmpeg -nostdin -v error -y -i "$CACHE/$name.mov" -vf "fps=60$rot" -c:v libx264 -preset slow -crf 12 -g 30 -pix_fmt yuv420p "$OUT/$name.mp4"
+    ffmpeg -nostdin -v error -y -i "$CACHE/$name.mov" -vf "fps=60$rot,tpad=stop_mode=clone:stop_duration=4" -c:v libx264 -preset slow -crf 12 -g 30 -pix_fmt yuv420p "$OUT/$name.mp4"
     echo "$name.mp4 ($ref)"
   else
     xcrun simctl launch "$UDID" $BID -GPDemo "$ICONS" $args > /dev/null < /dev/null

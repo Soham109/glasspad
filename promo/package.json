@@ -22,6 +22,7 @@
     "@remotion/bundler": "4.0.529",
     "@remotion/cli": "4.0.529",
     "@remotion/fonts": "4.0.529",
+    "@remotion/motion-blur": "4.0.529",
     "@remotion/renderer": "4.0.529",
     "react": "18.3.1",
     "react-dom": "18.3.1",
