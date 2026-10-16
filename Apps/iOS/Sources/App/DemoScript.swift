@@ -149,11 +149,11 @@ final class FilmDirector {
     /// Now playing as the Mac would send it. The song is the film's own score.
     private func feedMedia(elapsed: Double) {
         var s = MediaState(volume: 0.62, brightness: 0.8)
-        s.title = "Brand New World"
-        s.artist = "Kai Engel"
+        s.title = "Uplifting Electronic Indie"
+        s.artist = "WinnieTheMoog"
         s.isPlaying = true
         s.playbackRate = 1
-        s.duration = 169
+        s.duration = 167
         s.elapsed = elapsed
         s.canSeek = true
         s.sourceBundleID = "com.spotify.client"

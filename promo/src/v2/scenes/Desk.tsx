@@ -27,13 +27,24 @@ const LAYOUTS: [number, L][] = [
   [47.2, { mx: 600, my: 150, mw: 1000, px: 1240, py: 540, ps: 420, rot: 90 }], // Actions
   [55.75, { mx: 720, my: 120, mw: 1080, px: 1520, py: 540, ps: 420, rot: 90 }], // Media
 ];
-export const layoutAt = (F: number): L => {
+const PHONE_KEYS = new Set(["px", "py", "ps", "rot"]);
+const PHONE_LAG = 6; // frames: the phone follows the Mac, so the two never move as one block
+const rawLayout = (F: number): L => {
   const out = { ...LAYOUTS[0][1] };
   for (let i = 1; i < LAYOUTS.length; i++) {
-    const k = spr(F, s(LAYOUTS[i][0]), "heavy");
-    for (const key of Object.keys(out) as (keyof L)[]) out[key] += (LAYOUTS[i][1][key] - LAYOUTS[i - 1][1][key]) * k;
+    const kMac = spr(F, s(LAYOUTS[i][0]), "heavy");
+    const kPhone = spr(F, s(LAYOUTS[i][0]) + PHONE_LAG, "heavy");
+    for (const key of Object.keys(out) as (keyof L)[]) out[key] += (LAYOUTS[i][1][key] - LAYOUTS[i - 1][1][key]) * (PHONE_KEYS.has(key) ? kPhone : kMac);
   }
   return out;
+};
+/** Device placement at film frame F, with follow-through: the phone leans into its own motion. */
+export const layoutAt = (F: number): L & { tilt: number } => {
+  const now = rawLayout(F);
+  const prev = rawLayout(F - 2);
+  const vx = (now.px - prev.px) / 2;
+  const tilt = Math.max(-6, Math.min(6, vx * 0.35));
+  return { ...now, tilt };
 };
 
 // Mac geometry for a lid width (see MacBook): screen origin and scale, in frame px.
@@ -50,7 +61,7 @@ export const toFrame = (l: L, p: { x: number; y: number }) => {
 const phonePoint = (l: L, u: number, v: number) => {
   const sc = phoneScreen(l.ps, "landscape");
   const x = (u - 0.5) * sc.w, y = (v - 0.5) * sc.h;
-  const r = (l.rot * Math.PI) / 180;
+  const r = ((l.rot + ((l as any).tilt ?? 0)) * Math.PI) / 180;
   return { x: l.px + x * Math.cos(r) - y * Math.sin(r), y: l.py + x * Math.sin(r) + y * Math.cos(r) };
 };
 
@@ -167,7 +178,7 @@ export const Desk: React.FC = () => {
 
   // Title field: opens from the hook's dot, then collapses into the phone's glass.
   const open = prog(F, s(7.97), 22, E.inOut);
-  const shut = prog(F, s(10.62), 50, E.inOut);
+  const shut = prog(F, s(10.62), 46, E.out);
   const sc = phoneScreen(l.ps, "landscape");
   const field = {
     x: lerp(0, l.px - sc.w / 2, shut),
@@ -177,7 +188,7 @@ export const Desk: React.FC = () => {
     r: lerp(0, 12.7 * (l.ps / 100), shut),
   };
   const bodyIn = prog(F, s(11.2), 26, E.out);
-  const macIn = spr(F, s(10.9), "settle");
+  const macIn = spr(F, s(10.66), "settle");
   const openR = Math.hypot(1920, 1080) * open;
 
   // Establishing: a slow orbit gives the flat drawings depth.
@@ -203,11 +214,12 @@ export const Desk: React.FC = () => {
 
   // Phone placement.
   const phone = (
-    <div style={{ position: "absolute", left: l.px, top: l.py, transform: `translate(-50%, -50%) translateX(${shake}px) rotate(${l.rot}deg)` }}>
+    <div style={{ position: "absolute", left: l.px, top: l.py, transform: `translate(-50%, -50%) translateX(${shake}px) rotate(${l.rot + l.tilt}deg)` }}>
       <div style={{ opacity: bodyIn, transform: `scale(${lerp(1.06, 1, bodyIn)})` }}>
         <Phone short={l.ps} orient="landscape" island={false} screen={C.graphite}>
           <PhoneClip clip="trackpad" segs={SEGS} len={s(41)} w={sc.w} h={sc.h} />
           <Touches segs={SEGS} w={sc.w} h={sc.h} />
+          <GlassCaptions F={F} w={sc.w} h={sc.h} />
         </Phone>
       </div>
     </div>
@@ -345,6 +357,26 @@ const SyncDots: React.FC<{ F: number; l: L; tSet: number[] }> = ({ F, l, tSet })
     </>
   );
 };
+
+/** Quiet words on the glass, so the trackpad never reads as an empty screen. */
+const GLASS: [number, number, string][] = [
+  [11.25, 15.6, "Trackpad"],
+  [15.95, 19.5, "One finger"],
+  [20.0, 23.0, "Tap"],
+  [24.2, 30.8, "Three fingers"],
+  [31.55, 39.0, "Synced from your Mac"],
+];
+const GlassCaptions: React.FC<{ F: number; w: number; h: number }> = ({ F, w, h }) => (
+  <>
+    {GLASS.map(([a, b, t]) =>
+      F >= s(a) - 2 && F < s(b) + 24 ? (
+        <div key={t} style={{ position: "absolute", left: 0, right: 0, top: h * 0.4, textAlign: "center" }}>
+          <Kinetic text={t} at={s(a)} out={s(b)} stagger={3} style={{ ...T.head, fontSize: h * 0.13, letterSpacing: "-0.02em" }} color="rgba(242,241,238,0.3)" align="center" />
+        </div>
+      ) : null,
+    )}
+  </>
+);
 
 /** The Glasspad menu bar app saying it is connected: the product, on the Mac side. */
 const Popover: React.FC<{ F: number }> = ({ F }) => {

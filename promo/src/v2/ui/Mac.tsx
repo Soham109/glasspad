@@ -119,38 +119,63 @@ export const WordDoc: React.FC<{ dark?: boolean }> = ({ dark }) => (
       ))}
     </div>
     <div style={{ position: "absolute", left: "50%", top: 70, width: 560, bottom: -40, transform: "translateX(-50%)", background: dark ? "#1E1E1E" : "#FFFFFF", boxShadow: `0 0 0 1px ${C.ink06}`, padding: "56px 60px" }}>
-      <div style={{ fontSize: 30, fontWeight: 700, letterSpacing: "-0.02em", color: dark ? C.paper : C.ink, marginBottom: 24 }}>Field notes</div>
-      <div style={{ position: "relative", height: 400 }}>
-        <Lines n={6} gap={22} color={dark ? C.paper12 : C.ink12} />
-        <Lines n={5} gap={22} y={170} w={[98, 90, 95, 40]} color={dark ? C.paper12 : C.ink12} />
+      <NotesBody dark={dark} size={15} title={30} />
+    </div>
+  </div>
+);
+
+export const SafariPage: React.FC<{ dark?: boolean }> = ({ dark }) => {
+  const fg = dark ? C.paper : C.ink, soft = dark ? C.paper60 : C.ink60;
+  return (
+    <div style={{ position: "absolute", inset: 0, background: dark ? "#1E1E1E" : "#FFFFFF", fontFamily: FONT }}>
+      <div style={{ position: "absolute", left: "50%", top: 12, width: 420, height: 34, transform: "translateX(-50%)", borderRadius: 10, background: dark ? "#2C2C2C" : C.desk, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, color: soft, fontWeight: 500 }}>glasspad.sohamaggarwal.com</div>
+      <div style={{ position: "absolute", left: 60, right: 60, top: 64, height: 40, display: "flex", alignItems: "center", gap: 28, fontSize: 15, fontWeight: 500, color: soft }}>
+        <span style={{ fontSize: 19, fontWeight: 700, color: fg, letterSpacing: "-0.02em", flex: 1 }}>Glasspad</span>
+        <span>Modes</span><span>Privacy</span><span>Install</span>
+        <span style={{ padding: "6px 14px", borderRadius: 9, background: fg, color: dark ? C.ink : C.paper, fontWeight: 600 }}>GitHub</span>
+      </div>
+      <div style={{ position: "absolute", left: 60, right: 60, top: 118, height: 250, borderRadius: 16, background: dark ? "#2A2A2A" : C.ink, overflow: "hidden" }}>
+        <div style={{ position: "absolute", left: "60%", top: 96, width: 300, height: 34, borderRadius: 34, background: C.paper, opacity: 0.12, transform: "rotate(-24deg)", transformOrigin: "0 50%" }} />
+        <div style={{ position: "absolute", left: "calc(60% + 250px)", top: 26, width: 56, height: 56, borderRadius: 56, background: C.paper, opacity: 0.7 }} />
+        <div style={{ position: "absolute", left: 50, top: 58, fontSize: 48, fontWeight: 700, letterSpacing: "-0.035em", color: C.paper, lineHeight: 1.08 }}>Your iPhone,<br /><span style={{ color: C.paper60 }}>as a Mac trackpad.</span></div>
+        <div style={{ position: "absolute", left: 52, top: 186, fontSize: 17, fontWeight: 500, color: C.paper60 }}>Free and open source. Private by design.</div>
+      </div>
+      <div style={{ position: "absolute", left: 60, right: 60, top: 400, display: "flex", gap: 36 }}>
+        {[["Trackpad", "Gestures follow your Mac's own trackpad settings."], ["Modes", "Keyboard, Media, Apps and Actions, one tap away."], ["Private", "Encrypted, on your own Wi-Fi. No account."]].map(([h, t]) => (
+          <div key={h} style={{ flex: 1 }}>
+            <div style={{ fontSize: 20, fontWeight: 700, color: fg, letterSpacing: "-0.01em" }}>{h}</div>
+            <div style={{ marginTop: 8, fontSize: 15, lineHeight: 1.45, color: soft }}>{t}</div>
+          </div>
+        ))}
       </div>
     </div>
-  </div>
-);
+  );
+};
 
-export const SafariPage: React.FC<{ dark?: boolean }> = ({ dark }) => (
-  <div style={{ position: "absolute", inset: 0, background: dark ? "#1E1E1E" : "#FFFFFF" }}>
-    <div style={{ position: "absolute", left: "50%", top: 12, width: 420, height: 34, transform: "translateX(-50%)", borderRadius: 10, background: dark ? "#2C2C2C" : C.desk, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, color: dark ? C.paper60 : C.ink60, fontWeight: 500 }}>glasspad.sohamaggarwal.com</div>
-    <div style={{ position: "absolute", left: 60, right: 60, top: 80, height: 240, borderRadius: 16, background: dark ? "#2A2A2A" : C.ink, overflow: "hidden" }}>
-      <div style={{ position: "absolute", left: "58%", top: 70, width: 300, height: 34, borderRadius: 34, background: C.paper, opacity: 0.12, transform: "rotate(-24deg)", transformOrigin: "0 50%" }} />
-      <div style={{ position: "absolute", left: "calc(58% + 250px)", top: 0, width: 56, height: 56, borderRadius: 56, background: C.paper, opacity: 0.7 }} />
-      <div style={{ position: "absolute", left: 50, top: 70, fontSize: 46, fontWeight: 700, letterSpacing: "-0.03em", color: C.paper }}>Your iPhone,</div>
-      <div style={{ position: "absolute", left: 50, top: 124, fontSize: 46, fontWeight: 700, letterSpacing: "-0.03em", color: C.paper60 }}>as a Mac trackpad.</div>
+/** A plausible notes document: the same text in TextEdit and Word. */
+export const NotesBody: React.FC<{ dark?: boolean; size?: number; title?: number }> = ({ dark, size = 15, title = 26 }) => {
+  const fg = dark ? C.paper : C.ink, soft = dark ? C.paper60 : C.ink60;
+  const p = { fontSize: size, lineHeight: 1.55, color: fg, margin: `0 0 ${size * 0.9}px` };
+  return (
+    <div style={{ fontFamily: FONT }}>
+      <div style={{ fontSize: title, fontWeight: 700, letterSpacing: "-0.02em", color: fg }}>Field notes</div>
+      <div style={{ fontSize: size * 0.9, color: soft, margin: `6px 0 ${size * 1.4}px` }}>Thursday 15 October</div>
+      <div style={p}>Moved the review to Friday at ten. Mira will bring the prints from the lab, and the room on the third floor is ours until noon.</div>
+      <div style={p}>For the workshop: open with what changed since spring, then the questions that are still open. Keep it short and leave time for the demo at the end.</div>
+      <div style={{ ...p, fontWeight: 600 }}>Before Friday</div>
+      <div style={p}>Ask Jonah about the projector cable. Print the agenda. Order more index cards.</div>
     </div>
-    <div style={{ position: "absolute", left: 60, right: 60, top: 350 }}>
-      <Lines n={5} gap={24} h={11} color={dark ? C.paper12 : C.ink12} />
-    </div>
-  </div>
-);
+  );
+};
 
-export const Player: React.FC<{ progress: number; elapsed: string; remain: string }> = ({ progress, elapsed, remain }) => (
+export const Player: React.FC<{ progress: number; elapsed: string; remain: string; hideCover?: boolean }> = ({ progress, elapsed, remain, hideCover }) => (
   <div style={{ position: "absolute", inset: 0, background: "#121212", color: C.paper, fontFamily: FONT }}>
-    <div style={{ position: "absolute", left: 40, top: 40, width: 300, height: 300, borderRadius: 10, overflow: "hidden" }}>
+    <div style={{ position: "absolute", left: 40, top: 40, width: 300, height: 300, borderRadius: 10, overflow: "hidden", opacity: hideCover ? 0 : 1 }}>
       <Cover size={300} />
     </div>
     <div style={{ position: "absolute", left: 380, top: 120, fontSize: 15, fontWeight: 600, color: C.paper60, letterSpacing: "0.04em" }}>SONG</div>
-    <div style={{ position: "absolute", left: 380, top: 146, fontSize: 64, fontWeight: 700, letterSpacing: "-0.035em" }}>Brand New World</div>
-    <div style={{ position: "absolute", left: 380, top: 232, fontSize: 22, fontWeight: 500, color: C.paper60 }}>Kai Engel</div>
+    <div style={{ position: "absolute", left: 380, top: 146, fontSize: 56, fontWeight: 700, letterSpacing: "-0.035em" }}>Uplifting Electronic Indie</div>
+    <div style={{ position: "absolute", left: 380, top: 232, fontSize: 22, fontWeight: 500, color: C.paper60 }}>WinnieTheMoog</div>
     <div style={{ position: "absolute", left: 40, right: 40, bottom: 34, height: 64 }}>
       <div style={{ position: "absolute", left: 60, right: 60, top: 10, height: 5, borderRadius: 5, background: "rgba(242,241,238,0.25)" }} />
       <div style={{ position: "absolute", left: 60, top: 10, height: 5, borderRadius: 5, width: `calc((100% - 120px) * ${progress})`, background: C.paper }} />

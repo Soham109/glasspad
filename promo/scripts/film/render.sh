@@ -6,6 +6,8 @@
 # Audio is mixed offline (scripts/film/mix.py: -14 LUFS, true peak under -1 dBTP) and muxed.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
+python3 -I scripts/film/tighten_voice.py
+python3 -I scripts/film/build_edit.py
 python3 -I scripts/film/mix.py
 npx remotion render src/index.ts GlasspadFilm out/_film-picture.mp4 --muted --log=error
 npx remotion render src/index.ts GlasspadTeaserVertical out/_teaser-picture.mp4 --muted --log=error

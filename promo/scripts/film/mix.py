@@ -4,7 +4,10 @@
 Writes public/v2/mix-film.wav, mix-film-novo.wav, mix-teaser.wav (48 kHz stereo, -14 LUFS,
 true peak under -1 dBTP) and prints the measurements.
 
-Music: "Brand New World" by Kai Engel, CC BY 4.0 (see MUSIC.md), edited on its own bar grid.
+Music: "Uplifting Electronic Indie" by WinnieTheMoog, CC BY 4.0 (see MUSIC.md), edited on its
+own bar grid. Picture cues are authored on the picture timeline; every cue time here goes
+through the same warp the picture uses (edit.json "warp"), and the voice is the tightened take
+(vo-fast.json) placed by build_edit.py.
 Sound design is synthesized here (no samples), so it carries no licence of its own.
 """
 import json, os, subprocess, sys
@@ -15,7 +18,17 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 SR = 48000
 EDIT = json.load(open(os.path.join(ROOT, "src/v2/edit.json")))
 MEAS = json.load(open(os.path.join(ROOT, "src/v2/vo-measured.json")))
-MUSIC = os.path.join(ROOT, "voice/work/music/kai-engel-brand-new-world.ogg")
+FAST = json.load(open(os.path.join(ROOT, "src/v2/vo-fast.json")))
+MUSIC = os.path.join(ROOT, "voice/work/music/winnie-uplifting-electronic-indie.ogg")
+CUT = {"name": "film"}
+
+
+def warp(t, cut=None):
+    k = EDIT["warp"][cut or CUT["name"]]
+    for (o0, n0), (o1, n1) in zip(k, k[1:]):
+        if t <= o1:
+            return n0 + (t - o0) * (n1 - n0) / (o1 - o0)
+    return k[-1][1] + (t - k[-1][0])
 rng = np.random.default_rng(7)
 
 
@@ -46,18 +59,20 @@ def db(x): return 10 ** (x / 20)
 
 
 # ---------- music edit ----------
-def bar_time(k): return EDIT["grid"]["offset"] + EDIT["grid"]["bar"] * k
+def bar_time(k): return EDIT["grid2"]["offset"] + EDIT["grid2"]["bar"] * k
 
 
 def music_edit(cut, track):
-    dur = EDIT[cut]["duration"]
+    dur = EDIT["audio"][cut]["duration"]
     out = np.zeros((int(dur * SR) + SR, 2), np.float32)
     xf = int(0.012 * SR)  # 12 ms equal-power splice, centred 6 ms before the downbeat
     pre = int(0.006 * SR)
-    segs = EDIT[cut]["music"]
+    segs = EDIT["audio"][cut]["music"]
     for i, sg in enumerate(segs):
         a = int(bar_time(sg["fromBar"]) * SR) - pre
         b = int(bar_time(sg["toBar"]) * SR) - pre
+        if sg.get("stop"):
+            b += int(0.35 * SR)  # keep the stop hit itself
         b = min(b, len(track))
         piece = track[a:b + xf].copy()
         n = len(piece)
@@ -69,12 +84,24 @@ def music_edit(cut, track):
         piece *= env[:, None]
         at = int(sg["at"] * SR) - pre
         lo = max(0, at)
-        out[lo:at + n] += piece[lo - at:]
+        out[lo:at + n] += piece[lo - at:][: len(out) - lo]
+        if sg.get("stop"):
+            # the track ends on a hard stop; a synthesized room tail lets the last hit ring
+            ir_n = int(2.4 * SR)
+            ir = rng.standard_normal((ir_n, 2)) * np.exp(-np.arange(ir_n) / (0.55 * SR))[:, None]
+            ir = np.stack([lp(ir[:, c], 5000) for c in range(2)], 1)
+            last = piece[-int(1.0 * SR):]
+            from scipy.signal import fftconvolve
+            wet = np.stack([fftconvolve(last[:, c], ir[:, c]) for c in range(2)], 1)
+            wet *= 0.5 * np.abs(last).max() / (np.abs(wet).max() + 1e-9)
+            i0 = at + n - len(last)
+            m = min(len(wet), len(out) - i0)
+            out[i0:i0 + m] += wet[:m]
     out = out[:int(dur * SR)]
     # fade in from the first sample, and a long fade at the very end
-    fi = int(0.4 * SR)
+    fi = int(0.05 * SR)
     out[:fi] *= np.linspace(0, 1, fi)[:, None]
-    fo = int(1.6 * SR)
+    fo = int(0.4 * SR)
     out[-fo:] *= (np.linspace(1, 0, fo) ** 2)[:, None]
     return out
 
@@ -161,8 +188,11 @@ def sfx_impact(gain=-17, dur=1.6):
     return x / np.abs(x).max() * db(gain)
 
 
-def place(buf, x, t, pan=0.0):
-    i = int(t * SR)
+def place(buf, x, t, pan=0.0, align="start"):
+    """`t` is picture time; it is warped to the final cut. align: where t sits on the sound."""
+    i = int(warp(t) * SR) - (len(x) if align == "end" else len(x) // 2 if align == "center" else 0)
+    if i < 0:
+        x, i = x[-i:], 0
     if i >= len(buf): return
     x = x[: len(buf) - i]
     l, r = np.cos((pan + 1) * np.pi / 4), np.sin((pan + 1) * np.pi / 4)
@@ -172,9 +202,10 @@ def place(buf, x, t, pan=0.0):
 
 def film_sfx(dur):
     b = np.zeros((int(dur * SR), 2), np.float32)
-    w = lambda t, d=0.6, g=-28, pan=0.0, lo=300, hi=3500: place(b, sfx_whoosh(d, g, lo, hi), t - d / 2, pan)
+    w = lambda t, d=0.6, g=-28, pan=0.0, lo=300, hi=3500: place(b, sfx_whoosh(d, g, lo, hi), t, pan, "center")
+    w(3.55, 1.3, -25, 0.2, 150, 2400)                   # the phone rises in the music's rest
     place(b, sfx_tock(-24), 5.05)                       # the dot lands
-    place(b, sfx_riser(1.5, -27), 8.0 - 1.5)            # into the hit
+    place(b, sfx_riser(1.5, -27), 8.0, align="end")     # into the hit
     place(b, sfx_impact(-16), 7.985)                    # the title
     w(10.9, 0.9, -27, 0, 200, 2200)                     # field folds into the glass
     place(b, sfx_blip(-31, 990, 1480), 12.55)           # Connected
@@ -205,7 +236,9 @@ def film_sfx(dur):
         place(b, sfx_blip(-36, 660, 660), t, 0.35)
     place(b, sfx_tock(-21), 55.0, 0.3)                               # Dark mode
     w(55.35, 0.8, -29, -0.3, 200, 1800)
-    place(b, sfx_impact(-23, 1.2), 55.985)                           # full return
+    place(b, sfx_impact(-22, 1.2), 39.985)                           # the lift at Modes
+    place(b, sfx_impact(-21, 1.4), 67.785)                           # the return, end card
+    place(b, sfx_impact(-22, 1.6), 71.985)                           # the stop, URLs
     w(58.9, 0.9, -32, 0.3, 400, 3000)                                # scrub
     w(60.1, 0.9, -25, 0, 150, 2400)                                  # cover opens
     place(b, sfx_tock(-26), EDIT_WORD("privacy2", 3) + 0.05)        # the lock
@@ -216,9 +249,9 @@ def film_sfx(dur):
 
 def teaser_sfx(dur):
     b = np.zeros((int(dur * SR), 2), np.float32)
-    w = lambda t, d=0.6, g=-28, pan=0.0, lo=300, hi=3500: place(b, sfx_whoosh(d, g, lo, hi), t - d / 2, pan)
+    w = lambda t, d=0.6, g=-28, pan=0.0, lo=300, hi=3500: place(b, sfx_whoosh(d, g, lo, hi), t, pan, "center")
     place(b, sfx_tock(-24), 3.1)
-    place(b, sfx_riser(1.2, -27), 4.0 - 1.2)
+    place(b, sfx_riser(1.2, -27), 4.0, align="end")
     place(b, sfx_impact(-16), 3.985)
     w(6.4, 0.9, -27, 0, 200, 2200)
     w(9.3, 1.2, -26, 0.2, 180, 2600)
@@ -227,10 +260,13 @@ def teaser_sfx(dur):
     place(b, sfx_click(-25), EDIT_WORD("actions2", 2, "teaser") + 0.06)
     place(b, sfx_blip(-30, 880, 1320), EDIT_WORD("actions2", 2, "teaser") + 0.85)
     w(19.7, 0.9, -27, 0, 200, 2500)
+    place(b, sfx_impact(-21, 1.4), 23.985)
+    place(b, sfx_impact(-22, 1.6), 27.985)
     return b
 
 
 def EDIT_WORD(line, i, cut="film"):
+    """Picture-time start of a word (place() warps it)."""
     at = next(v["at"] for v in EDIT[cut]["vo"] if v["id"] == line)
     return at + MEAS[line]["words"][i]["s"]
 
@@ -239,8 +275,8 @@ def EDIT_WORD(line, i, cut="film"):
 def voice_track(cut, dur):
     v = np.zeros((int(dur * SR), 2), np.float32)
     spans = []
-    for item in EDIT[cut]["vo"]:
-        x = load(os.path.join(ROOT, "public/v2/vo", item["id"] + ".wav"), 1)[:, 0]
+    for item in EDIT["audio"][cut]["vo"]:
+        x = load(os.path.join(ROOT, "public/v2/vo-fast", item["id"] + ".wav"), 1)[:, 0]
         # level each line to the same loudness (-18 LUFS before the master gain)
         tmp = os.path.join(ROOT, "voice/work/_line.wav")
         save(tmp, np.stack([x, x], 1))
@@ -296,7 +332,8 @@ def master(x, target=-14.0, tp_ceiling=-1.5, path=None):
 
 
 def build(cut, with_vo=True):
-    dur = EDIT[cut]["duration"]
+    CUT["name"] = cut
+    dur = EDIT["audio"][cut]["duration"]
     track = load(MUSIC)
     m = music_edit(cut, track)
     sfx = film_sfx(dur) if cut == "film" else teaser_sfx(dur)

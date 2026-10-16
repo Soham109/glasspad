@@ -168,7 +168,7 @@ const EndCard: React.FC<{ F: number }> = ({ F }) => {
           <span>glasspad.sohamaggarwal.com</span>
         </div>
         <div style={{ position: "absolute", left: 0, right: 0, top: 830, textAlign: "center", fontFamily: FONT, ...T.label, fontSize: 20, color: C.ink40, opacity: clamp01(spr(F, s(72.4), "settle") * 1.3) }}>MIT License</div>
-        <div style={{ position: "absolute", left: 0, right: 0, bottom: 34, textAlign: "center", fontFamily: FONT, fontSize: 17, fontWeight: 500, color: C.ink40, opacity: clamp01(spr(F, s(72.6), "settle")) }}>Music: "Brand New World" by Kai Engel, CC BY 4.0</div>
+        <div style={{ position: "absolute", left: 0, right: 0, bottom: 34, textAlign: "center", fontFamily: FONT, fontSize: 17, fontWeight: 500, color: C.ink40, opacity: clamp01(spr(F, s(72.6), "settle")) }}>Music: "Uplifting Electronic Indie" by WinnieTheMoog, CC BY 4.0</div>
       </div>
     </div>
   );

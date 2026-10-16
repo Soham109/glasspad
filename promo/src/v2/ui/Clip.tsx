@@ -5,7 +5,7 @@ import React from "react";
 import { OffthreadVideo, Sequence, staticFile, useCurrentFrame } from "remotion";
 import clips from "../clips.json";
 import tracksData from "../trackpad-tracks.json";
-import { C, FPS, clamp01 } from "../system";
+import { C, FPS, clamp01, lerp } from "../system";
 
 export type Seg = { at: number; src: number };
 type ClipName = "trackpad" | "menu" | "actions" | "media";
@@ -69,6 +69,20 @@ export const Touches: React.FC<{ segs: Seg[]; w: number; h: number; color?: stri
       <svg width={w} height={h} style={{ position: "absolute", inset: 0 }}>
         {trails.map((dd, i) => <path key={i} d={dd} fill="none" stroke={color} strokeOpacity={0.14 * fade} strokeWidth={d * 0.55} strokeLinecap="round" strokeLinejoin="round" />)}
       </svg>
+      {/* follow-through: after a lift the rings stay a moment, shrinking, so the glass never goes blank at once */}
+      {!now.length ? (() => {
+        for (let j = 1; j <= 54; j++) {
+          const past = fingersAt(clipTime(segs, f - j));
+          if (past.length) {
+            const age = j / 54;
+            return past.map(([x, y], i) => {
+              const dd = d * lerp(1, 0.5, age);
+              return <div key={i} style={{ position: "absolute", left: x * w - dd / 2, top: y * h - dd / 2, width: dd, height: dd, borderRadius: dd, boxShadow: `inset 0 0 0 ${d * 0.04}px ${color}`, opacity: Math.pow(1 - age, 1.6) * 0.75 }} />;
+            });
+          }
+        }
+        return null;
+      })() : null}
       {now.map(([x, y], i) => (
         <div key={i} style={{ position: "absolute", left: x * w - d / 2, top: y * h - d / 2, width: d, height: d, borderRadius: d, boxShadow: `inset 0 0 0 ${d * 0.05}px ${color}`, opacity: fade }} />
       ))}

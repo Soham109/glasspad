@@ -2,7 +2,7 @@
 import React from "react";
 import { Img } from "remotion";
 import { C, FONT } from "../system";
-import { Dock, Lines, MenuBar, SH, SW, SafariPage, Win, WordDoc, icon } from "../ui/Mac";
+import { Dock, Lines, MenuBar, NotesBody, SH, SW, SafariPage, Win, WordDoc, icon } from "../ui/Mac";
 
 export const WALL = { light: "#D9D6CF", dark: "#232323" };
 
@@ -55,12 +55,8 @@ export const WordWin: React.FC<{ dark?: boolean; active?: boolean; style?: React
 );
 
 export const TextDoc: React.FC<{ dark?: boolean }> = ({ dark }) => (
-  <div style={{ position: "absolute", inset: 0, background: dark ? "#1E1E1E" : "#FFFFFF", padding: "40px 56px", fontFamily: FONT }}>
-    <div style={{ fontSize: 26, fontWeight: 700, letterSpacing: "-0.02em", color: dark ? C.paper : C.ink, marginBottom: 26 }}>Field notes</div>
-    <div style={{ position: "relative", height: 420 }}>
-      <Lines n={7} gap={24} color={dark ? C.paper12 : C.ink12} />
-      <Lines n={6} gap={24} y={200} w={[96, 88, 99, 52]} color={dark ? C.paper12 : C.ink12} />
-    </div>
+  <div style={{ position: "absolute", inset: 0, background: dark ? "#1E1E1E" : "#FFFFFF", padding: "40px 56px" }}>
+    <NotesBody dark={dark} size={17} title={28} />
   </div>
 );
 

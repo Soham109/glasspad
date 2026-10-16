@@ -2,11 +2,11 @@
 // phone fills the lower half. Hook, the title hit, Spaces following the fingers, Actions
 // switching by itself, and the end card. Timing comes from edit.json ("teaser").
 import React from "react";
-import { AbsoluteFill, useCurrentFrame } from "remotion";
+import { AbsoluteFill, Img, useCurrentFrame } from "remotion";
 import clips from "./clips.json";
 import { C, E, FONT, T, beatPulse, clamp01, keys, lerp, prog, s, spr } from "./system";
 import { Kinetic } from "./ui/Kinetic";
-import { Dock, MacBook, MenuBar, Pointer, SH, SW } from "./ui/Mac";
+import { Dock, MacBook, MenuBar, Pointer, SH, SW, icon } from "./ui/Mac";
 import { Phone, phoneScreen } from "./ui/Phone";
 import { PhoneClip, Seg, Touches, clipTime, fingersAt } from "./ui/Clip";
 import { DotWipe, Floor, Ripple } from "./ui/FX";
@@ -85,7 +85,7 @@ export const Teaser: React.FC = () => {
 
   // ---- title field ----
   const open = prog(F, s(3.97), 22, E.inOut);
-  const shut = prog(F, s(6.62), 48, E.inOut);
+  const shut = prog(F, s(6.62), 44, E.out);
   const scL = phoneScreen(l.ps, "landscape");
   const field = { x: lerp(0, l.px - scL.w / 2, shut), y: lerp(0, l.py - scL.h / 2, shut), w: lerp(W, scL.w, shut), h: lerp(H, scL.h, shut), r: lerp(0, 12.7 * (l.ps / 100), shut) };
   const devIn = prog(F, s(7.15), 26, E.out);
@@ -164,6 +164,11 @@ export const Teaser: React.FC = () => {
                 <Phone short={l.ps} orient="landscape" island={false} screen={C.graphite}>
                   <PhoneClip clip="trackpad" segs={PAD} len={s(12.4)} w={scL.w} h={scL.h} />
                   <Touches segs={PAD} w={scL.w} h={scL.h} />
+                  {F >= s(7.0) && F < s(12.0) ? (
+                    <div style={{ position: "absolute", left: 0, right: 0, top: scL.h * 0.4, textAlign: "center" }}>
+                      <Kinetic text="Three fingers" at={s(7.1)} out={s(11.4)} stagger={3} style={{ ...T.head, fontSize: scL.h * 0.13 }} color="rgba(242,241,238,0.3)" align="center" />
+                    </div>
+                  ) : null}
                 </Phone>
               )}
             </div>
@@ -173,8 +178,9 @@ export const Teaser: React.FC = () => {
             const k = prog(F, s(T_CLICK) + 4, 30, E.inOut);
             if (k <= 0 || k >= 1) return null;
             const a = { x: g.x0 + ptr.x * g.k, y: g.y0 + ptr.y * g.k };
-            const b = { x: l.px, y: l.py - scP.h * 0.34 };
-            return <div style={{ position: "absolute", left: lerp(a.x, b.x, k) - 16, top: lerp(a.y, b.y, k) - Math.sin(k * Math.PI) * 160 - 16, width: 32, height: 32, borderRadius: 32, background: C.accent }} />;
+            const b = { x: l.px - scP.w * 0.42, y: l.py - scP.h * 0.337 };
+            const size = lerp(70, 44, k) * (1 + 0.3 * Math.sin(k * Math.PI));
+            return <Img src={icon("com.apple.Safari")} style={{ position: "absolute", left: lerp(a.x, b.x, k) - size / 2, top: lerp(a.y, b.y, k) - Math.sin(k * Math.PI) * 200 - size / 2, width: size, height: size }} />;
           })()}
         </AbsoluteFill>
       ) : null}
@@ -261,7 +267,7 @@ const TeaserEnd: React.FC<{ F: number }> = ({ F }) => {
             <div>github.com/Soham109/glasspad</div>
             <div>glasspad.sohamaggarwal.com</div>
           </div>
-          <div style={{ position: "absolute", left: 0, right: 0, bottom: 60, textAlign: "center", fontSize: 22, fontWeight: 500, color: C.ink40, opacity: clamp01(urls) }}>Music: "Brand New World" by Kai Engel, CC BY 4.0</div>
+          <div style={{ position: "absolute", left: 0, right: 0, bottom: 60, textAlign: "center", fontSize: 22, fontWeight: 500, color: C.ink40, opacity: clamp01(urls) }}>Music: "Uplifting Electronic Indie" by WinnieTheMoog, CC BY 4.0</div>
         </div>
       ) : null}
     </AbsoluteFill>

@@ -19,7 +19,7 @@ export const Hook: React.FC = () => {
   const cx = HIT_DOT.x, cy = HIT_DOT.y;
 
   // The far Mac: arrives small, then slides away as the phone takes the foreground.
-  const macIn = spr(f, s(0.3), "settle");
+  const macIn = spr(f, -s(0.25), "settle");
   const macAway = keys(f, [[s(3.6), 0], [s(5.2), 1]], E.inOut);
   const macX = lerp(1450, 1560, macAway);
   const macY = lerp(310, 230, macAway) + lerp(40, 0, macIn);

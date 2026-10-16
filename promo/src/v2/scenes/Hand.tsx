@@ -6,7 +6,8 @@ import { AbsoluteFill, useCurrentFrame } from "remotion";
 import clips from "../clips.json";
 import { C, E, T, clamp01, lerp, prog, s, spr } from "../system";
 import { Kinetic } from "../ui/Kinetic";
-import { Dock, MacBook, MenuBar, Player, Pointer, SH, SW, Win, dockIconPos } from "../ui/Mac";
+import { Img } from "remotion";
+import { Cover, DOCK_ICON, Dock, MacBook, MenuBar, Player, Pointer, SH, SW, Win, dockIconPos, icon } from "../ui/Mac";
 import { Phone, phoneScreen } from "../ui/Phone";
 import { PhoneClip, Seg, clipTime } from "../ui/Clip";
 import { DotWipe, Floor, Ripple } from "../ui/FX";
@@ -23,10 +24,10 @@ const MENU: Seg[] = [
   { at: s(46.6), src: 8.6 },
 ];
 const ACTIONS: Seg[] = [
-  { at: s(47.4), src: 2.9 },
+  { at: s(47.3), src: 2.8 },
   { at: s(49.0), src: 3.533 }, // the Mac's front app becomes Safari at 52.3
 ];
-const MEDIA: Seg[] = [{ at: s(56.0), src: 3.033 }]; // scrub 58.5 to 59.42
+const MEDIA: Seg[] = [{ at: s(55.82), src: 2.753 }]; // scrub 58.5 to 59.42
 
 // Events.
 const T_PILL = word("modes", 0) + 0.28;
@@ -41,18 +42,18 @@ const T_DARK = 55.0;
 const phonePt = (l: L, u: number, v: number) => {
   const sc = phoneScreen(l.ps, "portrait");
   const x = (u - 0.5) * sc.w, y = (v - 0.5) * sc.h;
-  const r = ((l.rot - 90) * Math.PI) / 180;
+  const r = ((l.rot - 90 + ((l as any).tilt ?? 0)) * Math.PI) / 180;
   return { x: l.px + x * Math.cos(r) - y * Math.sin(r), y: l.py + x * Math.sin(r) + y * Math.cos(r) };
 };
 
 // Song position shown on the Mac, the same feed the phone got (DemoScript.swift).
 const elapsedAt = (t: number) => {
   const [a, b] = CL.media.scrub as [number, number];
-  if (t < a) return 41 + (t - 2.2);
+  if (t < a) return 41 + (t - 2.5);
   if (t < b) {
     const u = (t - a) / (b - a);
     const e = u < 0.5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2;
-    return 41 + (a - 2.2) * (1 - e) + 71 * e;
+    return (41 + (a - 2.5)) * (1 - e) + 112 * e;
   }
   return 112 + (t - b);
 };
@@ -82,30 +83,36 @@ export const Hand: React.FC = () => {
   const toPhone = prog(F, s(T_CLICK_SAFARI) + 4, 34, E.inOut);
   const dark = F >= s(T_DARK) + 4;
 
+  // Mode pushes on the phone.
+  const pushApps = prog(F, s(47.3), 26, E.inOut);
+  const pushMedia = prog(F, s(55.82), 26, E.inOut);
+
   // Media.
-  const mediaIn = spr(F, s(56.0), "pop");
+  const mediaIn = prog(F, s(56.1), 24, E.inOut);
+  const coverFly = prog(F, s(56.28), 30, E.inOut);
   const tMedia = clipTime(MEDIA, F);
   const el = elapsedAt(tMedia);
 
   const screen = (darkMode: boolean) => (
     <div style={{ position: "absolute", left: 0, top: 0, width: SW, height: SH, background: WALL.dark, overflow: "hidden" }}>
-      {F < s(56.0) ? (
-        <>
+      {F < s(56.6) ? (
+        <div style={{ position: "absolute", inset: 0, opacity: 1 - mediaIn }}>
           {safariFront ? null : <SafariWin dark={darkMode} active={false} />}
-          {F >= s(T_WORD) + 52 ? (
+          {F >= s(T_WORD) + 52 && F < s(56.6) ? (
             <div style={{ position: "absolute", inset: 0, transformOrigin: `${dockIconPos("com.microsoft.Word").x}px ${SH}px`, transform: `scale(${lerp(0.08, 1, wordOpen)})`, opacity: clamp01(wordOpen * 2) }}>
               <WordWin dark={darkMode} active={!safariFront} />
             </div>
           ) : null}
           {safariFront ? <SafariWin dark={darkMode} active /> : null}
-        </>
-      ) : (
-        <div style={{ position: "absolute", inset: 0, transformOrigin: "760px 480px", transform: `scale(${lerp(0.9, 1, mediaIn)})`, opacity: clamp01(mediaIn * 2) }}>
+        </div>
+      ) : null}
+      {F >= s(56.1) ? (
+        <div style={{ position: "absolute", inset: 0, opacity: mediaIn, transform: `translateY(${lerp(24, 0, mediaIn)}px)` }}>
           <Win x={150} y={84} w={1212} h={720} dark title="Spotify">
-            <Player progress={el / 169} elapsed={mmss(el)} remain={`-${mmss(169 - el)}`} />
+            <Player progress={el / 167} elapsed={mmss(el)} remain={`-${mmss(167 - el)}`} hideCover={coverFly < 1} />
           </Win>
         </div>
-      )}
+      ) : null}
       <MenuBar app={F >= s(56.0) ? "Spotify" : safariFront ? "Safari" : F >= s(T_WORD) + 52 ? "Microsoft Word" : "Safari"} dark menus={["File", "Edit", "View", "Window", "Help"]} />
       <Dock running={["com.apple.finder", "com.apple.Safari", "com.apple.systempreferences", ...(F >= s(T_WORD) + 30 ? ["com.microsoft.Word"] : []), "com.spotify.client"]} bounce={{ "com.microsoft.Word": bounce }} dark={darkMode || F >= s(56)} />
       {F >= s(50.2) && F < s(56.0) ? <Pointer x={ptr.x} y={ptr.y} scale={1.4} opacity={ptrIn} press={clicked && F < s(T_CLICK_SAFARI) + 8 ? 1 : 0} /> : null}
@@ -133,11 +140,18 @@ export const Hand: React.FC = () => {
 
       {/* phone */}
       <Floor x={l.px} y={l.py + sc.h / 2 + 30} w={sc.w * 1.1} h={22} opacity={0.07} />
-      <div style={{ position: "absolute", left: l.px, top: l.py, transform: `translate(-50%, -50%) rotate(${l.rot - 90}deg)` }}>
+      <div style={{ position: "absolute", left: l.px, top: l.py, transform: `translate(-50%, -50%) rotate(${l.rot - 90 + l.tilt}deg)` }}>
         <Phone short={l.ps} orient="portrait" island={false} screen={C.graphite}>
-          <PhoneClip clip="menu" segs={MENU} len={s(47.4)} w={sc.w} h={sc.h} />
-          <PhoneClip clip="actions" segs={ACTIONS} len={s(56.0)} w={sc.w} h={sc.h} />
-          <PhoneClip clip="media" segs={MEDIA} len={s(60.6)} w={sc.w} h={sc.h} />
+          {/* mode changes push like the app's own pages, never cut */}
+          <div style={{ position: "absolute", inset: 0, transform: `translateX(${-100 * pushApps}%)` }}>
+            <PhoneClip clip="menu" segs={MENU} len={s(47.75)} w={sc.w} h={sc.h} />
+          </div>
+          <div style={{ position: "absolute", inset: 0, transform: `translateX(${100 * (1 - pushApps)}%) translateY(${-100 * pushMedia}%)` }}>
+            <PhoneClip clip="actions" segs={ACTIONS} len={s(56.25)} w={sc.w} h={sc.h} />
+          </div>
+          <div style={{ position: "absolute", inset: 0, transform: `translateY(${100 * (1 - pushMedia)}%)` }}>
+            <PhoneClip clip="media" segs={MEDIA} len={s(60.6)} w={sc.w} h={sc.h} />
+          </div>
           {/* the front-app section lights up when it changes on its own */}
           {F >= s(T_SWITCH) && F < s(T_SWITCH) + 50 ? (
             <div style={{ position: "absolute", left: sc.w * 0.025, top: sc.h * 0.135, width: sc.w * 0.95, height: sc.h * 0.28, borderRadius: 22, boxShadow: `inset 0 0 0 3px ${C.accent}`, opacity: 1 - prog(F, s(T_SWITCH) + 20, 30) }} />
@@ -152,20 +166,36 @@ export const Hand: React.FC = () => {
       })}
       {/* scrub finger */}
       {tMedia > CL.media.scrub[0] - 0.15 && tMedia < CL.media.scrub[1] + 0.2 && F >= s(56) ? (() => {
-        const u = lerp(CL.media.scrubX[0], CL.media.scrubX[1], el / 169);
+        const u = lerp(CL.media.scrubX[0], CL.media.scrubX[1], el / 167);
         const pt = phonePt(l, u, CL.media.scrubY);
         return <div style={{ position: "absolute", left: pt.x - 30, top: pt.y - 30, width: 60, height: 60, borderRadius: 60, boxShadow: `inset 0 0 0 3px ${C.paper}`, opacity: 0.9 }} />;
       })() : null}
 
-      {/* Word: phone to Dock */}
-      {fly > 0 && fly < 1 ? (
-        <div style={{ position: "absolute", left: lerp(tapPt.x, dockWord.x, fly) - 14, top: lerp(tapPt.y, dockWord.y, fly) - Math.sin(fly * Math.PI) * 200 - 14, width: 28, height: 28, borderRadius: 28, background: C.accent }} />
-      ) : null}
+      {/* Word: the icon itself leaves the phone and lands in the Dock */}
+      {fly > 0 && fly < 1 ? (() => {
+        const size = lerp(sc.w * 0.15, DOCK_ICON * g.k, fly) * (1 + 0.7 * Math.sin(fly * Math.PI));
+        return <Img src={icon("com.microsoft.Word")} style={{ position: "absolute", left: lerp(tapPt.x, dockWord.x, fly) - size / 2, top: lerp(tapPt.y, dockWord.y, fly) - Math.sin(fly * Math.PI) * 220 - size / 2, width: size, height: size }} />;
+      })() : null}
+      {/* Media: the cover travels from the phone into the Mac's player */}
+      {coverFly > 0 && coverFly < 1 ? (() => {
+        const [u0, v0, u1] = CL.media.art as number[];
+        const a = phonePt(l, u0, v0);
+        const aSize = (u1 - u0) * sc.w;
+        const b = toFrame(l, { x: 150 + 40, y: 84 + 52 + 40 });
+        const bSize = 300 * g.k;
+        const size = lerp(aSize, bSize, coverFly);
+        return (
+          <div style={{ position: "absolute", left: lerp(a.x, b.x, coverFly), top: lerp(a.y, b.y, coverFly) - Math.sin(coverFly * Math.PI) * 120, width: size, height: size, borderRadius: lerp(14, 6, coverFly), overflow: "hidden" }}>
+            <Cover size={size} />
+          </div>
+        );
+      })() : null}
       {/* Safari: Mac to phone */}
       {toPhone > 0 && toPhone < 1 ? (() => {
         const a = toFrame(l, ptr);
-        const b = phonePt(l, 0.5, 0.16);
-        return <div style={{ position: "absolute", left: lerp(a.x, b.x, toPhone) - 14, top: lerp(a.y, b.y, toPhone) - Math.sin(toPhone * Math.PI) * 180 - 14, width: 28, height: 28, borderRadius: 28, background: C.accent }} />;
+        const b = phonePt(l, 0.08, 0.163);
+        const size = lerp(DOCK_ICON * g.k * 1.2, sc.w * 0.075, toPhone) * (1 + 0.3 * Math.sin(toPhone * Math.PI));
+        return <Img src={icon("com.apple.Safari")} style={{ position: "absolute", left: lerp(a.x, b.x, toPhone) - size / 2, top: lerp(a.y, b.y, toPhone) - Math.sin(toPhone * Math.PI) * 200 - size / 2, width: size, height: size }} />;
       })() : null}
 
       {/* the app in front, named large: it changes when the Mac changes */}

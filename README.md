@@ -155,7 +155,7 @@ Bug reports, ideas and pull requests are welcome. See [CONTRIBUTING.md](CONTRIBU
 
 ## Credits
 
-Demo film music: "Brand New World" by Kai Engel, [CC BY 4.0](https://creativecommons.org/licenses/by/4.0), from [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Kai_Engel_-_01_-_Brand_New_World.ogg). Details in [promo/MUSIC.md](promo/MUSIC.md).
+Demo film music: "Uplifting Electronic Indie" by WinnieTheMoog, [CC BY 4.0](https://creativecommons.org/licenses/by/4.0), from [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Uplifting_Electronic_Indie_by_WinnieTheMoog.ogg). Details in [promo/MUSIC.md](promo/MUSIC.md).
 
 ## License
 
