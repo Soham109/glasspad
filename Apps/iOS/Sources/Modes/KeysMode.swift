@@ -11,6 +11,7 @@ import GlasspadKit
 struct KeysMode: View {
     @Environment(\.palette) private var palette
     @Environment(\.verticalSizeClass) private var verticalSize
+    @Environment(\.modeTopClearance) private var topClearance
     @Bindable var settings = PhoneSettings.shared
     var session = MacSession.shared
     var media = MediaStore.shared
@@ -54,7 +55,7 @@ struct KeysMode: View {
                 .padding(.bottom, 6)
             } else {
                 VStack(spacing: 8) {
-                    Spacer(minLength: 64)
+                    Spacer(minLength: topClearance ?? 64)
                     echoArea
                     HStack(spacing: 6) { modifierKeys }
                         .frame(height: 50)
@@ -362,7 +363,7 @@ struct KeysMode: View {
     @ViewBuilder
     private func key(_ label: String, _ special: SpecialKey, _ name: String, symbol: Bool = false, repeats: Bool = false) -> some View {
         RepeatingKey(name: name, repeats: repeats, action: { isRepeat in press(special, isRepeat: isRepeat) }) {
-            if symbol { Image(systemName: label).font(.body.weight(.medium)) } else { Text(label).font(.callout) }
+            if symbol { Image(systemName: label).font(.body.weight(.medium)) } else { Text(label).font(.callout).lineLimit(1).minimumScaleFactor(0.6) }
         }
     }
 

@@ -430,6 +430,8 @@ struct DockIcon: View {
                     .interpolation(.high)
                     .antialiased(true)
                     .aspectRatio(contentMode: .fit)
+                    // Mono has no colour anywhere, app icons included.
+                    .saturation(palette.monochrome ? 0 : 1)
             } else {
                 // macOS icons sit inside a rounded square at about 82% of the canvas.
                 RoundedRectangle(cornerRadius: size * 0.82 * 0.225, style: .continuous)
