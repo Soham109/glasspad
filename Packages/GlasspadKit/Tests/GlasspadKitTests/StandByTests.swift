@@ -88,26 +88,29 @@ import Testing
     // MARK: Keeping the screen on
 
     @Test func staysOnOnlyWhileVisibleAndPluggedInOrAsked() {
-        #expect(StandByPower(visible: true, charging: true, keepOnUnplugged: false, lowPower: false, warmth: .nominal).keepsScreenOn)
-        #expect(!StandByPower(visible: true, charging: false, keepOnUnplugged: false, lowPower: false, warmth: .nominal).keepsScreenOn)
-        #expect(StandByPower(visible: true, charging: false, keepOnUnplugged: true, lowPower: false, warmth: .nominal).keepsScreenOn)
-        #expect(!StandByPower(visible: false, charging: true, keepOnUnplugged: true, lowPower: false, warmth: .nominal).keepsScreenOn)
+        #expect(StandByPower(visible: true, charging: true, keepOnUnplugged: false, lowPower: false, heat: .nominal).keepsScreenOn)
+        #expect(!StandByPower(visible: true, charging: false, keepOnUnplugged: false, lowPower: false, heat: .nominal).keepsScreenOn)
+        #expect(StandByPower(visible: true, charging: false, keepOnUnplugged: true, lowPower: false, heat: .nominal).keepsScreenOn)
+        #expect(!StandByPower(visible: false, charging: true, keepOnUnplugged: true, lowPower: false, heat: .nominal).keepsScreenOn)
     }
 
     @Test func lowPowerModeOnBatteryLetsTheScreenLock() {
-        #expect(!StandByPower(visible: true, charging: false, keepOnUnplugged: true, lowPower: true, warmth: .nominal).keepsScreenOn)
+        #expect(!StandByPower(visible: true, charging: false, keepOnUnplugged: true, lowPower: true, heat: .nominal).keepsScreenOn)
         // On power, Low Power Mode still allows it (StandBy does the same).
-        #expect(StandByPower(visible: true, charging: true, keepOnUnplugged: false, lowPower: true, warmth: .nominal).keepsScreenOn)
+        #expect(StandByPower(visible: true, charging: true, keepOnUnplugged: false, lowPower: true, heat: .nominal).keepsScreenOn)
     }
 
     @Test func aHotPhoneDimsAndStopsTicking() {
-        let cool = StandByPower(visible: true, charging: true, keepOnUnplugged: false, lowPower: false, warmth: .fair)
+        let cool = StandByPower(visible: true, charging: true, keepOnUnplugged: false, lowPower: false, heat: .fair)
         #expect(cool.brightness == 1 && cool.ticksSeconds)
-        let warm = StandByPower(visible: true, charging: true, keepOnUnplugged: false, lowPower: false, warmth: .serious)
-        #expect(warm.brightness < 1 && !warm.ticksSeconds && warm.keepsScreenOn)
-        let hot = StandByPower(visible: true, charging: true, keepOnUnplugged: false, lowPower: false, warmth: .critical)
+        let warm = StandByPower(visible: true, charging: true, keepOnUnplugged: false, lowPower: false, heat: .serious)
+        // Warm and charging: the screen may lock, to spare the battery.
+        #expect(warm.brightness < 1 && !warm.ticksSeconds && !warm.keepsScreenOn)
+        #expect(!StandByPower(visible: true, charging: false, keepOnUnplugged: true, lowPower: false, heat: .serious).keepsScreenOn)
+        #expect(StandByPower(visible: true, charging: true, keepOnUnplugged: false, lowPower: false, heat: .fair).keepsScreenOn)
+        let hot = StandByPower(visible: true, charging: true, keepOnUnplugged: false, lowPower: false, heat: .critical)
         #expect(hot.brightness < warm.brightness && !hot.keepsScreenOn)
-        let saving = StandByPower(visible: true, charging: true, keepOnUnplugged: false, lowPower: true, warmth: .nominal)
+        let saving = StandByPower(visible: true, charging: true, keepOnUnplugged: false, lowPower: true, heat: .nominal)
         #expect(saving.brightness < 1 && !saving.ticksSeconds)
     }
 
