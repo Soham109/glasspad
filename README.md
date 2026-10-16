@@ -3,7 +3,7 @@
 <p align="center"><b>Your iPhone, as a Mac trackpad</b></p>
 
 <p align="center">
-A wireless trackpad you can feel, plus a keyboard, a media remote, your Mac's apps and buttons that follow the app in front. Private, free and open source.
+A control surface for your Mac. A trackpad you can feel, plus a keyboard, media, your Dock, buttons that follow the app in front, a couch remote and split screen layouts.
 </p>
 
 <p align="center">
@@ -16,65 +16,50 @@ A wireless trackpad you can feel, plus a keyboard, a media remote, your Mac's ap
 </p>
 
 <p align="center">
-  <a href="https://www.youtube.com/watch?v=6AArTWOADGc">
-    <img src="https://img.youtube.com/vi/6AArTWOADGc/maxresdefault.jpg" alt="Watch the Glasspad demo on YouTube" width="820">
-  </a>
-</p>
-
-<p align="center"><sub>Watch the 64 second demo on YouTube</sub></p>
-
-<p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/img/hero-dark.png">
-    <source media="(prefers-color-scheme: light)" srcset="docs/img/hero-light.png">
-    <img src="docs/img/hero-light.png" alt="An iPhone held sideways as a trackpad next to a MacBook: two fingers moving up scroll the window on the Mac" width="820">
+    <img src="docs/img/hero-light.png" alt="An iPhone held sideways, split in two: a trackpad on the left, buttons for Safari on the right" width="820">
   </picture>
 </p>
 
-<p align="center"><a href="https://glasspad.sohamaggarwal.com">Website</a> · <a href="#install">Install</a> · <a href="#faq">FAQ</a> · <a href="#troubleshooting">Troubleshooting</a></p>
+<p align="center"><sub>Trackpad beside Actions, one of the split screen layouts.</sub></p>
 
 ---
 
 ## What it is
 
-Your iPhone becomes a wireless trackpad for your Mac, with a small tap you can feel on every click. Two apps on the same Wi-Fi: a menu bar app on the Mac and the Glasspad app on the phone.
+Two apps on the same Wi-Fi: a small menu bar app on your Mac and the Glasspad app on your iPhone. The phone becomes whatever you need next to your keyboard.
 
 - **Private.** No accounts, no servers, no tracking. Nothing leaves your network.
-- **Free and open source.** MIT licensed. No subscription.
-- **One command to install.** It builds the app on your Mac and keeps it on your iPhone for you.
+- **Free and open source.** MIT licensed.
+- **One command to install.**
 
-## Trackpad
+## What you can do with it
 
-- Move, click, right click, drag, scroll with momentum, pinch, rotate, smart zoom.
-- Swipe between pages and Spaces, Mission Control, App Exposé, Launchpad, Show Desktop.
-- The pointer updates in step with your Mac's display, with the same speed-up curve as a real Mac trackpad.
-- Taps never nudge the pointer. Only clicks buzz.
-- Hold one finger still for half a second for a force click (a phone cannot sense pressure).
-- Gestures follow your Mac's own trackpad settings. The phone adds its own pointer speed, acceleration, scroll speed, momentum and haptics for each kind of click.
-- Upright or sideways. Three looks: Paper, Graphite, or System to match your iPhone.
-
-## Modes
-
-Tap the pill at the top of the phone to open the mode menu.
-
-| Mode | What it does |
+| | |
 | --- | --- |
-| **Trackpad** | The trackpad above. |
-| **Keyboard** | Type and dictate on the phone. Command, Option, Control, Shift, common shortcuts, Esc, Tab and arrows. |
-| **Media** | What is playing in Spotify or any other player: artwork, a bar you can scrub, instant play and pause, where the sound goes, volume, brightness. |
-| **Dock** | Your Mac's Dock with full-size icons and dots for running apps, in Dock order. Touch and hold for Quit, Hide or Keep. Can hide the Mac's own Dock. |
-| **Actions** | The best buttons for the app in front on your Mac, switching as you switch apps. Below, your Pinned grid, starting with six everyday Mac controls: tap + to add any app on your Mac, more Mac controls, macros, Shortcuts, or record a new macro. |
-
-Two quick tools sit in the mode menu too: **Clipboard** (copy text or images between phone and Mac) and **Present** (next, previous, timer and a laser dot).
+| **Trackpad** | Move, click, drag, scroll, pinch, swipe between Spaces. A small tap you can feel on every click. |
+| **Keyboard** | Type and dictate, with shortcut keys. |
+| **Media** | Now playing with artwork, scrubbing, volume and brightness. |
+| **Dock** | Your Mac's Dock on the phone. Tap to open, hold to quit or hide. |
+| **Actions** | Buttons that follow the app in front. Pinned keeps your own: Do Not Disturb, window tiling, Night Shift, Keep Awake, screenshots, macros, Shortcuts and websites. |
+| **Remote** | A couch remote for Netflix and YouTube, with keys for each app and typing to search. |
+| **Layouts** | Two modes side by side, such as Trackpad and Actions. Drag the divider, use a template or save your own. |
+| **Also** | Clipboard between phone and Mac, Present for slides, and themes (Paper, Graphite, Mono, or match your iPhone). |
 
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/img/modes-dark.png">
-    <source media="(prefers-color-scheme: light)" srcset="docs/img/modes-light.png">
-    <img src="docs/img/modes-light.png" alt="The mode menu, Dock, Keyboard, Actions (front app and Pinned), editing Pinned, the Library, the Clipboard tool and Settings" width="820">
+    <img src="docs/img/modes-light.png" alt="Keyboard, Media and Dock on three iPhones" width="820">
   </picture>
 </p>
-<p align="center"><sub>Simulator screenshots against a stand-in Mac.</sub></p>
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/img/remote-dark.png">
+    <img src="docs/img/remote-light.png" alt="A TV showing a streaming app and an iPhone used as its remote" width="820">
+  </picture>
+</p>
 
 ## Install
 
