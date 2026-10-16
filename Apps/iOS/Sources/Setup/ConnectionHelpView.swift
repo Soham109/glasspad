@@ -54,6 +54,7 @@ struct ConnectionHelpView: View {
         }
         .onDisappear {
             probe.stop()
+            network.stop()
             session.setDiagnosticsVisible(false)
         }
     }
