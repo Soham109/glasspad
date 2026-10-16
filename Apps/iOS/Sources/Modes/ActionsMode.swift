@@ -202,7 +202,7 @@ struct ActionsMode: View {
         }
         .sheet(item: $splitting) { button in
             // An older Mac, or one that cannot list its windows: the button as one tap.
-            SplitScreenSheet(startLeft: nil) { session.runDeck(button.id) }
+            ArrangeSheet(startFirst: nil) { session.runDeck(button.id) }
                 .environment(\.palette, palette)
         }
         .sheet(isPresented: $showFrontPicker) {

@@ -135,7 +135,10 @@ extension DisplaysState {
     /// Where each place is, for the sheet's picture: every place of the arrangement, filled or not.
     public func arrangeFrames(for s: ArrangeSelection) -> [CGRect]? {
         guard let d = shownDisplays.first(where: { $0.id == s.display }) else { return nil }
-        return DisplayGeometry.frames(for: s.arrangement, display: d.frame, visible: d.visibleFrame, gap: CGFloat(tileMargin))
+        // Full screen on a display with a camera housing stays below it, as macOS keeps it.
+        var whole = d.frame
+        if d.notchWidth != nil, d.menuBarHeight > 0 { whole = whole.divided(atDistance: d.menuBarHeight, from: .minYEdge).remainder }
+        return DisplayGeometry.frames(for: s.arrangement, display: whole, visible: d.visibleFrame, gap: CGFloat(tileMargin))
     }
 
     /// What it did, in words: "Safari and Notes, side by side on Studio Display." (the display

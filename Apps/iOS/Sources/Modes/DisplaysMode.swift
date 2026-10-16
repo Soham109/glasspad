@@ -65,7 +65,7 @@ struct DisplaysMode: View {
                 .environment(\.palette, palette)
         }
         .sheet(item: $splitting) { pick in
-            SplitScreenSheet(startLeft: pick.id, fallback: nil)
+            ArrangeSheet(startFirst: pick.id, fallback: nil)
                 .environment(\.palette, palette)
         }
     }
@@ -177,7 +177,7 @@ struct DisplaysMode: View {
         return min(height * 0.5, max(160, width * union.height / union.width + labels + 24 + 2))
     }
 
-    /// Split With: the sheet, with this window on the left.
+    /// Split With: the Arrange sheet, with this window first.
     private func split(_ w: MacWindow) {
         Haptics.shared.tap()
         splitting = WindowPick(id: w.id)
@@ -373,7 +373,7 @@ private struct WindowMenu: View {
     let state: DisplaysState
     let run: (WindowCommand) -> Void
     let close: () -> Void
-    /// Split With: the Split Screen sheet with this window on the left.
+    /// Split With: the Arrange sheet with this window first.
     let split: () -> Void
 
     var body: some View {
@@ -733,10 +733,12 @@ struct DisplaysNotices: View {
 ///   -GPDisplaysDemo <one|two|three>   another sample arrangement (with -GPDemo)
 ///   -GPDisplaysPending                 a change waiting for Keep
 ///   -GPDisplaysSheet <main|2|...>      open a display's settings; -GPDisplaysArrange opens Arrange
-///   -GPDisplaysSplit                   open Split With on the front window
+///   -GPDisplaysSplit [arrangement]     open Arrange on the front window (leftAndRight, quarters...)
 enum DisplaysDebug {
     @MainActor static var applied = false
     @MainActor static var openArrange = false
+    /// The arrangement Arrange starts on.
+    @MainActor static var arrangement: WindowArrangement?
 
     @MainActor static func applyOnAppear(open: (DisplayPick) -> Void, split: (WindowPick) -> Void) {
         guard !applied, MacSession.shared.isDemo else { return }
@@ -750,6 +752,7 @@ enum DisplaysDebug {
             DisplaysStore.shared.applyDemo(value("-GPDisplaysDemo"), pending: args.contains("-GPDisplaysPending"))
         }
         openArrange = args.contains("-GPDisplaysArrange")
+        arrangement = value("-GPDisplaysSplit").flatMap(WindowArrangement.init(rawValue:))
         if args.contains("-GPDisplaysSplit"), let front = DisplaysStore.shared.state?.windows.first { split(WindowPick(id: front.id)) }
         if let which = value("-GPDisplaysSheet") ?? (openArrange ? "main" : nil) {
             let displays = DisplaysStore.shared.state?.shownDisplays ?? []

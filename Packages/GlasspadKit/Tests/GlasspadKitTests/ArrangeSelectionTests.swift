@@ -186,6 +186,11 @@ import Testing
         // Split View: the whole display, no menu bar and no margins.
         let full = try #require(s.arrangeFrames(for: ArrangeSelection(.fullScreen, windows: [11, 12], display: 1)))
         #expect(full == [CGRect(x: 0, y: 0, width: 756, height: 982), CGRect(x: 756, y: 0, width: 756, height: 982)])
+        // Below the camera housing on a laptop that has one.
+        var notched = Self.laptop
+        notched.notchWidth = 182
+        let below = try #require(Self.state(displays: [notched]).arrangeFrames(for: ArrangeSelection(.fullScreen, windows: [11, 12], display: 1)))
+        #expect(below == [CGRect(x: 0, y: 38, width: 756, height: 944), CGRect(x: 756, y: 38, width: 756, height: 944)])
     }
 
     @Test func theSummaryNamesTheAppsAndTheDisplay() {
