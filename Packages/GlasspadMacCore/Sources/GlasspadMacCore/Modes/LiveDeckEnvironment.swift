@@ -17,6 +17,21 @@ public final class LiveDeckEnvironment: DeckEnvironment {
         self.mediaMode = media
     }
 
+    /// `CoreDockSendNotification` (private, in ApplicationServices, loaded with dlsym and checked
+    /// before use): the call the Dock's own keys and gestures make.
+    private typealias CoreDockSend = @convention(c) (CFString, UnsafeMutableRawPointer?) -> Void
+    private static let coreDockSend: CoreDockSend? = {
+        guard let handle = dlopen("/System/Library/Frameworks/ApplicationServices.framework/ApplicationServices", RTLD_LAZY),
+              let symbol = dlsym(handle, "CoreDockSendNotification") else { return nil }
+        return unsafeBitCast(symbol, to: CoreDockSend.self)
+    }()
+
+    public func showDockView(_ view: DockView) -> Bool {
+        guard let send = Self.coreDockSend else { return false }
+        send(view.rawValue as CFString, nil)
+        return true
+    }
+
     public func openApp(bundleID: String) async -> Bool {
         guard let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID) else { return false }
         let config = NSWorkspace.OpenConfiguration()

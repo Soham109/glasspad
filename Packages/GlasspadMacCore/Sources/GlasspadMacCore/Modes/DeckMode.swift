@@ -233,9 +233,18 @@ public protocol DeckProcess: AnyObject {
     func interrupt()
 }
 
+/// Views the Dock draws: Mission Control, the desktop, the front app's windows.
+public enum DockView: String, Sendable, CaseIterable {
+    case missionControl = "com.apple.expose.awake"
+    case showDesktop = "com.apple.showdesktop.awake"
+    case appExpose = "com.apple.expose.front.awake"
+}
+
 /// Side effects of Deck actions, injectable so tests never launch, capture or change anything.
 @MainActor
 public protocol DeckEnvironment: AnyObject {
+    /// Asks the Dock to show the view. False when this Mac can't be asked that way.
+    func showDockView(_ view: DockView) -> Bool
     func openApp(bundleID: String) async -> Bool
     func open(url: URL) -> Bool
     func fileExists(_ url: URL) -> Bool
@@ -309,6 +318,7 @@ public final class DeckMode {
     /// Volume and brightness step for the up/down buttons: one of the Mac's 16 keyboard steps.
     public static let step = 1.0 / 16
 
+    public static let missionControlBundleID = "com.apple.exposelauncher"
     public static let missionControlPath = "/System/Applications/Mission Control.app/Contents/MacOS/Mission Control"
     public static let osascript = "/usr/bin/osascript"
     /// Running a button from a newer Glasspad.
@@ -602,9 +612,17 @@ public final class DeckMode {
         case .playPause: env.media(.playPause); return .done
         case .nextTrack: env.media(.nextTrack); return .done
         case .previousTrack: env.media(.previousTrack); return .done
-        case .showDesktop: return await tool(Self.missionControlPath, ["1"], "Could not show the desktop")
-        case .missionControl: return await tool(Self.missionControlPath, [], "Could not open Mission Control")
-        case .appExpose: return await tool(Self.missionControlPath, ["2"], "Could not show App Exposé")
+        // The Dock first: macOS 27 kills Mission Control's own program when started directly.
+        case .showDesktop:
+            if env.showDockView(.showDesktop) { return .done }
+            return await tool(Self.missionControlPath, ["1"], "Could not show the desktop")
+        case .missionControl:
+            if env.showDockView(.missionControl) { return .done }
+            if await env.openApp(bundleID: Self.missionControlBundleID) { return .done }
+            return await tool(Self.missionControlPath, [], "Could not open Mission Control")
+        case .appExpose:
+            if env.showDockView(.appExpose) { return .done }
+            return await tool(Self.missionControlPath, ["2"], "Could not show App Exposé")
         case .launchpad:
             // macOS 26 replaced Launchpad with the Apps launcher; older Macs still have Launchpad.
             if await env.openApp(bundleID: "com.apple.apps.launcher") { return .done }
@@ -654,4 +672,8 @@ public final class DeckMode {
         let r = await env.run(executable: path, arguments: args, timeout: 15)
         return r.ok ? .done : .fail(failure)
     }
+}
+
+public extension DeckEnvironment {
+    func showDockView(_ view: DockView) -> Bool { false }
 }

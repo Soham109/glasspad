@@ -107,6 +107,13 @@ final class FakeProcess: DeckProcess {
 /// A pretend Mac for Deck buttons. Records every call; never runs anything.
 @MainActor
 final class FakeDeckEnvironment: DeckEnvironment {
+    var dockViews: [DockView] = []
+    var dockViewsWork = true
+    func showDockView(_ view: DockView) -> Bool {
+        guard dockViewsWork else { return false }
+        dockViews.append(view)
+        return true
+    }
     var opened: [String] = []
     var urls: [URL] = []
     var runs: [(String, [String])] = []

@@ -251,12 +251,22 @@ import Testing
         #expect(env.runs.last?.0 == "/usr/bin/pmset" && env.runs.last?.1 == ["displaysleepnow"])
         _ = await outcome(d, .system(.sleepMac))
         #expect(env.runs.last?.1 == ["sleepnow"])
+        // The Dock shows these; macOS 27 kills Mission Control's program when run directly.
+        let runsBefore = env.runs.count
+        #expect(await outcome(d, .system(.showDesktop)).ok)
+        #expect(await outcome(d, .system(.missionControl)).ok)
+        #expect(await outcome(d, .system(.appExpose)).ok)
+        #expect(env.dockViews == [.showDesktop, .missionControl, .appExpose])
+        #expect(env.runs.count == runsBefore)
+        // Without the Dock call: Mission Control opens as an app, the others run its program.
+        env.dockViewsWork = false
+        _ = await outcome(d, .system(.missionControl))
+        #expect(env.opened.last == DeckMode.missionControlBundleID)
         _ = await outcome(d, .system(.showDesktop))
         #expect(env.runs.last?.0 == DeckMode.missionControlPath && env.runs.last?.1 == ["1"])
-        _ = await outcome(d, .system(.missionControl))
-        #expect(env.runs.last?.1 == [])
         _ = await outcome(d, .system(.appExpose))
         #expect(env.runs.last?.1 == ["2"])
+        env.dockViewsWork = true
         #expect(await outcome(d, .system(.toggleDarkMode)) == DeckMode.Outcome(ok: true, message: "Dark"))
         #expect(env.runs.last?.0 != "/usr/bin/osascript")
         env.darkModeResult = nil
