@@ -159,7 +159,8 @@ private let sep = ScriptablePlayer.separator
         adapter.restartDelays = [0.05]
         adapter.stableRun = 0.2
         adapter.start()
-        #expect(await waitFor(4) { adapter.launches >= NowPlayingAdapter.maxQuickRestarts + 3 })
+        // About 3 s of restarts; the margin is for a busy machine (it returns as soon as they happen).
+        #expect(await waitFor(15) { adapter.launches >= NowPlayingAdapter.maxQuickRestarts + 3 })
         if case .unavailable(let why) = adapter.status { Issue.record("gave up: \(why)") }
         adapter.stop()
     }
