@@ -7,12 +7,16 @@ import Foundation
 /// So a layout names the pane whose live data needs the Mac's attention most, then asks for
 /// the rest directly. A media request starts the now playing stream whatever screen the Mac
 /// thinks is showing, so Media can share with any other mode. Remote gets now playing and the
-/// frontmost app by itself.
+/// frontmost app by itself. A Dock pane the Mac does not follow is refreshed by asking again.
 public struct LayoutWirePlan: Equatable, Sendable {
     /// The screen to report with `modeSelected`.
     public var primary: GlasspadMode
     /// Also ask for now playing, after `modeSelected` (which would otherwise stop it).
     public var requestsMedia: Bool
+    /// A Dock pane shares the screen with a mode the Mac follows instead, so the Mac does not
+    /// push Dock changes: the phone asks for the list again now and then while it shows.
+    /// Works with every Mac build, since it is the same request a Dock screen makes.
+    public var refreshesDock: Bool
 
     /// Most demanding first. Present keeps the laser on, Dock wants its list pushed, Deck the
     /// frontmost app, Macros its list; Media comes after them because a request covers it.
@@ -22,5 +26,6 @@ public struct LayoutWirePlan: Equatable, Sendable {
         let primary = Self.priority.first(where: modes.contains) ?? modes.first ?? .trackpad
         self.primary = primary
         requestsMedia = primary != .media && primary != .remote && modes.contains(.media)
+        refreshesDock = primary != .dock && modes.contains(.dock)
     }
 }
