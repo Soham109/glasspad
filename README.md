@@ -39,7 +39,7 @@ A small menu bar app on your Mac and an app on your iPhone, on the same Wi-Fi. F
 | **Displays** | Every display and its windows. Move a window to another display or tile it, and set brightness, resolution and Night Shift. |
 | **Layouts** | Up to three modes on one screen. The divider rests on thirds and the middle; your layouts sit in the mode menu. |
 | **StandBy** | A clock beside Now Playing or your calendar while the iPhone charges, in dim red at night. |
-| **Themes** | Eight themes, from Paper to Glass, or follow the system. |
+| **Themes** | 28 themes in four groups: Classic, Glass, Color, and Photo, which blurs a picture of yours behind everything. |
 | **Private** | Paired by QR code, encrypted, no account. Nothing leaves your Wi-Fi. |
 
 <p align="center">
@@ -47,12 +47,11 @@ A small menu bar app on your Mac and an app on your iPhone, on the same Wi-Fi. F
 </p>
 
 <p align="center">
-  <img src="docs/img/layouts.png" alt="Two iPhones held sideways: a layout with Trackpad, Media and Actions, and StandBy with a clock beside Now Playing" width="820">
+  <img src="docs/img/layouts.png" alt="Two iPhones held sideways: the Media and Actions layout, and StandBy with a clock beside Now Playing" width="820">
 </p>
-<p align="center"><sub>The layout on the left is drawn. Every other picture is the app.</sub></p>
 
 <p align="center">
-  <img src="docs/img/themes.png" alt="Four themes: Actions in Glass, Media in Glass Dark, Dock in Midnight and Media in Mono" width="820">
+  <img src="docs/img/themes.png" alt="Four themes: Actions in Glass, Media in Aurora, Actions in Ocean and Dock in Midnight" width="820">
 </p>
 
 ## Install

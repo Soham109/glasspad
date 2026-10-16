@@ -117,3 +117,7 @@ GLYPH["qrcode"] = '<rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y
 GLYPH["folder"] = '<path d="M4 7.5A1.5 1.5 0 0 1 5.5 6h4l2 2h7A1.5 1.5 0 0 1 20 9.5v8a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 17.5Z"/>';
 GLYPH["eye.slash.circle"] = '<circle cx="12" cy="12" r="8.5"/><path d="M7 12s2-3 5-3 5 3 5 3-2 3-5 3-5-3-5-3Z"/><path d="m7.5 16.5 9-9"/>';
 GLYPH["hand.raised.fill"] = '<path class="f" d="M8 13V6.5a1.5 1.5 0 0 1 3 0V11h.5V5a1.5 1.5 0 0 1 3 0v6h.5V6.5a1.5 1.5 0 0 1 3 0V14a6 6 0 0 1-6 6h-.5a5 5 0 0 1-4.2-2.3L4.5 14.5a1.4 1.4 0 0 1 2.2-1.7Z"/>';
+GLYPH["sun.horizon.fill"] = '<path class="f" d="M7 16a5 5 0 0 1 10 0Z"/><path d="M3.5 16h17M12 6.5v2.5M6 9.5l1.6 1.6M18 9.5l-1.6 1.6M4 13h1.5M18.5 13H20M7 19.5h10"/>';
+GLYPH["cup.and.saucer.fill"] = '<path class="f" d="M5 8.5h11v4.5a4.5 4.5 0 0 1-4.5 4.5h-2A4.5 4.5 0 0 1 5 13Z"/><path d="M16 10h1.5a2 2 0 0 1 0 4H16M3.5 20h14"/>';
+GLYPH["rectangle.split.2x1.fill"] = '<path class="f" d="M6 5.5h5.2v13H6A2.5 2.5 0 0 1 3.5 16V8A2.5 2.5 0 0 1 6 5.5ZM12.8 5.5H18A2.5 2.5 0 0 1 20.5 8v8a2.5 2.5 0 0 1-2.5 2.5h-5.2Z"/>';
+GLYPH["bell.badge.fill"] = '<path class="f" d="M12 4a5.5 5.5 0 0 0-5.5 5.5v3.2L5 15.5h14l-1.5-2.8V9.5A5.5 5.5 0 0 0 12 4ZM10 17.5a2 2 0 0 0 4 0Z"/><circle class="f" cx="17.5" cy="5.5" r="2.5"/>';

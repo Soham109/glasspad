@@ -1,7 +1,7 @@
 import { glyph } from "./glyphs";
 import { appIcon } from "./apps";
 import { tl, tlIcon, loopInView, settle, Scene } from "./kit";
-import { THEMES, themeVars, themesLine } from "./themes";
+import { THEMES, themeVars, themesLine, type Theme } from "./themes";
 
 /* "Make it yours": small cuts of the Actions screen, each showing one thing you can set up. */
 
@@ -13,8 +13,8 @@ interface Card { key: string; title: string; text: string; art: () => string; ru
 const CARDS: Card[] = [
   {
     key: "controls", title: "Mac controls", text: "Do Not Disturb, Night Shift, Keep Awake and screenshots, one tap each.",
-    art: () => `<div class="mk-mb"><span class="mst dnd">${glyph("moon.fill")}</span><span class="mst ns">${glyph("sun.max.fill")}</span><span class="mst ka">${glyph("cup.and.saucer")}</span><b>Fri 9:41</b></div>
-      <div class="mk-row">${tl("Do Not Disturb", "moon.fill", "#5E5CE6")}${tl("Night Shift", "sun.max", "#FF9F0A")}${tl("Keep Awake", "cup.and.saucer", "#A2845E")}</div>`,
+    art: () => `<div class="mk-mb"><span class="mst dnd">${glyph("moon.fill")}</span><span class="mst ns">${glyph("sun.horizon.fill")}</span><span class="mst ka">${glyph("cup.and.saucer.fill")}</span><b>Fri 9:41</b></div>
+      <div class="mk-row">${tl("Do Not Disturb", "moon.fill", "#5E5CE6")}${tl("Night Shift", "sun.horizon.fill", "#FFD60A")}${tl("Keep Awake", "cup.and.saucer.fill", "#30B0C7")}</div>`,
     async run(s) {
       for (const [b, st] of [["Do Not Disturb", "dnd"], ["Night Shift", "ns"], ["Keep Awake", "ka"]]) {
         await s.wait(500);
@@ -38,7 +38,7 @@ const CARDS: Card[] = [
   {
     key: "folders", title: "Folders", text: "Group buttons in a folder, like these for tiling windows.",
     art: () => `<div class="mk-fold"><div class="fv closed">${tlIcon("Windows", `<span class="ficon">${["rectangle.lefthalf.filled", "rectangle.righthalf.filled", "macwindow", "square.split.2x1"].map(g => `<i>${glyph(g)}</i>`).join("")}</span>`)}${tl("Screenshot", "camera.viewfinder", "#0A84FF")}${tl("Lock Screen", "lock.fill", "#8E8E93")}</div>
-      <div class="fv open"><div class="fh">${glyph("chevron.left")}<b>Windows</b></div><div class="mk-row f4">${tl("Left Half", "rectangle.lefthalf.filled", "#0A84FF")}${tl("Right Half", "rectangle.righthalf.filled", "#0A84FF")}${tl("Fill", "macwindow", "#0A84FF")}${tl("Split Screen", "square.split.2x1", "#0A84FF")}</div></div></div>`,
+      <div class="fv open"><div class="fh">${glyph("chevron.left")}<b>Windows</b></div><div class="mk-row f4">${tl("Left Half", "rectangle.lefthalf.filled", "#0A84FF")}${tl("Right Half", "rectangle.righthalf.filled", "#0A84FF")}${tl("Fill", "macwindow", "#0A84FF")}${tl("Split Screen", "rectangle.split.2x1.fill", "#0A84FF")}</div></div></div>`,
     async run(s) {
       await s.wait(700);
       await s.tap(s.q('.closed [data-b="Windows"]'), () => { s.q(".mk-fold").classList.add("in"); settle(Array.from(s.q(".open .mk-row").children), 40); });
@@ -93,9 +93,9 @@ const CARDS: Card[] = [
   {
     key: "library", title: "Library", text: "Every app, Mac control, macro, shortcut and website, in one list you can search.",
     art: () => `<div class="mk-lib"><div class="sf">${glyph("magnifyingglass")}<span class="q"></span><i class="caret"></i></div>
-      <div class="rows"><div class="r" data-r="Night Shift"><span class="ic" style="--c:#FF9F0A">${glyph("sun.max")}</span>Night Shift<span class="add">${glyph("plus")}</span></div>
+      <div class="rows"><div class="r" data-r="Night Shift"><span class="ic" style="--c:#FFD60A">${glyph("sun.horizon.fill")}</span>Night Shift<span class="add">${glyph("plus")}</span></div>
       <div class="r" data-r="Notes"><span class="ic" style="--c:#F2C94C">${glyph("doc.plaintext")}</span>Notes<span class="add">${glyph("plus")}</span></div>
-      <div class="r" data-r="Notification Center"><span class="ic" style="--c:#FF3B30">${glyph("rectangle.on.rectangle")}</span>Notification Center<span class="add">${glyph("plus")}</span></div></div></div>`,
+      <div class="r" data-r="Notification Center"><span class="ic" style="--c:#30B0C7">${glyph("bell.badge.fill")}</span>Notification Center<span class="add">${glyph("plus")}</span></div></div></div>`,
     async run(s) {
       await s.wait(600);
       const q = s.q(".q"), word = "Night";
@@ -113,20 +113,23 @@ const CARDS: Card[] = [
   },
   {
     key: "themes", title: "Themes", text: themesLine(),
-    art: () => `<div class="mk-th" style="${themeVars(THEMES[0])}"><div class="mk-row">${tl("New Tab", "plus.square.on.square", "#0A84FF")}${tl("Reader", "doc.plaintext", "#30B0C7")}${tl("Do Not Disturb", "moon.fill", "#5E5CE6")}</div>
-      <div class="sw">${THEMES.map((t, i) => `<span data-t="${t.key}" class="${i ? "" : "on"}" style="background:${t.swatch}" title="${t.name}"></span>`).join("")}</div><b class="nm">${THEMES[0].name}</b></div>`,
+    art: () => `<div class="mk-th" style="${themeVars(THEMES[1])}"><div class="mk-row">${tl("New Tab", "plus.square.on.square", "#0A84FF")}${tl("Reader", "doc.plaintext", "#30B0C7")}${tl("Do Not Disturb", "moon.fill", "#5E5CE6")}</div>
+      <div class="sw"></div><b class="nm"></b></div>`,
     async run(s) {
-      // a sample of the collection, a different few each pass
-      const box = s.q(".mk-th"), nm = s.q(".nm");
-      const pick = [...THEMES.slice(1)].sort(() => Math.random() - 0.5).slice(0, 4).concat(THEMES[0]);
-      for (const t of pick) {
-        await s.wait(1500);
-        box.setAttribute("style", themeVars(t)); box.classList.toggle("mono", !!t.mono); nm.textContent = t.name;
-        s.q(".sw .on")?.classList.remove("on"); s.q(`.sw [data-t="${t.key}"]`).classList.add("on");
-      }
+      // one theme from each group, a different one each pass, then back to Paper
+      const box = s.q(".mk-th"), sw = s.q(".sw"), nm = s.q(".nm");
+      const show = (t: Theme) => {
+        box.setAttribute("style", themeVars(t)); box.classList.toggle("mono", !!t.mono);
+        const group = THEMES.filter(x => x.group === t.group);
+        sw.innerHTML = group.map(x => `<span class="${x === t ? "on" : ""}" style="background:${x.swatch}"></span>`).join("");
+        nm.textContent = t.group === t.name ? t.name : `${t.name} · ${t.group}`;
+      };
+      show(THEMES[1]);
+      const pick = (g: Theme["group"]) => { const l = THEMES.filter(t => t.group === g); return l[Math.floor(Math.random() * l.length)]; };
+      for (const t of [pick("Glass"), pick("Color"), pick("Classic"), pick("Glass"), pick("Photo"), THEMES[1]]) { await s.wait(1500); show(t); }
       await s.wait(600);
     },
-    reset: el => { const b = el.querySelector(".mk-th"); if (b) { b.setAttribute("style", themeVars(THEMES[0])); b.classList.remove("mono"); } },
+    reset: el => { const b = el.querySelector(".mk-th"); if (b) { b.setAttribute("style", themeVars(THEMES[1])); b.classList.remove("mono"); } },
   },
 ];
 

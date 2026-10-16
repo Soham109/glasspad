@@ -13,7 +13,7 @@ const AREA = { x: 52, y: 14, w: 874 - 52 - 14, h: 402 - 28 }; // inside the isla
 const PANES: Record<string, { name: string; dark?: boolean; html: () => string }> = {
   trackpad: { name: "Trackpad", html: () => `<div class="pz-tp"><i></i><i></i></div>` },
   actions: { name: "Actions", html: () => `<div class="pz-ac"><div class="af"><span class="af-i">${appIcon("web")}</span><div><b>Safari</b><span>In front on your Mac</span></div></div>
-    <div class="ag">${tl("New Tab", "plus.square.on.square", "#0A84FF")}${tl("Reopen Tab", "arrow.uturn.backward", "#0A84FF")}${tl("Reader", "doc.plaintext", "#30B0C7")}${tl("Split Screen", "square.split.2x1", "#30B0C7")}${tl("Do Not Disturb", "moon.fill", "#5E5CE6")}${tl("Screenshot", "camera.viewfinder", "#0A84FF")}</div></div>` },
+    <div class="ag">${tl("New Tab", "plus.square.on.square", "#0A84FF")}${tl("Reopen Tab", "arrow.uturn.backward", "#0A84FF")}${tl("Reader", "doc.plaintext", "#30B0C7")}${tl("Split Screen", "rectangle.split.2x1.fill", "#0A84FF")}${tl("Do Not Disturb", "moon.fill", "#5E5CE6")}${tl("Screenshot", "camera.viewfinder", "#0A84FF")}</div></div>` },
   media: { name: "Media", html: () => `<div class="pz-md"><div class="src"><i></i>SPOTIFY</div><b>Slow Light</b><span>Paper Rooms</span><div class="ctl">${glyph("backward.fill")}<span class="pp">${glyph("pause.fill")}</span>${glyph("forward.fill")}</div></div>` },
   remote: { name: "Remote", dark: true, html: () => `<div class="pz-rm"><div class="pad"><b>Tap to play or pause</b><span>Swipe sideways to skip</span></div></div>` },
   clock: { name: "Clock", dark: true, html: () => `<div class="pz-clk"><span>Fri, 16 Oct</span><b>10</b><b>09</b></div>` },

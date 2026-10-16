@@ -6,15 +6,15 @@
 // <raw folder> holds simulator screenshots (iPhone 18 Pro, 1206 x 2622), named after what they show.
 // They come from the app's demo launch arguments (DebugLaunch in Apps/iOS/Sources/App/RootView.swift):
 //   actions, dock, media                                    -GPMode actions / dock / media
-//   theme-glass, theme-glassdark, theme-midnight, theme-mono  a mode in each theme (-GPTheme <theme>)
-//   displays                                                Displays, from the mode menu
-//   standby (landscape)                                     the StandBy layout, sideways
+//   theme-glass, theme-aurora, theme-ocean, theme-midnight  a mode in each theme (-GPTheme <theme>)
+//   displays                                                -GPMode actions -GPActionsPage displays
+//   standby, layouts (landscape)                            -GPLayout standby / studio, with -GPMediaDemo
 //   present, clipboard                                      -GPActionsPage present / clipboard
 //   library, folder, website                                -GPActionsPage library / folder, and a new Website button
 //   remote                                                  -GPMode remote
 //   themes, menu                                            -GPSettings / -GPMenu
 //   trackpad (landscape)                                    -GPFilm trackpad -GPOrientation landscape
-// Keyboard and Layouts are taken from the website's drawn screens. macros-hud is the Mac's
+// Keyboard is taken from the website's drawn screen (simulator shots show an iOS keyboard tip). macros-hud is the Mac's
 // recording indicator (a Mac screenshot), copied as it is.
 //
 // Output: ../docs/img/screens/<name>.png, one framed phone each on a clear background (the guide shows these),
@@ -44,14 +44,13 @@ async function grab(name, sel, land, before) {
   shots[name] = { src: `data:image/png;base64,${png.toString("base64")}`, land };
 }
 await grab("keyboard", "#modeIphone .ip-screen", false, () => site.click("#tab-keys"));
-await grab("layouts", "#lpStage .ip-screen", true, () => site.getByRole("radio", { name: "Studio" }).click());
 
 /* 2. Every screen in the same drawn iPhone (web/src/device.css) */
-const REAL = ["actions", "theme-glass", "theme-glassdark", "theme-midnight", "theme-mono", "dock", "media", "present", "clipboard", "displays", "library", "folder", "website", "remote", "themes", "menu", "trackpad", "standby"];
+const REAL = ["actions", "theme-glass", "theme-aurora", "theme-ocean", "theme-midnight", "dock", "media", "present", "clipboard", "displays", "library", "folder", "website", "remote", "themes", "menu", "trackpad", "standby", "layouts"];
 for (const n of REAL) {
   const f = join(raw, n + ".png");
   if (!existsSync(f)) { console.warn("missing", f); continue; }
-  shots[n] = { src: `data:image/png;base64,${readFileSync(f).toString("base64")}`, land: n === "trackpad" || n === "standby" };
+  shots[n] = { src: `data:image/png;base64,${readFileSync(f).toString("base64")}`, land: n === "trackpad" || n === "standby" || n === "layouts" };
 }
 
 const page = await (await browser.newContext({ viewport: { width: 1600, height: 1000 }, deviceScaleFactor: 2 })).newPage();
@@ -78,7 +77,7 @@ async function compose(name, names, { gap = 72, w = 300 } = {}) {
 }
 await compose("hero", ["remote", "actions", "media"]);
 await compose("modes", ["dock", "present", "clipboard", "displays"], { gap: 56, w: 260 });
-await compose("themes", ["theme-glass", "theme-glassdark", "theme-midnight", "theme-mono"], { gap: 56, w: 260 });
+await compose("themes", ["theme-glass", "theme-aurora", "theme-ocean", "theme-midnight"], { gap: 56, w: 260 });
 await compose("layouts", ["layouts", "standby"]);
 
 await browser.close();

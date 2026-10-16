@@ -51,7 +51,7 @@ const DESK = {
     ${standPhone("sp-desk", `<div class="pt land lyt">
       <div class="lp-pane tpad"><i class="tp-hint"></i></div><div class="lyt-div"><i></i></div>
       <div class="lp-pane ac">${front("web", "Safari")}<div class="ag f3">${tiles(SAFARI)}</div><h5>Pinned</h5>
-        <div class="ag f3">${tl("Split Screen", "square.split.2x1", "#30B0C7")}${tl("Do Not Disturb", "moon.fill", "#5E5CE6")}${tl("Screenshot", "camera.viewfinder", "#0A84FF")}</div></div></div>`)}
+        <div class="ag f3">${tl("Split Screen", "rectangle.split.2x1.fill", "#0A84FF")}${tl("Do Not Disturb", "moon.fill", "#5E5CE6")}${tl("Screenshot", "camera.viewfinder", "#0A84FF")}</div></div></div>`)}
   </div></div>`,
   async run(s: Scene) {
     const grid = s.q(".ag.f3"), saf = s.m(".w-saf"), xc = s.m(".w-xc"), cur = s.m<SVGElement>(".mon-c .md-cursor");
@@ -98,7 +98,7 @@ const STUDIO = {
       <div class="fc-tl"><div class="fc-track v"><i style="left:2%;width:30%"></i><i class="b" style="left:32.4%;width:28%"></i><i style="left:60.8%;width:21%"></i></div>
         <div class="fc-track a"><i style="left:2%;width:80%"></i></div><span class="fc-cut"></span><span class="fc-in"></span><span class="fc-head"></span></div></div>`)}
     ${standPhone("sp-studio", `<div class="pt land acl"><div class="acl-a">${front("fcp", "Final Cut Pro")}<div class="ag f3">${tiles(FCP)}</div></div>
-      <div class="acl-b"><div class="ph5">Pinned</div><div class="ag f3">${tl("Do Not Disturb", "moon.fill", "#5E5CE6")}${tl("Keep Awake", "cup.and.saucer", "#A2845E")}${tl("Screenshot", "camera.viewfinder", "#0A84FF")}${tl("Night Shift", "sun.max", "#FF9F0A")}${tlApp("Music", "music")}${tl("Split Screen", "square.split.2x1", "#30B0C7")}</div></div></div>`)}
+      <div class="acl-b"><div class="ph5">Pinned</div><div class="ag f3">${tl("Do Not Disturb", "moon.fill", "#5E5CE6")}${tl("Keep Awake", "cup.and.saucer.fill", "#30B0C7")}${tl("Screenshot", "camera.viewfinder", "#0A84FF")}${tl("Night Shift", "sun.horizon.fill", "#FFD60A")}${tlApp("Music", "music")}${tl("Split Screen", "rectangle.split.2x1.fill", "#0A84FF")}</div></div></div>`)}
   </div>`,
   async run(s: Scene) {
     const head = s.m(".fc-head"), cut = s.m(".fc-cut"), mark = s.m(".fc-in"), frame = s.m(".fc-frame");

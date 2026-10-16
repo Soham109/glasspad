@@ -402,9 +402,9 @@
 .mk-lib .add.on svg { stroke: #fff; }
 .mk-th { position: absolute; inset: 0; background: var(--pt-bg); transition: background 500ms ease; }
 .mk-th .mk-row { top: 30px; }
-.mk-th .sw { position: absolute; left: 24px; right: 24px; top: 160px; display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+.mk-th .sw { position: absolute; left: 16px; right: 16px; top: 160px; display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
 .mk-th.mono .bt { --c: var(--ink); }
-.mk-th .sw span { width: 20px; height: 20px; border-radius: 50%; box-shadow: inset 0 0 0 1px rgba(26, 26, 26, 0.15); transition: box-shadow 250ms; }
+.mk-th .sw span { width: 18px; height: 18px; border-radius: 50%; box-shadow: inset 0 0 0 1px rgba(26, 26, 26, 0.15); transition: box-shadow 250ms; }
 .mk-th .sw span.on { box-shadow: inset 0 0 0 1px rgba(26, 26, 26, 0.15), 0 0 0 2px rgba(255, 255, 255, 0.75), 0 0 0 4px var(--ink); }
 .mk-th .nm { position: absolute; left: 0; right: 0; bottom: 12px; text-align: center; font-size: 13px; font-weight: 600; color: var(--ink2); }
 @media (max-width: 960px) { .mk-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
@@ -498,7 +498,7 @@
 .lamp .base { position: absolute; left: 30%; right: 30%; bottom: 0; height: 3cqw; border-radius: 50% 50% 0.4cqw 0.4cqw; background: #7C7368; }
 .sp-night { left: 40cqw; top: 15.4cqw; width: 52cqw; }
 .sp-night .sp-stand { margin-top: -2.4cqw; height: 4.4cqw; }
-.sby { background: #000; color: #D9D9D9; transition: filter 900ms ease; }
+.sby { background: #000; color: #D9D9D9; isolation: isolate; }
 .sby svg { fill: currentColor; stroke: none; }
 .sby svg .f { fill: currentColor; }
 .sb-pane { position: absolute; top: 12px; bottom: 12px; border-radius: 30px; background: #000; overflow: hidden; }
@@ -513,13 +513,11 @@
 .np .pst { width: 170px; height: 170px; border-radius: 14px; }
 .npt { text-align: center; } .npt b { display: block; font-size: 17px; font-weight: 600; color: #EDEDED; } .npt span { font-size: 14px; color: rgba(255, 255, 255, 0.5); }
 .npc { display: flex; gap: 46px; } .npc svg { width: 32px; height: 32px; color: #EDEDED; }
-.sby .dg b, .sby .cd, .sby .chg svg, .sby .npt b, .sby .npt span, .sby .npc svg, .sby .lyt-div i { transition: color 900ms, background 900ms; }
-.sby.red .dg b { color: #8E2216; }
-.sby.red .cd, .sby.red .chg svg, .sby.red .npt b, .sby.red .npc svg { color: #7A1D13; }
-.sby.red .npt span { color: #5C160E; } .sby.red .lyt-div i { background: #4A140D; }
-.sby .np .pst::after { content: ""; position: absolute; inset: 0; background: #6E1A10; mix-blend-mode: color; opacity: 0; transition: opacity 900ms; }
-.sby .np .pst { transition: filter 900ms; }
-.sby.red .np .pst { filter: brightness(0.45); } .sby.red .np .pst::after { opacity: 1; }
+/* Night mode as StandByMode.swift does it: grey, multiplied by #C8261A, at 80% */
+.sby::after { content: ""; position: absolute; inset: 0; z-index: 5; background: #C8261A; mix-blend-mode: multiply; opacity: 0; transition: opacity 1200ms ease-in-out; pointer-events: none; }
+.sby > * { transition: filter 1200ms ease-in-out, opacity 1200ms ease-in-out; }
+.sby.red > * { filter: grayscale(1); opacity: 0.8; }
+.sby.red::after { opacity: 1; }
 .uc-night .sp-stand { filter: brightness(0.5); transition: filter 900ms; } .uc-night.dark .sp-stand { filter: brightness(0.18); }
 .lp-pane.dk:has(.pz-clk), .lp-pane.dk:has(.pz-np) { background: #000; }
 .pz-clk { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 0.86; color: #D8D8D8; }
