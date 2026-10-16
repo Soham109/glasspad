@@ -173,7 +173,7 @@ public final class ModeRouter {
                 switch await self.clipboard.pullResult() {
                 case .content(let content): self.send(.clipboardContent(content))
                 case .empty: self.send(.clipboardContent(nil))
-                case .tooLarge, .imageNotSendable:
+                case .tooLarge, .imageNotSendable, .notAllowed:
                     // The reason first; the nil after it is all an older phone understands.
                     if let reason = self.clipboard.lastRefusal { self.send(.clipboardPullRefused(message: reason)) }
                     self.send(.clipboardContent(nil))

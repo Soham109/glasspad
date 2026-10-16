@@ -264,8 +264,9 @@ public protocol DeckEnvironment: AnyObject {
     func setBrightness(_ value: Double)
     func audioOutputs() -> [String]
     func setAudioOutput(name: String) -> Bool
-    /// Ejects every ejectable volume; returns how many went and how many refused.
-    func ejectAll() -> (ejected: Int, failed: Int)
+    /// Ejects every ejectable volume; returns how many went and how many refused. Never blocks
+    /// the main thread (a busy or slow disk can take seconds to let go).
+    func ejectAll() async -> (ejected: Int, failed: Int)
     /// com.apple.screencapture `location`, else the Desktop.
     func screenshotFolder() -> URL
     /// Window id of the frontmost app's front window.
@@ -319,7 +320,11 @@ public final class DeckMode {
     public static let step = 1.0 / 16
 
     public static let missionControlBundleID = "com.apple.exposelauncher"
-    public static let missionControlPath = "/System/Applications/Mission Control.app/Contents/MacOS/Mission Control"
+    /// Mission Control's own program, started through Launch Services (`open`): macOS kills it
+    /// (SIGKILL, exit 137) when another app starts it directly.
+    public static func missionControlLaunch(_ argument: String?) -> (path: String, arguments: [String]) {
+        ("/usr/bin/open", ["-g", "-b", missionControlBundleID] + (argument.map { ["--args", $0] } ?? []))
+    }
     public static let osascript = "/usr/bin/osascript"
     /// Running a button from a newer Glasspad.
     public static let updateToUse = "Update Glasspad on your Mac to use this button."
@@ -612,17 +617,19 @@ public final class DeckMode {
         case .playPause: env.media(.playPause); return .done
         case .nextTrack: env.media(.nextTrack); return .done
         case .previousTrack: env.media(.previousTrack); return .done
-        // The Dock first: macOS 27 kills Mission Control's own program when started directly.
+        // The Dock first; else Mission Control's program through Launch Services, never directly
+        // (macOS kills it when started directly).
         case .showDesktop:
             if env.showDockView(.showDesktop) { return .done }
-            return await tool(Self.missionControlPath, ["1"], "Could not show the desktop")
+            let launch = Self.missionControlLaunch("1")
+            return await tool(launch.path, launch.arguments, "Could not show the desktop")
         case .missionControl:
             if env.showDockView(.missionControl) { return .done }
-            if await env.openApp(bundleID: Self.missionControlBundleID) { return .done }
-            return await tool(Self.missionControlPath, [], "Could not open Mission Control")
+            return await env.openApp(bundleID: Self.missionControlBundleID) ? .done : .fail("Could not open Mission Control")
         case .appExpose:
             if env.showDockView(.appExpose) { return .done }
-            return await tool(Self.missionControlPath, ["2"], "Could not show App Exposé")
+            let launch = Self.missionControlLaunch("2")
+            return await tool(launch.path, launch.arguments, "Could not show App Exposé")
         case .launchpad:
             // macOS 26 replaced Launchpad with the Apps launcher; older Macs still have Launchpad.
             if await env.openApp(bundleID: "com.apple.apps.launcher") { return .done }
@@ -630,7 +637,7 @@ public final class DeckMode {
         case .emptyTrash:
             return await tool(Self.osascript, ["-e", "tell application \"Finder\" to empty trash"], Self.automationHint)
         case .ejectAll:
-            let r = env.ejectAll()
+            let r = await env.ejectAll()
             if r.failed > 0 { return .fail("\(r.failed) disk\(r.failed == 1 ? "" : "s") could not be ejected (in use)") }
             return Outcome(ok: true, message: r.ejected == 0 ? "Nothing to eject" : nil)
         case .doNotDisturb:

@@ -30,6 +30,9 @@ public final class ClipboardMode {
 
     public init(pasteboard: NSPasteboard = .general) { self.pasteboard = pasteboard }
 
+    /// Whether macOS refuses Glasspad's reads; tests stand in for System Settings.
+    var accessDenied: (NSPasteboard) -> Bool = ClipboardMode.readsDenied
+
     /// What a pull found.
     public enum PullResult: Equatable, Sendable {
         case content(ClipboardContent)
@@ -39,6 +42,9 @@ public final class ClipboardMode {
         case tooLarge(bytes: Int)
         /// An image that could not be read or shrunk to `ClipboardLimits.maxImageBytes`.
         case imageNotSendable
+        /// The person set Glasspad's pasteboard access to Deny in System Settings, so every
+        /// read comes back empty.
+        case notAllowed
     }
 
     /// Puts the content on the pasteboard and returns nil, or returns why it did not (and leaves
@@ -106,7 +112,9 @@ public final class ClipboardMode {
 
     public func pullResult() async -> PullResult {
         let result: PullResult
-        if let png = pasteboard.data(forType: .png) {
+        if accessDenied(pasteboard) {
+            result = .notAllowed
+        } else if let png = pasteboard.data(forType: .png) {
             result = await Self.offMain { Self.fitting(png) }.map { .content(.imagePNG($0)) } ?? .imageNotSendable
         } else if let tiff = pasteboard.data(forType: .tiff) {
             result = await Self.offMain { Self.png(fromImage: tiff).flatMap { Self.fitting($0) } }.map { .content(.imagePNG($0)) } ?? .imageNotSendable
@@ -122,10 +130,20 @@ public final class ClipboardMode {
         case .imageNotSendable:
             lastRefusal = ClipboardLimits.imageNotSendable
             GPLog.log("clipboard: the image on the pasteboard could not be read or shrunk to send")
+        case .notAllowed:
+            lastRefusal = ClipboardLimits.notAllowed
+            GPLog.log("clipboard: pasteboard access is set to deny for Glasspad")
         case .content, .empty:
             lastRefusal = nil
         }
         return result
+    }
+
+    /// True when macOS answers every programmatic read with nothing (pasteboard privacy,
+    /// macOS 15.4 and later). Reading the setting itself never shows the Mac's paste alert.
+    nonisolated static func readsDenied(_ pasteboard: NSPasteboard) -> Bool {
+        guard #available(macOS 15.4, *) else { return false }
+        return pasteboard.accessBehavior == .alwaysDeny
     }
 
     nonisolated static func checkText(_ s: String) -> PullResult {
@@ -212,4 +230,5 @@ public enum ClipboardLimits {
     static let tooManyPixels = "This image is too large for the Mac clipboard. Try a smaller one."
     static let unreadableImage = "Your Mac could not read this image. Try copying it again."
     static let notWritten = "The Mac clipboard did not take it. Try again."
+    static let notAllowed = "Your Mac does not let Glasspad read its clipboard. Allow it in System Settings > Privacy & Security."
 }

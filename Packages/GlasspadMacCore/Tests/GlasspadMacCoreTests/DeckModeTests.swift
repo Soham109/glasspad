@@ -258,14 +258,19 @@ import Testing
         #expect(await outcome(d, .system(.appExpose)).ok)
         #expect(env.dockViews == [.showDesktop, .missionControl, .appExpose])
         #expect(env.runs.count == runsBefore)
-        // Without the Dock call: Mission Control opens as an app, the others run its program.
+        // Without the Dock call: Mission Control opens as an app, the others start its program
+        // through Launch Services, never its executable directly (macOS kills that).
         env.dockViewsWork = false
+        let runsBeforeFallback = env.runs.count
         _ = await outcome(d, .system(.missionControl))
         #expect(env.opened.last == DeckMode.missionControlBundleID)
+        #expect(env.runs.count == runsBeforeFallback)
         _ = await outcome(d, .system(.showDesktop))
-        #expect(env.runs.last?.0 == DeckMode.missionControlPath && env.runs.last?.1 == ["1"])
+        #expect(env.runs.last?.0 == "/usr/bin/open")
+        #expect(env.runs.last?.1 == ["-g", "-b", "com.apple.exposelauncher", "--args", "1"])
         _ = await outcome(d, .system(.appExpose))
-        #expect(env.runs.last?.1 == ["2"])
+        #expect(env.runs.last?.1 == ["-g", "-b", "com.apple.exposelauncher", "--args", "2"])
+        #expect(!env.runs.contains { $0.0.contains("Mission Control.app") })
         env.dockViewsWork = true
         #expect(await outcome(d, .system(.toggleDarkMode)) == DeckMode.Outcome(ok: true, message: "Dark"))
         #expect(env.runs.last?.0 != "/usr/bin/osascript")
