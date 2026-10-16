@@ -16,6 +16,10 @@ public enum SwipeKind: String, Codable, Sendable {
     case spaces, missionControl, appExpose, launchpad, showDesktop
 }
 
+/// A stream of finger-driven motion that may safely be carried on through a short Wi-Fi gap
+/// (`GestureRecognizer.continuingMotion`): the Mac's output scheduler extrapolates only these.
+public enum MotionStream: Sendable, Equatable { case move, drag, scroll }
+
 /// Output of `GestureRecognizer`, consumed by the Mac synth.
 public enum GestureEvent: Equatable, Sendable {
     /// Pointer move in Mac points (+x right, +y down), already accelerated.

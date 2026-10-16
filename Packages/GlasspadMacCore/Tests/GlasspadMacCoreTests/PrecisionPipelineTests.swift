@@ -17,7 +17,9 @@ import Testing
     struct Step { var x: Double; var y: Double; var radius: Double; var phase: TouchPhase }
 
     /// Runs `steps` (one every `sample`, from phone time 10) through a pipeline, with or
-    /// without the display clock, and returns what was posted with local post times.
+    /// without the display clock, and returns what was posted with local post times. A finger
+    /// still down after the last step rests, so the phone keeps resending its snapshot every
+    /// 20 ms (`GlasspadClient`), as the real one does.
     func run(_ steps: [Step], clocked: Bool, network: (Int) -> Double = { $0 % 3 == 0 ? 0.004 : 0.001 }) -> [Posted] {
         let (synth, poster) = makeSynth()
         let clock = ManualFrameClock()
@@ -25,9 +27,17 @@ import Testing
         pipeline.onDiagnostics = nil
         var local = 0.0
         pipeline.now = { local }
+        var steps = steps
+        var phoneTimes = steps.indices.map { 10 + Double($0) * Self.sample }
+        if let last = steps.last, last.phase.isActive {
+            for _ in 0..<10 {
+                steps.append(Step(x: last.x, y: last.y, radius: last.radius, phase: .stationary))
+                phoneTimes.append(phoneTimes.last! + 0.02)
+            }
+        }
         // Arrivals and display frames on one local timeline, in order.
         var timeline: [(t: Double, frame: Int?)] = steps.indices.map { i in
-            (10 + Double(i) * Self.sample + Self.offset + network(i), i)
+            (phoneTimes[i] + Self.offset + network(i), i)
         }
         let end = timeline.last!.t + 0.2
         var v = 10 + Self.offset + 0.003
@@ -40,7 +50,7 @@ import Testing
             if let i = item.frame {
                 let s = steps[i]
                 let touch = Touch(id: 1, phase: s.phase, x: s.x, y: s.y, majorRadius: s.radius)
-                pipeline.process(TouchFrame(seq: UInt32(i + 1), timestamp: 10 + Double(i) * Self.sample, touches: [touch],
+                pipeline.process(TouchFrame(seq: UInt32(i + 1), timestamp: phoneTimes[i], touches: [touch],
                                             surface: CGSize(width: 390, height: 844)))
             } else if clocked {
                 clock.fire(period: Self.display)

@@ -407,6 +407,22 @@ public final class GestureRecognizer {
     /// before the first frame. The Mac's output scheduler uses it too.
     public var learnedClockOffset: Double? { clockOffset }
 
+    /// The motion stream that would keep going if frames stopped arriving right now, or nil when
+    /// nothing may be extrapolated: no fingers, a frozen drag, a tap or roll hold (precision),
+    /// held motion still being fed out, a contact peeling off (a lift is coming), a force-click
+    /// hold, a pinch, a swipe, or anything after a lift. The Mac's scheduler uses it to carry
+    /// the pointer, a drag or a scroll across a Wi-Fi gap.
+    public var continuingMotion: MotionStream? {
+        guard !touches.isEmpty, !isStalled, hold == nil, backlog == nil, !rollSignal,
+              !touches.values.contains(where: \.contactShrinking) else { return nil }
+        switch state {
+        case .pointing: return .move
+        case .dragging: return isLeftButtonDown ? .drag : nil
+        case .scrolling: return .scroll
+        default: return nil
+        }
+    }
+
     // MARK: Motion
 
     /// True in the states where finger motion moves the pointer.

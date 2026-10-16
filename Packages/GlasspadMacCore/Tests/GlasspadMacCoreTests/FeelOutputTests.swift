@@ -119,16 +119,47 @@ import Testing
                         .scroll(dx: 0, dy: 0, phase: .ended, momentum: .none)])
     }
 
-    @Test func hugeLatenessIsCappedAtOneFrame() {
+    @Test func hugeLatenessRaisesTheBufferGraduallyToItsCap() {
         let s = MotionScheduler()
+        var previous = 0.0
+        var largestStep = 0.0
         for k in 0..<300 {
             let t = Double(k) * frame
             let late = k % 3 == 0 ? 0.08 : 0.0           // a third of the frames 80 ms late
             s.enqueue([.move(dx: 1, dy: 0)], frameTime: t, arrival: t + offset + late, clockOffset: offset)
             _ = s.flush(now: t + offset, framePeriod: frame)
+            largestStep = max(largestStep, s.delay - previous)
+            previous = s.delay
         }
-        #expect(s.delay <= frame + 1e-9)
-        #expect(s.delay > frame * 0.9)
+        // Bursty link: the buffer grows to its cap, never past it, and only a few percent of
+        // each display frame at a time (the playhead slows imperceptibly while it grows).
+        #expect(s.delay <= s.config.maxDelay + 1e-9)
+        #expect(s.delay > s.config.maxDelay * 0.9)
+        #expect(largestStep <= s.config.delayRiseRate * frame + 1e-9)
+    }
+
+    @Test func bufferShrinksBackOnceTheLinkCalms() {
+        let s = MotionScheduler()
+        var t = 0.0
+        func run(seconds: Double, late: (Int) -> Double) {
+            let n = Int(seconds * 120)
+            for k in 0..<n {
+                s.enqueue([.move(dx: 1, dy: 0)], frameTime: t, arrival: t + offset + late(k), clockOffset: offset)
+                _ = s.flush(now: t + offset, framePeriod: frame)
+                t += frame
+            }
+        }
+        run(seconds: 2) { $0 % 4 == 0 ? 0.05 : 0 }
+        let bursty = s.delay
+        #expect(bursty > 0.03)
+        run(seconds: 1.5) { _ in 0.0005 }
+        // Falls once the bursty frames leave the history, but slowly (at most
+        // `delayFallRate`), so the playhead's catch-up is invisible...
+        #expect(s.delay < bursty)
+        #expect(bursty - s.delay <= s.config.delayFallRate * 1.5 + 1e-6)
+        run(seconds: 5) { _ in 0.0005 }
+        // ...and a clean link is back to almost nothing.
+        #expect(s.delay < 0.001)
     }
 
     @Test func steadyLinkAddsAlmostNoDelay() {

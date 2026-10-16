@@ -55,9 +55,11 @@ public enum GestureTuning {
     /// Scroll pixels per inch, relative to the Mac pointer formula at the same speed on the
     /// scroll curve. First knob to tune if scrolling feels uniformly fast or slow.
     public static let scrollCalibration: Double = 1.5
-    /// Frame interval clamp for speed estimates.
+    /// Frame interval clamp for speed estimates. The upper clamp covers whole Wi-Fi gaps (an
+    /// AWDL hop loses up to about 200 ms): at 50 ms the snapshot after a 120 ms gap read as 2.4
+    /// times the finger's real speed, so the acceleration curve made the pointer overshoot.
     public static let minFrameInterval: TimeInterval = 0.004
-    public static let maxFrameInterval: TimeInterval = 0.05
+    public static let maxFrameInterval: TimeInterval = 0.2
 
     // MARK: Pointer precision (physical units)
     // The Mac's own trackpad never moves the pointer for the motion inside a tap, nor for the

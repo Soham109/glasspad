@@ -6,7 +6,11 @@ import GlasspadKit
 /// how late frames arrive compared with the fastest one, the jitter buffer delay, and how
 /// many display frames and pointer events went out. One summary line per second while frames
 /// flow (`GPLog`, subsystem com.soham109.glasspad), e.g.
-/// `feel: 238 fps, gap p50 4.2 p95 8.4 max 21.0 ms, lost 0, late p50 0.9 p95 3.1 max 12.4 ms, buffer 3.0 ms, display 120 Hz, out 120/s`.
+/// `feel: 120 fps, gap p50 8.3 p95 70.2 max 201.0 ms, lost 5, late p50 0.9 p95 68.1 max 190.4 ms,
+/// buffer 21.4 ms, predicted 180 ms, fixes 3 max 6.2, smoothed 140, display 120 Hz, out 120/s`.
+/// `predicted` is playhead time carried by prediction across gaps, `fixes` the predictions
+/// reconciled with real frames (max: the largest error, Mac points or scroll pixels, fed out
+/// over a few frames), `smoothed` the late motion (same units) fed out smoothly instead of at once.
 public struct TouchDiagnostics {
     public struct Summary: Equatable, Sendable {
         public var frames: Int
@@ -17,6 +21,12 @@ public struct TouchDiagnostics {
         public var bufferMs: Double
         public var displayFrames: Int
         public var outputEvents: Int
+        /// Gap hiding (`MotionScheduler.Stats`): ms of playhead time predicted, predictions
+        /// reconciled with real frames and the largest error, late motion smoothed.
+        public var predictedMs: Double = 0
+        public var corrections: Int = 0
+        public var maxCorrection: Double = 0
+        public var smoothedLate: Double = 0
 
         public var line: String {
             func f(_ v: Double) -> String { String(format: "%.1f", v) }
@@ -25,7 +35,9 @@ public struct TouchDiagnostics {
             let out = seconds > 0 ? Double(outputEvents) / seconds : 0
             return "feel: \(Int(fps.rounded())) fps, gap p50 \(f(gapP50Ms)) p95 \(f(gapP95Ms)) max \(f(gapMaxMs)) ms, "
                 + "lost \(lost), late p50 \(f(lateP50Ms)) p95 \(f(lateP95Ms)) max \(f(lateMaxMs)) ms, "
-                + "buffer \(f(bufferMs)) ms, display \(Int(hz.rounded())) Hz, out \(Int(out.rounded()))/s"
+                + "buffer \(f(bufferMs)) ms, predicted \(Int(predictedMs.rounded())) ms, "
+                + "fixes \(corrections) max \(f(maxCorrection)), smoothed \(Int(smoothedLate.rounded())), "
+                + "display \(Int(hz.rounded())) Hz, out \(Int(out.rounded()))/s"
         }
     }
 
@@ -64,14 +76,17 @@ public struct TouchDiagnostics {
     }
 
     /// Returns a summary once `interval` has passed since the window opened, and starts a new one.
-    public mutating func summary(now: TimeInterval, bufferDelay: TimeInterval) -> Summary? {
+    public mutating func summary(now: TimeInterval, bufferDelay: TimeInterval,
+                                 motion: MotionScheduler.Stats = .init()) -> Summary? {
         guard let start = windowStart, now - start >= interval, frames > 0 else { return nil }
         func q(_ v: [Double], _ p: Double) -> Double { MotionScheduler.quantile(v, p) * 1000 }
         let s = Summary(frames: frames, seconds: now - start,
                         gapP50Ms: q(gaps, 0.5), gapP95Ms: q(gaps, 0.95), gapMaxMs: (gaps.max() ?? 0) * 1000,
                         lost: lost,
                         lateP50Ms: q(late, 0.5), lateP95Ms: q(late, 0.95), lateMaxMs: (late.max() ?? 0) * 1000,
-                        bufferMs: bufferDelay * 1000, displayFrames: displayFrames, outputEvents: outputEvents)
+                        bufferMs: bufferDelay * 1000, displayFrames: displayFrames, outputEvents: outputEvents,
+                        predictedMs: motion.predictedTime * 1000, corrections: motion.corrections,
+                        maxCorrection: motion.maxCorrection, smoothedLate: motion.smoothedLate)
         windowStart = nil
         gaps = []; late = []; lost = 0; frames = 0; displayFrames = 0; outputEvents = 0
         return s

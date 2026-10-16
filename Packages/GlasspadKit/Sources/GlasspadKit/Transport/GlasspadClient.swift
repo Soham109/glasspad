@@ -542,6 +542,13 @@ public final class GlasspadClient: @unchecked Sendable {
         channel?.send(sealed)
     }
 
+    /// Each touch frame goes out once, the moment UIKit delivers it, on the WMM voice queue
+    /// (`udpParameters`). A duplicate a couple of ms later was considered and left out: the
+    /// losses seen on real links come in runs (the radio is away on AWDL channels or asleep for
+    /// 16 to 200 ms), so a copy sent 2 ms after a lost frame is lost with it, while it doubles
+    /// air time on the busiest queue (about 120 more datagrams a second). Frames are full
+    /// snapshots, so an isolated loss costs only one sample interval of delay (the next frame
+    /// carries the position), and the Mac's scheduler bridges the runs.
     private func sendTouches(_ f: TouchFrame) {
         var f = f
         seq &+= 1

@@ -6,9 +6,9 @@ import QuartzCore
 /// Touch frames in, CGEvents out: GestureRecognizer feeding EventSynthesizer.
 ///
 /// With a `FrameClock` (the app passes `DisplayFrameClock`), output is display synced: the
-/// recognizer's events go through `MotionScheduler` and leave at display frames, smoothed by a
-/// jitter buffer of at most one frame, and recognizer ticks (momentum, hold timers) run once per
-/// display frame too. Without one (tests), events are posted as soon as each frame arrives and
+/// recognizer's events go through `MotionScheduler` and leave at display frames, smoothed by an
+/// adaptive jitter buffer, carried across short Wi-Fi gaps by prediction, with late bursts fed
+/// out smoothly; recognizer ticks (momentum, hold timers) run once per display frame too. Without one (tests), events are posted as soon as each frame arrives and
 /// ticks run from an 8 ms timer, which is how it used to work.
 ///
 /// Haptics: the phone runs its own recognizer and plays every trackpad haptic itself, so the
@@ -65,7 +65,8 @@ public final class TouchPipeline {
         let offset = recognizer.learnedClockOffset ?? (arrival - frame.timestamp)
         diagnostics.frame(seq: frame.seq, arrival: arrival, lateness: arrival - (frame.timestamp + offset))
         if let clock = frameClock {
-            scheduler.enqueue(events, frameTime: frame.timestamp, arrival: arrival, clockOffset: offset)
+            scheduler.enqueue(events, frameTime: frame.timestamp, arrival: arrival, clockOffset: offset,
+                              continuing: recognizer.continuingMotion)
             idleFrames = 0
             if !clock.isRunning {
                 clock.start()
@@ -79,7 +80,10 @@ public final class TouchPipeline {
             synth.handle(events)
             scheduleTicks()
         }
-        if let s = diagnostics.summary(now: arrival, bufferDelay: scheduler.delay) { onDiagnostics?(s) }
+        if let s = diagnostics.summary(now: arrival, bufferDelay: scheduler.delay, motion: scheduler.stats) {
+            scheduler.resetStats()
+            onDiagnostics?(s)
+        }
     }
 
     /// One display frame: release what is due, then run the recognizer's timers on the same

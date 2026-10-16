@@ -455,13 +455,36 @@ As built, feel pass (Oct 2026): display-synced output.
   rate, 120 Hz on ProMotion, timer fallback) puts every recognizer event on the phone's timeline
   in `Synth/MotionScheduler.swift` and releases it at display frames: at most one move, drag
   and scroll event per frame, motion spread evenly over the sample interval after its sample,
-  discrete events kept in order. Delay `D` = 90th percentile of frame lateness (eased, capped
-  at one display frame); added latency is `D` plus about half a sample interval. Recognizer
-  ticks (momentum, hold timers) run once per display frame on the same delayed timeline. If
-  the display stops calling back for 50 ms, events post at once. The clock stops after about
-  half a second idle. Without a frame clock (tests) the old immediate path is used.
+  discrete events kept in order. Delay `D` = 90th percentile of frame lateness, capped at 35 ms,
+  moving at most 4% (up) or 1% (down) of real time, so a bursty link raises it within a second
+  and a clean one brings it back to 1 to 3 ms; added latency is `D` plus about half a sample
+  interval. Recognizer ticks (momentum, hold timers) run once per display frame on the same
+  delayed timeline. If the display stops calling back for 50 ms, events post at once. The clock
+  stops after about half a second idle. Without a frame clock (tests) the old immediate path is
+  used.
+- As built, gap pass (Oct 2026): macOS hops the Wi-Fi radio to AWDL for system services, so
+  frames stop for 70 to 200 ms mid-move and then arrive in a burst or not at all. The scheduler
+  now hides that. `GestureRecognizer.continuingMotion` says which stream (move, drag, scroll)
+  may be carried on; it is nil in a tap or roll hold, while held motion is fed out, while a
+  contact peels off, in a force-click hold, a pinch or a swipe, and after a lift. With a stream
+  continuing and 15 ms of silence past the last frame, the stream goes on at its recent velocity
+  (40 ms estimate, lowered by the last 17 ms so a slowing finger is not carried on), held for
+  30 ms then decaying (80 ms), for at most 140 ms and a soft cap of 80 pt (160 scroll px). The
+  next real frame ends it; real travel minus predicted travel is fed out over a few display
+  frames (20 ms time constant, adding at most the stream's own speed plus 150 pt/s), never a jump.
+  Motion that reaches the playhead more than half a display frame late (a burst, or the
+  snapshot that carries a whole gap) goes out the same way. A drag's owed motion always goes out
+  before its button-up. Swipe progress is never extrapolated; its late part eases in the same
+  way. A finger that stops is confirmed by the phone's 20 ms resend, so a hard stop overshoots
+  by at most about 5 ms of travel, taken back smoothly. The recognizer's speed clamp
+  (`maxFrameInterval`) is now 200 ms, so the snapshot after a gap is not mistaken for a fast
+  flick by the acceleration curve. The phone sends each frame once on the WMM voice queue; a
+  duplicate 2 ms later was rejected because losses come in runs longer than that.
 - `TouchDiagnostics` logs one line per second while frames flow:
-  `feel: N fps, gap p50/p95/max, lost, late p50/p95/max, buffer, display Hz, out/s`.
+  `feel: N fps, gap p50/p95/max, lost, late p50/p95/max, buffer, predicted ms, fixes N max E,
+  smoothed U, display Hz, out/s` (`predicted`: playhead time bridged by prediction; `fixes`:
+  predictions reconciled with real frames and the largest error in points or scroll pixels;
+  `smoothed`: late motion fed out gradually).
   Read it with `/usr/bin/log show --predicate 'subsystem == "com.soham109.glasspad"'`.
 
 ## 8. Modes
