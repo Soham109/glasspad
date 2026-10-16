@@ -137,3 +137,24 @@ import Testing
         #expect(ControlCenterFocus.isFocusTile("controlcenter-focus-modes"))
     }
 }
+
+struct LeftAndRightMenuTests {
+    typealias S = MoveResizeMenu.Shortcut
+    // AXMenuItemCmdModifiers: shift 1, option 2, control 4, no command 8.
+    let shiftControl = 1 | 4 | 8
+
+    @Test func findsArrangeLeftAndRight() {
+        #expect(MoveResizeMenu.isLeftAndRight(S(virtualKey: 123, modifiers: shiftControl)))
+        #expect(MoveResizeMenu.isLeftAndRight(S(glyph: 0x64, modifiers: shiftControl)))
+        #expect(MoveResizeMenu.isLeftAndRight(S(char: "\u{F702}", modifiers: shiftControl)))
+    }
+
+    @Test func neverMistakesTheSingleHalvesOrOtherItems() {
+        #expect(!MoveResizeMenu.isLeftAndRight(S(virtualKey: 123, modifiers: 4 | 8)))
+        #expect(!MoveResizeMenu.isLeftAndRight(S(virtualKey: 124, modifiers: shiftControl)))
+        #expect(!MoveResizeMenu.isLeftAndRight(S(virtualKey: 123, modifiers: 1 | 4)))
+        #expect(!MoveResizeMenu.isLeftAndRight(S(virtualKey: 123, modifiers: shiftControl | 2)))
+        // And Left & Right is never taken for the plain Left Half.
+        #expect(!MoveResizeMenu.matches(S(virtualKey: 123, modifiers: shiftControl), .left))
+    }
+}

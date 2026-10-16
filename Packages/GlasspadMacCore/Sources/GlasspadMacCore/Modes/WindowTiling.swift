@@ -112,6 +112,14 @@ public enum MoveResizeMenu {
         }
     }
 
+    /// True for Arrange > Left & Right: shift, control and the left arrow, no command or option.
+    /// macOS puts the front window on the left and the one behind it on the right.
+    public static func isLeftAndRight(_ s: Shortcut) -> Bool {
+        guard s.modifiers & 4 != 0, s.modifiers & 8 != 0, s.modifiers & 1 != 0, s.modifiers & 2 == 0 else { return false }
+        if s.virtualKey == 123 || s.glyph == 0x64 { return true }
+        return s.char?.unicodeScalars.first.map { Int($0.value) == 0xF702 } ?? false
+    }
+
     /// True when the shortcut is the one macOS gives this placement.
     public static func matches(_ s: Shortcut, _ placement: WindowPlacement) -> Bool {
         // Control, and no command key.
@@ -191,11 +199,14 @@ enum WindowMover {
         guard let frame = AXUI.frame(first.window), let i = WindowTiling.screenIndex(for: frame, in: all) else {
             return .failure(.noWindow)
         }
-        let halves = WindowTiling.split(in: all[i].visible, gap: gap())
         let second = windows[1]
+        // macOS's own Arrange > Left & Right first: native tiling, its animation and margins.
+        if AXUI.bool(first.window, "AXFullScreen") != true, pressLeftAndRight(app: first.app) { return .success(()) }
+        let halves = WindowTiling.split(in: all[i].visible, gap: gap())
         let ok = set(second.window, app: second.app, to: halves.right) && set(first.window, app: first.app, to: halves.left)
-        AXUIElementPerformAction(second.window, kAXRaiseAction as CFString)
-        AXUIElementPerformAction(first.window, kAXRaiseAction as CFString)
+        // Bring both forward, the right one first, so neither half is left behind other windows.
+        bringForward(second)
+        bringForward(first)
         return ok ? .success(()) : .failure(.refused)
     }
 
@@ -279,6 +290,27 @@ enum WindowMover {
         guard let now = AXUI.frame(window) else { return moved }
         // A window with a fixed or minimum size still counts once it is where it should be.
         return WindowTiling.isClose(now, target) || (moved && abs(now.minX - target.minX) <= 2 && abs(now.minY - target.minY) <= 2)
+    }
+
+    /// Raises the window and activates its app (a raised window of an app behind stays hidden).
+    private static func bringForward(_ w: (app: AXUIElement, window: AXUIElement)) {
+        // Through Accessibility: a menu bar app can't take activation from the app in front.
+        AXUI.set(w.app, kAXFrontmostAttribute, true)
+        AXUIElementPerformAction(w.window, kAXRaiseAction as CFString)
+    }
+
+    /// Window > Move & Resize > Left & Right in the front app, found by its shortcut.
+    private static func pressLeftAndRight(app: AXUIElement) -> Bool {
+        guard let bar = AXUI.element(app, kAXMenuBarAttribute) else { return false }
+        let item = AXUI.first(in: bar, maxDepth: 6, budget: 3000) { e in
+            guard AXUI.string(e, kAXRoleAttribute) == kAXMenuItemRole as String,
+                  let mods = AXUI.int(e, kAXMenuItemCmdModifiersAttribute) else { return false }
+            return MoveResizeMenu.isLeftAndRight(MoveResizeMenu.Shortcut(
+                char: AXUI.string(e, kAXMenuItemCmdCharAttribute), virtualKey: AXUI.int(e, kAXMenuItemCmdVirtualKeyAttribute),
+                glyph: AXUI.int(e, kAXMenuItemCmdGlyphAttribute), modifiers: mods))
+        }
+        guard let item, AXUI.bool(item, kAXEnabledAttribute) != false else { return false }
+        return AXUI.press(item)
     }
 
     /// Window > Move & Resize > the item for this placement, found by its shortcut.
