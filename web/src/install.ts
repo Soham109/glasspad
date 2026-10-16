@@ -4,6 +4,11 @@ import { reducedMotion } from "./spring";
    they come near the viewport. Sizes are in em; each figure scales its font to fit its column. */
 
 const ring = (inner: string, tag: string, pos = "b", cls = "") => `<span class="hl ${cls}">${inner}<b class="tag t-${pos}">${tag}</b></span>`;
+const SIZE: Record<string, [number, number]> = {
+  termPass: [44, 14], xcAccounts: [44, 19], xcSigning: [56, 19], macAccess: [46, 19], macPair: [34, 23],
+  ipTrust: [21, 25], ipDevPage: [21, 25], ipDevAlert: [21, 25], ipVpn: [21, 25], ipVpnTrust: [21, 25], ipLocal: [21, 25],
+};
+const figSlot = (k: string) => `<div class="fig${SIZE[k][0] < 30 ? " ph" : ""}" data-fig="${k}" style="--w:${SIZE[k][0]};--h:${SIZE[k][1]}" role="img" aria-hidden="true"></div>`;
 const badge = (n: number) => `<b class="nb">${n}</b>`;
 const tl = '<span class="tl"><i></i><i></i><i></i></span>';
 const macWin = (body: string, title = "", cls = "") => `<div class="mw ${cls}"><div class="mw-bar">${tl}${title ? `<span class="mw-t">${title}</span>` : ""}</div><div class="mw-body">${body}</div></div>`;
@@ -17,6 +22,8 @@ const chev = '<svg class="chev" viewBox="0 0 24 24"><path d="m9.5 5 7 7-7 7"/></
 const gpIcon = '<span class="gp-ic"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="3.5"/><circle cx="14.5" cy="11" r="1.6" fill="currentColor" stroke="none"/><path d="M8.5 14.2 12.4 12.2" opacity=".55"/></svg></span>';
 
 const FIGS: Record<string, () => string> = {
+  termPass: () => macWin(`<div class="tp"><p class="tp-dim">1. Xcode</p><p>Xcode needs its one-time setup and license. Enter your Mac password if asked.</p><p>${ring('<span class="tp-pw">Password:<i></i></span>', "Type your Mac password", "r")}</p></div>`, "Terminal"),
+
   xcAccounts: () => macWin(`
     <div class="xs-tabs">${["General", "Apple Accounts", "Behaviors", "Navigation", "Themes"].map((t, i) => `<span class="xs-tab${i === 1 ? " on" : ""}"><i></i>${t}</span>`).join("")}</div>
     <div class="xs-pane">
@@ -93,7 +100,76 @@ const FIGS: Record<string, () => string> = {
   ipLocal: () => phone(homeScreen + alert("&ldquo;Glasspad&rdquo; Would Like to Find and Connect to Devices on Your Local Network", "Glasspad finds your paired Mac on this Wi-Fi network and sends your touches to it.", btn("Don't Allow") + ring(btn("Allow", true), "Tap", "b", "r-pill")), true),
 };
 
+function initStepper(reduce: boolean) {
+  const root = document.getElementById("stepper"); if (!root) return;
+  const view = document.getElementById("stpView")!;
+  const items = Array.from(root.querySelectorAll<HTMLElement>(".stp-i"));
+  const heads = items.map(i => i.querySelector<HTMLButtonElement>(".stp-h")!);
+  const subs = Array.from(root.querySelectorAll<HTMLElement>(".sub"));
+  const wide = matchMedia("(min-width: 861px)");
+  // one panel view per sub-step, and the same drawings inline for the phone accordion
+  const views = new Map<string, HTMLElement>();
+  for (const sub of subs) {
+    const key = sub.dataset.view!;
+    const v = document.createElement("div"); v.className = "stp-v";
+    if (sub.dataset.figs) {
+      const html = sub.dataset.figs.split(",").map(figSlot).join("");
+      v.innerHTML = `<div class="stp-figs">${html}</div>`;
+      sub.querySelector(".stp-mf")!.innerHTML = `<div class="figs">${html}</div>`;
+    } else {
+      v.innerHTML = `<div class="stp-auto"><span>Automatic</span><code>${sub.dataset.auto}</code></div>`;
+    }
+    view.appendChild(v); views.set(key, v);
+    // in steps with parts, each part picks its drawing
+    if (sub.parentElement!.children.length > 1) {
+      sub.classList.add("pick");
+      const a11y = () => { if (wide.matches) { sub.tabIndex = 0; sub.setAttribute("role", "button"); } else { sub.removeAttribute("tabindex"); sub.removeAttribute("role"); } };
+      a11y(); wide.addEventListener("change", a11y);
+      const go = () => showView(key);
+      sub.addEventListener("click", go);
+      sub.addEventListener("focus", go);
+      sub.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go(); } });
+    }
+  }
+  let cur = -1, curView = "";
+  function showView(key: string) {
+    if (key === curView) return; curView = key;
+    views.forEach((v, k) => v.classList.toggle("on", k === key));
+    subs.forEach(s => s.classList.toggle("on", s.dataset.view === key));
+  }
+  function open(i: number, toggle = false) {
+    if (toggle && i === cur && !wide.matches) { cur = -1; } else cur = i;
+    items.forEach((it, k) => { it.classList.toggle("on", k === cur); heads[k].setAttribute("aria-expanded", String(k === cur)); });
+    if (cur >= 0) showView(items[cur].querySelector<HTMLElement>(".sub")!.dataset.view!);
+  }
+  let lastClick = 0;
+  heads.forEach((h, i) => {
+    h.addEventListener("click", () => { lastClick = scrollY; open(i, true); });
+    h.addEventListener("keydown", e => {
+      const d = e.key === "ArrowDown" ? 1 : e.key === "ArrowUp" ? -1 : 0;
+      if (e.key === "Home" || e.key === "End") { e.preventDefault(); heads[e.key === "Home" ? 0 : heads.length - 1].focus(); }
+      if (d) { e.preventDefault(); heads[(i + d + heads.length) % heads.length].focus(); }
+    });
+  });
+  open(0);
+  // wide screens: scrolling through the list moves the active step
+  let ticking = false;
+  addEventListener("scroll", () => {
+    if (ticking || !wide.matches) return; ticking = true;
+    requestAnimationFrame(() => {
+      ticking = false;
+      if (Math.abs(scrollY - lastClick) < 80) return;
+      const line = innerHeight * 0.42; let a = 0;
+      heads.forEach((h, i) => { if (h.getBoundingClientRect().top < line) a = i; });
+      const r = root.getBoundingClientRect();
+      if (r.top < line && r.bottom > line && a !== cur) open(a);
+    });
+  }, { passive: true });
+  if (reduce) root.classList.add("rm");
+}
+
 export function initInstall() {
+  initStepper(reducedMotion());
   const figs = Array.from(document.querySelectorAll<HTMLElement>(".fig[data-fig]"));
   const build = (el: HTMLElement) => { const f = FIGS[el.dataset.fig!]; if (f && !el.dataset.built) { el.innerHTML = `<div class="fi">${f()}</div>`; el.dataset.built = "1"; } };
   if ("IntersectionObserver" in window) {

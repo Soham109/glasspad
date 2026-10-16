@@ -395,125 +395,106 @@
   <div class="wrap">
     <div class="section-head">
       <h2 id="get-title" class="reveal">Install it with one command.</h2>
-      <p class="lede reveal">Glasspad is free, but not on the App Store: real Spaces and Mission Control swipes need things Apple does not allow there. A script builds it on your Mac and puts it on your iPhone.</p>
+      <p class="lede reveal">Free, but not on the App Store: real Spaces and Mission Control swipes need things Apple does not allow there. A script builds it on your Mac and puts it on your iPhone.</p>
     </div>
 
     <div class="ig">
-      <div class="ig-row">
+      <div class="term reveal">
+        <div class="term-bar"><span class="tl" aria-hidden="true"><i></i><i></i><i></i></span><span class="term-title">Terminal</span>
+          <button class="copy" type="button" data-copy="curl -fsSL https://raw.githubusercontent.com/Soham109/glasspad/main/install.sh | bash" aria-label="Copy the install command">
+            <svg width="15" height="15" class="ic-copy" aria-hidden="true"><use href="#i-copy"/></svg>
+            <svg width="15" height="15" class="ic-check" aria-hidden="true"><use href="#i-check"/></svg>
+            <span>Copy</span>
+          </button>
+        </div>
+        <pre class="term-body"><code><span class="pr" aria-hidden="true">~ % </span>curl -fsSL https://<wbr>raw.githubusercontent.com/<wbr>Soham109/<wbr>glasspad/<wbr>main/<wbr>install.sh&nbsp;|&nbsp;bash</code></pre>
+      </div>
+      <p class="ig-note">Paste it into Terminal and press Return. It waits at each step until it sees you have done it. Safe to run again: finished steps are skipped.</p>
+
+      <div class="ig-block">
         <h3 class="ig-label">You need</h3>
         <ul class="req">
-          <li><b>Xcode 26 or later</b><span>Free from the Mac App Store. A large download.</span></li>
-          <li><b>macOS 14 or later</b><span>For the Glasspad Mac app.</span></li>
-          <li><b>iOS 18 or later</b><span>On your iPhone.</span></li>
-          <li><b>A free Apple ID</b><span>To sign the iPhone app.</span></li>
-          <li><b>A USB cable</b><span>For the first install only.</span></li>
-          <li><b>One Wi-Fi</b><span>Mac and iPhone on the same network.</span></li>
+          <li><b>Xcode 26 or later</b> free from the Mac App Store, a large download</li>
+          <li><b>macOS 14 or later</b> for the Glasspad Mac app</li>
+          <li><b>iOS 18 or later</b> on your iPhone</li>
+          <li><b>A free Apple ID</b></li>
+          <li><b>A USB cable</b> for the first install</li>
+          <li><b>One Wi-Fi</b> for the Mac and the iPhone</li>
         </ul>
       </div>
 
-      <div class="ig-row">
-        <h3 class="ig-label">Run</h3>
-        <div>
-          <div class="term">
-            <div class="term-bar"><span class="tl" aria-hidden="true"><i></i><i></i><i></i></span><span class="term-title">Terminal</span>
-              <button class="copy" type="button" data-copy="curl -fsSL https://raw.githubusercontent.com/Soham109/glasspad/main/install.sh | bash" aria-label="Copy the install command">
-                <svg width="15" height="15" class="ic-copy" aria-hidden="true"><use href="#i-copy"/></svg>
-                <svg width="15" height="15" class="ic-check" aria-hidden="true"><use href="#i-check"/></svg>
-                <span>Copy</span>
-              </button>
-            </div>
-            <pre class="term-body"><code><span class="pr" aria-hidden="true">~ % </span>curl -fsSL https://<wbr>raw.githubusercontent.com/<wbr>Soham109/<wbr>glasspad/<wbr>main/<wbr>install.sh&nbsp;|&nbsp;bash</code></pre>
-          </div>
-          <p class="ig-note">Paste it into Terminal and press Return. It waits at each step until it sees you have done it, and it is safe to run again: finished steps are skipped.</p>
+      <div class="ig-block">
+        <h3 class="ig-label" id="stp-label">What happens</h3>
+        <div class="stp" id="stepper">
+          <ol class="stp-list" aria-labelledby="stp-label">
+            <li class="stp-i" data-step="1">
+              <button class="stp-h" type="button" aria-expanded="false" aria-controls="stp-b1"><span class="n">1</span><span class="tt"><b>Xcode</b><small>You</small></span><span class="ln">Install it, then enter your Mac password once.</span></button>
+              <div class="stp-b" id="stp-b1"><div class="stp-in">
+                <div class="sub" data-view="1" data-figs="termPass"><p>If Xcode is missing, the App Store opens on it. Your password accepts Xcode's license and finishes its first-launch setup.</p><div class="stp-mf"></div></div>
+              </div></div>
+            </li>
+            <li class="stp-i" data-step="2">
+              <button class="stp-h" type="button" aria-expanded="false" aria-controls="stp-b2"><span class="n">2</span><span class="tt"><b>Build tools</b><small>Automatic</small></span><span class="ln">Downloads XcodeGen.</span></button>
+              <div class="stp-b" id="stp-b2"><div class="stp-in">
+                <div class="sub" data-view="2" data-auto="~/Library/Application Support/Glasspad"><p>Into <code class="pth">~/Library/Application Support/Glasspad</code></p></div>
+              </div></div>
+            </li>
+            <li class="stp-i" data-step="3">
+              <button class="stp-h" type="button" aria-expanded="false" aria-controls="stp-b3"><span class="n">3</span><span class="tt"><b>Source</b><small>Automatic</small></span><span class="ln">Downloads Glasspad.</span></button>
+              <div class="stp-b" id="stp-b3"><div class="stp-in">
+                <div class="sub" data-view="3" data-auto="~/Projects/glasspad"><p>Into <code class="pth">~/Projects/glasspad</code></p></div>
+              </div></div>
+            </li>
+            <li class="stp-i" data-step="4">
+              <button class="stp-h" type="button" aria-expanded="false" aria-controls="stp-b4"><span class="n">4</span><span class="tt"><b>Apple account</b><small>You</small></span><span class="ln">Sign in to Xcode and pick your team.</span></button>
+              <div class="stp-b" id="stp-b4"><div class="stp-in">
+                <div class="sub" data-view="4a" data-figs="xcAccounts"><p>Sign in with your Apple ID.</p><p class="pt-t">Xcode › Settings › Apple Accounts › +</p><div class="stp-mf"></div></div>
+                <div class="sub" data-view="4b" data-figs="xcSigning"><p>Xcode then opens the Glasspad project. Pick your name (Personal Team).</p><p class="pt-t">Glasspad › Glasspad iOS › Signing &amp; Capabilities › Team</p><div class="stp-mf"></div></div>
+              </div></div>
+            </li>
+            <li class="stp-i" data-step="5">
+              <button class="stp-h" type="button" aria-expanded="false" aria-controls="stp-b5"><span class="n">5</span><span class="tt"><b>Mac app</b><small>You</small></span><span class="ln">Allow Accessibility.</span></button>
+              <div class="stp-b" id="stp-b5"><div class="stp-in">
+                <div class="sub" data-view="5" data-figs="macAccess"><p>Glasspad goes into Applications and starts in the menu bar. Switch it on in the page that opens.</p><p class="pt-t">System Settings › Privacy &amp; Security › Accessibility</p><div class="stp-mf"></div></div>
+              </div></div>
+            </li>
+            <li class="stp-i" data-step="6">
+              <button class="stp-h" type="button" aria-expanded="false" aria-controls="stp-b6"><span class="n">6</span><span class="tt"><b>iPhone</b><small>You</small></span><span class="ln">Trust the Mac, turn on Developer Mode, trust the app.</span></button>
+              <div class="stp-b" id="stp-b6"><div class="stp-in">
+                <div class="sub" data-view="6a" data-figs="ipTrust"><p>Plug it in, unlock it and tap Trust.</p><div class="stp-mf"></div></div>
+                <div class="sub" data-view="6b" data-figs="ipDevPage,ipDevAlert"><p>Turn on Developer Mode. The phone restarts; unlock it, tap Turn On and enter your passcode.</p><p class="pt-t">Settings › Privacy &amp; Security › Developer Mode</p><div class="stp-mf"></div></div>
+                <div class="sub" data-view="6c" data-figs="ipVpn,ipVpnTrust"><p>The script builds and installs the app. Trust it once.</p><p class="pt-t">Settings › General › VPN &amp; Device Management › your Apple ID › Trust</p><div class="stp-mf"></div></div>
+              </div></div>
+            </li>
+            <li class="stp-i" data-step="7">
+              <button class="stp-h" type="button" aria-expanded="false" aria-controls="stp-b7"><span class="n">7</span><span class="tt"><b>Automatic renewal</b><small>Automatic</small></span><span class="ln">Your Mac keeps the app opening.</span></button>
+              <div class="stp-b" id="stp-b7"><div class="stp-in">
+                <div class="sub" data-view="7" data-auto="Every hour"><p>With a free Apple ID, apps you install yourself stop opening after 7 days. Your Mac checks every hour and reinstalls Glasspad over Wi-Fi once the install is 5 days old, as long as the Mac is on and the iPhone is on the same Wi-Fi at some point. It notifies you if it can't.</p></div>
+              </div></div>
+            </li>
+            <li class="stp-i" data-step="8">
+              <button class="stp-h" type="button" aria-expanded="false" aria-controls="stp-b8"><span class="n">8</span><span class="tt"><b>Pair</b><small>You</small></span><span class="ln">Scan the code from the menu bar.</span></button>
+              <div class="stp-b" id="stp-b8"><div class="stp-in">
+                <div class="sub" data-view="8" data-figs="macPair,ipLocal"><p>Click the Glasspad icon in the menu bar and choose Pair Your iPhone. Scan the code with the Glasspad app or the iPhone Camera, then allow Local Network.</p><p class="aside">The first time it shows song info, your Mac asks to let Glasspad control Spotify or Music.</p><div class="stp-mf"></div></div>
+              </div></div>
+            </li>
+          </ol>
+          <div class="stp-view" id="stpView" aria-hidden="true"></div>
         </div>
       </div>
 
-      <div class="ig-row">
-        <h3 class="ig-label">What happens</h3>
-        <ol class="st-list">
-          <li class="st">
-            <span class="st-n">1</span>
-            <div class="st-b">
-              <h4>Xcode <em class="who you">You</em></h4>
-              <p>If Xcode is missing, the App Store opens on it. Then enter your Mac password once, to accept Xcode's license and finish its first-launch setup.</p>
-            </div>
-          </li>
-          <li class="st">
-            <span class="st-n">2</span>
-            <div class="st-b">
-              <h4>Build tools <em class="who">Automatic</em></h4>
-              <p>Downloads XcodeGen into <code class="pth">~/Library/Application Support/Glasspad</code></p>
-            </div>
-          </li>
-          <li class="st">
-            <span class="st-n">3</span>
-            <div class="st-b">
-              <h4>Source <em class="who">Automatic</em></h4>
-              <p>Downloads Glasspad to <code class="pth">~/Projects/glasspad</code></p>
-            </div>
-          </li>
-          <li class="st">
-            <span class="st-n">4</span>
-            <div class="st-b">
-              <h4>Apple account <em class="who you">You</em></h4>
-              <p>Sign in with your Apple ID: <span class="path">Xcode<i><span class="sr-only">&gt;</span></i>Settings<i><span class="sr-only">&gt;</span></i>Apple Accounts<i><span class="sr-only">&gt;</span></i>+</span></p>
-              <div class="figs"><div class="fig" data-fig="xcAccounts" style="--w:44;--h:19"></div></div>
-              <p>Xcode then opens the Glasspad project. Pick your name as the team: <span class="path">Glasspad<i><span class="sr-only">&gt;</span></i>Glasspad iOS<i><span class="sr-only">&gt;</span></i>Signing &amp; Capabilities<i><span class="sr-only">&gt;</span></i>Team</span></p>
-              <div class="figs"><div class="fig" data-fig="xcSigning" style="--w:56;--h:19"></div></div>
-            </div>
-          </li>
-          <li class="st">
-            <span class="st-n">5</span>
-            <div class="st-b">
-              <h4>Mac app <em class="who you">You</em></h4>
-              <p>Glasspad goes into Applications and starts in the menu bar. Switch it on in the page that opens: <span class="path">System Settings<i><span class="sr-only">&gt;</span></i>Privacy &amp; Security<i><span class="sr-only">&gt;</span></i>Accessibility</span></p>
-              <div class="figs"><div class="fig" data-fig="macAccess" style="--w:46;--h:19"></div></div>
-            </div>
-          </li>
-          <li class="st">
-            <span class="st-n">6</span>
-            <div class="st-b">
-              <h4>iPhone <em class="who you">You</em></h4>
-              <p>Plug it in, unlock it and tap Trust.</p>
-              <div class="figs"><div class="fig ph" data-fig="ipTrust" style="--w:21;--h:25"></div></div>
-              <p>Turn on Developer Mode. The phone restarts; unlock it, tap Turn On and enter your passcode. <span class="path">Settings<i><span class="sr-only">&gt;</span></i>Privacy &amp; Security<i><span class="sr-only">&gt;</span></i>Developer Mode</span></p>
-              <div class="figs"><div class="fig ph" data-fig="ipDevPage" style="--w:21;--h:25"></div><div class="fig ph" data-fig="ipDevAlert" style="--w:21;--h:25"></div></div>
-              <p>The script builds and installs the app. Trust it once: <span class="path">Settings<i><span class="sr-only">&gt;</span></i>General<i><span class="sr-only">&gt;</span></i>VPN &amp; Device Management<i><span class="sr-only">&gt;</span></i>your Apple ID<i><span class="sr-only">&gt;</span></i>Trust</span></p>
-              <div class="figs"><div class="fig ph" data-fig="ipVpn" style="--w:21;--h:25"></div><div class="fig ph" data-fig="ipVpnTrust" style="--w:21;--h:25"></div></div>
-            </div>
-          </li>
-          <li class="st">
-            <span class="st-n">7</span>
-            <div class="st-b">
-              <h4>Automatic renewal <em class="who">Automatic</em></h4>
-              <p>With a free Apple ID, apps you install yourself stop opening after 7 days. Your Mac checks every hour and reinstalls Glasspad over Wi-Fi once the install is 5 days old, as long as the Mac is on and the iPhone is on the same Wi-Fi at some point. It notifies you if it can't.</p>
-            </div>
-          </li>
-          <li class="st">
-            <span class="st-n">8</span>
-            <div class="st-b">
-              <h4>Pair <em class="who you">You</em></h4>
-              <p>Click the Glasspad icon in the menu bar and choose Pair Your iPhone. Scan the code with the Glasspad app or the iPhone Camera, then allow Local Network when the iPhone asks.</p>
-              <div class="figs"><div class="fig" data-fig="macPair" style="--w:34;--h:25"></div><div class="fig ph" data-fig="ipLocal" style="--w:21;--h:25"></div></div>
-              <p class="st-aside">The first time it shows song info, your Mac asks to let Glasspad control Spotify or Music.</p>
-            </div>
-          </li>
-        </ol>
-      </div>
-
-      <div class="ig-row">
-        <h3 class="ig-label">If something is off</h3>
-        <div class="faq">
-          <details><summary>The pointer does not move</summary><p>Switch Glasspad off and on again in <span class="path">System Settings<i><span class="sr-only">&gt;</span></i>Privacy &amp; Security<i><span class="sr-only">&gt;</span></i>Accessibility</span> Reinstalls can reset it.</p></details>
-          <details><summary>The iPhone cannot find the Mac</summary><p>Put both on the same Wi-Fi and check Local Network is allowed: <span class="path">Settings<i><span class="sr-only">&gt;</span></i>Privacy &amp; Security<i><span class="sr-only">&gt;</span></i>Local Network<i><span class="sr-only">&gt;</span></i>Glasspad</span></p></details>
-          <details><summary>The app will not open after a week</summary><p>The Mac was off or away, so it could not renew. Run the command again.</p></details>
-          <details><summary>Developer Mode is missing</summary><p>Plug the iPhone in and run the command once. The setting appears after that.</p></details>
-        </div>
-      </div>
-
-      <div class="ig-row">
-        <h3 class="ig-label">Uninstall</h3>
-        <div>
+      <div class="ig-more">
+        <details class="qd">
+          <summary>Troubleshooting</summary>
+          <dl>
+            <dt>The pointer does not move</dt><dd>Switch Glasspad off and on again in System Settings › Privacy &amp; Security › Accessibility. Reinstalls can reset it.</dd>
+            <dt>The iPhone cannot find the Mac</dt><dd>Put both on the same Wi-Fi and allow Local Network in Settings › Privacy &amp; Security › Local Network › Glasspad.</dd>
+            <dt>The app will not open after a week</dt><dd>The Mac was off or away, so it could not renew. Run the command again.</dd>
+            <dt>Developer Mode is missing</dt><dd>Plug the iPhone in and run the command once. The setting appears after that.</dd>
+          </dl>
+        </details>
+        <details class="qd">
+          <summary>Uninstall</summary>
           <ol class="un">
             <li>Drag Glasspad from Applications to the Trash.</li>
             <li>Delete the app on your iPhone.</li>
@@ -527,7 +508,7 @@
               <span>Copy</span>
             </button>
           </div>
-        </div>
+        </details>
       </div>
     </div>
   </div>

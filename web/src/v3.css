@@ -354,3 +354,94 @@
 .u-apps .a-prev svg { color: #0A84FF; }
 .u-apps .a-text svg { color: #8E8E93; }
 @media (max-width: 600px) { .st .figs { margin-left: -42px; } }
+
+/* ---------- Install, calm version: command, needs, one stepper ---------- */
+.ig { border-top: 0; }
+.ig .term { max-width: none; }
+.ig-note { margin-top: 16px; }
+.ig-block { margin-top: clamp(64px, 8vw, 104px); }
+.ig-block .ig-label { position: static; margin-bottom: 24px; padding: 0; color: var(--ink-3); font-size: 14px; font-weight: 550; letter-spacing: 0; }
+.req { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 56px; }
+.req li { display: block; padding: 0; color: var(--ink-2); font-size: 16px; }
+.req li::before { content: none; }
+.req b { color: var(--ink); font-weight: 600; margin-right: 6px; }
+
+.stp { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: clamp(40px, 6vw, 88px); align-items: start; }
+.stp-list { list-style: none; margin: 0; padding: 0; }
+.stp-i + .stp-i { margin-top: 6px; }
+.stp-h { all: unset; box-sizing: border-box; display: grid; grid-template-columns: 28px minmax(0, 1fr); column-gap: 14px; width: 100%; padding: 12px 16px; border-radius: 16px; cursor: pointer; transition: background-color 240ms ease; }
+.stp-h:hover { background: rgba(26, 26, 26, 0.035); }
+.stp-h:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.stp-h .n { grid-row: span 2; padding-top: 1px; color: var(--ink-3); font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; transition: color 240ms; }
+.stp-h .tt { display: flex; align-items: baseline; gap: 10px; }
+.stp-h .tt b { font-size: 17px; font-weight: 600; letter-spacing: -0.015em; color: var(--ink-2); transition: color 240ms; }
+.stp-h .tt small { font-size: 13px; color: var(--ink-3); }
+.stp-h .ln { grid-column: 2; margin-top: 2px; font-size: 15px; color: var(--ink-3); }
+.stp-i.on .stp-h { background: #FBFBF9; }
+.stp-i.on .stp-h .n, .stp-i.on .stp-h .tt b { color: var(--ink); }
+.stp-i.on .stp-h .ln { color: var(--ink-2); }
+.stp-b { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 520ms var(--ease-soft); }
+.stp-i.on .stp-b { grid-template-rows: 1fr; }
+.stp-in { overflow: hidden; min-height: 0; }
+.stp-in > .sub:first-child { margin-top: 4px; }
+.sub { margin: 0 16px 0 58px; padding: 10px 0; color: var(--ink-2); font-size: 15px; }
+.sub:last-child { padding-bottom: 18px; }
+.sub p + p { margin-top: 6px; }
+.sub .pt-t { color: var(--ink); font-size: 14px; font-weight: 500; }
+.sub .aside { font-size: 14px; color: var(--ink-3); }
+.sub.pick { position: relative; margin-left: 46px; padding: 10px 12px; border-radius: 12px; cursor: pointer; transition: background-color 240ms; }
+.sub.pick:last-child { margin-bottom: 8px; }
+.sub.pick::before { content: ""; position: absolute; left: 0; top: 14px; bottom: 14px; width: 2px; border-radius: 1px; background: transparent; transition: background-color 240ms; }
+.sub.pick.on::before { background: var(--ink); }
+.sub.pick:hover { background: rgba(26, 26, 26, 0.03); }
+.sub.pick:focus-visible { outline: 2px solid var(--ink); outline-offset: 0; }
+.stp-mf { display: none; }
+
+.stp-view { position: sticky; top: 96px; height: min(520px, calc(100svh - 140px)); border-radius: 28px; background: #E9E7E2; }
+.stp-v { position: absolute; inset: 0; display: grid; place-items: center; padding: clamp(24px, 3vw, 40px); opacity: 0; visibility: hidden; transition: opacity 360ms ease, visibility 0s 360ms; }
+.stp-v.on { opacity: 1; visibility: visible; transition: opacity 480ms ease 80ms, visibility 0s; }
+.stp.rm .stp-v, .stp.rm .stp-b { transition: none; }
+@media (prefers-reduced-motion: reduce) { .stp-v, .stp-b { transition: none !important; } }
+.stp-figs { display: flex; align-items: center; justify-content: center; gap: 20px; width: 100%; }
+.stp-figs .fig { flex: 0 1 calc(var(--w) * 11px); }
+.stp-figs .fig.ph { min-width: 0; }
+.stp-auto { display: flex; flex-direction: column; align-items: center; gap: 14px; text-align: center; }
+.stp-auto span { font-size: 14px; font-weight: 550; color: var(--ink-3); }
+.stp-auto code { font-family: var(--mono); font-size: clamp(15px, 1.6vw, 19px); color: var(--ink); }
+
+.tp { padding: 1.2em 1.4em; font-family: var(--mono); font-size: 0.98em; line-height: 1.55; }
+.tp p + p { margin-top: 0.5em; }
+.tp-dim { color: rgba(26, 26, 26, 0.5); }
+.tp-pw { display: inline-flex; align-items: center; gap: 0.5em; padding: 0 0.2em; }
+.tp-pw i { width: 0.6em; height: 1.2em; background: #1A1A1A; }
+
+.ig-more { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 56px; margin-top: clamp(56px, 7vw, 88px); align-items: start; }
+.qd summary { position: relative; display: inline-flex; align-items: center; gap: 10px; padding: 6px 0; color: var(--ink-2); font-size: 15px; font-weight: 550; cursor: pointer; list-style: none; }
+.qd summary::-webkit-details-marker { display: none; }
+.qd summary::after { content: ""; width: 7px; height: 7px; margin-top: -4px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: rotate(45deg); transition: transform 420ms var(--ease-snappy); }
+.qd[open] summary::after { transform: translateY(3px) rotate(-135deg); }
+.qd summary:hover { color: var(--ink); }
+.qd dl { margin: 14px 0 0; }
+.qd dt { margin-top: 14px; color: var(--ink); font-size: 15px; font-weight: 550; }
+.qd dt:first-child { margin-top: 0; }
+.qd dd { margin: 2px 0 0; color: var(--ink-2); font-size: 15px; }
+.qd .un { margin: 14px 0 12px; font-size: 15px; }
+.qd[open] > :not(summary) { animation: capIn var(--snappy-ms) var(--ease-snappy) both; }
+@media (prefers-reduced-motion: reduce) { .qd[open] > :not(summary) { animation: none; } }
+.qd .cmd-sm { background: #FBFBF9; box-shadow: none; }
+
+@media (max-width: 860px) {
+  .stp { grid-template-columns: 1fr; }
+  .stp-view { display: none; }
+  .stp-mf { display: block; }
+  .stp-mf .figs { margin-top: 14px; }
+  .sub { margin-left: 16px; }
+  .sub.pick { margin-left: 4px; cursor: default; }
+  .sub.pick::before, .sub.pick.on::before, .sub.pick:hover { background: none; }
+  .stp-mf .figs { gap: 12px; flex-wrap: nowrap; }
+  .stp-mf .fig.ph { min-width: 0; }
+  .stp-h .tt b { font-size: 16px; }
+  .ig-more { grid-template-columns: 1fr; }
+  .req { grid-template-columns: 1fr; gap: 10px; }
+  .req li { font-size: 15px; }
+}
