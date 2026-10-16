@@ -25,7 +25,8 @@
     "motion:voice": "python3 -I scripts/motion/voice.py",
     "motion:mix": "python3 -I scripts/motion/mix.py",
     "render:motion": "scripts/motion/render.sh",
-    "render:motion-4k": "scripts/motion/render-4k.sh"
+    "render:motion-4k": "scripts/motion/render-4k.sh",
+    "thumbs:motion": "node scripts/motion/thumbs.mjs --4k"
   },
   "dependencies": {
     "@remotion/bundler": "4.0.529",
