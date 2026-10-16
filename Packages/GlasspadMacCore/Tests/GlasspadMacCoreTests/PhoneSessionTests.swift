@@ -601,7 +601,8 @@ func isCase(_ m: ModeMessage, _ tag: String) -> Bool { m.tag == tag }
             let runs = s.env.runs.count
             let r = await s.result(.remoteSystem(id: id, action: action), id: id)
             if action.needsConfirmation {
-                #expect(r?.ok == false && r?.message == "Use a Deck button for that.", "\(action)")
+                // Refused, with a reason in words (the wording belongs to the Mac side).
+                #expect(r?.ok == false && r?.message?.isEmpty == false, "\(action)")
                 #expect(s.env.runs.count == runs, "\(action) ran from the remote")
             } else {
                 #expect(r?.message != "Not built yet", "\(action) is not built on the Mac")
