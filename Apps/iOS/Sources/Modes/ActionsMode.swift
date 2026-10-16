@@ -30,6 +30,8 @@ struct ActionsMode: View {
     @State private var showLibrary = false
     @State private var showFrontPicker = false
     @State private var confirmingReset = false
+    /// Split Screen's sheet, from this button.
+    @State private var splitting: DeckButton?
     /// Macro ids known when "Record New Macro" was tapped; the new one gets pinned.
     @State private var macrosBeforeRecording: Set<UUID>?
     /// While a tile is dragged in edit mode: which one, and the order shown so far. The order
@@ -149,6 +151,7 @@ struct ActionsMode: View {
             if DebugLaunch.demoEditing { editing = true }
             if DebugLaunch.demoActionsPage == "library" { showLibrary = true }
             if DebugLaunch.demoActionsPage == "front" { showFrontPicker = true }
+            if DebugLaunch.demoActionsPage == "split" { splitting = pinnedButtons.first { $0.action == .system(.windowSplit) } }
             if DebugLaunch.demoActionsPage == "editor", let b = pinnedButtons.first(where: { $0.action != .folder }) { open(b, page: pinnedIndex ?? 0) }
             if DebugLaunch.demoActionsPage == "website", let b = pinnedButtons.first(where: { $0.action.websiteLink != nil }) { open(b, page: pinnedIndex ?? 0) }
             if DebugLaunch.demoActionsPage == "newsite" {
@@ -196,6 +199,11 @@ struct ActionsMode: View {
             } onRecord: {
                 macrosBeforeRecording = Set((session.allMacros ?? []).map(\.id))
             }
+        }
+        .sheet(item: $splitting) { button in
+            // An older Mac, or one that cannot list its windows: the button as one tap.
+            SplitScreenSheet(startLeft: nil) { session.runDeck(button.id) }
+                .environment(\.palette, palette)
         }
         .sheet(isPresented: $showFrontPicker) {
             FrontAppButtonsSheet(appName: frontName, buttons: frontButtons, macros: profileMacros,
@@ -649,6 +657,8 @@ struct ActionsMode: View {
         Group {
             if let failure = session.deckFailure {
                 banner(failure.message, "exclamationmark.triangle.fill").id(failure.id)
+            } else if let split = DisplaysStore.shared.splitNotice {
+                banner(split.text, split.ok ? "rectangle.split.2x1" : "exclamationmark.triangle.fill").id(split.id)
             } else if let note = session.deckImageNotice {
                 banner(note.message, "photo.on.rectangle").id(note.id)
             } else if let error = session.deckSaveError {
@@ -657,6 +667,7 @@ struct ActionsMode: View {
         }
         .padding(.horizontal, 16)
         .animation(.snappy, value: session.deckFailure)
+        .animation(.snappy, value: DisplaysStore.shared.splitNotice)
     }
 
     private func banner(_ text: String, _ symbol: String) -> some View {
@@ -690,6 +701,12 @@ struct ActionsMode: View {
         if button.needsConfirmation {
             Haptics.shared.tap()
             confirming = button
+            return
+        }
+        // Split Screen shows which two windows first, and where.
+        if button.action == .system(.windowSplit), session.isConnected {
+            Haptics.shared.tap()
+            splitting = button
             return
         }
         Haptics.shared.play(.click)

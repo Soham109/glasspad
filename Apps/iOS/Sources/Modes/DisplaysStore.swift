@@ -18,10 +18,14 @@ final class DisplaysStore {
     private(set) var notice: String?
     /// Watching, connected, and the Mac has not answered for a while: it is too old for Displays.
     private(set) var macTooOld = false
+    /// What the last Split Screen did, shown for a few seconds wherever it was started.
+    private(set) var splitNotice: SplitNotice?
 
     @ObservationIgnored private var watchers = 0
     @ObservationIgnored private var watchStarted: Date?
     @ObservationIgnored private var noticeTask: Task<Void, Never>?
+    /// The commands of the Split Screen in flight, and what to say once the last one worked.
+    @ObservationIgnored private var splitAsked: (ids: [UUID], summary: String)?
     private var session: MacSession { .shared }
 
     // MARK: Watching
@@ -51,6 +55,7 @@ final class DisplaysStore {
 
     func reset() {
         state = nil
+        splitAsked = nil
         pendingDeadline = nil
         notice = nil
         macTooOld = false
@@ -75,7 +80,19 @@ final class DisplaysStore {
             state = s
             macTooOld = false
             pendingDeadline = s.pending.map { Date().addingTimeInterval(TimeInterval($0.secondsLeft)) }
-        case .displaysResult(_, let ok, let message):
+        case .displaysResult(let id, let ok, let message):
+            if let asked = splitAsked, asked.ids.contains(id) {
+                if !ok {
+                    splitAsked = nil
+                    Haptics.shared.play(.error)
+                    showSplit(message ?? "Your Mac did not split the screen.", ok: false)
+                } else if id == asked.ids.last {
+                    splitAsked = nil
+                    Haptics.shared.play(.detent)
+                    showSplit(asked.summary, ok: true)
+                }
+                return
+            }
             if ok {
                 Haptics.shared.play(.detent)
             } else {
@@ -101,6 +118,40 @@ final class DisplaysStore {
         if session.isDemo { return demoAnswer() }
         #endif
         session.send(.windowCommand(id: UUID(), windowID: window.id, command: command))
+    }
+
+    /// Split Screen as chosen in its sheet: shown at once, then confirmed by name ("Safari and
+    /// Notes, side by side on Studio Display.") or with the Mac's reason it could not.
+    func split(_ selection: SplitSelection) {
+        guard let state, let steps = state.commands(for: selection), let summary = state.splitSummary(selection) else {
+            Haptics.shared.play(.error)
+            return showSplit("That window has closed.", ok: false)
+        }
+        guard state.canArrangeWindows else {
+            Haptics.shared.play(.error)
+            return showSplit("Allow Glasspad in Accessibility on your Mac to move windows.", ok: false)
+        }
+        var preview = state
+        for step in steps { preview = preview.applying(step.command, window: step.window) }
+        self.state = preview
+        #if DEBUG
+        if session.isDemo {
+            demoAnswer()
+            return showSplit(summary, ok: true)
+        }
+        #endif
+        let ids = steps.map { _ in UUID() }
+        splitAsked = (ids, summary)
+        for (id, step) in zip(ids, steps) {
+            session.send(.windowCommand(id: id, windowID: step.window, command: step.command))
+        }
+        // A dropped link never leaves it unanswered.
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(8))
+            guard self.splitAsked?.ids == ids else { return }
+            self.splitAsked = nil
+            self.showSplit("Your Mac did not answer.", ok: false)
+        }
     }
 
     func run(_ command: DisplayCommand) {
@@ -131,6 +182,15 @@ final class DisplaysStore {
         #endif
         session.send(.remoteSystem(id: UUID(), action: .nightShift))
         if let on = state?.nightShift { state?.nightShift = !on }
+    }
+
+    private func showSplit(_ text: String, ok: Bool) {
+        let notice = SplitNotice(text: text, ok: ok)
+        splitNotice = notice
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(3.5))
+            if self.splitNotice == notice { self.splitNotice = nil }
+        }
     }
 
     private func show(_ text: String) {
@@ -171,6 +231,13 @@ final class DisplaysStore {
         pendingDeadline = state?.pending.map { Date().addingTimeInterval(TimeInterval($0.secondsLeft)) }
     }
     #endif
+}
+
+/// One Split Screen result.
+struct SplitNotice: Equatable {
+    let id = UUID()
+    let text: String
+    let ok: Bool
 }
 
 #if DEBUG

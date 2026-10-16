@@ -17,6 +17,7 @@ struct DisplaysMode: View {
 
     @State private var settingsFor: DisplayPick?
     @State private var closing: MacWindow?
+    @State private var splitting: WindowPick?
 
     static let hintID = "displays.hint"
 
@@ -44,11 +45,12 @@ struct DisplaysMode: View {
                 .padding(.bottom, 16)
         }
         .animation(.snappy(duration: 0.25), value: store.notice)
+        .animation(.snappy(duration: 0.25), value: store.splitNotice)
         .animation(.snappy(duration: 0.25), value: store.state?.pending)
         .onAppear {
             store.watch(true)
             #if DEBUG
-            DisplaysDebug.applyOnAppear { settingsFor = $0 }
+            DisplaysDebug.applyOnAppear { settingsFor = $0 } split: { splitting = $0 }
             #endif
         }
         .onDisappear { store.watch(false) }
@@ -60,6 +62,10 @@ struct DisplaysMode: View {
         }
         .sheet(item: $settingsFor) { pick in
             DisplaySettingsSheet(displayID: pick.id)
+                .environment(\.palette, palette)
+        }
+        .sheet(item: $splitting) { pick in
+            SplitScreenSheet(startLeft: pick.id, fallback: nil)
                 .environment(\.palette, palette)
         }
     }
@@ -132,7 +138,7 @@ struct DisplaysMode: View {
                 HStack(alignment: .top, spacing: 16) {
                     arrangement(state)
                     if height > 240 {
-                        WindowList(state: state, run: run, close: { closing = $0 }, hint: showsHint)
+                        WindowList(state: state, run: run, close: { closing = $0 }, split: split, hint: showsHint)
                             .frame(width: 300)
                     }
                 }
@@ -142,7 +148,7 @@ struct DisplaysMode: View {
             } else {
                 arrangement(state)
                     .frame(height: arrangementHeight(state, height: height))
-                WindowList(state: state, run: run, close: { closing = $0 }, hint: showsHint)
+                WindowList(state: state, run: run, close: { closing = $0 }, split: split, hint: showsHint)
             }
         } else {
             ProgressView()
@@ -152,7 +158,7 @@ struct DisplaysMode: View {
 
     /// The arrangement in its box, like System Settings > Displays.
     private func arrangement(_ state: DisplaysState) -> some View {
-        DisplaysCanvas(state: state, run: run, close: { closing = $0 }) { display in
+        DisplaysCanvas(state: state, run: run, close: { closing = $0 }, split: split) { display in
             Haptics.shared.tap()
             settingsFor = DisplayPick(id: display.id)
         }
@@ -169,6 +175,13 @@ struct DisplaysMode: View {
         let rooms = DisplaysCanvas.labelRooms(state.shownDisplays)
         let labels = rooms.top + rooms.bottom
         return min(height * 0.5, max(160, width * union.height / union.width + labels + 24 + 2))
+    }
+
+    /// Split With: the sheet, with this window on the left.
+    private func split(_ w: MacWindow) {
+        Haptics.shared.tap()
+        splitting = WindowPick(id: w.id)
+        if !settings.seenTips.contains(Self.hintID) { settings.seenTips.insert(Self.hintID) }
     }
 
     private func run(_ command: WindowCommand, _ w: MacWindow) {
@@ -201,6 +214,10 @@ struct DisplayPick: Identifiable, Equatable {
     let id: UInt32
 }
 
+struct WindowPick: Identifiable, Equatable {
+    let id: UInt32
+}
+
 // MARK: - Canvas
 
 /// The arrangement: displays at their true size and place, windows on top. Windows are drawn
@@ -210,6 +227,7 @@ private struct DisplaysCanvas: View {
     let state: DisplaysState
     let run: (WindowCommand, MacWindow) -> Void
     let close: (MacWindow) -> Void
+    let split: (MacWindow) -> Void
     let onOpenDisplay: (MacDisplay) -> Void
     var session = MacSession.shared
 
@@ -303,7 +321,7 @@ private struct DisplaysCanvas: View {
             .gesture(DragGesture(minimumDistance: 6, coordinateSpace: .named(Self.space))
                 .onChanged { v in drag = WindowDrag(id: w.id, translation: v.translation, location: v.location) }
                 .onEnded { v in drop(w, at: v.location, translation: v.translation, map: map, room: room) })
-            .contextMenu { WindowMenu(window: w, state: state, run: { run($0, w) }, close: { close(w) }) } preview: { WindowPreview(window: w, icon: w.bundleID.flatMap { session.icons.image(for: $0) }) }
+            .contextMenu { WindowMenu(window: w, state: state, run: { run($0, w) }, close: { close(w) }, split: { split(w) }) } preview: { WindowPreview(window: w, icon: w.bundleID.flatMap { session.icons.image(for: $0) }) }
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(w.title.map { $0.isEmpty || $0 == w.appName ? w.appName : "\(w.appName), \($0)" } ?? w.appName)
             .accessibilityHint("Double tap to bring it forward.")
@@ -355,7 +373,8 @@ private struct WindowMenu: View {
     let state: DisplaysState
     let run: (WindowCommand) -> Void
     let close: () -> Void
-    var session = MacSession.shared
+    /// Split With: the Split Screen sheet with this window on the left.
+    let split: () -> Void
 
     var body: some View {
         Section {
@@ -366,26 +385,8 @@ private struct WindowMenu: View {
         Section {
             Button(WindowTile.fill.title, systemImage: WindowTile.fill.symbol) { run(.tile(.fill)) }
             Button(WindowTile.center.title, systemImage: WindowTile.center.symbol) { run(.tile(.center)) }
-            let others = state.windows.filter { $0.id != window.id }
-            if !others.isEmpty {
-                Menu {
-                    ForEach(others) { other in
-                        Button { run(.split(with: other.id)) } label: {
-                            Label {
-                                Text(other.appName)
-                                if let title = other.title, !title.isEmpty, title != other.appName { Text(title) }
-                            } icon: {
-                                if let icon = other.bundleID.flatMap({ session.icons.image(for: $0) }) {
-                                    Image(uiImage: icon)
-                                } else {
-                                    Image(systemName: "macwindow")
-                                }
-                            }
-                        }
-                    }
-                } label: {
-                    Label("Split With", systemImage: "rectangle.split.2x1")
-                }
+            if state.windows.contains(where: { $0.id != window.id }) {
+                Button("Split With…", systemImage: "rectangle.split.2x1", action: split)
             }
             let elsewhere = state.shownDisplays.filter { $0.id != state.display(of: window)?.id }
             if elsewhere.count == 1, let d = elsewhere.first {
@@ -417,6 +418,7 @@ private struct WindowList: View {
     let state: DisplaysState
     let run: (WindowCommand, MacWindow) -> Void
     let close: (MacWindow) -> Void
+    let split: (MacWindow) -> Void
     let hint: Bool
     var session = MacSession.shared
 
@@ -476,7 +478,7 @@ private struct WindowList: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .contextMenu { WindowMenu(window: w, state: state, run: { run($0, w) }, close: { close(w) }) }
+        .contextMenu { WindowMenu(window: w, state: state, run: { run($0, w) }, close: { close(w) }, split: { split(w) }) }
         .accessibilityHint("Double tap to bring it forward.")
     }
 
@@ -492,7 +494,7 @@ private struct WindowList: View {
 // MARK: - Display tile
 
 /// One display: its desktop, the menu bar and camera housing on the main one, a fine edge.
-private struct DisplayTile: View {
+struct DisplayTile: View {
     @Environment(\.palette) private var palette
     let display: MacDisplay
     let rect: CGRect
@@ -658,7 +660,17 @@ struct DisplaysNotices: View {
 
     var body: some View {
         VStack(spacing: 10) {
-            if let notice = store.notice {
+            if let split = store.splitNotice {
+                Label(split.text, systemImage: split.ok ? "rectangle.split.2x1" : "exclamationmark.triangle.fill")
+                    .font(.footnote.weight(.medium))
+                    .foregroundStyle(palette.inkColor)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
+                    .glassCapsule()
+                    .id(split.id)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            } else if let notice = store.notice {
                 Text(notice)
                     .font(.footnote.weight(.medium))
                     .foregroundStyle(palette.inkColor)
@@ -721,11 +733,12 @@ struct DisplaysNotices: View {
 ///   -GPDisplaysDemo <one|two|three>   another sample arrangement (with -GPDemo)
 ///   -GPDisplaysPending                 a change waiting for Keep
 ///   -GPDisplaysSheet <main|2|...>      open a display's settings; -GPDisplaysArrange opens Arrange
+///   -GPDisplaysSplit                   open Split With on the front window
 enum DisplaysDebug {
     @MainActor static var applied = false
     @MainActor static var openArrange = false
 
-    @MainActor static func applyOnAppear(open: (DisplayPick) -> Void) {
+    @MainActor static func applyOnAppear(open: (DisplayPick) -> Void, split: (WindowPick) -> Void) {
         guard !applied, MacSession.shared.isDemo else { return }
         applied = true
         let args = ProcessInfo.processInfo.arguments
@@ -737,6 +750,7 @@ enum DisplaysDebug {
             DisplaysStore.shared.applyDemo(value("-GPDisplaysDemo"), pending: args.contains("-GPDisplaysPending"))
         }
         openArrange = args.contains("-GPDisplaysArrange")
+        if args.contains("-GPDisplaysSplit"), let front = DisplaysStore.shared.state?.windows.first { split(WindowPick(id: front.id)) }
         if let which = value("-GPDisplaysSheet") ?? (openArrange ? "main" : nil) {
             let displays = DisplaysStore.shared.state?.shownDisplays ?? []
             let id = UInt32(which) ?? displays.first(where: \.isMain)?.id
