@@ -259,6 +259,11 @@ As built (GlasspadKit):
   when the Mac will not send what it has. Text over `ClipboardContent.maxTextBytes` (2 MB,
   UTF-8) is refused whole, never cut. The phone shows "Sent" only after `ok: true`.
   `GlasspadMode.macros` exists for `modeSelected(.macros)`, which makes the Mac send `macroList`.
+  Remote (Oct 2026, additive): `modeSelected(.remote)` makes the Mac send media states (as for
+  Media) and `frontmostApp` (as for Dock and Deck). `remoteSystem(id:action:)` runs one
+  `DeckSystemAction` without a Deck button (Sleep Display, Do Not Disturb, volume keys); the
+  Mac answers `deckResult` for `id` and refuses actions that need confirming. An older Mac
+  drops both, and the phone falls back to plain media and key messages.
 - `ControlMessage.macStatus(MacStatus)` (Oct 2026, additive), Mac -> phone, JSON
   `{"t":"macStatus","status":{"accessibilityTrusted":false,"automationMedia":"notDetermined","macName":"Soham's MacBook Pro"}}`.
   `MacStatus` (`Protocol/MacStatus.swift`): `accessibilityTrusted: Bool` (required; when false the
@@ -501,6 +506,7 @@ Each mode is a `ModeMessage` case pair handled by `GlasspadMacCore/Modes`.
 | Actions (Deck) | one screen: the front app's best buttons (6 by default, up to 8 chosen and ordered per app) above Pinned (favourites of every kind, + opens a searchable Library whose Apps group lists every installed Mac app); folders, sizes, colours, edit on the phone. Sideways it splits: front app on the left half, Pinned on the right. Clipboard and Present are tools in the mode menu. Older Decks move into Pinned once, losslessly (`PinnedDeck.migrated`) | executes actions directly (screencapture, pmset, CoreAudio...), config v3 on the Mac, phone edits via `deckSave` (never shell) |
 | Clipboard | send phone clipboard to Mac, pull Mac clipboard to phone (text, images) | NSPasteboard |
 | Present | big next/previous buttons, timer, laser dot (move a highlight on the Mac) | arrow keys + transparent overlay window for the laser |
+| Remote | couch remote: touch surface (tap play or pause, swipe sideways to skip, up and down for volume), back 10 / play / forward 10, Search, Subtitles, Full Screen, Mute, Sleep Display and Do Not Disturb. Keys follow the player in front (`RemoteKeymap`: web players, Apple TV, QuickTime, IINA, VLC, Infuse, Spotify and Music). Hidden at first: a tool in the mode menu until Settings shows it | media commands and seeking through now playing, keystrokes, CoreAudio volume |
 
 As built, UX pass (Oct 2026):
 - The mode once called Apps is called Dock again (SF Symbol `dock.rectangle`), and mirrors the

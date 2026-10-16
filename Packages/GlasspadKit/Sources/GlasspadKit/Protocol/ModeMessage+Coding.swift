@@ -97,6 +97,8 @@ extension ModeMessage {
         case "presentLaser": self = .presentLaser(on: try f.value(Bool.self, "on"))
         case "presentLaserPosition":
             self = .presentLaserPosition(x: try f.value(Double.self, "x"), y: try f.value(Double.self, "y"))
+        case "remoteSystem":
+            self = .remoteSystem(id: try f.value(UUID.self, "id"), action: try f.value(DeckSystemAction.self, "action"))
         case "macro": self = .macro(try f.value(MacroMessage.self, "macro", unlabeled: true))
         default:
             throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath,
@@ -156,6 +158,9 @@ extension ModeMessage {
         case .presentLaserPosition(let x, let y):
             try put(x, "x")
             try put(y, "y")
+        case .remoteSystem(let id, let action):
+            try put(id, "id")
+            try put(action, "action")
         case .macro(let m): try put(m, "macro")
         case .dockRequest, .mediaRequest, .deckRequest, .clipboardPull, .presentNext, .presentPrevious,
              .dockCatalogRequest, .deckCatalogRequest:
@@ -208,6 +213,7 @@ extension ModeMessage {
         case .presentPrevious: "presentPrevious"
         case .presentLaser: "presentLaser"
         case .presentLaserPosition: "presentLaserPosition"
+        case .remoteSystem: "remoteSystem"
         case .macro: "macro"
         }
     }

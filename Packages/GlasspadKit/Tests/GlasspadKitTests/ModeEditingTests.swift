@@ -197,7 +197,7 @@ import Testing
     }
 
     @Test func hidingAndReorderingButTrackpadStays() {
-        var l = ModeListLayout(hidden: ["media", "trackpad"])
+        var l = ModeListLayout(hidden: ["media", "trackpad", "remote"])
         l.move("actions", before: "keys")
         #expect(l.visible(known: known) == ["trackpad", "actions", "keys", "dock"])
         #expect(l.replacement(for: "media", known: known) == "trackpad")
