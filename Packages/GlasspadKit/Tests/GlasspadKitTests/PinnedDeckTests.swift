@@ -111,7 +111,7 @@ import Testing
         let (old, _) = oldLayout()
         let reset = PinnedDeck.resetPinned(PinnedDeck.migrated(old, macros: [macro("Rename")]))
         #expect(PinnedDeck.pinned(in: reset).map(\.title)
-                == ["Screenshot", "Lock Screen", "Mute", "Dark Mode", "Mission Control", "Show Desktop"])
+                == ["Screenshot", "Do Not Disturb", "Split Screen", "Lock Screen", "Mute", "Dark Mode"])
         #expect(reset.pages.contains { $0.appBundleIDs == ["com.apple.Safari"] })
     }
 }

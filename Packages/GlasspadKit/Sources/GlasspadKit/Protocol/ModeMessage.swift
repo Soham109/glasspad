@@ -27,8 +27,9 @@ public struct DockApp: Codable, Equatable, Sendable, Hashable {
     /// Running with its windows hidden (cmd+H).
     public var hidden: Bool?
 
-    /// Icon size the Mac renders: 3x the largest tile the phone draws, so icons stay sharp.
-    public static let iconPixels = 256
+    /// Icon size the Mac renders: 3x the largest icon the phone draws (the 128 pt preview when
+    /// you hold a Dock icon; Dock tiles reach about 115 pt), so icons stay sharp.
+    public static let iconPixels = 384
 
     public init(bundleID: String, name: String, iconPNG: Data? = nil, running: Bool, active: Bool,
                 iconKey: String? = nil, inDock: Bool? = nil, recent: Bool? = nil, hidden: Bool? = nil) {

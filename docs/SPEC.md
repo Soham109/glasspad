@@ -495,7 +495,7 @@ Each mode is a `ModeMessage` case pair handled by `GlasspadMacCore/Modes`.
 | Mode | Phone | Mac side |
 |---|---|---|
 | Trackpad | full-screen surface, finger dots | gesture engine + synth |
-| Dock | the Mac's Dock and nothing else: Dock apps + running apps in Dock order, running dots, long-press Quit / Hide / Show in Finder / Keep, phone-side order and hiding. Apps outside the Dock are pinned in Actions | read Dock prefs + NSWorkspace, icons as 256 px PNG keyed by bundle id + app modification date, sent once (`dockSync`), launch / activate / reopen (`AppLauncher`), hide the Mac Dock (`MacDockHider`) |
+| Dock | the Mac's Dock and nothing else: Dock apps + running apps in Dock order, running dots, long-press Quit / Hide / Show in Finder / Keep, phone-side order and hiding. Apps outside the Dock are pinned in Actions | read Dock prefs + NSWorkspace, icons as 384 px PNG (3x the largest icon the phone draws) keyed by bundle id + app modification date + size, sent once (`dockSync`), in messages of at most 1.5 MB of icons, launch / activate / reopen (`AppLauncher`), hide the Mac Dock (`MacDockHider`) |
 | Keys | text field that streams typed text; arrows, esc, tab, cmd shortcuts row; dictation works | CGEvent keyboard unicode strings |
 | Media | now playing title/artist/art, play/pause/next/prev, volume, brightness | MediaRemote (private, with fallback to media key events), volume via CoreAudio |
 | Actions (Deck) | one screen: the front app's best buttons (6 by default, up to 8 chosen and ordered per app) above Pinned (favourites of every kind, + opens a searchable Library whose Apps group lists every installed Mac app); folders, sizes, colours, edit on the phone. Sideways it splits: front app on the left half, Pinned on the right. Clipboard and Present are tools in the mode menu. Older Decks move into Pinned once, losslessly (`PinnedDeck.migrated`) | executes actions directly (screencapture, pmset, CoreAudio...), config v3 on the Mac, phone edits via `deckSave` (never shell) |
@@ -508,11 +508,21 @@ As built, UX pass (Oct 2026):
   mode lists, launch mode and deep links (`glasspad://mode/dock`) keep working. Search over every
   installed app moved to Actions > + > Apps > All Apps on Your Mac.
 - A new Deck (no `deck.json` yet) starts with one Pinned page of six essentials
-  (`PinnedDeck.essentials()`: Screenshot, Lock Screen, Mute, Dark Mode, Mission Control, Show
-  Desktop); the other Mac controls are in the Library. Migration pins every macro only for a
+  (`PinnedDeck.essentials()`: Screenshot, Do Not Disturb, Split Screen, Lock Screen, Mute, Dark
+  Mode); the other Mac controls are in the Library. Migration pins every macro only for a
   layout from before Actions (it has the Mac page or no Pinned page). Existing Pinned pages are
   never trimmed on their own: over 12 tiles, Actions offers Tidy Up once, and edit mode has
   Reset to Defaults (`PinnedDeck.resetPinned`), both behind a confirmation.
+- Mac controls with no public API: Do Not Disturb presses the switch in Control Center (or the
+  Focus menu) through Accessibility, by its stable identifiers, and falls back to a shortcut the
+  user already has ("Toggle Do Not Disturb", "Do Not Disturb", "Toggle Focus"); Night Shift uses
+  CoreBrightness `CBBlueLightClient`; Keep Awake holds a display sleep power assertion; window
+  tiling sets the front window's frame with Accessibility inside the screen's visible frame (with
+  the 8 pt gap when "Tiled windows have margins" is on), falling back to the app's Window > Move &
+  Resize item. Switches send their new state as the `deckResult` message ("Do Not Disturb is on").
+- Starter buttons per app (`StarterLibrary`, version 2) can be keystrokes or Mac controls
+  (`MacroStep.macControl`). A Mac with older starters is upgraded once (`StarterSeeder.upgrade`):
+  untouched starters update, edited ones stay, deleted ones stay deleted, new apps get profiles.
 
 ## 9. iPhone app (Apps/iOS)
 
