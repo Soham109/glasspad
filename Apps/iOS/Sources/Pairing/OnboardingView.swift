@@ -237,8 +237,11 @@ private struct OnboardingPage<Art: View>: View {
 /// A phone-shaped card with two soft finger dots drifting, like the real surface.
 private struct FingerDotsArt: View {
     @Environment(\.palette) private var palette
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var body: some View {
-        TimelineView(.animation) { context in
+        // Gentle drift at a decorative frame rate; still with Reduce Motion or a warm phone.
+        let interval = PowerMonitor.shared.policy.decorativeFrameInterval
+        TimelineView(.animation(minimumInterval: interval, paused: reduceMotion || interval == nil)) { context in
             let t = context.date.timeIntervalSinceReferenceDate
             ZStack {
                 RoundedRectangle(cornerRadius: 34, style: .continuous)

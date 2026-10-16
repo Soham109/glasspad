@@ -221,23 +221,33 @@ extension TrackpadStatus {
     }
 }
 
-/// Shown while the phone is warm. Haptics and keep-awake traffic are paused meanwhile.
+/// Shown for a few seconds when the phone gets warm. Haptics and keep-awake traffic stay
+/// paused until it cools; the notice itself leaves, so it neither covers the screen nor keeps
+/// a glass layer drawing on a phone that is already warm.
 private struct WarmNotice: View {
     @Environment(\.palette) private var palette
+    @State private var shown = true
     var body: some View {
         VStack {
             Spacer()
-            Label("Your iPhone is warm. Haptics are paused until it cools down.", systemImage: "thermometer.medium")
-                .font(.footnote)
-                .foregroundStyle(palette.inkColor)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 10)
-                .glassCapsule()
-                .padding(.horizontal, 24)
-                .padding(.bottom, 20)
+            if shown {
+                Label("Your iPhone is warm. Haptics are paused until it cools down.", systemImage: "thermometer.medium")
+                    .font(.footnote)
+                    .foregroundStyle(palette.inkColor)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
+                    .glassCapsule()
+                    .padding(.horizontal, 24)
+                    .padding(.bottom, 20)
+                    .transition(.opacity)
+            }
         }
         .allowsHitTesting(false)
         .transition(.opacity)
+        .task {
+            try? await Task.sleep(for: .seconds(8))
+            withAnimation(.easeInOut(duration: 0.6)) { shown = false }
+        }
     }
 }
 

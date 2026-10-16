@@ -96,7 +96,7 @@ struct MediaMode: View {
     // MARK: Artwork
 
     private var artwork: some View {
-        TimelineView(.periodic(from: .now, by: 0.5)) { context in
+        RenderTime { context in
             let playing = playback.isPlaying(at: context.date)
             // A square sized by its container; the cover fills it edge to edge.
             Color.clear
@@ -187,7 +187,9 @@ struct MediaMode: View {
 
     @ViewBuilder private var progress: some View {
         if playback.hasTrack, let duration = state.duration, duration > 0 {
-            TimelineView(.periodic(from: .now, by: 0.25)) { context in
+            // Ticks only while the song plays; paused, the bar and clock hold still.
+            let tick = playback.isPlaying(at: Date()) ? PowerMonitor.shared.policy.progressInterval : 3600
+            TimelineView(.periodic(from: .now, by: tick)) { context in
                 ScrubBar(duration: duration, position: playback.position(at: context.date) ?? 0,
                          enabled: state.canSeek ?? false) { store.seek(to: $0) }
             }
@@ -197,7 +199,7 @@ struct MediaMode: View {
     }
 
     private var transport: some View {
-        TimelineView(.periodic(from: .now, by: 0.5)) { context in
+        RenderTime { context in
             let playing = playback.isPlaying(at: context.date)
             HStack(spacing: 0) {
                 transportButton("backward.fill", "Previous track", size: 32) { store.previous() }
@@ -237,7 +239,7 @@ struct MediaMode: View {
 
     /// Shuffle, sound output, repeat. Shuffle and repeat show only when the player reports them.
     private var options: some View {
-        TimelineView(.periodic(from: .now, by: 0.5)) { context in
+        RenderTime { context in
             let now = context.date
             HStack {
                 if let shuffle = playback.shuffle(at: now), playback.hasTrack {

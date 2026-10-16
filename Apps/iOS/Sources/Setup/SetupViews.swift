@@ -263,6 +263,7 @@ struct SetupChecklistView: View {
         }
         .onDisappear {
             probe.stop()
+            PhoneNetwork.shared.stop()
             session.setDiagnosticsVisible(false)
         }
         .onChange(of: allDone) { _, done in

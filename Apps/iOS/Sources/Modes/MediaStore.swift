@@ -95,7 +95,8 @@ final class MediaStore {
         artworkCache[id] = image
         artworkOrder.removeAll { $0 == id }
         artworkOrder.append(id)
-        while artworkOrder.count > 12 { artworkCache[artworkOrder.removeFirst()] = nil }
+        // Covers decode to up to 1200 px (about 6 MB each); older ones reload from disk.
+        while artworkOrder.count > 4 { artworkCache[artworkOrder.removeFirst()] = nil }
     }
 
     // Disk cache: artwork survives reconnects and relaunches. Ids are hex digests from the Mac.

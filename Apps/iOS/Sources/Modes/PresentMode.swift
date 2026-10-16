@@ -81,7 +81,8 @@ struct PresentMode: View {
 
     private var timerBar: some View {
         HStack(spacing: 12) {
-            TimelineView(.periodic(from: .now, by: 1)) { context in
+            // Ticks only while the timer runs.
+            TimelineView(.periodic(from: .now, by: timer.isRunning ? 1 : 3600)) { context in
                 Text(MediaMode.clock(timer.elapsed(at: context.date)))
                     .font(.system(.largeTitle, design: .rounded).weight(.medium).monospacedDigit())
                     .foregroundStyle(timer.isRunning ? palette.inkColor : palette.inkSoftColor)

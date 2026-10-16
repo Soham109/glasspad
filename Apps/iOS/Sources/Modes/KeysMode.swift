@@ -396,6 +396,9 @@ private struct RepeatingKey<Label: View>: View {
 
     @State private var pressed = false
     @State private var repeatTask: Task<Void, Never>?
+    /// Resets when the touch ends in any way, including a cancel (a call, Control Center, the
+    /// app leaving), which `onEnded` never hears about. Otherwise a held key would repeat on.
+    @GestureState private var touching = false
 
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: 12, style: .continuous)
@@ -409,10 +412,12 @@ private struct RepeatingKey<Label: View>: View {
             .animation(.easeOut(duration: 0.12), value: pressed)
             .gesture(
                 DragGesture(minimumDistance: 0)
+                    .updating($touching) { _, touching, _ in touching = true }
                     .onChanged { _ in if !pressed { begin() } }
                     .onEnded { _ in end() },
                 including: isEnabled ? .all : .none
             )
+            .onChange(of: touching) { _, down in if !down { end() } }
             .onDisappear { end() }
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(name)
