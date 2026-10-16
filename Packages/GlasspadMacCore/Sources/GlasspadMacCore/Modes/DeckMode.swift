@@ -1,5 +1,6 @@
 import AppKit
 import GlasspadKit
+import UniformTypeIdentifiers
 
 /// Deck config, stored as JSON at ~/Library/Application Support/Glasspad/deck.json.
 ///
@@ -371,12 +372,12 @@ public final class DeckMode {
         return out
     }
 
-    /// The action for the log, without typed text or a script: the log is public and kept.
+    /// The action for the log, without typed text, a script, a link, a path or keys: the log is
+    /// public and kept. Only the kind, plus which app or Mac control.
     nonisolated static func logLabel(_ action: DeckAction) -> String {
         switch action {
-        case .typeText: "typeText"
-        case .shellScript: "shellScript"
-        default: "\(action)"
+        case .openApp, .system, .screenshot, .screenRecording, .folder: "\(action)"
+        default: String("\(action)".prefix { $0 != "(" })
         }
     }
 
@@ -402,11 +403,14 @@ public final class DeckMode {
         case .openApp(let bundleID):
             return await env.openApp(bundleID: bundleID) ? .done : .fail("App not found")
         case .openURL(let s):
-            guard let u = URL(string: s), u.scheme != nil, u.scheme?.lowercased() != "file" else { return .fail("Invalid URL") }
+            guard let u = URL(string: s), let scheme = u.scheme?.lowercased(), !Self.refusedSchemes.contains(scheme) else {
+                return .fail("Invalid URL")
+            }
             return env.open(url: u) ? .done : .fail("Could not open URL")
         case .openFile(let path):
             guard let file = resolve(path) else { return .fail("Use a full path, like ~/Documents") }
             guard env.fileExists(file) else { return .fail("\(file.lastPathComponent) is not on this Mac") }
+            guard !Self.runsWhenOpened(file) else { return .fail("Glasspad opens files and folders, not scripts or installers.") }
             return env.open(url: file) ? .done : .fail("Could not open \(file.lastPathComponent)")
         case .runShortcut(let name):
             return await runShortcut(name)
@@ -439,6 +443,32 @@ public final class DeckMode {
     }
 
     // MARK: Files and names
+
+    /// Links that open a local file or run something in Terminal or Help, never from the phone.
+    nonisolated static let refusedSchemes: Set<String> = ["file", "x-man-page", "help"]
+
+    /// Kinds of file that run, install or point somewhere else when opened, beyond what the
+    /// type system calls scripts and programs.
+    nonisolated static let runnableExtensions: Set<String> = [
+        "terminal", "workflow", "action", "caction", "definition", "scptd", "pkg", "mpkg", "mobileconfig",
+        "prefpane", "saver", "osax", "kext", "shortcut", "fileloc", "inetloc", "webloc", "url",
+    ]
+
+    /// True for a file that runs something when opened: a script (a `.command` runs in Terminal),
+    /// a program, an installer, an Automator or Terminal file, or a link file (a `.fileloc` can
+    /// point at any of those). Shell scripts stay Mac-only, so Open File never opens these.
+    /// Symbolic links are followed; apps, documents and folders are fine.
+    nonisolated static func runsWhenOpened(_ file: URL) -> Bool {
+        let real = file.resolvingSymlinksInPath()
+        let ext = real.pathExtension.lowercased()
+        if runnableExtensions.contains(ext) { return true }
+        if let type = UTType(filenameExtension: ext), !type.conforms(to: .application),
+           type.conforms(to: .script) || type.conforms(to: .executable) { return true }
+        // A program with no extension opens in Terminal and runs.
+        var isFolder: ObjCBool = false
+        return ext.isEmpty && FileManager.default.fileExists(atPath: real.path, isDirectory: &isFolder) && !isFolder.boolValue
+            && FileManager.default.isExecutableFile(atPath: real.path)
+    }
 
     func resolve(_ path: String) -> URL? {
         let trimmed = path.trimmingCharacters(in: .whitespaces)

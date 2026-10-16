@@ -310,6 +310,23 @@ struct TransportTests {
         #expect(client.state.failure == "not paired")
     }
 
+    @Test func phoneRevokedMidHandshakeNeverConnects() async throws {
+        // The key is there for the hello, then gone (Forget on the Mac) before the confirmation.
+        let key = self.key
+        let calls = PairedBox()
+        let (server, _, port) = try await makeServer { id in
+            calls.add(PairedPhone(phoneID: id, phoneName: "", pairKey: Data()))
+            return calls.phones.count == 1 ? key : nil
+        }
+        defer { server.stop() }
+        let (client, _) = makeClient()
+        defer { client.disconnect() }
+        client.connect(host: "127.0.0.1", port: port)
+        #expect(await waitUntil { client.state.failure != nil })
+        #expect(client.state.failure == "not paired")
+        #expect(!server.state.isConnected && server.connectedPhone == nil)
+    }
+
     @Test func wrongMacIsRejected() async throws {
         let key = self.key
         let (server, _, port) = try await makeServer { _ in key }

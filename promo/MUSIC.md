@@ -73,3 +73,36 @@ tempo lift (median pitch unchanged within the tracker's noise).
 
 `scripts/film/mix.py`: voice lines levelled to one loudness, music ducked about 8.5 dB under
 the voice, master to -14 LUFS integrated with a true-peak limiter.
+
+## Film v4 (the longer cut)
+
+Same track, same licence and credit line (shown on the v4 end card). It fits the longer cut:
+its verse, lift, breakdown and build give each group of use cases its own energy.
+
+| Film bars | Film time | Track bars | Section | Scenes |
+| --- | --- | --- | --- | --- |
+| 0 to 16 | 0 to 26.5 s | 0 to 16 | intro, verse | Open, Actions, Pinned |
+| 16 to 32 | 26.5 to 53.0 s | 20 to 36 | lift | Layouts, Final Cut, Present |
+| 32 to 48 | 53.0 to 79.5 s | 52 to 68 | breakdown, build | Remote, Clipboard, Displays |
+| 48 to 56 | 79.5 to 92.7 s | 68 to 76 | lift again | Modes, Trackpad |
+| 56 to 63.5 | 92.7 to 105.1 s | 92 to 99.5 | last verse, hard stop | Private, end card |
+
+Splices are 12 ms equal power, 6 ms before the downbeat, between phrase starts (which share a
+chord). All in `src/v4/edit.json`; the mix is `scripts/v4/mix.py`.
+
+Mix (measured by the script with ffmpeg ebur128, numbers from the current draft):
+
+- Voice lines each levelled to the same loudness; the voice alone reads about -15 LUFS in
+  the master.
+- The bed is side chained to the voice (150 ms look ahead, 120 ms attack, 450 ms release):
+  about -27 LUFS under speech and about -18 LUFS in the breaths, so the music rises between
+  lines and every word sits about 12 LU above the music.
+- Master: -16 LUFS integrated, true peak -1.2 dBTP (4x oversampled limiter), loudness range
+  about 5 LU. The no voice version: -17 LUFS, the bed never ducks.
+- Sound design (taps, a knock for the haptic and the blade, a few soft whooshes, key ticks,
+  one generic chime for the message banner) is synthesized in the script, no samples.
+
+Voice for v4: ElevenLabs eleven_v4, Sarah, one take per line (`scripts/v4/voice.py`, seeds in
+`src/v4/vo-lines.json`). Lines the voice read faster than 155 words a minute were eased to
+about 150 with a pitch preserving tempo change (never more than 12% slower); the measured
+pace of every line is in `src/v4/vo-measured.json`.

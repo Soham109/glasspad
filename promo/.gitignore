@@ -11,3 +11,7 @@ public/**/*.wav
 voice/cache-film/
 public/v2/icons/
 scripts/film/__pycache__/
+
+# film v4: phone captures, stock footage and generated audio (re-made by scripts/v4/*.sh)
+public/v4/
+public/footage/

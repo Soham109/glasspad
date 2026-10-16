@@ -1,5 +1,23 @@
 # Installer test, 15 Oct 2026
 
+## How to check the installer today
+
+| What | How |
+| --- | --- |
+| Every case with fake Apple tools | `scripts/test.sh` (runs `scripts/tests/installer-test.sh` after the package tests), or that script alone. 77 checks passed on 16 Oct 2026. |
+| The fakes | `scripts/tests/stubs`: xcrun and devicectl, xcodebuild, xcodegen, security, openssl, codesign, sudo, curl, brew, launchctl, open, osascript and pkill. Each reads what to do from files in a scratch folder. |
+| A real run on this Mac | `GLASSPAD_HOME=<scratch folder> bash -c "$(curl -fsSL https://raw.githubusercontent.com/Soham109/glasspad/main/install.sh)"` |
+| A real run of a local copy | `GLASSPAD_REPO_URL=<path to a clone> bash < install.sh` |
+
+The scripts it drives: `scripts/install-mac.sh` (build, install in Applications, sign with your
+certificate), `scripts/install-phone.sh` (build and install on the iPhone),
+`scripts/setup-autorefresh.sh` (the hourly renewal job) and `scripts/refresh-phone.sh` (what that
+job runs). The installer and these scripts have not changed since the runs below. The Mac app's
+menu item is now called **Pair Your iPhone…**; the installer's last line still says "Pair new
+iPhone".
+
+## The runs
+
 What a real run of the one-line installer printed, on a Mac that already had Xcode 27, an
 Apple Development certificate (team V8PCS2UL23) and a paired iPhone on the same Wi-Fi. No
 terminal was attached (standard input was `/dev/null`, `/dev/tty` could not be opened), which is
@@ -136,7 +154,7 @@ Exit code 0. (Since then, when renewal was set up by an earlier run, step 7 says
 ## Not reproducible on this Mac, covered by the fake-tools tests instead
 
 `scripts/tests/installer-test.sh` (run by `scripts/test.sh`) replaces xcrun/devicectl, security,
-xcodebuild, sudo, curl, brew and launchctl with small fakes, and runs install.sh piped into bash
+xcodebuild, sudo, curl, brew, launchctl and the other tools listed above with small fakes, and runs install.sh piped into bash
 with a home folder whose path has spaces. Cases: a fresh Mac (license not accepted, no password
 available, then accepted; XcodeGen download rejected by its checksum, Homebrew fallback), a second
 run that skips everything, uncommitted local changes, offline without Homebrew, no iPhone, a

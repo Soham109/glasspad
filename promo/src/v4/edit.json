@@ -1,0 +1,165 @@
+{
+ "_": "v4 film timing. Scenes and music are in bars of the score (1 bar = 1.6552 s); voice lines in film seconds. Read by src/v4 and scripts/v4/mix.py.",
+ "bar": 1.6552,
+ "grid": {
+  "offset": 0.431,
+  "bar": 1.6552
+ },
+ "duration": 107.705,
+ "scenes": [
+  {
+   "id": "open",
+   "from": 0,
+   "to": 4
+  },
+  {
+   "id": "actions",
+   "from": 4,
+   "to": 10
+  },
+  {
+   "id": "pinned",
+   "from": 10,
+   "to": 16
+  },
+  {
+   "id": "layouts",
+   "from": 16,
+   "to": 21
+  },
+  {
+   "id": "edit",
+   "from": 21,
+   "to": 26
+  },
+  {
+   "id": "present",
+   "from": 26,
+   "to": 32
+  },
+  {
+   "id": "remote",
+   "from": 32,
+   "to": 40
+  },
+  {
+   "id": "clipboard",
+   "from": 40,
+   "to": 44
+  },
+  {
+   "id": "displays",
+   "from": 44,
+   "to": 48
+  },
+  {
+   "id": "more",
+   "from": 48,
+   "to": 56
+  },
+  {
+   "id": "private",
+   "from": 56,
+   "to": 60
+  },
+  {
+   "id": "end",
+   "from": 60,
+   "to": 63.5
+  }
+ ],
+ "music": [
+  {
+   "at": 0,
+   "fromBar": 0,
+   "toBar": 16
+  },
+  {
+   "at": 16,
+   "fromBar": 20,
+   "toBar": 36
+  },
+  {
+   "at": 32,
+   "fromBar": 52,
+   "toBar": 68
+  },
+  {
+   "at": 48,
+   "fromBar": 68,
+   "toBar": 76
+  },
+  {
+   "at": 56,
+   "fromBar": 92,
+   "toBar": 99.5,
+   "stop": true
+  }
+ ],
+ "vo": [
+  {
+   "id": "open",
+   "at": 1.0
+  },
+  {
+   "id": "actions1",
+   "at": 7.321
+  },
+  {
+   "id": "actions2",
+   "at": 11.621
+  },
+  {
+   "id": "pinned1",
+   "at": 17.052
+  },
+  {
+   "id": "pinned2",
+   "at": 20.752
+  },
+  {
+   "id": "layouts",
+   "at": 28.283
+  },
+  {
+   "id": "edit",
+   "at": 35.659
+  },
+  {
+   "id": "present",
+   "at": 43.935
+  },
+  {
+   "id": "remote1",
+   "at": 53.966
+  },
+  {
+   "id": "remote2",
+   "at": 58.566
+  },
+  {
+   "id": "clipboard",
+   "at": 66.808
+  },
+  {
+   "id": "displays",
+   "at": 73.329
+  },
+  {
+   "id": "more1",
+   "at": 80.05
+  },
+  {
+   "id": "more2",
+   "at": 86.45
+  },
+  {
+   "id": "private",
+   "at": 93.291
+  },
+  {
+   "id": "end",
+   "at": 99.812
+  }
+ ]
+}

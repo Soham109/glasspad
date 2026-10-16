@@ -1,0 +1,18 @@
+[
+  {"id": "open", "text": "Glasspad puts your Mac's controls on your iPhone."},
+  {"id": "actions1", "text": "In the morning, it follows you from app to app.", "seed": 11},
+  {"id": "actions2", "text": "Open Safari, and the buttons change to match."},
+  {"id": "pinned1", "text": "The things you do every day stay pinned."},
+  {"id": "pinned2", "text": "Split Screen. Do Not Disturb."},
+  {"id": "layouts", "text": "Split the phone itself, and keep two tools open at once.", "seed": 22},
+  {"id": "edit", "text": "In Final Cut, the edits you make most sit under your thumb.", "seed": 22},
+  {"id": "present", "text": "On stage, it moves your slides, keeps time, and points for you."},
+  {"id": "remote1", "text": "On the couch, it becomes a remote.", "seed": 33},
+  {"id": "remote2", "text": "Swipe to skip. Type to search."},
+  {"id": "clipboard", "text": "Copy on your phone. Paste on your Mac."},
+  {"id": "displays", "text": "Send a window to the other display, without reaching for it.", "seed": 33},
+  {"id": "more1", "text": "Keyboard, media, your Dock and macros are a tap away."},
+  {"id": "more2", "text": "And under it all, a trackpad you can feel."},
+  {"id": "private", "text": "No account. No cloud. It all stays on your Wi-Fi."},
+  {"id": "end", "text": "Glasspad. Free and open source."}
+]

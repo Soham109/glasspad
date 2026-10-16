@@ -114,6 +114,43 @@ import Testing
         #expect(env.urls.count == 1)
     }
 
+    /// Shell scripts are Mac-only, so Open File must not run one either: a `.command` file opens
+    /// in Terminal and runs, as does a program, and a link file can point at either.
+    @Test func openFileRefusesWhatRunsWhenOpened() async throws {
+        let (d, env) = try deck([])
+        let folder = tempURL("files")
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let program = folder.appendingPathComponent("tool")
+        try Data("#!/bin/sh\n".utf8).write(to: program)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: program.path)
+        let script = folder.appendingPathComponent("run.command")
+        try Data("echo hi\n".utf8).write(to: script)
+        let disguised = folder.appendingPathComponent("notes.txt")
+        try FileManager.default.createSymbolicLink(at: disguised, withDestinationURL: script)
+        let runnable = ["/Users/test/Downloads/run.command", "/Users/test/x.sh", "/Users/test/Setup.pkg", "/Users/test/a.workflow",
+                        "/Users/test/b.terminal", "/Users/test/c.fileloc", "/Users/test/d.scpt", program.path, disguised.path]
+        let fine = ["/Users/test/Report.pdf", "/Users/test/Downloads", "/Applications/Calculator.app", "/Users/test/photo.PNG"]
+        env.existing = Set(runnable + fine)
+        for path in runnable {
+            #expect(await outcome(d, .openFile(path: path)).ok == false, "\(path)")
+        }
+        #expect(env.urls.isEmpty)
+        for path in fine {
+            #expect(await outcome(d, .openFile(path: path)).ok, "\(path)")
+        }
+        #expect(env.urls.count == fine.count)
+    }
+
+    @Test func openURLRefusesLocalFilesAndTerminalLinks() async throws {
+        let (d, env) = try deck([])
+        for link in ["file:///etc/passwd", "FILE:///Applications/Calculator.app", "x-man-page://ls", "help:openbook=x", "no scheme"] {
+            #expect(await outcome(d, .openURL(link)).ok == false, "\(link)")
+        }
+        #expect(env.urls.isEmpty)
+        #expect(await outcome(d, .openURL("https://apple.com")).ok)
+        #expect(await outcome(d, .openURL("x-apple.systempreferences:com.apple.Displays-Settings.extension")).ok)
+    }
+
     @Test func shellNeedsExplicitOptIn() async throws {
         let shell = DeckButton(title: "Sh", symbol: "terminal", action: .shellScript("touch /tmp/x"))
         let (d, env) = try deck([shell])
@@ -595,5 +632,12 @@ private extension ModeMessage {
         #expect(!DeckMode.logLabel(.typeText("hunter2")).contains("hunter2"))
         #expect(!DeckMode.logLabel(.shellScript("echo secret")).contains("secret"))
         #expect(DeckMode.logLabel(.openApp(bundleID: "com.apple.Safari")).contains("com.apple.Safari"))
+        // Links, paths, shortcut names, keys and actions from a newer build stay out too.
+        #expect(DeckMode.logLabel(.openURL("https://example.com/?token=abc")) == "openURL")
+        #expect(DeckMode.logLabel(.openFile(path: "/Users/test/Secret Plans.pdf")) == "openFile")
+        #expect(DeckMode.logLabel(.runShortcut(name: "Text Mum")) == "runShortcut")
+        let newer = try! JSONDecoder().decode(DeckAction.self, from: Data(#"{"pasteText":{"text":"hunter2"}}"#.utf8))
+        #expect(!DeckMode.logLabel(newer).contains("hunter2"))
+        #expect(DeckMode.logLabel(.system(.lockScreen)).contains("lockScreen"))
     }
 }

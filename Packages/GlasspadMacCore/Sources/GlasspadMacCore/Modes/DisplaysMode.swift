@@ -194,6 +194,8 @@ public final class DisplaysMode {
             guard let d = display(id) else { return gone }
             if let master {
                 guard let m = display(master), m.id != id else { return gone }
+                // A display that copies another cannot be copied (no loops, no chains).
+                guard m.mirrorOf == nil else { return "\(m.name) shows another display's picture." }
                 return tryChange(.mirror(display: id, of: master), summary: "\(d.name) shows the same picture as \(m.name).")
             }
             guard d.mirrorOf != nil else { return nil }
@@ -203,10 +205,18 @@ public final class DisplaysMode {
             let origins = DisplayGeometry.origins(makingMain: id, displays.filter { $0.mirrorOf == nil }.map { ($0.id, $0.frame) })
             return backend.apply(.origins(origins), permanently: true) ? nil : "Your Mac did not change the main display."
         case .arrange(let origins):
-            guard !origins.isEmpty, origins.allSatisfy({ display($0.display) != nil }) else { return gone }
+            // Only displays with their own picture have a place, each named once.
+            let shown = displays.filter { $0.mirrorOf == nil }
+            guard !origins.isEmpty, Set(origins.map(\.display)).count == origins.count,
+                  origins.allSatisfy({ o in shown.contains { $0.id == o.display } }) else { return gone }
             let main = displays.first(where: \.isMain)?.id ?? origins[0].display
-            return backend.apply(.origins(DisplayGeometry.normalized(origins, main: main)), permanently: true)
-                ? nil : "Your Mac did not move the displays."
+            let placed = DisplayGeometry.normalized(origins, main: main)
+            // The whole desk afterwards (displays left out keep their place) must be one piece.
+            let frames = shown.map { d in
+                placed.first { $0.display == d.id }.map { CGRect(origin: $0.origin, size: d.frame.size) } ?? d.frame
+            }
+            guard DisplayGeometry.isReachableArrangement(frames) else { return "Each display needs to touch another along an edge." }
+            return backend.apply(.origins(placed), permanently: true) ? nil : "Your Mac did not move the displays."
         case .brightness, .keepChanges, .revertChanges:
             return nil
         }
