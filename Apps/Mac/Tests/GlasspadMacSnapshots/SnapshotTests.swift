@@ -97,29 +97,63 @@ final class SnapshotTests: XCTestCase {
 
     func testWelcome() throws {
         let macros = try Fixtures.macros()
+        let size = WelcomeView.size
         let fresh = Fixtures.model(macros)
         fresh.link = .searching
         fresh.phones = []
         fresh.accessibilityTrusted = false
         fresh.automation = .notDetermined
-        fresh.pairing = Fixtures.waiting
-        try shoot(WelcomeView(icon: Fixtures.appIcon), model: fresh, width: WelcomeView.size.width,
-                  name: "welcome-nothing-granted", chrome: .window)
+        try shoot(WelcomeView(icon: Fixtures.appIcon, start: .hello), model: fresh, size: size,
+                  name: "welcome-1-hello", chrome: .window)
+        try shoot(WelcomeView(icon: Fixtures.appIcon, start: .permissions), model: fresh, size: size,
+                  name: "welcome-2-permissions-needed", chrome: .window)
 
         let half = Fixtures.model(macros)
         half.link = .searching
         half.phones = []
         half.automation = .notDetermined
-        half.pairing = Fixtures.waiting
-        try shoot(WelcomeView(icon: Fixtures.appIcon), model: half, width: WelcomeView.size.width,
-                  name: "welcome-accessibility-allowed", chrome: .window)
+        try shoot(WelcomeView(icon: Fixtures.appIcon, start: .permissions), model: half, size: size,
+                  name: "welcome-2-permissions-accessibility-allowed", chrome: .window)
+
+        let waiting = Fixtures.model(macros)
+        waiting.link = .searching
+        waiting.phones = []
+        waiting.pairing = Fixtures.waiting
+        try shoot(WelcomeView(icon: Fixtures.appIcon, start: .pair, fixedTime: 3.1), model: waiting, size: size,
+                  name: "welcome-3-pair", chrome: .window)
 
         let done = Fixtures.model(macros)
         done.link = .connected(rttMs: 3)
         done.automation = .granted
         done.pairing = .paired(phoneName: "Soham's iPhone")
-        try shoot(WelcomeView(icon: Fixtures.appIcon), model: done, width: WelcomeView.size.width,
-                  name: "welcome-paired", chrome: .window)
+        try shoot(WelcomeView(icon: Fixtures.appIcon, start: .pair, fixedTime: 3.1), model: done, size: size,
+                  name: "welcome-3-paired", chrome: .window)
+    }
+
+    /// The pairing code's motion as numbered frames (GLASSPAD_SNAPSHOT_DIR/frames), to turn into a
+    /// video and check for jumps: three seconds alive, then the gather into the check.
+    func testPairingCodeFrames() throws {
+        guard ProcessInfo.processInfo.environment["GLASSPAD_FRAMES"] == "1" else { throw XCTSkip("Set GLASSPAD_FRAMES=1.") }
+        let dir = Self.out.appendingPathComponent("frames", isDirectory: true)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let message = Fixtures.pairingURL.absoluteString
+        for dark in [false, true] {
+            for i in 0..<(60 * 5) {
+                let t = Double(i) / 60
+                let gathering = t >= 3
+                let view = PairingFrameHarness(message: message, time: t,
+                                               gather: gathering ? (t - 3) / PairingPattern.gatherDuration : 0)
+                    .environment(\.colorScheme, dark ? .dark : .light)
+                let renderer = ImageRenderer(content: view)
+                renderer.scale = 2
+                guard let image = renderer.nsImage, let tiff = image.tiffRepresentation,
+                      let rep = NSBitmapImageRep(data: tiff), let png = rep.representation(using: .png, properties: [:]) else {
+                    XCTFail("no frame \(i)")
+                    return
+                }
+                try png.write(to: dir.appendingPathComponent(String(format: "%@-%04d.png", dark ? "dark" : "light", i)))
+            }
+        }
     }
 
     func testSettingsPanes() throws {
@@ -308,4 +342,18 @@ private final class FixedFrontApp: FrontmostAppObserving, @unchecked Sendable {
     func currentBundleID() -> String? { "com.apple.Safari" }
     func start(_ onChange: @escaping @Sendable (String?) -> Void) { onChange("com.apple.Safari") }
     func stop() {}
+}
+
+/// One frame of the code on a window, at a set moment of its motion and gather.
+private struct PairingFrameHarness: View {
+    let message: String
+    let time: Double
+    let gather: Double
+
+    var body: some View {
+        PairingCodeView(message: message, size: 260, phase: gather > 0 ? .gathered(since: .distantPast) : .live,
+                        fixedTime: time, fixedGather: gather > 0 ? min(1, gather) : nil)
+            .padding(30)
+            .background(Color(nsColor: .windowBackgroundColor))
+    }
 }

@@ -1,5 +1,7 @@
 import { glyph } from "./glyphs";
+import { appIcon } from "./apps";
 import { tl, tlIcon, loopInView, settle, Scene } from "./kit";
+import { THEMES, themeVars, themesLine } from "./themes";
 
 /* "Make it yours": small cuts of the Actions screen, each showing one thing you can set up. */
 
@@ -36,7 +38,7 @@ const CARDS: Card[] = [
   {
     key: "folders", title: "Folders", text: "Group buttons in a folder, like these for tiling windows.",
     art: () => `<div class="mk-fold"><div class="fv closed">${tlIcon("Windows", `<span class="ficon">${["rectangle.lefthalf.filled", "rectangle.righthalf.filled", "macwindow", "square.split.2x1"].map(g => `<i>${glyph(g)}</i>`).join("")}</span>`)}${tl("Screenshot", "camera.viewfinder", "#0A84FF")}${tl("Lock Screen", "lock.fill", "#8E8E93")}</div>
-      <div class="fv open"><div class="fh">${glyph("chevron.left")}<b>Windows</b></div><div class="mk-row f4">${tl("Left Half", "rectangle.lefthalf.filled", "#0A84FF")}${tl("Right Half", "rectangle.righthalf.filled", "#0A84FF")}${tl("Fill Screen", "macwindow", "#0A84FF")}${tl("Split Screen", "square.split.2x1", "#0A84FF")}</div></div></div>`,
+      <div class="fv open"><div class="fh">${glyph("chevron.left")}<b>Windows</b></div><div class="mk-row f4">${tl("Left Half", "rectangle.lefthalf.filled", "#0A84FF")}${tl("Right Half", "rectangle.righthalf.filled", "#0A84FF")}${tl("Fill", "macwindow", "#0A84FF")}${tl("Split Screen", "square.split.2x1", "#0A84FF")}</div></div></div>`,
     async run(s) {
       await s.wait(700);
       await s.tap(s.q('.closed [data-b="Windows"]'), () => { s.q(".mk-fold").classList.add("in"); settle(Array.from(s.q(".open .mk-row").children), 40); });
@@ -45,6 +47,36 @@ const CARDS: Card[] = [
       await s.wait(1200);
     },
     reset: el => el.querySelector(".mk-fold")?.classList.remove("in"),
+  },
+  {
+    key: "macros", title: "Macros", text: "Record what you do on your Mac once. It becomes a button.",
+    art: () => `<div class="mk-mac"><div class="hud"><i></i><b>Recording Macro</b><span>Stop</span></div><svg class="mk-cur" viewBox="0 0 16 22"><path d="M1 1v17l4.6-4.4 3 6.9 3-1.3-3-6.8H15Z" fill="#1A1A1A" stroke="#fff" stroke-width="1.4" stroke-linejoin="round"/></svg></div>
+      <div class="mk-row">${tl("Record New Macro", "record.circle", "#FF3B30")}${tl("Clean Desktop", "wand.and.stars", "#30B0C7")}${tl("Invoices Folder", "wand.and.stars", "#30B0C7")}</div>`,
+    async run(s) {
+      const mac = s.q(".mk-mac"), nt = s.q('[data-b="Invoices Folder"]');
+      await s.wait(700);
+      await s.tap(s.q('[data-b="Record New Macro"]'), () => mac.classList.add("rec"));
+      await s.wait(1300); mac.classList.add("stop"); await s.wait(500);
+      mac.classList.remove("rec", "stop"); nt.classList.add("in");
+      await s.wait(2200);
+    },
+    reset: el => { el.querySelector(".mk-mac")?.classList.remove("rec", "stop"); el.querySelector('[data-b="Invoices Folder"]')?.classList.remove("in"); },
+  },
+  {
+    key: "perapp", title: "Each app's buttons", text: "Edit, next to the app's name, changes the buttons for that app.",
+    art: () => `<div class="mk-ed"><div class="af"><span class="af-i">${appIcon("web")}</span><div><b>Safari</b><span>In front on your Mac</span></div><span class="ed">Edit</span></div>
+      <div class="mk-row">${tl("New Tab", "plus.square.on.square", "#0A84FF")}${tl("Reopen Tab", "arrow.uturn.backward", "#0A84FF")}${tl("Private", "hand.raised.fill", "#8E8E93")}</div></div>`,
+    async run(s) {
+      const box = s.q(".mk-ed"), ed = s.q(".ed"), pv = s.q('[data-b="Private"]');
+      await s.wait(800);
+      await s.tap(ed, () => { box.classList.add("editing"); ed.textContent = "Done"; });
+      await s.wait(900);
+      await s.tap(pv, () => pv.classList.add("gone"));
+      await s.wait(900);
+      await s.tap(ed, () => { box.classList.remove("editing"); ed.textContent = "Edit"; });
+      await s.wait(1600);
+    },
+    reset: el => { const b = el.querySelector(".mk-ed"); if (!b) return; b.classList.remove("editing"); b.querySelector(".ed")!.textContent = "Edit"; b.querySelector(".gone")?.classList.remove("gone"); },
   },
   {
     key: "shortcuts", title: "Shortcuts", text: "Run any shortcut from the Shortcuts app on your Mac.",
@@ -80,19 +112,21 @@ const CARDS: Card[] = [
     },
   },
   {
-    key: "themes", title: "Themes", text: "Paper, Graphite, Mono, Sand and Midnight, or follow the system.",
-    art: () => `<div class="mk-th th-paper"><div class="mk-row">${tl("New Tab", "plus.square.on.square", "#0A84FF")}${tl("Reader", "doc.plaintext", "#30B0C7")}${tl("Do Not Disturb", "moon.fill", "#5E5CE6")}</div>
-      <div class="sw">${["paper", "graphite", "system", "mono", "sand", "midnight"].map(t => `<span class="sw-${t}${t === "paper" ? " on" : ""}" title="${t}"></span>`).join("")}</div><b class="nm">Paper</b></div>`,
+    key: "themes", title: "Themes", text: themesLine(),
+    art: () => `<div class="mk-th" style="${themeVars(THEMES[0])}"><div class="mk-row">${tl("New Tab", "plus.square.on.square", "#0A84FF")}${tl("Reader", "doc.plaintext", "#30B0C7")}${tl("Do Not Disturb", "moon.fill", "#5E5CE6")}</div>
+      <div class="sw">${THEMES.map((t, i) => `<span data-t="${t.key}" class="${i ? "" : "on"}" style="background:${t.swatch}" title="${t.name}"></span>`).join("")}</div><b class="nm">${THEMES[0].name}</b></div>`,
     async run(s) {
+      // a sample of the collection, a different few each pass
       const box = s.q(".mk-th"), nm = s.q(".nm");
-      for (const t of ["mono", "midnight", "sand", "graphite", "paper"]) {
+      const pick = [...THEMES.slice(1)].sort(() => Math.random() - 0.5).slice(0, 4).concat(THEMES[0]);
+      for (const t of pick) {
         await s.wait(1500);
-        box.className = `mk-th th-${t}`; nm.textContent = t[0].toUpperCase() + t.slice(1);
-        s.q(".sw .on")?.classList.remove("on"); s.q(`.sw-${t}`).classList.add("on");
+        box.setAttribute("style", themeVars(t)); box.classList.toggle("mono", !!t.mono); nm.textContent = t.name;
+        s.q(".sw .on")?.classList.remove("on"); s.q(`.sw [data-t="${t.key}"]`).classList.add("on");
       }
       await s.wait(600);
     },
-    reset: el => { const b = el.querySelector(".mk-th"); if (b) b.className = "mk-th th-paper"; },
+    reset: el => { const b = el.querySelector(".mk-th"); if (b) { b.setAttribute("style", themeVars(THEMES[0])); b.classList.remove("mono"); } },
   },
 ];
 

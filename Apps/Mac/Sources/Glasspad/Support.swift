@@ -1,6 +1,4 @@
 import AppKit
-import CoreImage
-import CoreImage.CIFilterBuiltins
 import GlasspadKit
 import GlasspadMacCore
 import ServiceManagement
@@ -124,54 +122,6 @@ extension SynthMode {
 func formatMilliseconds(_ ms: Double?) -> String {
     guard let ms else { return "Not measured yet" }
     return ms < 10 ? String(format: "%.1f ms", ms) : String(format: "%.0f ms", ms)
-}
-
-// MARK: - QR code
-
-enum QRCode {
-    /// Black modules on white at an exact integer scale with no smoothing, so it stays sharp
-    /// and scannable at any size and in dark mode. `pixels` is the wanted edge in pixels.
-    static func cgImage(for string: String, pixels: Int) -> CGImage? {
-        let filter = CIFilter.qrCodeGenerator()
-        filter.message = Data(string.utf8)
-        filter.correctionLevel = "M"
-        guard let output = filter.outputImage else { return nil }
-        let scale = max(1, (CGFloat(pixels) / output.extent.width).rounded(.down))
-        let scaled = output.samplingNearest().transformed(by: CGAffineTransform(scaleX: scale, y: scale))
-        return CIContext(options: [.useSoftwareRenderer: false]).createCGImage(scaled, from: scaled.extent)
-    }
-}
-
-/// The pairing QR code on its white card, sized in points and drawn pixel exact.
-struct QRCodeView: View {
-    let url: URL
-    var size: CGFloat = 220
-    @Environment(\.displayScale) private var displayScale
-
-    var body: some View {
-        Group {
-            if let image = QRCode.cgImage(for: url.absoluteString, pixels: Int(size * max(displayScale, 2))) {
-                Image(decorative: image, scale: 1)
-                    .interpolation(.none)
-                    .resizable()
-                    .aspectRatio(1, contentMode: .fit)
-            } else {
-                Image(systemName: "qrcode")
-                    .font(.system(size: size * 0.4, weight: .light))
-                    .foregroundStyle(.black.opacity(0.3))
-            }
-        }
-        .frame(width: size, height: size)
-        .padding(12)
-        .background(.white, in: .rect(cornerRadius: 14, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .strokeBorder(.black.opacity(0.08), lineWidth: 1)
-        }
-        .accessibilityElement()
-        .accessibilityLabel("Pairing code")
-        .accessibilityHint("Scan it with Glasspad on your iPhone, or use Copy Link below and paste the link on your iPhone.")
-    }
 }
 
 // MARK: - Launch at login

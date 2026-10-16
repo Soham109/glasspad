@@ -248,10 +248,10 @@ section { padding: clamp(96px, 13vw, 168px) 0; }
   box-shadow: inset 0 0 0 1px var(--line-dark);
   overflow: hidden;
 }
-.mac-bar { position: absolute; inset: 0 0 auto 0; height: 6%; display: flex; align-items: center; gap: 4%; padding: 0 4%; background: rgba(255, 255, 255, 0.06); z-index: 2; }
-.mac-bar span { height: 28%; border-radius: 3px; background: rgba(255, 255, 255, 0.28); width: 7%; }
-.mac-bar .mac-apple { width: 2.4%; }
-.mac-bar .short { width: 4%; }
+.mac-bar { position: absolute; inset: 0 0 auto 0; height: 6%; display: flex; align-items: center; gap: 1.5em; padding: 0 1.4em; background: rgba(255, 255, 255, 0.07); z-index: 2; font-size: clamp(8px, 0.82vw, 12px); color: rgba(242, 241, 238, 0.86); white-space: nowrap; overflow: hidden; }
+.mac-bar .mac-apple { height: 1.15em; width: auto; fill: currentColor; }
+.mac-bar b { font-weight: 700; }
+.mac-bar .mac-clock { margin-left: auto; }
 .mac-viewport { position: absolute; inset: 6% 0 0 0; overflow: hidden; }
 .spaces { position: absolute; inset: 0; display: flex; width: 300%; will-change: transform; }
 .space { position: relative; width: 33.3334%; height: 100%; }
@@ -371,11 +371,6 @@ input[type="range"] { width: 140px; accent-color: var(--ink); }
 kbd { font-family: var(--font); }
 
 /* Privacy */
-.net { max-width: 720px; margin: 0 auto clamp(56px, 8vw, 96px); color: var(--on-dark); }
-.net svg { width: 100%; height: auto; overflow: visible; }
-.net-label { font-size: 14px; fill: var(--on-dark-3); font-family: var(--font); }
-.net-cap { font-size: 14px; fill: var(--on-dark-2); font-family: var(--font); }
-.packet { fill: var(--on-dark); }
 
 /* Safety */
 
