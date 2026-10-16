@@ -61,6 +61,7 @@ extension DeckSystemAction {
         case .launchpad: "Opens the Mac's Apps view"
         case .emptyTrash: "Empties the Mac's Trash after you confirm"
         case .ejectAll: "Ejects every disk"
+        default: title
         }
     }
 }

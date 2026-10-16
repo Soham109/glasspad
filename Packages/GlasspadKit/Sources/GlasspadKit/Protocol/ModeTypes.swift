@@ -75,6 +75,19 @@ public enum DeckSystemAction: String, Codable, Sendable, CaseIterable {
     case playPause, nextTrack, previousTrack
     case showDesktop, missionControl, appExpose, launchpad
     case emptyTrash, ejectAll
+    /// Turns Do Not Disturb on or off.
+    case doNotDisturb
+    /// Night Shift on or off.
+    case nightShift
+    /// Keeps the Mac awake until tapped again.
+    case keepAwake
+    case notificationCenter
+    /// Front window to the left or right half, top or bottom half, full (not full screen), centred.
+    case windowLeft, windowRight, windowTop, windowBottom, windowFill, windowCenter
+    /// The two frontmost windows side by side, front one on the left.
+    case windowSplit
+    /// Front window to the next display, keeping its relative frame.
+    case windowNextDisplay
 
     /// Actions that change or lose something, so the phone asks first and the Mac insists on
     /// `deckRunConfirmed`.

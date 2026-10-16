@@ -465,6 +465,8 @@ public final class DeckMode {
             let r = env.ejectAll()
             if r.failed > 0 { return .fail("\(r.failed) disk\(r.failed == 1 ? "" : "s") could not be ejected (in use)") }
             return .done
+        default:
+            return .fail("Not built yet")
         }
     }
 
