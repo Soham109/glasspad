@@ -4,9 +4,12 @@ import GlasspadKit
 /// The screens the pill switches between. Each has one SF Symbol and one accent colour.
 /// By default five show: Trackpad, Keyboard, Media, Dock and Actions. Actions combines Deck,
 /// Macros, Clipboard and Present; Settings can split it back into those four. Remote starts
-/// hidden and opens from the mode menu's tools until Settings shows it in the pill.
+/// hidden and opens from the mode menu's tools until Settings shows it in the pill. Clock,
+/// Now Playing and Calendar are the StandBy screens (StandByMode.swift): hidden too, they show
+/// in layouts, side by side with another mode.
 enum AppMode: String, CaseIterable, Identifiable, Sendable {
     case trackpad, keys, media, dock, actions, deck, macros, clipboard, present, remote
+    case clock, nowPlaying, calendar
 
     var id: String { rawValue }
 
@@ -23,6 +26,9 @@ enum AppMode: String, CaseIterable, Identifiable, Sendable {
         case .clipboard: "Clipboard"
         case .present: "Present"
         case .remote: "Remote"
+        case .clock: "Clock"
+        case .nowPlaying: "Now Playing"
+        case .calendar: "Calendar"
         }
     }
 
@@ -38,6 +44,9 @@ enum AppMode: String, CaseIterable, Identifiable, Sendable {
         case .clipboard: "doc.on.clipboard.fill"
         case .present: "play.rectangle.fill"
         case .remote: "appletvremote.gen4.fill"
+        case .clock: "clock.fill"
+        case .nowPlaying: "music.note"
+        case .calendar: "calendar"
         }
     }
 
@@ -56,6 +65,9 @@ enum AppMode: String, CaseIterable, Identifiable, Sendable {
         case .clipboard: Color(uiColor: .systemGreen)
         case .present: Color(uiColor: .systemRed)
         case .remote: Color(uiColor: .systemPurple)
+        case .clock: Color(uiColor: .systemCyan)
+        case .nowPlaying: Color(uiColor: .systemPink)
+        case .calendar: Color(uiColor: .systemRed)
         }
     }
 
@@ -92,6 +104,10 @@ enum AppMode: String, CaseIterable, Identifiable, Sendable {
         case .clipboard: .clipboard
         case .present: .present
         case .remote: .remote
+        // Now Playing needs the Mac's now playing stream, as Media does. The clock and the
+        // calendar need nothing from the Mac.
+        case .nowPlaying: .media
+        case .clock, .calendar: .trackpad
         }
     }
 }
@@ -110,6 +126,9 @@ extension AppMode {
         case .clipboard: "Copy between iPhone and Mac."
         case .present: "A slide remote with timer and laser."
         case .remote: "Watch from the couch: play, skip, volume and search."
+        case .clock: "A big clock for your desk or nightstand, like StandBy."
+        case .nowPlaying: "What your Mac is playing, large, like StandBy."
+        case .calendar: "Your next events at a glance, like StandBy."
         }
     }
 

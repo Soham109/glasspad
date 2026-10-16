@@ -251,7 +251,7 @@ extension AppMode {
     /// Modes with their own page in Settings.
     var hasSettings: Bool {
         switch self {
-        case .dock, .keys, .actions, .deck, .present: true
+        case .dock, .keys, .actions, .deck, .present, .clock, .nowPlaying, .calendar: true
         default: false
         }
     }
@@ -281,6 +281,7 @@ struct ModeDetailSettings: View {
                     Toggle("Start Timer on First Next", isOn: $settings.presentStartsTimer)
                 }
                 .listRowBackground(palette.raisedColor)
+            case .clock, .nowPlaying, .calendar: StandBySettingsSections()
             default: EmptyView()
             }
         }

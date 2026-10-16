@@ -146,8 +146,11 @@ enum ScreenAwake {
         let router = AppRouter.shared
         let wanted = sceneActive && PhoneSettings.shared.hasOnboarded && PhoneSettings.shared.keepScreenAwake && router.dims
             && !router.showSettings && !router.showPairing && !router.showClipboard && !router.showSetup
-        if UIApplication.shared.isIdleTimerDisabled != wanted {
-            UIApplication.shared.isIdleTimerDisabled = wanted
+        // StandBy screens keep the screen on by their own rules (StandByMode.swift), without dimming.
+        let standBy = sceneActive && StandByMonitor.shared.power.keepsScreenOn
+            && !router.showSettings && !router.showPairing && !router.showClipboard && !router.showSetup
+        if UIApplication.shared.isIdleTimerDisabled != (wanted || standBy) {
+            UIApplication.shared.isIdleTimerDisabled = wanted || standBy
         }
         if wanted { router.startDimTimer() } else { router.stopDimTimer() }
     }

@@ -161,6 +161,9 @@ struct RootView: View {
         case .clipboard: ClipboardMode()
         case .present: PresentMode()
         case .remote: RemoteMode()
+        case .clock: ClockMode()
+        case .nowPlaying: NowPlayingMode()
+        case .calendar: CalendarMode()
         }
     }
 }
