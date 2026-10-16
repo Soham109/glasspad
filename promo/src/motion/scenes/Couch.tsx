@@ -39,7 +39,7 @@ const RG: Record<string, string> = {
   "forward.end": '<path d="M6.5 6v12l9-6Z"/><path d="M17.5 6v12"/>',
   "speaker.slash": '<path d="M4 9.5h3l4.5-4v13l-4.5-4H4Z"/><path d="M3.5 3.5 20.5 20.5"/>',
 };
-const RI: React.FC<{ g: string; style?: React.CSSProperties }> = ({ g, style }) => <svg viewBox="0 0 24 24" style={style} dangerouslySetInnerHTML={{ __html: RG[g] }} />;
+export const RI: React.FC<{ g: string; style?: React.CSSProperties }> = ({ g, style }) => <svg viewBox="0 0 24 24" style={style} dangerouslySetInnerHTML={{ __html: RG[g] }} />;
 
 const SPLIT6 = Math.round((874 - 12) * 0.6);
 const QUERY = "quiet coast";
@@ -104,11 +104,11 @@ const KB: React.FC<{ t: number; p: number; ch: string }> = ({ t, p, ch }) => {
 };
 /* ---------- Present, full screen and upright (PresentMode.swift) ---------- */
 /* The laser pad: 16 pt margins, 16:10, under the timer bar. */
-const PAD = { x: 16, y: 126, w: 370, h: 231 };
+export const PAD = { x: 16, y: 126, w: 370, h: 231 };
 /* The route on the map slide, in fractions of the slide: Harbour, Lighthouse, Cliffs. */
 const STOPS: [number, number][] = [[0.24, 0.72], [0.52, 0.44], [0.8, 0.58]];
 /** The laser along the route, 0 to 1, resting a moment at each stop. */
-function laserAt(u: number): [number, number] {
+export function laserAt(u: number): [number, number] {
   const seg = [[0, 0.08], [0.42, 0.55], [0.92, 1]]; // where it rests
   if (u <= seg[0][1]) return STOPS[0];
   if (u < seg[1][0]) { const k = INOUT((u - seg[0][1]) / (seg[1][0] - seg[0][1])); return [lerp(STOPS[0][0], STOPS[1][0], k), lerp(STOPS[0][1], STOPS[1][1], k) - Math.sin(k * Math.PI) * 0.06]; }
@@ -116,7 +116,7 @@ function laserAt(u: number): [number, number] {
   if (u < seg[2][0]) { const k = INOUT((u - seg[1][1]) / (seg[2][0] - seg[1][1])); return [lerp(STOPS[1][0], STOPS[2][0], k), lerp(STOPS[1][1], STOPS[2][1], k) - Math.sin(k * Math.PI) * 0.05]; }
   return STOPS[2];
 }
-const PresentPhone: React.FC<{ t: number }> = ({ t }) => {
+export const PresentPhone: React.FC<{ t: number }> = ({ t }) => {
   const secs = 41 + Math.max(0, Math.floor(t - P0));
   const n1 = TAP(t, CT.next1), n2 = TAP(t, CT.next2);
   const u = E(t, CT.laser[0], CT.laser[1] - CT.laser[0], (x) => x);
@@ -144,7 +144,7 @@ const PresentPhone: React.FC<{ t: number }> = ({ t }) => {
   );
 };
 
-const CouchPhone: React.FC<{ t: number }> = ({ t }) => {
+export const CouchPhone: React.FC<{ t: number }> = ({ t }) => {
   const swipeX = E(t, CT.skip[0], CT.skip[1] - CT.skip[0], INOUT), swO = E(t, CT.skip[0] - 0.12, 0.12) * (1 - E(t, CT.skip[1], 0.18));
   const volY = E(t, CT.vol[0], CT.vol[1] - CT.vol[0], INOUT), vO = E(t, CT.vol[0] - 0.12, 0.12) * (1 - E(t, CT.vol[1], 0.18));
   const sTap = TAP(t, CT.search), rTap = TAP(t, CT.ret);
@@ -166,7 +166,7 @@ const CouchPhone: React.FC<{ t: number }> = ({ t }) => {
 };
 
 /* ---------- the stage screen's slides: a short talk about a coast walk ---------- */
-const Slide: React.FC<{ k: number; laser: [number, number] | null }> = ({ k, laser }) => {
+export const Slide: React.FC<{ k: number; laser: [number, number] | null }> = ({ k, laser }) => {
   if (k === 0) return (
     <div className="fm-slide s0">
       <div className="tx"><b>The coast path</b><span>A weekend walk in three stops</span></div>
