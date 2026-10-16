@@ -453,6 +453,7 @@ final class MacSession {
             // The connector marked this Mac as last used; show it.
             PairingStore.shared.reload()
             send(.modeSelected(AppRouter.shared.mode.wireMode))
+            DisplaysStore.shared.linkConnected()
             // Refresh whatever the current screen shows.
             switch AppRouter.shared.mode {
             case .dock: requestDock()
@@ -585,6 +586,8 @@ final class MacSession {
             Haptics.shared.play(content == nil ? .error : .snap)
         case .macro(let macro):
             received(macro)
+        case .displaysState, .displaysResult:
+            DisplaysStore.shared.receive(message)
         default:
             // Phone -> Mac messages never arrive here.
             break
@@ -732,6 +735,7 @@ final class MacSession {
         UserDefaults.standard.removeObject(forKey: Self.dockListCacheKey)
         media = nil
         MediaStore.shared.reset()
+        DisplaysStore.shared.reset()
         deckButtons = nil
         deckOutcomes = [:]
         deckPending = []

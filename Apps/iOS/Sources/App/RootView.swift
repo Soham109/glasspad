@@ -88,6 +88,7 @@ struct RootView: View {
                 .environment(\.palette, palette)
         }
         .fullScreenCover(isPresented: $router.showRemote) { RemoteCover() }
+        .fullScreenCover(isPresented: $router.showDisplays) { DisplaysCover().environment(\.palette, palette) }
         .alert(router.pairingRequest.map { "Pair with \($0.macName)?" } ?? "Pair with this Mac?",
                isPresented: Binding(get: { router.pairingRequest != nil }, set: { if !$0 { router.pairingRequest = nil } }),
                presenting: router.pairingRequest) { payload in
@@ -137,7 +138,7 @@ struct RootView: View {
     private var canAutoShowSetup: Bool {
         SetupGuide.shared.pendingAutoShow && settings.hasOnboarded && !settings.setupComplete
             && !router.showPairing && !router.showSettings && !router.showSetup
-            && !router.showClipboard && !router.showPresenter && !router.showRemote && router.pairingRequest == nil
+            && !router.showClipboard && !router.showPresenter && !router.showRemote && !router.showDisplays && router.pairingRequest == nil
     }
 
     /// Debug film scenes (DemoScript.swift) hide the trackpad's connection status.
@@ -161,6 +162,7 @@ struct RootView: View {
         case .clipboard: ClipboardMode()
         case .present: PresentMode()
         case .remote: RemoteMode()
+        case .displays: DisplaysMode()
         }
     }
 }
@@ -251,7 +253,7 @@ private struct WarmNotice: View {
 ///   -GPOrientation <automatic|portrait|landscape>  set the orientation choice (it is saved)
 ///   -GPTheme / -GPThemeLater <paper|graphite|system>  set the theme at launch, or two seconds later
 ///   -GPDemo <icon folder>               fill the screens with sample Mac data (no Mac needed)
-///   -GPActionsPage <library|front|folder|clipboard|present|remote>  open that Actions sheet or tool; -GPEdit starts editing
+///   -GPActionsPage <library|front|folder|clipboard|present|remote|displays>  open that Actions sheet or tool; -GPEdit starts editing
 ///   -GPFilm <trackpad|menu|actions|media>  play a scripted scene for the demo film (DemoScript.swift)
 ///   -GPSetup / -GPSetupTest / -GPSetupReset  open the setup checklist, start its trackpad test, or mark it unfinished
 ///   -GPSettingsPage <connection|setup>  open Settings on that page
@@ -289,6 +291,7 @@ enum DebugLaunch {
             if page == "clipboard" { AppRouter.shared.openTool(.clipboard) }
             if page == "present" { AppRouter.shared.openTool(.present) }
             if page == "remote" { AppRouter.shared.openTool(.remote) }
+            if page == "displays" { AppRouter.shared.openTool(.displays) }
         }
         if args.contains("-GPEdit") { demoEditing = true }
         if args.contains("-GPSetup") { AppRouter.shared.showSetup = true }

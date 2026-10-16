@@ -3,10 +3,10 @@ import GlasspadKit
 
 /// The screens the pill switches between. Each has one SF Symbol and one accent colour.
 /// By default five show: Trackpad, Keyboard, Media, Dock and Actions. Actions combines Deck,
-/// Macros, Clipboard and Present; Settings can split it back into those four. Remote starts
-/// hidden and opens from the mode menu's tools until Settings shows it in the pill.
+/// Macros, Clipboard and Present; Settings can split it back into those four. Remote and
+/// Displays start hidden and open from the mode menu's tools until Settings shows them in the pill.
 enum AppMode: String, CaseIterable, Identifiable, Sendable {
-    case trackpad, keys, media, dock, actions, deck, macros, clipboard, present, remote
+    case trackpad, keys, media, dock, actions, deck, macros, clipboard, present, remote, displays
 
     var id: String { rawValue }
 
@@ -23,6 +23,7 @@ enum AppMode: String, CaseIterable, Identifiable, Sendable {
         case .clipboard: "Clipboard"
         case .present: "Present"
         case .remote: "Remote"
+        case .displays: "Displays"
         }
     }
 
@@ -38,6 +39,7 @@ enum AppMode: String, CaseIterable, Identifiable, Sendable {
         case .clipboard: "doc.on.clipboard.fill"
         case .present: "play.rectangle.fill"
         case .remote: "appletvremote.gen4.fill"
+        case .displays: "display.2"
         }
     }
 
@@ -56,17 +58,19 @@ enum AppMode: String, CaseIterable, Identifiable, Sendable {
         case .clipboard: Color(uiColor: .systemGreen)
         case .present: Color(uiColor: .systemRed)
         case .remote: Color(uiColor: .systemPurple)
+        case .displays: Color(uiColor: .systemCyan)
         }
     }
 
-    /// Clipboard, Present and Remote: small tools in the mode menu unless shown as modes.
-    var isTool: Bool { self == .clipboard || self == .present || self == .remote }
+    /// Clipboard, Present, Remote and Displays: small tools in the mode menu unless shown as modes.
+    var isTool: Bool { self == .clipboard || self == .present || self == .remote || self == .displays }
 
     /// The tool's lighter symbol and spoken hint in the mode menu.
     var toolSymbol: String {
         switch self {
         case .present: "play.rectangle"
         case .remote: "appletvremote.gen4"
+        case .displays: "display.2"
         default: "doc.on.clipboard"
         }
     }
@@ -75,6 +79,7 @@ enum AppMode: String, CaseIterable, Identifiable, Sendable {
         switch self {
         case .present: "Opens the slide remote full screen"
         case .remote: "Opens a remote for movies and music full screen"
+        case .displays: "Shows your Mac's displays and windows full screen"
         default: "Copies between this iPhone and your Mac"
         }
     }
@@ -92,6 +97,7 @@ enum AppMode: String, CaseIterable, Identifiable, Sendable {
         case .clipboard: .clipboard
         case .present: .present
         case .remote: .remote
+        case .displays: .displays
         }
     }
 }
@@ -110,6 +116,7 @@ extension AppMode {
         case .clipboard: "Copy between iPhone and Mac."
         case .present: "A slide remote with timer and laser."
         case .remote: "Watch from the couch: play, skip, volume and search."
+        case .displays: "Your Mac's displays and windows: move, tile and arrange."
         }
     }
 
