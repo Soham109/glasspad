@@ -92,7 +92,7 @@ public enum StarterLibrary {
             b("Select Tool", "cursorarrow", "a"),
             b("Mark In", "arrow.right.to.line", "i"),
             b("Mark Out", "arrow.left.to.line", "o"),
-            b("Snapping", "magnet", "n"),
+            b("Snapping", "arrow.right.and.line.vertical.and.arrow.left", "n"),
             b("Zoom to Fit", "arrow.up.left.and.arrow.down.right", "z", [.shift]),
             b("Import Media", "square.and.arrow.down", "i", [.command]),
             b("Render All", "gearshape.2", "r", [.control, .shift]),
