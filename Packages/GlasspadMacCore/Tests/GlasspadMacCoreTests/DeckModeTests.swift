@@ -37,7 +37,9 @@ import Testing
     @Test func missingOrCorruptConfigGivesStarterSet() throws {
         let url = tempURL("deck.json")
         let fresh = DeckConfig.load(from: url)
-        #expect(fresh.layout.pages.map(\.title) == ["Mac", "My Buttons"])
+        #expect(fresh.layout.pages.map(\.title) == ["Pinned"])
+        #expect(fresh.layout.pages[0].id == DeckConfig.myPageID)
+        #expect(fresh.layout.pages[0].buttons.count == 6)
         try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
         try Data("{nope".utf8).write(to: url)
         #expect(DeckConfig.load(from: url).allowShellCommands == false)

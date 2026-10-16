@@ -36,11 +36,11 @@ enum HapticChannel: String, CaseIterable, Identifiable, Sendable {
     var title: String {
         switch self {
         case .click: "Clicks"
-        case .forceClick: "Force click"
-        case .detent: "Scroll and pinch steps"
-        case .snap: "Spaces and Mission Control"
+        case .forceClick: "Force Click"
+        case .detent: "Action Done"
+        case .snap: "Paired, Copied or Saved"
         case .error: "Errors"
-        case .buttons: "Buttons in modes"
+        case .buttons: "Button Taps"
         }
     }
 
@@ -48,8 +48,8 @@ enum HapticChannel: String, CaseIterable, Identifiable, Sendable {
         switch self {
         case .click: "cursorarrow.click"
         case .forceClick: "hand.point.up.braille"
-        case .detent: "arrow.up.and.down"
-        case .snap: "rectangle.on.rectangle"
+        case .detent: "checkmark.circle"
+        case .snap: "checkmark.seal"
         case .error: "exclamationmark.triangle"
         case .buttons: "square.grid.2x2"
         }

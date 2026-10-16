@@ -125,6 +125,8 @@ struct ActionTile: View {
             .contentShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
         }
         .buttonStyle(TileStyle())
+        // Tile labels stop growing where they would no longer fit, like Home Screen labels.
+        .dynamicTypeSize(...DynamicTypeSize.xLarge)
         .rotationEffect(.degrees(editing && wiggle && !reduceMotion ? 1.4 : 0))
         .onChange(of: editing, initial: true) { _, on in
             guard on, !reduceMotion else { wiggle = false; return }

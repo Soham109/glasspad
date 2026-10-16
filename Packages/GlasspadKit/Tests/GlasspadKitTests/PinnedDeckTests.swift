@@ -86,11 +86,11 @@ import Testing
         #expect(PinnedDeck.pinned(in: empty).map(\.title) == ["X"])
     }
 
-    @Test func frontAppItemsDefaultToTheFirstEightAndFollowPicks() {
-        let buttons = (1...6).map { b("B\($0)") }
+    @Test func frontAppItemsDefaultToTheFirstSixAndFollowPicks() {
+        let buttons = (1...4).map { b("B\($0)") }
         let macros = (1...4).map { macro("M\($0)") }
         let items = PinnedDeck.frontAppItems(buttons: buttons, macros: macros, picks: nil)
-        #expect(items.count == 8)
+        #expect(items.count == PinnedDeck.frontAppDefaultCount)
         #expect(items.first == .button(buttons[0]))
         #expect(items.last == .macro(macros[1]))
 
@@ -98,5 +98,20 @@ import Testing
         let chosen = PinnedDeck.frontAppItems(buttons: buttons, macros: macros, picks: picks)
         #expect(chosen == [.macro(macros[3]), .button(buttons[2])])
         #expect(PinnedDeck.frontAppItems(buttons: buttons, macros: macros, picks: []).isEmpty)
+    }
+
+    @Test func newSetupsDoNotGetEveryMacroPinned() {
+        let fresh = DeckLayout(pages: [DeckPage(id: PinnedDeck.pinnedPageID, title: "Pinned", symbol: "pin",
+                                                buttons: PinnedDeck.essentials())])
+        let new = PinnedDeck.migrated(fresh, macros: [macro("Rename"), macro("Standup")])
+        #expect(PinnedDeck.pinned(in: new).count == 6)
+    }
+
+    @Test func resetPinnedKeepsAppPagesAndPutsBackTheEssentials() {
+        let (old, _) = oldLayout()
+        let reset = PinnedDeck.resetPinned(PinnedDeck.migrated(old, macros: [macro("Rename")]))
+        #expect(PinnedDeck.pinned(in: reset).map(\.title)
+                == ["Screenshot", "Lock Screen", "Mute", "Dark Mode", "Mission Control", "Show Desktop"])
+        #expect(reset.pages.contains { $0.appBundleIDs == ["com.apple.Safari"] })
     }
 }

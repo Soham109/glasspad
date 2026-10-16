@@ -56,8 +56,8 @@ Tap the pill at the top of the phone to open the mode menu.
 | **Trackpad** | The trackpad above. |
 | **Keyboard** | Type and dictate on the phone. Command, Option, Control, Shift, common shortcuts, Esc, Tab and arrows. |
 | **Media** | What is playing in Spotify or any other player: artwork, a bar you can scrub, instant play and pause, where the sound goes, volume, brightness. |
-| **Apps** | Your Mac's Dock with full-size icons, dots for running apps, recent apps and search. Touch and hold for Quit, Hide or Keep. Can hide the Mac's own Dock. |
-| **Actions** | The best buttons for the app in front on your Mac, switching as you switch apps. Below, your Pinned grid: tap + to add Mac controls, apps, macros, Shortcuts, or record a new macro. |
+| **Dock** | Your Mac's Dock with full-size icons and dots for running apps, in Dock order. Touch and hold for Quit, Hide or Keep. Can hide the Mac's own Dock. |
+| **Actions** | The best buttons for the app in front on your Mac, switching as you switch apps. Below, your Pinned grid, starting with six everyday Mac controls: tap + to add any app on your Mac, more Mac controls, macros, Shortcuts, or record a new macro. |
 
 Two quick tools sit in the mode menu too: **Clipboard** (copy text or images between phone and Mac) and **Present** (next, previous, timer and a laser dot).
 
@@ -65,7 +65,7 @@ Two quick tools sit in the mode menu too: **Clipboard** (copy text or images bet
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/img/modes-dark.png">
     <source media="(prefers-color-scheme: light)" srcset="docs/img/modes-light.png">
-    <img src="docs/img/modes-light.png" alt="The mode menu, Apps, Keyboard, Actions (front app and Pinned), editing Pinned, the Library, the Clipboard tool and Settings" width="820">
+    <img src="docs/img/modes-light.png" alt="The mode menu, Dock, Keyboard, Actions (front app and Pinned), editing Pinned, the Library, the Clipboard tool and Settings" width="820">
   </picture>
 </p>
 <p align="center"><sub>Simulator screenshots against a stand-in Mac.</sub></p>

@@ -185,7 +185,9 @@ struct OutputPicker: View {
                 .contentShape(Rectangle())
         }
         .disabled(outputs.isEmpty)
-        .opacity(outputs.isEmpty ? 0.35 : 1)
+        // A greyed icon that does nothing reads as broken; keep its space, show nothing.
+        .opacity(outputs.isEmpty ? 0 : 1)
+        .accessibilityHidden(outputs.isEmpty)
         .accessibilityLabel("Sound output")
         .accessibilityValue(current?.name ?? "Unknown")
     }

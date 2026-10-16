@@ -1,55 +1,65 @@
 import GlasspadKit
 import SwiftUI
 
-/// Settings rows for the trackpad's feel, for the Settings screen's `Form`:
-/// `TrackpadTuningSection()`. Pointer speed (on top of the Mac's tracking speed, with a live
-/// preview pad), acceleration, scroll speed, momentum, and haptic strength per kind.
-/// Everything is stored on the phone and synced to the Mac (`TrackpadTuningStore`).
+/// Settings rows for the trackpad's feel, for a `Form`. `.motion` is pointer speed (on top of
+/// the Mac's tracking speed, with a live preview pad), acceleration, scroll speed and momentum;
+/// `.haptics` is the trackpad's haptic strength per kind. Everything is stored on the phone and
+/// synced to the Mac (`TrackpadTuningStore`).
 struct TrackpadTuningSection: View {
+    enum Part { case motion, haptics }
+
     @Environment(\.palette) private var palette
     @Bindable var store = TrackpadTuningStore.shared
     var session = MacSession.shared
+    let part: Part
 
     var body: some View {
-        Group {
-            Section {
-                multiplierRow("Pointer speed", value: $store.tuning.pointerSpeed, range: TrackpadTuning.pointerSpeedRange)
-                PointerPreview(settings: store.merged(session.trackpadSettings))
-                    .frame(height: 150)
-                    .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
-                Picker("Acceleration", selection: $store.tuning.acceleration) {
-                    Text("Mac curve").tag(PointerAcceleration.mac)
-                    Text("Linear").tag(PointerAcceleration.linear)
-                    Text("Off").tag(PointerAcceleration.off)
-                }
-            } header: {
-                Text("Pointer")
-            } footer: {
-                Text("Match Mac uses your Mac's tracking speed and its own acceleration curve, measured in real distance on the glass. Drag in the box to see how far the pointer would travel across your Mac's screen.")
-            }
-            .listRowBackground(palette.raisedColor)
-
-            Section {
-                multiplierRow("Scroll speed", value: $store.tuning.scrollSpeed, range: TrackpadTuning.scrollSpeedRange)
-                momentumRow
-            } header: {
-                Text("Scrolling")
-            } footer: {
-                Text("Scrolling direction and whether momentum is on follow your Mac's trackpad settings.")
-            }
-            .listRowBackground(palette.raisedColor)
-
-            Section {
-                strengthRow("Click", value: $store.tuning.clickHaptic, cue: .click)
-                strengthRow("Force click", value: $store.tuning.forceClickHaptic, cue: .forceClickDeep)
-                strengthRow("Drag lock", value: $store.tuning.dragLockHaptic, cue: .dragLock)
-            } header: {
-                Text("Haptics by kind")
-            } footer: {
-                Text("Only clicks, force clicks and picking something up with a tap and drag buzz. Swipes, scrolling and Spaces stay silent, like your Mac's trackpad.")
-            }
-            .listRowBackground(palette.raisedColor)
+        switch part {
+        case .motion: motion
+        case .haptics: haptics
         }
+    }
+
+    @ViewBuilder private var motion: some View {
+        Section {
+            multiplierRow("Pointer Speed", value: $store.tuning.pointerSpeed, range: TrackpadTuning.pointerSpeedRange)
+            PointerPreview(settings: store.merged(session.trackpadSettings))
+                .frame(height: 150)
+                .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+            Picker("Acceleration", selection: $store.tuning.acceleration) {
+                Text("Mac Curve").tag(PointerAcceleration.mac)
+                Text("Linear").tag(PointerAcceleration.linear)
+                Text("Off").tag(PointerAcceleration.off)
+            }
+        } header: {
+            Text("Pointer")
+        } footer: {
+            Text("Match Mac moves the pointer the way your Mac's own trackpad would. Drag in the box to try it.")
+        }
+        .listRowBackground(palette.raisedColor)
+
+        Section {
+            multiplierRow("Scroll Speed", value: $store.tuning.scrollSpeed, range: TrackpadTuning.scrollSpeedRange)
+            momentumRow
+        } header: {
+            Text("Scrolling")
+        } footer: {
+            Text("Scrolling direction and whether momentum is on follow your Mac's trackpad settings.")
+        }
+        .listRowBackground(palette.raisedColor)
+    }
+
+    private var haptics: some View {
+        Section {
+            strengthRow("Click", value: $store.tuning.clickHaptic, cue: .click)
+            strengthRow("Force Click", value: $store.tuning.forceClickHaptic, cue: .forceClickDeep)
+            strengthRow("Drag Lock", value: $store.tuning.dragLockHaptic, cue: .dragLock)
+        } header: {
+            Text("On the Trackpad")
+        } footer: {
+            Text("Like a Mac trackpad, only clicks, force clicks and drag lock buzz. Swipes and scrolling stay silent.")
+        }
+        .listRowBackground(palette.raisedColor)
     }
 
     // MARK: Rows
@@ -101,10 +111,15 @@ struct TrackpadTuningSection: View {
 
     private func strengthRow(_ title: String, value: Binding<Double>, cue: HapticCue) -> some View {
         HStack(spacing: 12) {
+            // A fixed label column so the three sliders line up.
             Text(title)
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+                .frame(width: 104, alignment: .leading)
             Slider(value: value, in: 0...1) { editing in
                 if !editing { Haptics.shared.play(cue) }
             }
+            .accessibilityLabel("\(title) strength")
             Text(value.wrappedValue < 0.01 ? "Off" : value.wrappedValue.formatted(.percent.precision(.fractionLength(0))))
                 .monospacedDigit()
                 .frame(width: 48, alignment: .trailing)

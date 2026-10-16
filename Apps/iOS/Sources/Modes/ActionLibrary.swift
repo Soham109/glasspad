@@ -16,6 +16,9 @@ struct ActionLibrary: View {
     var onRecord: () -> Void = {}
 
     @State private var query = ""
+    @State private var appQuery = ""
+    /// Apps whose icon was already asked for, so scrolling does not ask twice.
+    @State private var askedIcons: Set<String> = []
 
     init(layout: DeckLayout, folder: UUID?, onChange: @escaping ((inout DeckLayout) -> Void) -> Void,
          onCustom: @escaping (DeckButton) -> Void, onRecord: @escaping () -> Void = {}) {
@@ -32,6 +35,7 @@ struct ActionLibrary: View {
                 if query.isEmpty { recordRow }
                 ForEach(groups) { group in
                     Section(group.title) {
+                        if group.id == "apps" && query.isEmpty { allAppsLink }
                         ForEach(group.items) { item in row(item) }
                     }
                     .listRowBackground(palette.raisedColor)
@@ -92,6 +96,55 @@ struct ActionLibrary: View {
             .disabled(!session.isConnected)
         }
         .listRowBackground(palette.raisedColor)
+    }
+
+    /// Every app installed on the Mac, not only the ones in its Dock.
+    private var allAppsLink: some View {
+        NavigationLink {
+            allAppsPage
+        } label: {
+            HStack(spacing: 12) {
+                LibraryGlyph(symbol: "square.grid.3x3.fill", color: Color(uiColor: .systemBlue))
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("All Apps on Your Mac").foregroundStyle(palette.inkColor)
+                    Text(session.dockCatalog.isEmpty ? "Search every installed app" : "\(session.dockCatalog.count) apps, searchable")
+                        .font(.footnote).foregroundStyle(palette.inkSoftColor)
+                }
+            }
+        }
+    }
+
+    private var allAppsPage: some View {
+        let q = appQuery.trimmingCharacters(in: .whitespaces)
+        let catalog = session.dockCatalog.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+        let apps = q.isEmpty ? catalog : DockArrangement.search(q, in: catalog)
+        return List {
+            Section {
+                ForEach(apps, id: \.bundleID) { app in
+                    row(.app(app))
+                        .onAppear { askIcon(app.bundleID) }
+                }
+            } footer: {
+                Text("Tap an app to pin it. Its tile opens it on your Mac.")
+            }
+            .listRowBackground(palette.raisedColor)
+            if session.dockCatalog.isEmpty {
+                Text(session.isConnected ? "Asking your Mac for its apps…" : "Connect to your Mac to see its apps.")
+                    .foregroundStyle(palette.inkSoftColor)
+                    .listRowBackground(Color.clear)
+            }
+        }
+        .scrollContentBackground(.hidden)
+        .background(palette.backgroundColor.ignoresSafeArea())
+        .searchable(text: $appQuery, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search Apps")
+        .navigationTitle("All Apps")
+        .navigationBarTitleDisplayMode(.inline)
+        .onAppear { if session.dockCatalog.isEmpty { session.send(.dockCatalogRequest) } }
+    }
+
+    private func askIcon(_ id: String) {
+        guard session.icons.image(for: id) == nil, askedIcons.insert(id).inserted else { return }
+        session.send(.dockIconRequest(bundleIDs: [id]))
     }
 
     private func row(_ item: LibraryItem) -> some View {
@@ -222,8 +275,8 @@ struct ActionLibrary: View {
         let organize = [LibraryItem(id: "f.new", title: "New Folder", detail: "Group pinned buttons", isReady: false,
                                     button: DeckButton(title: "Folder", symbol: "folder.fill", action: .folder, color: "#8E8E93", children: []))]
         return [
-            LibraryGroup(id: "mac", title: "Mac Controls", items: from(["mac", "sound", "media", "disks"])),
             LibraryGroup(id: "apps", title: "Apps", items: apps),
+            LibraryGroup(id: "mac", title: "Mac Controls", items: from(["mac", "sound", "media", "disks"])),
             LibraryGroup(id: "macros", title: "Macros", items: macros),
             LibraryGroup(id: "shortcuts", title: "Shortcuts", items: shortcuts),
             LibraryGroup(id: "keys", title: "Keystrokes", items: keys),
@@ -231,7 +284,7 @@ struct ActionLibrary: View {
             LibraryGroup(id: "shots", title: "Screenshots", items: from(["screen"])),
             LibraryGroup(id: "open", title: "Open", items: open),
             LibraryGroup(id: "organize", title: "Organize", items: organize),
-        ].filter { !$0.items.isEmpty || $0.id == "apps" && !query.isEmpty }
+        ].filter { !$0.items.isEmpty || $0.id == "apps" }
     }
 }
 
@@ -365,6 +418,11 @@ struct FrontAppButtonsSheet: View {
                 guard !loaded else { return }
                 loaded = true
                 shown = PinnedDeck.frontAppItems(buttons: buttons, macros: macros, picks: picks)
+            }
+            // The Mac's buttons and macros can arrive after the sheet opened. Until the user
+            // has picked, follow the default list, the same one the screen shows.
+            .onChange(of: all.map(\.id)) {
+                if picks == nil { shown = PinnedDeck.frontAppItems(buttons: buttons, macros: macros, picks: nil) }
             }
         }
         .tint(palette.inkColor)

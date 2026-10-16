@@ -24,7 +24,7 @@ public struct DeckConfig: Codable, Equatable, Sendable {
     public static let myPageID = UUID(uuidString: "6D61632D-0000-4000-8000-000000000002")!
 
     public init(version: Int = DeckConfig.currentVersion, allowShellCommands: Bool = false,
-                buttons: [DeckButton] = DeckConfig.myStarterButtons,
+                buttons: [DeckButton] = [],
                 pages: [DeckPage]? = DeckConfig.starterPages(), columns: Int? = nil) {
         self.version = version
         self.allowShellCommands = allowShellCommands
@@ -45,10 +45,10 @@ public struct DeckConfig: Codable, Equatable, Sendable {
                    columns: columns, allowsShellCommands: allowShellCommands)
     }
 
-    /// The pages a new Deck starts with: Mac controls, then the user's own buttons.
+    /// The pages a new Deck starts with: only Pinned, holding six everyday Mac controls. The
+    /// rest of the Mac controls are in the phone's Library, one tap away.
     public static func starterPages() -> [DeckPage] {
-        [DeckPage(id: macPageID, title: "Mac", symbol: "macbook", buttons: macStarterButtons()),
-         DeckPage(id: myPageID, title: "My Buttons", symbol: "star", buttons: myStarterButtons)]
+        [DeckPage(id: myPageID, title: "Pinned", symbol: "pin", buttons: PinnedDeck.essentials())]
     }
 
     public static let myStarterButtons: [DeckButton] = [

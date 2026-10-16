@@ -449,12 +449,24 @@ Each mode is a `ModeMessage` case pair handled by `GlasspadMacCore/Modes`.
 | Mode | Phone | Mac side |
 |---|---|---|
 | Trackpad | full-screen surface, finger dots | gesture engine + synth |
-| Apps (Dock) | grid of the Mac's Dock apps + running + recent apps, running dots, search, long-press Quit / Hide / Show in Finder / Keep, phone-side order and hiding | read Dock prefs + NSWorkspace, icons as 256 px PNG keyed by bundle id + app modification date, sent once (`dockSync`), launch / activate / reopen (`AppLauncher`), hide the Mac Dock (`MacDockHider`) |
+| Dock | the Mac's Dock and nothing else: Dock apps + running apps in Dock order, running dots, long-press Quit / Hide / Show in Finder / Keep, phone-side order and hiding. Apps outside the Dock are pinned in Actions | read Dock prefs + NSWorkspace, icons as 256 px PNG keyed by bundle id + app modification date, sent once (`dockSync`), launch / activate / reopen (`AppLauncher`), hide the Mac Dock (`MacDockHider`) |
 | Keys | text field that streams typed text; arrows, esc, tab, cmd shortcuts row; dictation works | CGEvent keyboard unicode strings |
 | Media | now playing title/artist/art, play/pause/next/prev, volume, brightness | MediaRemote (private, with fallback to media key events), volume via CoreAudio |
-| Actions (Deck) | one screen: the front app's best buttons (up to 8, chosen and ordered per app) above Pinned (favourites of every kind, + opens a searchable Library); folders, sizes, colours, edit on the phone. Clipboard and Present are tools in the mode menu. Older Decks move into Pinned once, losslessly (`PinnedDeck.migrated`) | executes actions directly (screencapture, pmset, CoreAudio...), config v3 on the Mac, phone edits via `deckSave` (never shell) |
+| Actions (Deck) | one screen: the front app's best buttons (6 by default, up to 8 chosen and ordered per app) above Pinned (favourites of every kind, + opens a searchable Library whose Apps group lists every installed Mac app); folders, sizes, colours, edit on the phone. Sideways it splits: front app on the left half, Pinned on the right. Clipboard and Present are tools in the mode menu. Older Decks move into Pinned once, losslessly (`PinnedDeck.migrated`) | executes actions directly (screencapture, pmset, CoreAudio...), config v3 on the Mac, phone edits via `deckSave` (never shell) |
 | Clipboard | send phone clipboard to Mac, pull Mac clipboard to phone (text, images) | NSPasteboard |
 | Present | big next/previous buttons, timer, laser dot (move a highlight on the Mac) | arrow keys + transparent overlay window for the laser |
+
+As built, UX pass (Oct 2026):
+- The mode once called Apps is called Dock again (SF Symbol `dock.rectangle`), and mirrors the
+  Mac's Dock only: no search and no Recent row. Its stored identifier is still `dock`, so saved
+  mode lists, launch mode and deep links (`glasspad://mode/dock`) keep working. Search over every
+  installed app moved to Actions > + > Apps > All Apps on Your Mac.
+- A new Deck (no `deck.json` yet) starts with one Pinned page of six essentials
+  (`PinnedDeck.essentials()`: Screenshot, Lock Screen, Mute, Dark Mode, Mission Control, Show
+  Desktop); the other Mac controls are in the Library. Migration pins every macro only for a
+  layout from before Actions (it has the Mac page or no Pinned page). Existing Pinned pages are
+  never trimmed on their own: over 12 tiles, Actions offers Tidy Up once, and edit mode has
+  Reset to Defaults (`PinnedDeck.resetPinned`), both behind a confirmation.
 
 ## 9. iPhone app (Apps/iOS)
 

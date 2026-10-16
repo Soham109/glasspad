@@ -39,38 +39,18 @@ struct DemoData {
         func b(_ t: String, _ s: String, _ a: DeckAction, _ c: String, _ size: DeckButtonSize? = nil) -> DeckButton {
             DeckButton(title: t, symbol: s, action: a, color: c, size: size)
         }
-        let mac = DeckPage(id: DeckIDs.mac, title: "Mac", symbol: "macbook", buttons: [
-            b("Screenshot", "camera.viewfinder", .screenshot(DeckScreenshot(area: .fullScreen)), "#0A84FF", .wide),
-            b("Window", "macwindow", .screenshot(DeckScreenshot(area: .frontWindow)), "#0A84FF"),
-            b("Area", "rectangle.dashed", .screenshot(DeckScreenshot(area: .selection)), "#0A84FF"),
-            b("Record", "record.circle", .screenRecording, "#FF453A"),
-            b("Lock", "lock.fill", .system(.lockScreen), "#8E8E93"),
-            b("Sleep Display", "moon.fill", .system(.sleepDisplay), "#5E5CE6"),
-            b("Dark Mode", "circle.lefthalf.filled", .system(.toggleDarkMode), "#636366"),
-            b("Focus", "moon.circle.fill", .runShortcut(name: "Toggle Focus"), "#5E5CE6"),
-            b("Volume Down", "speaker.minus.fill", .system(.volumeDown), "#FF9F0A"),
-            b("Volume Up", "speaker.plus.fill", .system(.volumeUp), "#FF9F0A"),
-            b("Mute", "speaker.slash.fill", .system(.mute), "#FF9F0A"),
-            b("Mic", "mic.slash.fill", .system(.micMute), "#FF375F"),
-            b("Desktop", "menubar.dock.rectangle", .system(.showDesktop), "#30B0C7"),
-            b("Mission Control", "rectangle.3.group", .system(.missionControl), "#30B0C7"),
-            b("Apps", "square.grid.3x3", .system(.launchpad), "#30B0C7"),
-            b("Empty Trash", "trash.fill", .system(.emptyTrash), "#8E8E93"),
-        ])
-        let mine = DeckPage(id: DeckIDs.mine, title: "My Buttons", symbol: "star", buttons: [
-            b("Safari", "safari", .openApp(bundleID: "com.apple.Safari"), "#0A84FF"),
-            b("Word", "doc.fill", .openApp(bundleID: "com.microsoft.Word"), "#0A84FF"),
-            b("Downloads", "arrow.down.circle.fill", .openFile(path: "~/Downloads"), "#34C759"),
-            b("Sign-off", "text.cursor", .typeText("Thanks,\nSoham"), "#8A63E8"),
-            DeckButton(title: "Work", symbol: "folder.fill", action: .folder, color: "#64D2FF", children: []),
-        ])
         let safari = DeckPage(title: "Safari", symbol: "safari", appBundleIDs: ["com.apple.Safari"], buttons: [
             b("New Tab", "plus.square.on.square", .keystroke(Keystroke(key: .character("t"), modifiers: [.command])), "#0A84FF"),
             b("Reopen Tab", "arrow.uturn.backward", .keystroke(Keystroke(key: .character("t"), modifiers: [.command, .shift])), "#0A84FF"),
             b("Reader", "doc.plaintext", .keystroke(Keystroke(key: .character("r"), modifiers: [.command, .shift])), "#30B0C7"),
             b("Private", "hand.raised.fill", .keystroke(Keystroke(key: .character("n"), modifiers: [.command, .shift])), "#636366"),
         ])
-        layout = DeckLayout(pages: [mac, mine, safari])
+        // What a new setup looks like: the six essentials, plus two apps the user pinned.
+        let pinned = DeckPage(id: DeckIDs.mine, title: "Pinned", symbol: "pin", buttons: PinnedDeck.essentials() + [
+            b("Safari", "safari", .openApp(bundleID: "com.apple.Safari"), "#0A84FF"),
+            b("Word", "doc.fill", .openApp(bundleID: "com.microsoft.Word"), "#0A84FF"),
+        ])
+        layout = DeckLayout(pages: [pinned, safari])
         func m(_ n: String, _ s: String, _ c: String, _ steps: Int) -> MacroSummary {
             MacroSummary(id: UUID(), name: n, symbol: s, color: c, stepCount: steps, usesScripts: false)
         }

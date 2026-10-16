@@ -96,7 +96,7 @@ struct PresentMode: View {
             } label: {
                 Image(systemName: "arrow.counterclockwise")
                     .font(.body.weight(.semibold))
-                    .frame(width: 28, height: 28)
+                    .frame(width: 32, height: 32)
             }
             .glassButton()
             .buttonBorderShape(.circle)
@@ -110,7 +110,7 @@ struct PresentMode: View {
                 Image(systemName: timer.isRunning ? "pause.fill" : "play.fill")
                     .font(.body.weight(.semibold))
                     .contentTransition(.symbolEffect(.replace))
-                    .frame(width: 28, height: 28)
+                    .frame(width: 32, height: 32)
             }
             .glassButton(prominent: true, accent: accent)
             .buttonBorderShape(.circle)
@@ -123,12 +123,14 @@ struct PresentMode: View {
             Haptics.shared.tap()
             session.send(.presentPrevious)
         } label: {
-            Image(systemName: "chevron.left")
-                .font(.system(size: 30, weight: .semibold))
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            VStack(spacing: 8) {
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 30, weight: .semibold))
+                Text("Back").font(.headline)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .glassButton()
-        .buttonBorderShape(.roundedRectangle(radius: 30))
+        .buttonStyle(KeyCapStyle(cornerRadius: 26))
         .accessibilityLabel("Previous slide")
     }
 
@@ -145,8 +147,7 @@ struct PresentMode: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .glassButton(prominent: true, accent: accent)
-        .buttonBorderShape(.roundedRectangle(radius: 30))
+        .buttonStyle(KeyCapStyle(accent: accent, cornerRadius: 26))
         .accessibilityLabel("Next slide")
         .accessibilityHint("Starts the timer on the first press")
     }

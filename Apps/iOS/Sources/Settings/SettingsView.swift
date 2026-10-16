@@ -17,13 +17,11 @@ struct SettingsView: View {
             Form {
                 clickingNote
                 look
-                feel
                 trackpad
-                TrackpadTuningSection()
+                feel
                 screen
                 modes
                 macs
-                fromMac
                 about
             }
             .scrollContentBackground(.hidden)
@@ -65,7 +63,7 @@ struct SettingsView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Tap is click")
                         .font(.headline)
-                    Text("iPhones cannot sense how hard you press, so a tap always clicks, even when tap to click is off on your Mac. Hold one finger still for half a second for a force click.")
+                    Text("An iPhone cannot feel how hard you press, so a tap always clicks. Hold one finger still for a moment to force click.")
                         .font(.subheadline)
                         .foregroundStyle(palette.inkSoftColor)
                 }
@@ -144,7 +142,7 @@ struct SettingsView: View {
                 LabeledContent {
                     Text(settings.hapticsOff.isEmpty ? "All On" : "\(HapticChannel.allCases.count - settings.hapticsOff.count) of \(HapticChannel.allCases.count)")
                 } label: {
-                    Label("Haptic Types", systemImage: "list.bullet")
+                    Label("Haptic Types", systemImage: "slider.horizontal.3")
                 }
             }
             if !Haptics.shared.isSupported {
@@ -152,9 +150,9 @@ struct SettingsView: View {
                     .font(.footnote).foregroundStyle(palette.inkSoftColor)
             }
         } header: {
-            Text("Feel")
+            Text("Haptics")
         } footer: {
-            Text("Firmness follows Click on your Mac (\(session.trackpadSettings.clickPressure.title)). Haptics pause by themselves when the phone is warm.")
+            Text("Firmness also follows Click on your Mac (\(session.trackpadSettings.clickPressure.title)).")
         }
         .listRowBackground(palette.raisedColor)
     }
@@ -168,10 +166,15 @@ struct SettingsView: View {
             } label: {
                 Label("Orientation", systemImage: "rotate.right")
             }
+            NavigationLink {
+                PointerSettings()
+            } label: {
+                Label("Pointer and Scrolling", systemImage: "cursorarrow.motionlines")
+            }
         } header: {
             Text("Trackpad")
         } footer: {
-            Text("Sideways, your iPhone is the shape of a Mac trackpad. Portrait and Landscape hold the screen still in every mode. You can also lock it from the mode menu.")
+            Text("Held sideways, your iPhone is the shape of a Mac trackpad. You can also lock rotation from the mode menu.")
         }
         .listRowBackground(palette.raisedColor)
     }
@@ -193,7 +196,7 @@ struct SettingsView: View {
         } header: {
             Text("Screen")
         } footer: {
-            Text("While the trackpad or a presentation is showing, the screen stays on and dims when you stop touching it; the next touch wakes it. Glasspad never changes brightness. With Keep Screen On off, your iPhone's Auto-Lock applies.")
+            Text("On the trackpad and in Present, the screen stays on and dims when you stop touching it. The next touch wakes it.")
         }
         .listRowBackground(palette.raisedColor)
     }
@@ -229,7 +232,7 @@ struct SettingsView: View {
         } header: {
             Text("Modes")
         } footer: {
-            Text("Choose which modes the pill shows and their order, or split Actions back into Deck, Macros, Clipboard and Present.")
+            Text("Choose which modes the pill shows, and in what order.")
         }
         .listRowBackground(palette.raisedColor)
     }
@@ -275,10 +278,13 @@ struct SettingsView: View {
                     .foregroundStyle(palette.inkColor)
             }
             HStack {
-                Text("This iPhone's name")
+                Label("This iPhone's Name", systemImage: "iphone")
+                    .lineLimit(1)
+                    .layoutPriority(1)
                 Spacer()
                 TextField("iPhone", text: $settings.phoneName)
                     .multilineTextAlignment(.trailing)
+                    .frame(maxWidth: 160)
                     .foregroundStyle(palette.inkSoftColor)
                     .submitLabel(.done)
                     .onSubmit { session.reconnect() }
@@ -286,27 +292,9 @@ struct SettingsView: View {
         } header: {
             Text("Macs")
         } footer: {
-            Text(store.macs.isEmpty ? "No Mac paired yet." : "Swipe left on a Mac to forget it. The name above is what your Mac shows for this phone.")
+            Text(store.macs.isEmpty ? "No Mac paired yet." : "Swipe left on a Mac to forget it. Your Mac shows this iPhone by the name above.")
         }
         .listRowBackground(palette.raisedColor)
-    }
-
-    @ViewBuilder private var fromMac: some View {
-        if session.hasMacSettings {
-            let s = session.trackpadSettings
-            Section {
-                LabeledContent("Tracking speed", value: String(format: "%.1f of 3", s.trackingSpeed))
-                LabeledContent("Natural scrolling", value: s.naturalScrolling ? "On" : "Off")
-                LabeledContent("Secondary click", value: s.secondaryClick.title)
-                LabeledContent("Swipe between Spaces", value: s.swipeBetweenSpaces.title)
-                LabeledContent("Mission Control", value: s.missionControl.title)
-            } header: {
-                Text("From your Mac")
-            } footer: {
-                Text("Gestures follow your Mac's own trackpad settings. Change them in System Settings on the Mac and the phone follows.")
-            }
-            .listRowBackground(palette.raisedColor)
-        }
     }
 
     private var about: some View {
@@ -314,7 +302,7 @@ struct SettingsView: View {
             LabeledContent("Version", value: Bundle.main.versionString)
             Link(destination: URL(string: "https://github.com/Soham109/glasspad")!) {
                 HStack {
-                    Text("Source code").foregroundStyle(palette.inkColor)
+                    Text("Source Code").foregroundStyle(palette.inkColor)
                     Spacer()
                     Image(systemName: "arrow.up.right").foregroundStyle(palette.inkSoftColor)
                 }
@@ -324,7 +312,7 @@ struct SettingsView: View {
                 settings.resetLookAndFeel()
                 session.refreshHapticStrength()
             }
-            Text("Glasspad is free and open source under the MIT license. It talks only to your paired Mac on your network: no accounts, no servers, no tracking. Every message is encrypted with a key only your Mac and this phone have.")
+            Text("Free and open source. Glasspad talks only to your paired Mac, encrypted with a key only the two of them have. No accounts, no servers, no tracking.")
                 .font(.footnote)
                 .foregroundStyle(palette.inkSoftColor)
                 .padding(.vertical, 2)

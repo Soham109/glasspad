@@ -151,13 +151,12 @@ private struct TrackpadStatus: View {
 
     var body: some View {
         if PairingStore.shared.selected == nil {
-            VStack(spacing: 18) {
-                Image(systemName: "laptopcomputer.and.iphone")
-                    .font(.system(size: 40, weight: .light))
-                    .foregroundStyle(palette.inkSoftColor)
-                Text("No Mac paired")
-                    .font(.headline)
-                    .foregroundStyle(palette.inkColor)
+            // Same look as every other mode without a Mac.
+            VStack(spacing: 16) {
+                QuietMessage(symbol: "laptopcomputer", title: "No Mac paired",
+                             detail: "Pair a Mac to use the trackpad.")
+                    .frame(maxHeight: 180)
+                    .allowsHitTesting(false)
                 Button("Pair a Mac") { router.showPairing = true }
                     .glassButton(prominent: true)
                     .controlSize(.large)
@@ -168,11 +167,9 @@ private struct TrackpadStatus: View {
                     Text(session.state.statusText)
                         .font(.subheadline.weight(.medium))
                         .foregroundStyle(palette.inkSoftColor)
-                    if let name = session.macName {
-                        Text(name)
-                            .font(.footnote)
-                            .foregroundStyle(palette.inkSoftColor.opacity(0.8))
-                    }
+                    Text(detail)
+                        .font(.footnote)
+                        .foregroundStyle(palette.inkSoftColor.opacity(0.8))
                 }
                 .multilineTextAlignment(.center)
                 .allowsHitTesting(false)
@@ -183,6 +180,16 @@ private struct TrackpadStatus: View {
             .padding(.horizontal, 40)
             .transition(.opacity)
         }
+    }
+}
+
+extension TrackpadStatus {
+    /// What to check, in the same words the other modes use.
+    fileprivate var detail: String {
+        let name = session.macName ?? "your Mac"
+        if session.isReplaced { return "\(name) follows one iPhone at a time." }
+        if case .connecting = session.state { return name }
+        return "Keep both on the same Wi-Fi with Glasspad open on \(name)."
     }
 }
 

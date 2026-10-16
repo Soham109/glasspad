@@ -47,6 +47,7 @@ struct ModeSwitcher: View {
                         menu
                             .transition(reduceMotion ? .opacity : .opacity.combined(with: .scale(scale: 0.92, anchor: .bottom)))
                     }
+                    if bottom && showsHint { hint }
                     if visible || expanded {
                         pill
                             .transition(reduceMotion ? .opacity : .opacity.combined(with: .scale(scale: 0.85, anchor: bottom ? .bottom : .top)))
@@ -55,6 +56,7 @@ struct ModeSwitcher: View {
                             .padding(bottom ? .bottom : .top, 8)
                             .transition(.opacity)
                     }
+                    if !bottom && showsHint { hint }
                     if !bottom && expanded {
                         menu
                             .transition(reduceMotion ? .opacity : .opacity.combined(with: .scale(scale: 0.92, anchor: .top)))
@@ -65,6 +67,9 @@ struct ModeSwitcher: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: bottom ? .bottom : .top)
         }
+        // A floating control, like Control Center: it grows with text size up to a point,
+        // then stays put instead of breaking words across lines.
+        .dynamicTypeSize(...DynamicTypeSize.xxLarge)
         .animation(.spring(response: 0.38, dampingFraction: 0.82), value: visible)
         .animation(.spring(response: 0.38, dampingFraction: 0.82), value: expanded)
         .onAppear {
@@ -97,6 +102,7 @@ struct ModeSwitcher: View {
         .contentShape(Capsule())
         .onTapGesture {
             Haptics.shared.tap()
+            settings.seenTips.insert(Self.hintID)
             if expanded { close() } else { expanded = true; hideTask?.cancel() }
         }
         .onLongPressGesture(minimumDuration: 0.45) {
@@ -113,6 +119,32 @@ struct ModeSwitcher: View {
             router.showSettings = true
             ScreenAwake.update()
         }
+    }
+
+    // MARK: First-run hint
+
+    private static let hintID = "pill"
+
+    /// Until the pill has been tapped once, a line under it says what it does, and it stays.
+    private var showsHint: Bool {
+        // Only over the trackpad: every other mode has content right under the pill.
+        guard !expanded, router.mode == .trackpad, !settings.seenTips.contains(Self.hintID),
+              settings.hasOnboarded else { return false }
+        #if DEBUG
+        if FilmDirector.shared.active || session.isDemo { return false }
+        #endif
+        return true
+    }
+
+    private var hint: some View {
+        Text("Tap for modes. Hold for Settings.")
+            .font(.footnote)
+            .foregroundStyle(palette.inkSoftColor)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .allowsHitTesting(false)
+            .transition(.opacity)
+            .accessibilityHidden(true)
     }
 
     // MARK: Menu
@@ -141,7 +173,7 @@ struct ModeSwitcher: View {
                                 .font(.caption2.weight(.medium))
                                 .foregroundStyle(palette.inkColor)
                                 .lineLimit(1)
-                                .minimumScaleFactor(0.7)
+                                .minimumScaleFactor(0.8)
                         }
                         .frame(maxWidth: .infinity, minHeight: 64)
                         .background {
@@ -167,11 +199,7 @@ struct ModeSwitcher: View {
                             close()
                             router.openTool(tool)
                         } label: {
-                            Label(tool.title, systemImage: tool.symbol)
-                                .font(.subheadline.weight(.medium))
-                                .foregroundStyle(palette.inkColor)
-                                .frame(maxWidth: .infinity, minHeight: 40)
-                                .contentShape(Rectangle())
+                            utilityLabel(tool.title, symbol: tool == .present ? "play.rectangle" : "doc.on.clipboard")
                         }
                         .buttonStyle(TileStyle())
                         .accessibilityHint(tool == .present ? "Opens the slide remote full screen" : "Copies between this iPhone and your Mac")
@@ -184,19 +212,8 @@ struct ModeSwitcher: View {
                     Haptics.shared.tap()
                     OrientationLock.toggle()
                 } label: {
-                    Label(locked ? "Rotation Locked" : "Lock Rotation",
-                          systemImage: locked ? "lock.rotation" : "rotate.right")
-                        .font(.subheadline.weight(.medium))
-                        .foregroundStyle(palette.inkColor)
-                        .contentTransition(.symbolEffect(.replace))
-                        .frame(maxWidth: .infinity, minHeight: 40)
-                        .background {
-                            if locked {
-                                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                    .fill(palette.inkColor.opacity(0.08))
-                            }
-                        }
-                        .contentShape(Rectangle())
+                    utilityLabel(locked ? "Rotation Locked" : "Lock Rotation",
+                                 symbol: locked ? "lock.rotation" : "rotate.right", on: locked)
                 }
                 .buttonStyle(TileStyle())
                 .accessibilityLabel("Lock rotation")
@@ -208,11 +225,7 @@ struct ModeSwitcher: View {
                     router.showSettings = true
                     ScreenAwake.update()
                 } label: {
-                    Label("Settings", systemImage: "gearshape")
-                        .font(.subheadline.weight(.medium))
-                        .foregroundStyle(palette.inkColor)
-                        .frame(maxWidth: .infinity, minHeight: 40)
-                        .contentShape(Rectangle())
+                    utilityLabel("Settings", symbol: "gearshape")
                 }
                 .buttonStyle(TileStyle())
             }
@@ -220,6 +233,21 @@ struct ModeSwitcher: View {
         .padding(10)
         .frame(width: 340)
         .glassPanel(cornerRadius: 28)
+    }
+
+    /// The smaller buttons under the modes: a soft tile, so they read as buttons too.
+    private func utilityLabel(_ title: String, symbol: String, on: Bool = false) -> some View {
+        Label(title, systemImage: symbol)
+            .font(.subheadline.weight(.medium))
+            .foregroundStyle(palette.inkColor)
+            .lineLimit(1)
+            .minimumScaleFactor(0.8)
+            .contentTransition(.symbolEffect(.replace))
+            .padding(.horizontal, 8)
+            .frame(maxWidth: .infinity, minHeight: 44)
+            .background(palette.inkColor.opacity(on ? 0.16 : 0.06),
+                        in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
     }
 
     /// Only with two or more paired Macs. Picking one connects to it; the choice is remembered.
@@ -249,7 +277,8 @@ struct ModeSwitcher: View {
             }
             .font(.subheadline.weight(.medium))
             .foregroundStyle(palette.inkColor)
-            .frame(maxWidth: .infinity, minHeight: 40)
+            .frame(maxWidth: .infinity, minHeight: 44)
+            .background(palette.inkColor.opacity(0.06), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
             .contentShape(Rectangle())
         }
         .accessibilityLabel("Mac")
@@ -270,7 +299,7 @@ struct ModeSwitcher: View {
 
     private func scheduleHide() {
         hideTask?.cancel()
-        guard !voiceOver else { return }
+        guard !voiceOver, !showsHint else { return }
         hideTask = Task { @MainActor in
             try? await Task.sleep(for: .seconds(2))
             guard !Task.isCancelled, !expanded else { return }

@@ -15,45 +15,51 @@ struct KeysMode: View {
     @State private var echo = ""
     @State private var focusToken = 0
 
+    private var compact: Bool { verticalSize == .compact }
+
     var body: some View {
         Group {
-            if verticalSize == .compact {
-                // Sideways the keyboard takes most of the height, so the extra keys fold
-                // into two rows and the echo shrinks to one line.
-                VStack(spacing: 10) {
-                    Spacer(minLength: 22)
+            if compact {
+                // Sideways the system keyboard takes most of the height: one line of echo,
+                // then every key in one row, then the shortcuts.
+                VStack(spacing: 6) {
+                    Spacer(minLength: 0)
                     echoLine
-                    HStack(spacing: 8) {
+                    HStack(spacing: 6) {
                         if settings.leftHanded {
-                            arrowKeys(compact: true)
-                            sideKeys
-                            modifierRow
+                            arrowRow
+                            editKeys
+                            modifierKeys
                         } else {
-                            modifierRow
-                            sideKeys
-                            arrowKeys(compact: true)
+                            modifierKeys
+                            editKeys
+                            arrowRow
                         }
                     }
                     .frame(height: 44)
-                    if settings.keysShowsShortcuts { shortcutRow }
-                }
-                .padding(.horizontal, 20)
-                .padding(.bottom, 8)
-            } else {
-                VStack(spacing: 14) {
-                    Spacer(minLength: 64)
-                    echoArea
-                    modifierRow
-                    if settings.keysShowsShortcuts { shortcutRow }
-                    navigationRow
+                    if settings.keysShowsShortcuts { shortcutRow(height: 40) }
                 }
                 .padding(.horizontal, 16)
-                .padding(.bottom, 10)
+                .padding(.bottom, 6)
+            } else {
+                VStack(spacing: 8) {
+                    Spacer(minLength: 64)
+                    echoArea
+                    HStack(spacing: 6) { modifierKeys }
+                        .frame(height: 50)
+                    if settings.keysShowsShortcuts { shortcutRow(height: 46) }
+                    navigationBlock
+                }
+                .padding(.horizontal, 12)
+                .padding(.bottom, 8)
             }
         }
+        // Keys are drawn like keyboard keys; past this size the labels no longer fit a key.
+        .dynamicTypeSize(...DynamicTypeSize.xLarge)
         .background {
             // The real input field sits under everything; it owns the keyboard.
-            StreamingTextField(modifiers: $modifiers, echo: $echo, focusToken: focusToken) { output in
+            StreamingTextField(modifiers: $modifiers, echo: $echo, focusToken: focusToken,
+                               active: session.isConnected) { output in
                 send(output)
             }
             .frame(width: 1, height: 1)
@@ -69,6 +75,10 @@ struct KeysMode: View {
 
     // MARK: Pieces
 
+    private var hint: String {
+        modifiers.isEmpty ? "Typing goes straight to your Mac" : "Next key: \(modifiers.symbols)"
+    }
+
     private var echoArea: some View {
         VStack(spacing: 6) {
             Text(echo.isEmpty ? "Start typing" : echo)
@@ -77,11 +87,11 @@ struct KeysMode: View {
                 .lineLimit(3)
                 .truncationMode(.head)
                 .multilineTextAlignment(.center)
-                .frame(maxWidth: .infinity, minHeight: 80)
+                .frame(maxWidth: .infinity, minHeight: 60)
                 .contentTransition(.opacity)
                 .animation(.snappy, value: echo.isEmpty)
-            Text(modifiers.isEmpty ? "Text goes straight to your Mac" : "Next key: \(modifiers.symbols)")
-                .font(.footnote)
+            Text(hint)
+                .font(.footnote.weight(modifiers.isEmpty ? .regular : .semibold))
                 .foregroundStyle(modifiers.isEmpty ? palette.inkSoftColor : accent)
                 .contentTransition(.numericText())
         }
@@ -92,102 +102,123 @@ struct KeysMode: View {
     private var echoLine: some View {
         HStack(spacing: 10) {
             Text(echo.isEmpty ? "Start typing" : echo)
-                .font(.headline.weight(.regular))
+                .font(.body)
                 .foregroundStyle(echo.isEmpty ? palette.inkSoftColor : palette.inkColor)
                 .lineLimit(1)
                 .truncationMode(.head)
                 .frame(maxWidth: .infinity, alignment: .leading)
-            Text(modifiers.isEmpty ? "Text goes straight to your Mac" : "Next key: \(modifiers.symbols)")
-                .font(.footnote)
+            Text(hint)
+                .font(.footnote.weight(modifiers.isEmpty ? .regular : .semibold))
                 .foregroundStyle(modifiers.isEmpty ? palette.inkSoftColor : accent)
+                .lineLimit(1)
                 .contentTransition(.numericText())
         }
         .accessibilityElement(children: .combine)
     }
 
-    private var sideKeys: some View {
-        HStack(spacing: 8) {
-            key("esc", .escape, "Escape")
-            key("tab", .tab, "Tab")
-            key("delete.left", .delete, "Delete", symbol: true)
-        }
-    }
-
-    /// Portrait stacks up over down between left and right; sideways all four sit in a row.
-    @ViewBuilder private func arrowKeys(compact: Bool) -> some View {
-        HStack(spacing: 6) {
-            key("arrow.left", .left, "Left arrow", symbol: true)
-            if compact {
-                key("arrow.up", .up, "Up arrow", symbol: true)
-                key("arrow.down", .down, "Down arrow", symbol: true)
-            } else {
-                VStack(spacing: 6) {
+    /// Portrait: esc and tab over a wide delete, and the arrows as an inverted T, the way they
+    /// sit on a Mac keyboard. Five equal columns, two rows.
+    private var navigationBlock: some View {
+        Grid(horizontalSpacing: 6, verticalSpacing: 6) {
+            GridRow {
+                if settings.leftHanded {
+                    Color.clear.gridCellUnsizedAxes([.horizontal, .vertical])
                     key("arrow.up", .up, "Up arrow", symbol: true)
+                    Color.clear.gridCellUnsizedAxes([.horizontal, .vertical])
+                    key("esc", .escape, "Escape")
+                    key("tab", .tab, "Tab")
+                } else {
+                    key("esc", .escape, "Escape")
+                    key("tab", .tab, "Tab")
+                    Color.clear.gridCellUnsizedAxes([.horizontal, .vertical])
+                    key("arrow.up", .up, "Up arrow", symbol: true)
+                    Color.clear.gridCellUnsizedAxes([.horizontal, .vertical])
+                }
+            }
+            GridRow {
+                if settings.leftHanded {
+                    key("arrow.left", .left, "Left arrow", symbol: true)
                     key("arrow.down", .down, "Down arrow", symbol: true)
+                    key("arrow.right", .right, "Right arrow", symbol: true)
+                    key("delete.left", .delete, "Delete", symbol: true).gridCellColumns(2)
+                } else {
+                    key("delete.left", .delete, "Delete", symbol: true).gridCellColumns(2)
+                    key("arrow.left", .left, "Left arrow", symbol: true)
+                    key("arrow.down", .down, "Down arrow", symbol: true)
+                    key("arrow.right", .right, "Right arrow", symbol: true)
                 }
             }
-            key("arrow.right", .right, "Right arrow", symbol: true)
         }
+        .frame(height: 98)
     }
 
-    private var modifierRow: some View {
-        HStack(spacing: 8) {
-            ForEach(ModifierKey.allCases) { key in
-                let on = modifiers.contains(key.flag)
-                Button {
-                    Haptics.shared.tap()
-                    withAnimation(.snappy(duration: 0.2)) {
-                        if on { modifiers.remove(key.flag) } else { modifiers.insert(key.flag) }
+    @ViewBuilder private var editKeys: some View {
+        key("esc", .escape, "Escape")
+        key("tab", .tab, "Tab")
+        key("delete.left", .delete, "Delete", symbol: true)
+    }
+
+    @ViewBuilder private var arrowRow: some View {
+        key("arrow.left", .left, "Left arrow", symbol: true)
+        key("arrow.up", .up, "Up arrow", symbol: true)
+        key("arrow.down", .down, "Down arrow", symbol: true)
+        key("arrow.right", .right, "Right arrow", symbol: true)
+    }
+
+    @ViewBuilder private var modifierKeys: some View {
+        ForEach(ModifierKey.allCases) { key in
+            let on = modifiers.contains(key.flag)
+            Button {
+                Haptics.shared.tap()
+                withAnimation(.snappy(duration: 0.2)) {
+                    if on { modifiers.remove(key.flag) } else { modifiers.insert(key.flag) }
+                }
+                focusToken += 1
+            } label: {
+                Group {
+                    if compact {
+                        Text(key.symbol).font(.body.weight(.medium))
+                    } else {
+                        VStack(spacing: 1) {
+                            Text(key.symbol).font(.body.weight(.medium))
+                            Text(key.name.lowercased()).font(.caption2)
+                                .foregroundStyle(on ? Color.white.opacity(0.85) : palette.inkSoftColor)
+                        }
                     }
-                    focusToken += 1
-                } label: {
-                    Text(key.symbol)
-                        .font(.title3.weight(.medium))
-                        .frame(maxWidth: .infinity, minHeight: 44)
                 }
-                .tint(on ? accent : nil)
-                .glassButton(prominent: on)
-                .accessibilityLabel(key.name)
-                .accessibilityAddTraits(on ? .isSelected : [])
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
+            .buttonStyle(KeyCapStyle(accent: on ? accent : nil))
+            .accessibilityLabel(key.name)
+            .accessibilityHint("Applies to the next key you press")
+            .accessibilityAddTraits(on ? .isSelected : [])
         }
     }
 
-    private var shortcutRow: some View {
+    private func shortcutRow(height: CGFloat) -> some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
+            HStack(spacing: 6) {
                 ForEach(Shortcut.common) { shortcut in
                     Button {
                         Haptics.shared.tap()
                         session.send(.keysKeystroke(shortcut.keystroke))
                     } label: {
-                        VStack(spacing: 1) {
-                            Text(shortcut.label).font(.subheadline.weight(.semibold))
-                            Text(shortcut.name).font(.caption2).foregroundStyle(palette.inkSoftColor)
+                        HStack(spacing: 6) {
+                            Text(shortcut.name).font(.subheadline.weight(.medium))
+                            Text(shortcut.label).font(.caption).foregroundStyle(palette.inkSoftColor)
                         }
-                        .padding(.horizontal, 4)
-                        .frame(minHeight: 44)
+                        .padding(.horizontal, 12)
+                        .frame(height: height)
                     }
-                    .glassButton()
+                    .buttonStyle(KeyCapStyle())
                     .accessibilityLabel("\(shortcut.name), \(shortcut.spoken)")
                 }
             }
-            .padding(.vertical, 2)
         }
-        .scrollClipDisabled()
-    }
-
-    private var navigationRow: some View {
-        HStack(spacing: 8) {
-            if settings.leftHanded {
-                arrowKeys(compact: false)
-                sideKeys
-            } else {
-                sideKeys
-                arrowKeys(compact: false)
-            }
-        }
-        .frame(height: 96)
+        // Scrolls edge to edge, but starts and ends in line with the keys.
+        .contentMargins(.horizontal, compact ? 16 : 12, for: .scrollContent)
+        .padding(.horizontal, compact ? -16 : -12)
+        .frame(height: height)
     }
 
     private func key(_ label: String, _ special: SpecialKey, _ name: String, symbol: Bool = false) -> some View {
@@ -197,11 +228,11 @@ struct KeysMode: View {
             if !modifiers.isEmpty { withAnimation(.snappy) { modifiers = [] } }
         } label: {
             Group {
-                if symbol { Image(systemName: label).font(.body.weight(.semibold)) } else { Text(label).font(.subheadline.weight(.semibold)) }
+                if symbol { Image(systemName: label).font(.body.weight(.medium)) } else { Text(label).font(.callout) }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .glassButton()
+        .buttonStyle(KeyCapStyle())
         .accessibilityLabel(name)
     }
 
@@ -216,7 +247,8 @@ struct KeysMode: View {
 // MARK: - Modifiers and shortcuts
 
 private enum ModifierKey: CaseIterable, Identifiable {
-    case command, option, control, shift
+    // Left to right as on a Mac keyboard, with Shift last.
+    case control, option, command, shift
     var id: Self { self }
     var flag: KeyModifiers {
         switch self {
@@ -297,6 +329,8 @@ struct StreamingTextField: UIViewRepresentable {
     @Binding var modifiers: KeyModifiers
     @Binding var echo: String
     var focusToken: Int
+    /// False while there is no Mac to type to: the keyboard goes away.
+    var active: Bool = true
     var onOutput: (Output) -> Void
 
     func makeCoordinator() -> Coordinator { Coordinator(self) }
@@ -313,15 +347,20 @@ struct StreamingTextField: UIViewRepresentable {
         view.backgroundColor = .clear
         view.textColor = .clear
         view.tintColor = .clear
-        DispatchQueue.main.async { view.becomeFirstResponder() }
+        if active { DispatchQueue.main.async { view.becomeFirstResponder() } }
         return view
     }
 
     func updateUIView(_ uiView: StreamingTextView, context: Context) {
         context.coordinator.parent = self
-        if context.coordinator.lastFocusToken != focusToken {
-            context.coordinator.lastFocusToken = focusToken
-            if !uiView.isFirstResponder { uiView.becomeFirstResponder() }
+        let tokenChanged = context.coordinator.lastFocusToken != focusToken
+        let becameActive = active && !context.coordinator.wasActive
+        context.coordinator.lastFocusToken = focusToken
+        context.coordinator.wasActive = active
+        if !active {
+            if uiView.isFirstResponder { uiView.resignFirstResponder() }
+        } else if (tokenChanged || becameActive) && !uiView.isFirstResponder {
+            uiView.becomeFirstResponder()
         }
     }
 
@@ -333,6 +372,7 @@ struct StreamingTextField: UIViewRepresentable {
     final class Coordinator: NSObject, UITextViewDelegate {
         var parent: StreamingTextField
         var lastFocusToken = 0
+        var wasActive = true
         private var sent = ""
 
         init(_ parent: StreamingTextField) { self.parent = parent }

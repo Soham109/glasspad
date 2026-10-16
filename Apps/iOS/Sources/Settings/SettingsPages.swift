@@ -94,13 +94,45 @@ struct FingerDotPreview: View {
     }
 }
 
-/// Turn each kind of haptic on or off.
+/// Pointer speed, acceleration, scrolling, and the trackpad settings that come from the Mac.
+struct PointerSettings: View {
+    @Environment(\.palette) private var palette
+    var session = MacSession.shared
+
+    var body: some View {
+        Form {
+            TrackpadTuningSection(part: .motion)
+            if session.hasMacSettings {
+                let s = session.trackpadSettings
+                Section {
+                    LabeledContent("Tracking Speed", value: String(format: "%.1f of 3", s.trackingSpeed))
+                    LabeledContent("Natural Scrolling", value: s.naturalScrolling ? "On" : "Off")
+                    LabeledContent("Secondary Click", value: s.secondaryClick.title)
+                    LabeledContent("Swipe Between Spaces", value: s.swipeBetweenSpaces.title)
+                    LabeledContent("Mission Control", value: s.missionControl.title)
+                } header: {
+                    Text("From Your Mac")
+                } footer: {
+                    Text("Gestures follow your Mac's own trackpad settings. Change them in System Settings on the Mac and the phone follows.")
+                }
+                .listRowBackground(palette.raisedColor)
+            }
+        }
+        .scrollContentBackground(.hidden)
+        .background(palette.backgroundColor.ignoresSafeArea())
+        .navigationTitle("Pointer and Scrolling")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+/// Every haptic in one place: how strong the trackpad's are, and which kinds play at all.
 struct HapticKindsSettings: View {
     @Environment(\.palette) private var palette
     @Bindable var settings = PhoneSettings.shared
 
     var body: some View {
         Form {
+            TrackpadTuningSection(part: .haptics)
             Section {
                 ForEach(HapticChannel.allCases) { channel in
                     Toggle(isOn: Binding(get: { !settings.hapticsOff.contains(channel) },
@@ -111,8 +143,10 @@ struct HapticKindsSettings: View {
                         Label(channel.title, systemImage: channel.symbol)
                     }
                 }
+            } header: {
+                Text("Everywhere in Glasspad")
             } footer: {
-                Text("Strength is set on the previous page. Turning a type off here silences it everywhere in Glasspad.")
+                Text("Turn a kind off to silence it in every mode.")
             }
             .listRowBackground(palette.raisedColor)
         }
@@ -238,7 +272,7 @@ struct ModeDetailSettings: View {
                 Section {
                     Toggle("Shortcut Row", isOn: $settings.keysShowsShortcuts)
                 } footer: {
-                    Text("The row of ⌘C, ⌘V and friends above the arrows.")
+                    Text("Copy, Paste, Undo and more, in a row above the arrow keys.")
                 }
                 .listRowBackground(palette.raisedColor)
             case .actions, .deck: actions
@@ -257,20 +291,20 @@ struct ModeDetailSettings: View {
     }
 
     @ViewBuilder private var apps: some View {
-        Section("Grid") {
+        Section("Icon Size") {
             Picker("Icon Size", selection: $settings.dockDensity) {
                 Text("Small").tag(DockDensity.compact)
                 Text("Medium").tag(DockDensity.regular)
                 Text("Large").tag(DockDensity.large)
             }
             .pickerStyle(.segmented)
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Fine Tune")
+            HStack(spacing: 12) {
+                Image(systemName: "app").font(.footnote).foregroundStyle(palette.inkSoftColor).accessibilityHidden(true)
                 Slider(value: $settings.dockIconScale, in: PhoneSettings.dockIconScaleRange)
-                    .accessibilityLabel("Icon size fine tune")
+                    .accessibilityLabel("Fine tune icon size")
+                Image(systemName: "app").font(.title3).foregroundStyle(palette.inkSoftColor).accessibilityHidden(true)
             }
             Toggle("Show Names", isOn: $settings.dockShowsNames)
-            Toggle("Show Recent Apps", isOn: $settings.dockShowsRecent)
         }
         .listRowBackground(palette.raisedColor)
         Section {
@@ -284,7 +318,7 @@ struct ModeDetailSettings: View {
         } header: {
             Text("Your Arrangement")
         } footer: {
-            Text("Long press an app in Apps to keep, hide or reorder it. This only changes the phone; your Mac's Dock stays as it is.")
+            Text("Long press an app in Dock to keep, hide or reorder it. This only changes the phone; your Mac's Dock stays as it is.")
         }
         .listRowBackground(palette.raisedColor)
         Section {
@@ -303,13 +337,15 @@ struct ModeDetailSettings: View {
 
     @ViewBuilder private var actions: some View {
         Section {
-            Toggle("Show Labels", isOn: $settings.deckShowsTitles)
-            Picker("Tile Size", selection: $settings.deckTileScale) {
+            Picker("Button Size", selection: $settings.deckTileScale) {
                 Text("Small").tag(0.85)
                 Text("Medium").tag(1.0)
                 Text("Large").tag(1.3)
             }
             .pickerStyle(.segmented)
+            Toggle("Show Labels", isOn: $settings.deckShowsTitles)
+        } header: {
+            Text("Button Size")
         } footer: {
             Text("The top of Actions follows the app in front on your Mac. Touch and hold a button to change it.")
         }

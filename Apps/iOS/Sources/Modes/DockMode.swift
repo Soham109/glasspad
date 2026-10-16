@@ -3,9 +3,10 @@ import SwiftUI
 import UniformTypeIdentifiers
 import GlasspadKit
 
-/// The Mac's Dock on the phone: its apps in Dock order with running dots, then recently used
-/// apps. Tap opens or switches; long press for Quit, Hide, Show in Finder and the phone's own
-/// arrangement (keep, hide, reorder). Search finds any installed app.
+/// The Mac's Dock on the phone, and nothing else: its apps and the running ones, in Dock order
+/// with running dots. Tap opens or switches; long press for Quit, Hide, Show in Finder and the
+/// phone's own arrangement (keep, hide, reorder). Apps that are not in the Dock are pinned in
+/// Actions (Library > Apps lists every installed app).
 struct DockMode: View {
     @Environment(\.palette) private var palette
     @Environment(\.verticalSizeClass) private var verticalSize
@@ -13,16 +14,14 @@ struct DockMode: View {
     var session = MacSession.shared
     private let accent = AppMode.dock.accent(.paper)
 
-    @State private var query = ""
     @State private var editing = false
     @State private var dragging: String?
     @State private var showHidden = false
-    @FocusState private var searchFocused: Bool
 
     private var compact: Bool { verticalSize == .compact }
 
     private var arranged: DockArrangement.Arranged {
-        settings.dockArrangement.arrange(session.dockApps, showRecent: settings.dockShowsRecent)
+        settings.dockArrangement.arrange(session.dockApps, showRecent: false)
     }
 
     var body: some View {
@@ -39,32 +38,14 @@ struct DockMode: View {
                 } else {
                     ScrollView {
                         VStack(alignment: .leading, spacing: compact ? 14 : 20) {
-                            if compact {
-                                // Sideways: title, search and options share one row.
-                                HStack(spacing: 16) {
-                                    header.fixedSize(horizontal: true, vertical: false)
-                                    searchField
-                                }
-                            } else {
-                                header
-                                searchField
-                            }
-                            if query.isEmpty {
-                                grid(arranged.apps, metrics: metrics, reorderable: true)
-                                if !arranged.recent.isEmpty && !editing {
-                                    section("Recent")
-                                    grid(arranged.recent, metrics: metrics, reorderable: false)
-                                }
-                                if editing { editFooter }
-                            } else {
-                                searchResults(metrics: metrics)
-                            }
+                            header
+                            grid(arranged.apps, metrics: metrics, reorderable: true)
+                            if editing { editFooter }
                         }
                         .padding(.horizontal, margin)
                         .padding(.top, settings.pillPosition == .top ? (compact ? 40 : 60) : 12)
                         .padding(.bottom, settings.pillPosition == .bottom ? 80 : 32)
                     }
-                    .scrollDismissesKeyboard(.immediately)
                     .refreshable { session.requestDock() }
                 }
             }
@@ -74,11 +55,6 @@ struct DockMode: View {
         .animation(.snappy(duration: 0.25), value: editing)
         .animation(.snappy(duration: 0.25), value: settings.dockArrangement)
         .onAppear { session.requestDock() }
-        .onChange(of: query) { _, q in
-            if !q.isEmpty, session.dockCatalog.isEmpty { session.send(.dockCatalogRequest) }
-            requestMissingIcons()
-        }
-        .onChange(of: session.dockCatalog) { requestMissingIcons() }
         .sheet(isPresented: $showHidden) { HiddenAppsSheet().presentationDetents([.medium, .large]) }
     }
 
@@ -87,7 +63,7 @@ struct DockMode: View {
     private var header: some View {
         HStack(alignment: .firstTextBaseline) {
             VStack(alignment: .leading, spacing: 2) {
-                Text("Apps")
+                Text("Dock")
                     .font(compact ? .title.bold() : .largeTitle.bold())
                     .foregroundStyle(palette.inkColor)
                 Text(subtitle)
@@ -96,7 +72,7 @@ struct DockMode: View {
                     .contentTransition(.numericText())
             }
             .accessibilityElement(children: .combine)
-            if !compact { Spacer() }
+            Spacer()
             if editing {
                 Button("Done") {
                     Haptics.shared.tap()
@@ -119,9 +95,7 @@ struct DockMode: View {
 
     private var optionsMenu: some View {
         Menu {
-            Button("Edit Apps", systemImage: "square.grid.3x3.square") {
-                searchFocused = false
-                query = ""
+            Button("Edit Dock", systemImage: "square.grid.3x3.square") {
                 editing = true
             }
             if !settings.dockArrangement.hidden.isEmpty {
@@ -141,7 +115,6 @@ struct DockMode: View {
                 Text("Large").tag(DockDensity.large)
             }
             Toggle("Show Names", isOn: $settings.dockShowsNames)
-            Toggle("Show Recent Apps", isOn: $settings.dockShowsRecent)
         } label: {
             Image(systemName: "ellipsis")
                 .font(.body.weight(.semibold))
@@ -150,7 +123,7 @@ struct DockMode: View {
         }
         .glassButton()
         .buttonBorderShape(.circle)
-        .accessibilityLabel("Apps options")
+        .accessibilityLabel("Dock options")
     }
 
     private func macDockBinding(_ key: WritableKeyPath<MacDockState, Bool>) -> Binding<Bool> {
@@ -164,83 +137,7 @@ struct DockMode: View {
         }
     }
 
-    // MARK: Search
-
-    private var searchField: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "magnifyingglass")
-                .foregroundStyle(palette.inkSoftColor)
-                .accessibilityHidden(true)
-            TextField("Search apps on your Mac", text: $query)
-                .focused($searchFocused)
-                .textInputAutocapitalization(.never)
-                .autocorrectionDisabled()
-                .submitLabel(.go)
-                .onSubmit {
-                    if let first = searchMatches.first { open(first) }
-                }
-                .foregroundStyle(palette.inkColor)
-            if !query.isEmpty {
-                Button {
-                    query = ""
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .foregroundStyle(palette.inkSoftColor)
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Clear search")
-            }
-        }
-        .font(.body)
-        .padding(.horizontal, 14)
-        .frame(minHeight: 44)
-        .glassCapsule()
-        .opacity(editing ? 0.4 : 1)
-        .disabled(editing)
-    }
-
-    private var searchMatches: [DockApp] {
-        let pool = arranged.apps + arranged.recent + session.dockCatalog
-        return DockArrangement.search(query, in: pool)
-    }
-
-    @ViewBuilder private func searchResults(metrics: DockGridMetrics) -> some View {
-        let matches = searchMatches
-        if matches.isEmpty {
-            VStack(spacing: 8) {
-                Image(systemName: "magnifyingglass")
-                    .font(.system(size: 34, weight: .light))
-                    .foregroundStyle(palette.inkSoftColor)
-                Text(session.dockCatalog.isEmpty && session.isConnected ? "Searching…" : "No Results for \u{201C}\(query)\u{201D}")
-                    .font(.headline)
-                    .foregroundStyle(palette.inkColor)
-                Text("Search looks at every app installed on your Mac.")
-                    .font(.subheadline)
-                    .foregroundStyle(palette.inkSoftColor)
-            }
-            .multilineTextAlignment(.center)
-            .frame(maxWidth: .infinity)
-            .padding(.top, 48)
-        } else {
-            grid(Array(matches.prefix(60)), metrics: metrics, reorderable: false)
-        }
-    }
-
-    private func requestMissingIcons() {
-        guard !query.isEmpty else { return }
-        let missing = searchMatches.prefix(40).filter { session.icons.image(for: $0.bundleID) == nil }.map(\.bundleID)
-        if !missing.isEmpty { session.send(.dockIconRequest(bundleIDs: missing)) }
-    }
-
     // MARK: Grid
-
-    private func section(_ title: String) -> some View {
-        Text(title)
-            .font(.title3.weight(.semibold))
-            .foregroundStyle(palette.inkColor)
-            .padding(.top, 4)
-            .accessibilityAddTraits(.isHeader)
-    }
 
     private func grid(_ apps: [DockApp], metrics: DockGridMetrics, reorderable: Bool) -> some View {
         let columns = Array(repeating: GridItem(.fixed(metrics.cellWidth), spacing: metrics.spacing, alignment: .top),
@@ -300,7 +197,7 @@ struct DockMode: View {
             settings.dockArrangement.setKept(app, !kept)
         }
         Button("Hide on iPhone", systemImage: "eye.slash.circle") { hide(app) }
-        Button("Edit Apps", systemImage: "square.grid.3x3.square") { editing = true }
+        Button("Edit Dock", systemImage: "square.grid.3x3.square") { editing = true }
         if app.running {
             Divider()
             Button("Quit", systemImage: "xmark.circle", role: .destructive) { act(.quit, app) }
@@ -368,7 +265,6 @@ struct DockMode: View {
 
     private func open(_ app: DockApp) {
         Haptics.shared.tap()
-        searchFocused = false
         session.openDockApp(app)
     }
 
@@ -455,6 +351,7 @@ private struct DockTile: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(TileStyle())
+        .dynamicTypeSize(...DynamicTypeSize.xLarge)
         .onChange(of: editing, initial: true) { _, on in
             guard on, !reduceMotion else { wiggle = false; return }
             withAnimation(.easeInOut(duration: 0.13).repeatForever(autoreverses: true)) { wiggle = true }

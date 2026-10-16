@@ -24,57 +24,80 @@ struct PairingScanner: View {
     @State private var pasteText = ""
     @State private var scannerKey = 0
 
+    @FocusState private var typing: Bool
+
+    /// The big square is the camera. Without a camera, or while the link box has the
+    /// keyboard up, it gives way to one line so nothing gets squeezed.
+    private var showsSquare: Bool { CameraAccess.hasCamera && !typing }
+
     var body: some View {
         VStack(spacing: verticalSize == .compact ? 10 : 18) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 28, style: .continuous)
-                    .fill(palette.raisedColor)
-                cameraArea
-                    .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
-                RoundedRectangle(cornerRadius: 28, style: .continuous)
-                    .strokeBorder(palette.lineColor, lineWidth: 1)
+            if showsSquare { square } else if !CameraAccess.hasCamera {
+                Label("No camera here. Paste the pairing link from your Mac.", systemImage: "camera")
+                    .font(.subheadline)
+                    .foregroundStyle(palette.inkSoftColor)
+                    .frame(maxWidth: 320, alignment: .leading)
             }
-            .aspectRatio(1, contentMode: .fit)
-            // Sideways the square gives up height so the paste box still fits below it.
-            .frame(maxWidth: 320, maxHeight: verticalSize == .compact ? 210 : .infinity)
-
-            Text(errorText ?? " ")
-                .font(.footnote)
-                .foregroundStyle(Color(uiColor: .systemRed))
-                .multilineTextAlignment(.center)
-                .frame(minHeight: 18)
-                .accessibilityHidden(errorText == nil)
-
-            if CameraAccess.hasCamera {
-                Button(showPaste ? "Hide link box" : "Paste the link instead") {
-                    withAnimation(.snappy) { showPaste.toggle() }
-                }
-                .font(.subheadline.weight(.medium))
-                .foregroundStyle(palette.inkSoftColor)
-            }
-
-            if showPaste {
-                HStack(spacing: 10) {
-                    TextField("glasspad://pair?...", text: $pasteText)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                        .font(.system(.footnote, design: .monospaced))
-                        .padding(.horizontal, 14)
-                        .frame(height: 44)
-                        .background(palette.raisedColor, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                        .onSubmit { handle(pasteText) }
-                    Button("Pair") { handle(pasteText) }
-                        .glassButton(prominent: true)
-                        .disabled(pasteText.isEmpty)
-                }
-                .transition(.opacity.combined(with: .move(edge: .top)))
-            }
+            pasteArea
         }
+        .animation(.snappy, value: typing)
         .task {
             if cameraStatus == .notDetermined, CameraAccess.hasCamera {
                 _ = await CameraAccess.request()
                 cameraStatus = CameraAccess.status
             }
+        }
+    }
+
+    private var square: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 28, style: .continuous)
+                .fill(palette.raisedColor)
+            cameraArea
+                .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+            RoundedRectangle(cornerRadius: 28, style: .continuous)
+                .strokeBorder(palette.lineColor, lineWidth: 1)
+        }
+        .aspectRatio(1, contentMode: .fit)
+        // Sideways the square gives up height so the paste box still fits below it.
+        .frame(maxWidth: 320, maxHeight: verticalSize == .compact ? 210 : .infinity)
+    }
+
+    @ViewBuilder private var pasteArea: some View {
+        Text(errorText ?? " ")
+            .font(.footnote)
+            .foregroundStyle(Color(uiColor: .systemRed))
+            .multilineTextAlignment(.center)
+            .frame(minHeight: 18)
+            .accessibilityHidden(errorText == nil)
+
+        if CameraAccess.hasCamera {
+            Button(showPaste ? "Hide Link Box" : "Paste the Link Instead") {
+                withAnimation(.snappy) { showPaste.toggle() }
+            }
+            .frame(minHeight: 44)
+            .font(.subheadline.weight(.medium))
+            .foregroundStyle(palette.inkSoftColor)
+        }
+
+        if showPaste {
+            HStack(spacing: 10) {
+                TextField("glasspad://pair?...", text: $pasteText)
+                    .focused($typing)
+                    .onChange(of: pasteText) { errorText = nil }
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .font(.system(.footnote, design: .monospaced))
+                    .padding(.horizontal, 14)
+                    .frame(height: 44)
+                    .background(palette.raisedColor, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .onSubmit { handle(pasteText) }
+                Button("Pair") { handle(pasteText) }
+                    .glassButton(prominent: true)
+                    .controlSize(.large)
+                    .disabled(pasteText.isEmpty)
+            }
+            .transition(.opacity.combined(with: .move(edge: .top)))
         }
     }
 
@@ -200,7 +223,7 @@ struct PairSheet: View {
                 .font(.title2.bold())
                 .foregroundStyle(palette.inkColor)
             Text(paired.map { "Glasspad now controls \($0.name)." }
-                 ?? "On your Mac, open the Glasspad menu and choose Pair. Then point the camera at the code.")
+                 ?? "On your Mac, open the Glasspad menu and choose Pair Your iPhone. Then point the camera at the code.")
                 .font(.subheadline)
                 .multilineTextAlignment(alignment == .center ? .center : .leading)
                 .foregroundStyle(palette.inkSoftColor)

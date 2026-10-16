@@ -73,3 +73,31 @@ private struct GlassButtonStyle: ViewModifier {
         }
     }
 }
+
+/// A flat key, like the system keyboard: a filled rounded rectangle with a hairline edge that
+/// darkens while pressed. Used for keys and big remote buttons, where glass capsules would
+/// stretch into ovals. `accent` fills the key and turns the label white (an armed modifier,
+/// the Next slide button).
+struct KeyCapStyle: ButtonStyle {
+    @Environment(\.palette) private var palette
+    @Environment(\.isEnabled) private var isEnabled
+    var accent: Color? = nil
+    var cornerRadius: CGFloat = 12
+
+    func makeBody(configuration: Configuration) -> some View {
+        let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+        configuration.label
+            .foregroundStyle(accent == nil ? palette.inkColor : Color.white)
+            .background {
+                if let accent {
+                    shape.fill(accent.opacity(configuration.isPressed ? 0.8 : 1))
+                } else {
+                    shape.fill(configuration.isPressed ? palette.raisedPressedColor : palette.raisedColor)
+                }
+            }
+            .overlay { shape.strokeBorder(palette.lineColor, lineWidth: 1) }
+            .contentShape(shape)
+            .opacity(isEnabled ? 1 : 0.4)
+            .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
+    }
+}

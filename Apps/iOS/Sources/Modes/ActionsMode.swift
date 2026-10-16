@@ -28,6 +28,7 @@ struct ActionsMode: View {
     @State private var dragging: UUID?
     @State private var showLibrary = false
     @State private var showFrontPicker = false
+    @State private var confirmingReset = false
     /// Macro ids known when "Record New Macro" was tapped; the new one gets pinned.
     @State private var macrosBeforeRecording: Set<UUID>?
 
@@ -59,7 +60,7 @@ struct ActionsMode: View {
     private var frontID: String? { session.frontmostBundleID ?? session.macroProfile?.bundleID }
 
     private var frontName: String {
-        guard let id = frontID else { return "No App" }
+        guard let id = frontID else { return session.isConnected ? "Your Mac" : "Not Connected" }
         return (session.dockApps + session.dockCatalog).first { $0.bundleID == id }?.name
             ?? (session.macroProfile?.bundleID == id ? session.macroProfile?.name : nil)
             ?? id.split(separator: ".").last.map(String.init)?.capitalized ?? "App"
@@ -90,27 +91,28 @@ struct ActionsMode: View {
 
     var body: some View {
         GeometryReader { geo in
-            let metrics = ActionGridMetrics.fit(width: geo.size.width - 32, scale: settings.deckTileScale)
             if layout == nil && !session.isConnected && session.macroProfile == nil {
                 ModeOfflineMessage(mode: .actions)
+            } else if compact {
+                // Sideways: the front app on the left half, Pinned on the right, each
+                // scrolling on its own and sizing its tiles to its half.
+                let half = (geo.size.width - 32 - 28) / 2
+                let metrics = ActionGridMetrics.fit(width: half, scale: settings.deckTileScale)
+                HStack(alignment: .top, spacing: 28) {
+                    column { frontSection(metrics: metrics) }
+                        .frame(width: half)
+                    column { pinnedSection(metrics: metrics) }
+                        .frame(width: half)
+                }
+                .padding(.horizontal, 16)
             } else {
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 0) {
-                        frontSection(metrics: metrics)
-                        pinnedSection(metrics: metrics)
-                            .padding(.top, compact ? 22 : 30)
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.top, settings.pillPosition == .top ? (compact ? 44 : 64) : 16)
-                    .padding(.bottom, 24)
-                    .animation(.snappy, value: editing)
-                    .animation(.snappy, value: folderPath)
+                let metrics = ActionGridMetrics.fit(width: geo.size.width - 32, scale: settings.deckTileScale)
+                column {
+                    frontSection(metrics: metrics)
+                    pinnedSection(metrics: metrics)
+                        .padding(.top, 30)
                 }
-                .scrollIndicators(.hidden)
-                .refreshable {
-                    session.send(.deckRequest)
-                    session.send(.macro(.listMacros))
-                }
+                .padding(.horizontal, 16)
             }
         }
         .safeAreaInset(edge: .bottom) {
@@ -181,6 +183,16 @@ struct ActionsMode: View {
                 }
             }
         }
+        .confirmationDialog("Reset Pinned?", isPresented: $confirmingReset, titleVisibility: .visible) {
+            Button("Reset to Defaults", role: .destructive) {
+                Haptics.shared.play(.snap)
+                folderPath = []
+                edit { $0 = PinnedDeck.resetPinned($0) }
+                settings.seenTips.insert(Self.tidyTipID)
+            }
+        } message: {
+            Text("Pinned goes back to six everyday Mac controls. Mac controls, apps and macros stay in the Library, ready to pin again. Folders and buttons you made yourself are deleted.")
+        }
         .confirmationDialog(confirming.map { "\($0.title)?" } ?? "", isPresented: .init(get: { confirming != nil },
                                                                                         set: { if !$0 { confirming = nil } }),
                             titleVisibility: .visible, presenting: confirming) { button in
@@ -190,6 +202,22 @@ struct ActionsMode: View {
             }
         } message: { button in
             Text(button.action == .system(.emptyTrash) ? "Everything in the Mac's Trash is deleted for good." : "Your Mac goes to sleep now.")
+        }
+    }
+
+    /// One scrolling column of sections, clear of the mode pill.
+    private func column<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 0) { content() }
+                .padding(.top, settings.pillPosition == .top ? (compact ? 44 : 64) : 16)
+                .padding(.bottom, 24)
+                .animation(.snappy, value: editing)
+                .animation(.snappy, value: folderPath)
+        }
+        .scrollIndicators(.hidden)
+        .refreshable {
+            session.send(.deckRequest)
+            session.send(.macro(.listMacros))
         }
     }
 
@@ -213,7 +241,9 @@ struct ActionsMode: View {
         let items = frontItems
         if items.isEmpty {
             HStack(spacing: 12) {
-                Text(frontID == nil ? "Open an app on your Mac to see its buttons here." : "No buttons for \(frontName) yet.")
+                Text(frontID != nil ? "No buttons for \(frontName) yet."
+                     : session.isConnected ? "Open an app on your Mac to see its buttons here."
+                     : "Buttons for the app in front show here once your Mac is connected. Pinned buttons need it too.")
                     .font(.subheadline)
                     .foregroundStyle(palette.inkSoftColor)
                 Spacer(minLength: 8)
@@ -290,15 +320,17 @@ struct ActionsMode: View {
                     Haptics.shared.tap()
                     editing = false
                 }
-                .font(.body.weight(.semibold))
+                .font(.subheadline.weight(.semibold))
                 .glassButton(prominent: true)
+                .controlSize(.large)
             } else {
                 Button("Edit") {
                     Haptics.shared.tap()
                     editing = true
                 }
-                .font(.body.weight(.medium))
+                .font(.subheadline.weight(.medium))
                 .glassButton()
+                .controlSize(.large)
                 .foregroundStyle(palette.inkColor)
                 .disabled(layout == nil)
             }
@@ -340,6 +372,7 @@ struct ActionsMode: View {
         if folderPath.isEmpty {
             Tip(id: "actions.pinned", text: "Your favourites. Tap + to add anything; touch and hold one to change it.")
                 .padding(.top, 8)
+            if showsTidy { tidyCard.padding(.top, 10) }
         }
         let buttons = pinnedButtons
         PackedGrid(metrics: metrics) {
@@ -354,12 +387,56 @@ struct ActionsMode: View {
             .accessibilityLabel(folderPath.isEmpty ? "Add to Pinned" : "Add to this folder")
         }
         .padding(.top, 14)
+        if editing && folderPath.isEmpty {
+            Button("Reset to Defaults", role: .destructive) { confirmingReset = true }
+                .font(.subheadline.weight(.medium))
+                .frame(minHeight: 44)
+                .padding(.top, 8)
         }
+        }
+    }
+
+    // MARK: Tidy up
+
+    private static let tidyTipID = "actions.tidy"
+
+    /// Once, for a Pinned that grew long (often from older versions, which pinned every Mac
+    /// control and macro): offer to keep only the essentials.
+    private var showsTidy: Bool {
+        !editing && !settings.seenTips.contains(Self.tidyTipID) && !isDemo
+            && (layout.map { PinnedDeck.pinned(in: $0).count } ?? 0) > PinnedDeck.tidyThreshold
+    }
+
+    private var tidyCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Pinned has \(pinnedButtons.count) buttons. Keep just six everyday ones? Everything else stays in the Library.")
+                .font(.subheadline)
+                .foregroundStyle(palette.inkColor)
+                .fixedSize(horizontal: false, vertical: true)
+            HStack(spacing: 10) {
+                Button("Tidy Up") { confirmingReset = true }
+                    .font(.subheadline.weight(.semibold))
+                    .glassButton(prominent: true)
+                    .controlSize(.large)
+                Button("Keep Mine") {
+                    withAnimation(.snappy) { _ = settings.seenTips.insert(Self.tidyTipID) }
+                }
+                .font(.subheadline.weight(.medium))
+                .glassButton()
+                .controlSize(.large)
+            }
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(palette.raisedColor, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).strokeBorder(palette.lineColor))
+        .transition(.opacity)
     }
 
     private var optionsMenu: some View {
         Menu {
             Button("New Folder", systemImage: "folder.badge.plus") { newFolder() }
+            Button("Reset to Defaults", systemImage: "arrow.counterclockwise") { confirmingReset = true }
             Divider()
             Toggle("Show Labels", isOn: $settings.deckShowsTitles)
             Picker("Tile Size", selection: $settings.deckTileScale) {
@@ -370,7 +447,7 @@ struct ActionsMode: View {
         } label: {
             Image(systemName: "ellipsis")
                 .font(.body.weight(.semibold))
-                .frame(width: 22, height: 22)
+                .frame(width: 30, height: 30)
                 .contentShape(Circle())
         }
         .glassButton()
@@ -613,10 +690,12 @@ private struct Tip: View {
                     Image(systemName: "xmark")
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(palette.inkSoftColor)
-                        .frame(width: 28, height: 28)
+                        .frame(width: 44, height: 44)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+                // A full-size target without pushing the text away.
+                .padding(-8)
                 .accessibilityLabel("Dismiss tip")
             }
             .transition(.opacity)

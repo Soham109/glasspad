@@ -27,6 +27,34 @@ public enum PinnedDeck {
     public static let macPageID = UUID(uuidString: "6D61632D-0000-4000-8000-000000000001")!
     /// How many buttons the front-app section shows at most.
     public static let frontAppLimit = 8
+    /// How many it shows before the user picks: the first few, so it stays calm.
+    public static let frontAppDefaultCount = 6
+    /// Above this many Pinned tiles, Actions suggests tidying up once.
+    public static let tidyThreshold = 12
+
+    /// What Pinned starts with on a new setup, and what "Reset to Defaults" puts back: six
+    /// everyday Mac controls. Everything else is one tap away in the Library. Fresh ids each time.
+    public static func essentials() -> [DeckButton] {
+        func b(_ t: String, _ s: String, _ a: DeckAction, _ c: String) -> DeckButton {
+            DeckButton(title: t, symbol: s, action: a, color: c)
+        }
+        return [
+            b("Screenshot", "camera.viewfinder", .screenshot(DeckScreenshot(area: .fullScreen)), "#0A84FF"),
+            b("Lock Screen", "lock.fill", .system(.lockScreen), "#8E8E93"),
+            b("Mute", "speaker.slash.fill", .system(.mute), "#FF9F0A"),
+            b("Dark Mode", "circle.lefthalf.filled", .system(.toggleDarkMode), "#636366"),
+            b("Mission Control", "rectangle.3.group", .system(.missionControl), "#30B0C7"),
+            b("Show Desktop", "menubar.dock.rectangle", .system(.showDesktop), "#30B0C7"),
+        ]
+    }
+
+    /// The layout with Pinned replaced by the essentials. Folders and buttons that were in
+    /// Pinned go; pages linked to apps stay. Used only when the user asks for it.
+    public static func resetPinned(_ layout: DeckLayout) -> DeckLayout {
+        var (l, i) = ensuringPinned(layout)
+        l.pages[i].buttons = essentials()
+        return l
+    }
 
     /// Index of the Pinned page, if the layout has one.
     public static func pinnedIndex(in layout: DeckLayout) -> Int? {
@@ -68,12 +96,14 @@ public enum PinnedDeck {
     /// - Every page not linked to an app, other than Pinned, becomes a folder at the end of
     ///   Pinned with the page's name, symbol and buttons (the Mac page included). Empty pages
     ///   are dropped, since they hold nothing.
-    /// - Every macro that no button runs yet gets a Pinned tile, because the old My Buttons
-    ///   page listed every macro under its buttons.
+    /// - On a layout from before Actions (it still has the Mac page, or no Pinned page), every
+    ///   macro that no button runs yet gets a Pinned tile, because the old My Buttons page listed
+    ///   every macro under its buttons. A new setup is left alone: its macros live in the Library.
     /// Pages linked to apps stay as they are: they are the front-app buttons.
     /// Running it again changes nothing (folders keep their ids, macros are found by id).
     public static func migrated(_ layout: DeckLayout, macros: [MacroSummary]) -> DeckLayout {
         var l = layout
+        let legacy = l.pages.contains { $0.id == macPageID } || pinnedIndex(in: l) == nil
         let loose = l.pages.filter { $0.id != pinnedPageID && ($0.appBundleIDs ?? []).isEmpty }
         var pinned: DeckPage
         var folders: [DeckPage] = loose
@@ -95,7 +125,7 @@ public enum PinnedDeck {
             if case .runMacro(let id) = b.action { return id }
             return nil
         })
-        for macro in macros where !runs.contains(macro.id) {
+        for macro in macros where legacy && !runs.contains(macro.id) {
             pinned.buttons.append(button(for: macro))
         }
         let movedIDs = Set(loose.map(\.id))
@@ -110,7 +140,7 @@ public enum PinnedDeck {
     public static func frontAppItems(buttons: [DeckButton], macros: [MacroSummary], picks: [String]?,
                                      limit: Int = frontAppLimit) -> [FrontAppItem] {
         let all = allFrontAppItems(buttons: buttons, macros: macros)
-        guard let picks else { return Array(all.prefix(limit)) }
+        guard let picks else { return Array(all.prefix(min(limit, frontAppDefaultCount))) }
         let byID = Dictionary(all.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
         return Array(picks.compactMap { byID[$0] }.prefix(limit))
     }

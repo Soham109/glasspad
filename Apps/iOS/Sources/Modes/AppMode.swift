@@ -2,7 +2,7 @@ import SwiftUI
 import GlasspadKit
 
 /// The screens the pill switches between. Each has one SF Symbol and one accent colour.
-/// By default five show: Trackpad, Keyboard, Media, Apps and Actions. Actions combines Deck,
+/// By default five show: Trackpad, Keyboard, Media, Dock and Actions. Actions combines Deck,
 /// Macros, Clipboard and Present; Settings can split it back into those four.
 enum AppMode: String, CaseIterable, Identifiable, Sendable {
     case trackpad, keys, media, dock, actions, deck, macros, clipboard, present
@@ -12,7 +12,8 @@ enum AppMode: String, CaseIterable, Identifiable, Sendable {
     var title: String {
         switch self {
         case .trackpad: "Trackpad"
-        case .dock: "Apps"
+        // Stored as "dock" since the start; the screen was called Apps for a while.
+        case .dock: "Dock"
         case .keys: "Keyboard"
         case .actions: "Actions"
         case .media: "Media"
@@ -26,7 +27,7 @@ enum AppMode: String, CaseIterable, Identifiable, Sendable {
     var symbol: String {
         switch self {
         case .trackpad: "hand.point.up.left.fill"
-        case .dock: "square.grid.3x3.fill"
+        case .dock: "dock.rectangle"
         case .actions: "bolt.fill"
         case .keys: "keyboard.fill"
         case .media: "play.circle.fill"
@@ -78,8 +79,8 @@ extension AppMode {
         case .trackpad: "Your iPhone as the Mac's trackpad."
         case .keys: "Type on the Mac, with arrows and shortcuts."
         case .media: "What is playing, volume and brightness."
-        case .dock: "Open and switch the Mac's apps."
-        case .actions: "The front app's buttons and your pinned favourites."
+        case .dock: "Your Mac's Dock: open and switch apps."
+        case .actions: "Other apps, Mac controls, macros and Shortcuts."
         case .deck: "Your Deck buttons on their own."
         case .macros: "Your macros on their own."
         case .clipboard: "Copy between iPhone and Mac."

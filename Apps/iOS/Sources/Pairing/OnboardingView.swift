@@ -39,7 +39,7 @@ struct OnboardingView: View {
 
     private var prepare: some View {
         OnboardingPage(title: "Open Glasspad\non your Mac",
-                       detail: "Click the Glasspad icon in the menu bar and choose Pair. A code appears. Keep both on the same Wi-Fi.") {
+                       detail: "Click the Glasspad icon in the menu bar and choose Pair Your iPhone. Keep both on the same Wi-Fi.") {
             MenuBarArt()
         }
     }
@@ -103,23 +103,26 @@ struct OnboardingView: View {
         VStack(spacing: 18) {
             pageDots
 
-            Button {
-                if page < 2 { page += 1 } else { onFinish() }
-            } label: {
-                Text(buttonTitle)
+            // One control in the same place on every page: the next step, or on the scan
+            // page (until a Mac is paired) a quiet way to skip.
+            if page == 2 && paired == nil {
+                Button("Pair Later") { onFinish() }
                     .font(.headline)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 6)
+                    .foregroundStyle(palette.inkSoftColor)
+                    .frame(maxWidth: .infinity, minHeight: 50)
+                    .contentShape(Rectangle())
+            } else {
+                Button {
+                    if page < 2 { page += 1 } else { onFinish() }
+                } label: {
+                    Text(buttonTitle)
+                        .font(.headline)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 6)
+                }
+                .glassButton(prominent: true)
+                .controlSize(.large)
             }
-            .glassButton(prominent: true)
-            .controlSize(.large)
-            .disabled(page == 2 && paired == nil)
-            .opacity(page == 2 && paired == nil ? 0 : 1)
-
-            Button(page == 2 && paired == nil ? "Pair later" : " ") { onFinish() }
-                .font(.subheadline.weight(.medium))
-                .foregroundStyle(palette.inkSoftColor)
-                .disabled(!(page == 2 && paired == nil))
         }
     }
 
@@ -129,9 +132,10 @@ struct OnboardingView: View {
             pageDots
             Spacer()
             if page == 2 && paired == nil {
-                Button("Pair later") { onFinish() }
-                    .font(.subheadline.weight(.medium))
+                Button("Pair Later") { onFinish() }
+                    .font(.headline)
                     .foregroundStyle(palette.inkSoftColor)
+                    .frame(minHeight: 44)
             } else {
                 Button {
                     if page < 2 { page += 1 } else { onFinish() }
@@ -162,8 +166,8 @@ struct OnboardingView: View {
 
     private var buttonTitle: String {
         switch page {
-        case 0: "Get started"
-        case 1: "I see the code"
+        case 0: "Get Started"
+        case 1: "I See the Code"
         default: "Start"
         }
     }
@@ -172,6 +176,7 @@ struct OnboardingView: View {
 private struct OnboardingPage<Art: View>: View {
     @Environment(\.palette) private var palette
     @Environment(\.verticalSizeClass) private var verticalSize
+    @Environment(\.dynamicTypeSize) private var dynamicType
     let title: String
     let detail: String
     @ViewBuilder var art: Art
@@ -200,23 +205,32 @@ private struct OnboardingPage<Art: View>: View {
     }
 
     private var portrait: some View {
-        VStack(spacing: 34) {
-            Spacer()
-            art.frame(height: 260)
-            VStack(spacing: 14) {
-                Text(title)
-                    .font(.largeTitle.bold())
-                    .multilineTextAlignment(.center)
-                    .foregroundStyle(palette.inkColor)
-                Text(detail)
-                    .font(.body)
-                    .multilineTextAlignment(.center)
-                    .foregroundStyle(palette.inkSoftColor)
-                    .frame(maxWidth: 320)
+        // Scrolls only when very large text no longer fits; the words always show in full.
+        ScrollView {
+            VStack(spacing: 34) {
+                if !dynamicType.isAccessibilitySize {
+                    art.frame(height: 260)
+                }
+                VStack(spacing: 14) {
+                    Text(title)
+                        .font(.largeTitle.bold())
+                        .multilineTextAlignment(.center)
+                        .foregroundStyle(palette.inkColor)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Text(detail)
+                        .font(.body)
+                        .multilineTextAlignment(.center)
+                        .foregroundStyle(palette.inkSoftColor)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: 320)
+                }
             }
-            Spacer()
+            .padding(.horizontal, 28)
+            .padding(.vertical, 24)
+            .frame(maxWidth: .infinity)
         }
-        .padding(.horizontal, 28)
+        .scrollBounceBehavior(.basedOnSize)
+        .defaultScrollAnchor(.center)
     }
 }
 
@@ -267,7 +281,7 @@ private struct MenuBarArt: View {
                     Image(systemName: "qrcode")
                         .font(.system(size: 92, weight: .ultraLight))
                         .foregroundStyle(palette.inkColor)
-                    Text("Pair iPhone")
+                    Text("Pair Your iPhone")
                         .font(.footnote.weight(.semibold))
                         .foregroundStyle(palette.inkSoftColor)
                 }
