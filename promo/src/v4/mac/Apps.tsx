@@ -87,8 +87,8 @@ export const SafariApp: React.FC<{ x: number; y: number; w: number; h: number; a
       <div style={{ textAlign: "center", marginTop: h * 0.07 }}>
         {/* the site's own hero (web/index.html) */}
         <div style={{ fontSize: Math.min(72, w * 0.056), fontWeight: 700, letterSpacing: "-0.035em", color: "#1D1D1F", lineHeight: 1.05 }}>Glasspad</div>
-        <div style={{ fontSize: Math.min(30, w * 0.024), fontWeight: 600, color: "#1D1D1F", marginTop: 10, letterSpacing: "-0.015em" }}>Your iPhone, as a Mac trackpad.</div>
-        <div style={{ fontSize: 17, color: "#6E6E73", marginTop: 10, fontFamily: SFT }}>And a keyboard, a Dock, a remote, and buttons for every app.</div>
+        <div style={{ fontSize: Math.min(30, w * 0.024), fontWeight: 600, color: "#1D1D1F", marginTop: 10, letterSpacing: "-0.015em" }}>A control surface for your Mac, on your iPhone.</div>
+        <div style={{ fontSize: 15, color: "#6E6E73", marginTop: 10, fontFamily: SFT }}>Free and open source. macOS 14 and iOS 18 or later.</div>
         <div style={{ display: "inline-block", marginTop: 22, padding: "10px 20px", borderRadius: 999, background: "#1D1D1F", color: "#fff", fontSize: 15, fontWeight: 600, fontFamily: SFT }}>View on GitHub</div>
       </div>
     </div>
