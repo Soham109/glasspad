@@ -215,6 +215,15 @@ public final class GlasspadClient: @unchecked Sendable {
         }
     }
 
+    /// Tests only: seals this JSON as one control message to the Mac, as a build with other
+    /// message types would send it.
+    func sendRawJSONForTesting(_ json: Data) {
+        queue.async { [self] in
+            guard case .connected = phase else { return }
+            sendRaw(json)
+        }
+    }
+
     /// Sends a control message over TCP. Dropped while not connected.
     public func send(message: ControlMessage) {
         queue.async { [self] in
