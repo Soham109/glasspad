@@ -154,3 +154,166 @@ export const Thumb5: React.FC = () => {
     </AbsoluteFill>
   );
 };
+
+// ---------- second set ----------
+
+/** Drawn finger rings with straight trails (for gestures the recordings do not contain). */
+const Strokes: React.FC<{ w: number; h: number; from: [number, number][]; to: [number, number][]; ring: number }> = ({ w, h, from, to, ring }) => {
+  const d = h * ring;
+  return (
+    <>
+      <svg width={w} height={h} style={{ position: "absolute", inset: 0 }}>
+        {from.map(([x0, y0], i) => (
+          <line key={i} x1={x0 * w} y1={y0 * h} x2={to[i][0] * w} y2={to[i][1] * h} stroke={C.paper} strokeOpacity={0.22} strokeWidth={d * 0.62} strokeLinecap="round" />
+        ))}
+      </svg>
+      {to.map(([x, y], i) => (
+        <div key={i} style={{ position: "absolute", left: x * w - d / 2, top: y * h - d / 2, width: d, height: d, borderRadius: d, background: "rgba(242,241,238,0.9)" }} />
+      ))}
+    </>
+  );
+};
+
+// 6. Music: the real Media screen, the scrub under a finger.
+export const Thumb6: React.FC = () => {
+  const ps = 600, sc = phoneScreen(ps, "portrait");
+  const [u0, u1] = CL.media.scrubX as number[];
+  return (
+    <AbsoluteFill style={{ background: C.accent, overflow: "hidden" }}>
+      <div style={{ position: "absolute", left: 90, top: 210, ...H, fontSize: 190, color: C.paper }}>
+        Control<br />your<br />music.
+      </div>
+      <div style={{ position: "absolute", left: 1420, top: 760, transform: "translate(-50%, -50%) rotate(-5deg)" }}>
+        <Phone short={ps} orient="portrait" island={false}>
+          <Rec clip="media" t={6.8} w={sc.w} h={sc.h} />
+          <div style={{ position: "absolute", left: (u0 + (u1 - u0) * 0.72) * sc.w - 50, top: CL.media.scrubY * sc.h - 50, width: 100, height: 100, borderRadius: 100, background: "rgba(242,241,238,0.85)" }} />
+        </Phone>
+      </div>
+    </AbsoluteFill>
+  );
+};
+
+// 7. Apps: tap Word on the phone, it opens on the Mac.
+export const Thumb7: React.FC = () => {
+  const ps = 560, sc = phoneScreen(ps, "portrait");
+  const [wu, wv] = CL.menu.wordIcon as number[];
+  return (
+    <AbsoluteFill style={{ background: C.graphite, overflow: "hidden" }}>
+      <div style={{ position: "absolute", left: 90, top: 220, ...H, fontSize: 160, color: C.paper }}>
+        Every<br />app, <span style={{ color: C.accent }}>one<br />tap.</span>
+      </div>
+      <div style={{ position: "absolute", left: 1180, top: 640, transform: "translate(-50%, -50%) rotate(-3deg)" }}>
+        <Phone short={ps} orient="portrait" island={false}>
+          <Rec clip="menu" t={8.6} w={sc.w} h={sc.h} />
+          <div style={{ position: "absolute", left: wu * sc.w - 70, top: wv * sc.h - 70, width: 140, height: 140, borderRadius: 140, boxShadow: `inset 0 0 0 8px ${C.paper}` }} />
+        </Phone>
+      </div>
+      <svg width={1920} height={1080} style={{ position: "absolute", inset: 0 }}>
+        <path d="M 1160 560 Q 1500 220 1680 540" fill="none" stroke={C.paper} strokeOpacity={0.5} strokeWidth={10} strokeLinecap="round" strokeDasharray="2 26" />
+      </svg>
+      <Img src={icon("com.microsoft.Word")} style={{ position: "absolute", left: 1570, top: 520, width: 260, height: 260 }} />
+    </AbsoluteFill>
+  );
+};
+
+// 8. Before and after: the trackpad on the desk, and the one in your pocket.
+export const Thumb8: React.FC = () => {
+  const ps = 330, sc = phoneScreen(ps, "landscape");
+  return (
+    <AbsoluteFill style={{ background: C.paper, overflow: "hidden" }}>
+      <div style={{ position: "absolute", left: 960, top: 0, width: 960, height: 1080, background: C.ink }} />
+      <div style={{ position: "absolute", left: 90, top: 130, ...H, fontSize: 132, color: C.ink }}>
+        Your<br />trackpad.
+      </div>
+      <div style={{ position: "absolute", left: 1050, top: 130, ...H, fontSize: 132, color: C.paper }}>
+        Now in<br />your pocket.
+      </div>
+      <div style={{ position: "absolute", left: 140, top: 520, width: 640, height: 430, borderRadius: 42, background: "#DDDAD3", boxShadow: `inset 0 0 0 3px ${C.ink12}` }} />
+      <div style={{ position: "absolute", left: 1440, top: 760, transform: "translate(-50%, -50%) rotate(-8deg)" }}>
+        <Phone short={ps * 1.25} orient="landscape" island={false}>
+          <Rec clip="trackpad" t={7.4} w={phoneScreen(ps * 1.25, "landscape").w} h={phoneScreen(ps * 1.25, "landscape").h} />
+          <Fingers t={4.9} back={0.9} w={phoneScreen(ps * 1.25, "landscape").w} h={phoneScreen(ps * 1.25, "landscape").h} ring={0.26} />
+        </Phone>
+      </div>
+      <div style={{ position: "absolute", left: sc.w * 0, top: 0 }} />
+    </AbsoluteFill>
+  );
+};
+
+// 9. Minimal: the finger dot's glide, one word.
+export const Thumb9: React.FC = () => (
+  <AbsoluteFill style={{ background: C.graphite, overflow: "hidden" }}>
+    <svg width={1920} height={1080} style={{ position: "absolute", inset: 0 }}>
+      <line x1={260} y1={900} x2={1430} y2={330} stroke={C.paper} strokeOpacity={0.12} strokeWidth={230} strokeLinecap="round" />
+      <circle cx={1430} cy={330} r={190} fill={C.paper} fillOpacity={0.92} />
+    </svg>
+    <div style={{ position: "absolute", left: 120, top: 120, ...H, fontSize: 300, color: C.paper }}>Glide.</div>
+  </AbsoluteFill>
+);
+
+// 10. Mission Control from the phone: three fingers up, every window laid out.
+const MissionControl: React.FC = () => {
+  const wins: [number, number, number, number, string][] = [[120, 230, 560, 380, "notes"], [760, 210, 640, 420, "site"], [330, 650, 420, 260, "dark"], [880, 680, 460, 250, "light"]];
+  return (
+    <div style={{ position: "absolute", left: 0, top: 0, width: SW, height: 982, background: "#2B2B2B" }}>
+      <div style={{ position: "absolute", left: 0, right: 0, top: 26, display: "flex", justifyContent: "center", gap: 40 }}>
+        {["Desktop 1", "Desktop 2", "Desktop 3"].map((d, i) => (
+          <div key={d} style={{ textAlign: "center", fontFamily: FONT, fontSize: 18, fontWeight: 600, color: C.paper60 }}>
+            <div style={{ width: 200, height: 120, borderRadius: 12, background: i === 0 ? "#D9D6CF" : i === 1 ? "#232323" : "#3A3A3A", boxShadow: i === 0 ? `0 0 0 4px ${C.paper}` : "none", marginBottom: 8 }} />
+            {d}
+          </div>
+        ))}
+      </div>
+      {wins.map(([x, y, w, h, k]) => (
+        <div key={k} style={{ position: "absolute", left: x, top: y, width: w, height: h, borderRadius: 14, background: k === "dark" ? "#1E1E1E" : C.sheet, overflow: "hidden" }}>
+          <div style={{ height: 30, borderBottom: `1px solid ${C.ink06}` }} />
+          {k === "site" ? <div style={{ margin: 22, height: 150, borderRadius: 12, background: C.ink }} /> : null}
+          <div style={{ margin: "18px 22px", display: "grid", gap: 12 }}>
+            {[90, 75, 85, 60].map((p, i) => <div key={i} style={{ width: `${p}%`, height: 10, borderRadius: 10, background: k === "dark" ? C.paper12 : C.ink12 }} />)}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+};
+export const Thumb10: React.FC = () => {
+  const ps = 380, sc = phoneScreen(ps, "landscape");
+  return (
+    <AbsoluteFill style={{ background: C.paper, overflow: "hidden" }}>
+      <div style={{ position: "absolute", left: 90, top: 150, ...H, fontSize: 150, color: C.ink }}>
+        Mission<br />Control.<br /><span style={{ color: C.accent }}>From your<br />phone.</span>
+      </div>
+      <div style={{ position: "absolute", left: 930, top: 60 }}>
+        <MacBook width={900}><MissionControl /></MacBook>
+      </div>
+      <div style={{ position: "absolute", left: 1380, top: 860, transform: "translate(-50%, -50%) rotate(-3deg)" }}>
+        <Phone short={ps} orient="landscape" island={false}>
+          <Strokes w={sc.w} h={sc.h} from={[[0.4, 0.86], [0.52, 0.9], [0.64, 0.86]]} to={[[0.4, 0.3], [0.52, 0.34], [0.64, 0.3]]} ring={0.2} />
+        </Phone>
+      </div>
+    </AbsoluteFill>
+  );
+};
+
+// 11. Private: everything stays inside your Wi-Fi.
+export const Thumb11: React.FC = () => (
+  <AbsoluteFill style={{ background: C.paper, overflow: "hidden" }}>
+    <div style={{ position: "absolute", left: 90, top: 120, ...H, fontSize: 190, color: C.ink }}>
+      Stays on<br />your <span style={{ color: C.accent }}>Wi-Fi.</span>
+    </div>
+    <div style={{ position: "absolute", left: 110, top: 600, width: 1700, height: 400, borderRadius: 60, boxShadow: `inset 0 0 0 6px ${C.ink}` }} />
+    <div style={{ position: "absolute", left: 300, top: 650, width: 150, height: 300, borderRadius: 30, boxShadow: `inset 0 0 0 8px ${C.ink}` }}>
+      <div style={{ position: "absolute", left: 50, top: 16, width: 50, height: 14, borderRadius: 14, background: C.ink }} />
+    </div>
+    <div style={{ position: "absolute", left: 470, top: 796, width: 900, height: 8, background: C.ink, opacity: 0.25 }} />
+    {[560, 720, 1230].map((x, i) => <div key={i} style={{ position: "absolute", left: x - 16, top: 784, width: 32, height: 32, borderRadius: 32, background: i < 2 ? C.ink : "transparent", boxShadow: `inset 0 0 0 6px ${C.ink}` }} />)}
+    <div style={{ position: "absolute", left: 900, top: 690, width: 110, height: 130 }}>
+      <div style={{ position: "absolute", left: 22, top: 0, width: 66, height: 72, borderRadius: "33px 33px 0 0", boxShadow: `inset 0 0 0 12px ${C.accent}` }} />
+      <div style={{ position: "absolute", left: 0, top: 56, width: 110, height: 74, borderRadius: 16, background: C.accent }} />
+    </div>
+    <div style={{ position: "absolute", left: 1400, top: 680 }}>
+      <div style={{ width: 340, height: 220, borderRadius: 20, boxShadow: `inset 0 0 0 8px ${C.ink}` }} />
+      <div style={{ marginLeft: -26, marginTop: 10, width: 392, height: 14, borderRadius: 14, background: C.ink }} />
+    </div>
+  </AbsoluteFill>
+);

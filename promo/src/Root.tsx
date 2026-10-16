@@ -7,7 +7,7 @@ import { loadFonts } from "./theme";
 import { Film as Film2 } from "./v2/Film";
 import { Teaser as Teaser2 } from "./v2/Teaser";
 import { CUT_LEN, Warped } from "./v2/warp";
-import { Thumb1, Thumb2, Thumb3, Thumb4, Thumb5 } from "./v2/Thumbs";
+import { Thumb1, Thumb10, Thumb11, Thumb2, Thumb3, Thumb4, Thumb5, Thumb6, Thumb7, Thumb8, Thumb9 } from "./v2/Thumbs";
 import { loadFonts as loadFonts2 } from "./v2/system";
 
 loadFonts();
@@ -22,7 +22,7 @@ export const Root: React.FC = () => (
     <Composition id="GlasspadTeaser" component={Teaser} defaultProps={{ audio: true }} durationInFrames={TEASER_LEN} fps={FPS} width={1080} height={1920} />
     <Composition id="GlasspadTeaserVertical" component={WarpedTeaser} durationInFrames={CUT_LEN("teaser")} fps={60} width={1080} height={1920} />
     <Composition id="GlasspadFilm" component={WarpedFilm} durationInFrames={CUT_LEN("film")} fps={60} width={1920} height={1080} />
-    {[Thumb1, Thumb2, Thumb3, Thumb4, Thumb5].map((T, i) => (
+    {[Thumb1, Thumb2, Thumb3, Thumb4, Thumb5, Thumb6, Thumb7, Thumb8, Thumb9, Thumb10, Thumb11].map((T, i) => (
       <Still key={i} id={`GlasspadThumb${i + 1}`} component={T} width={1920} height={1080} />
     ))}
   </>
