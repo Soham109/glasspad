@@ -57,12 +57,22 @@ export const GLYPH: Record<string, string> = {
 };
 export const glyph = (name: string) => `<svg viewBox="0 0 24 24" aria-hidden="true">${GLYPH[name] ?? ""}</svg>`;
 
-/** Pinned starts with six everyday Mac controls (colours from the app's Library). */
+/* Pinned extras: Mac controls and website logos (simple drawn marks, not official artwork). */
+GLYPH["moon.fill"] = '<path class="f" d="M19 14.5A7.5 7.5 0 0 1 9.5 5a7.5 7.5 0 1 0 9.5 9.5Z"/>';
+GLYPH["sun.max"] = '<circle cx="12" cy="12" r="3.6"/><path d="M12 4v2M12 18v2M4 12h2M18 12h2M6.3 6.3l1.4 1.4M16.3 16.3l1.4 1.4M17.7 6.3l-1.4 1.4M7.7 16.3l-1.4 1.4"/>';
+GLYPH["cup.and.saucer"] = '<path d="M5 9h11v5a4 4 0 0 1-4 4H9a4 4 0 0 1-4-4Z"/><path d="M16 10h1.5a2 2 0 0 1 0 4H16M8 4v2M11 4v2"/>';
+GLYPH["logo.youtube"] = '<rect x="2.5" y="5.5" width="19" height="13" rx="4" fill="#FF3B30" stroke="none"/><path d="M10 9.2v5.6l5-2.8Z" fill="#fff" stroke="none"/>';
+GLYPH["logo.github"] = '<circle cx="12" cy="12" r="9.5" fill="#1A1A1A" stroke="none"/><path d="M9.2 18.5v-2.2c-2.2.5-2.7-1-2.7-1M14.8 18.5v-2.7c0-.8-.2-1.3-.6-1.7 2-.2 3.6-1 3.6-3.6 0-.8-.3-1.5-.8-2 .2-.6.2-1.4-.1-2 0 0-.7-.2-2.1.8a7 7 0 0 0-3.6 0C9.2 6.3 8.5 6.5 8.5 6.5c-.3.6-.3 1.4-.1 2-.5.5-.8 1.200-.8 2 0 2.600 1.600 3.400 3.600 3.600-.4.400-.6.900-.6 1.700v2.700" stroke="#fff" stroke-width="1.3"/>';
+GLYPH["logo.netflix"] = '<rect x="3.5" y="3.5" width="17" height="17" rx="4" fill="#E50914" stroke="none"/><path d="M9.2 17V7l5.6 10V7" stroke="#fff" stroke-width="2.2"/>';
+GLYPH["logo.spotify"] = '<circle cx="12" cy="12" r="9.5" fill="#1DB954" stroke="none"/><path d="M7.2 10.2c3.2-1 6.600-.7 9.600 1M7.700 13c2.700-.7 5.300-.5 7.700.9M8.300 15.600c2.100-.5 4-.3 5.800.7" stroke="#fff" stroke-width="1.500"/>';
+
+/** Pinned starts with everyday Mac controls and a couple of websites (colours from the app's Library). */
 export const PINNED: [string, string, string][] = [
+  ["Do Not Disturb", "moon.fill", "#5E5CE6"],
+  ["Split Screen", "square.split.2x1", "#30B0C7"],
+  ["Night Shift", "sun.max", "#FF9F0A"],
+  ["Keep Awake", "cup.and.saucer", "#8E5A3C"],
   ["Screenshot", "camera.viewfinder", "#0A84FF"],
-  ["Lock Screen", "lock.fill", "#8E8E93"],
-  ["Mute", "speaker.slash.fill", "#FF9F0A"],
-  ["Dark Mode", "circle.lefthalf.filled", "#636366"],
-  ["Mission Control", "rectangle.3.group", "#30B0C7"],
-  ["Show Desktop", "menubar.dock.rectangle", "#30B0C7"],
+  ["YouTube", "logo.youtube", "#FF3B30"],
+  ["GitHub", "logo.github", "#1A1A1A"],
 ];

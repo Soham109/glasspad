@@ -1,6 +1,7 @@
 import { clamp, lerp, minJerk, reducedMotion, nextFrame, sleep } from "./spring";
 import { APPS, appIcon } from "./apps";
 import { GLYPH, PINNED as PINNED_ESSENTIALS } from "./glyphs";
+import { remoteScreen } from "./surface";
 
 /* Recreations of the iPhone app's own screens (Apps/iOS/Sources/Modes), drawn in iPhone points. */
 
@@ -124,7 +125,7 @@ const bounce = (el: HTMLElement) => { el.classList.remove("bounce"); void el.off
 const MODES: Mode[] = [
   {
     key: "trackpad", title: "Trackpad", icon: "i-trackpad", accent: "#1A1A1A", land: true,
-    text: "A plain surface with a dot under each finger. Scroll, pinch, rotate, swipe and force click.",
+    text: "A trackpad you can feel. Scroll, pinch, swipe and force click, with a tap on every click.",
     phone: () => `<div class="pt land"></div>`,
     mac: () => `${win("w-b", docLines, false)}${win("w-a", docLines)}${menubar()}${cursorSVG}`,
     async run(s) {
@@ -175,7 +176,7 @@ const MODES: Mode[] = [
   },
   {
     key: "media", title: "Media", icon: "i-media", accent: "#FF2D55",
-    text: "What's playing on your Mac, with artwork, scrubbing, volume and output.",
+    text: "What is playing on your Mac, with artwork, scrubbing, volume and output.",
     phone: () => `<div class="pt"><span class="status-dot"></span><div class="u-media">
       <div class="art"><i class="a1"></i><i class="a2"></i><i class="a3"></i></div>
       <div class="src"><i></i>SPOTIFY</div><div class="t">Slow Light</div><div class="a">Paper Rooms · Glass Hours</div>
@@ -266,7 +267,7 @@ const MODES: Mode[] = [
   },
   {
     key: "actions", title: "Actions", icon: "i-actions", accent: "#FF9500",
-    text: "Buttons for the app in front, plus your Pinned controls.",
+    text: "Buttons that follow the app in front, plus Pinned: Do Not Disturb, window tiling, macros, Shortcuts and websites.",
     phone: () => `<div class="pt"><span class="status-dot"></span><div class="u-act">
       <div class="fh"><span class="fi">${tile("web")}</span><b>Safari</b><span class="edit">Edit</span></div>
       <p class="hint">The best buttons for the app in front on your Mac. They change when you switch apps.</p>
@@ -310,6 +311,24 @@ const MODES: Mode[] = [
       cur.classList.add("press"); await s.wait(100); cur.classList.remove("press");
       setFront("web");
       await s.wait(1700);
+    },
+  },
+  {
+    key: "remote", title: "Remote", icon: "i-remote", accent: "#E50914",
+    text: "Couch remote for Netflix and YouTube. Smart keys for each app, and type to search.",
+    phone: () => remoteScreen(),
+    mac: () => `<div class="md-win front mm-video" style="left:6%;top:12%;width:88%;height:70%"><div class="wb"><i></i><i></i><i></i></div><div class="wbody mm-vid"><span class="vp"></span><span class="vb"><i></i></span></div></div>${menubar()}`,
+    async run(s) {
+      const bar = s.m(".mm-vid .vb i"), pad = (d: string) => s.q(`.rm-d.${d}`), q = s.q(".rm-q");
+      const tap = async (el: HTMLElement, after?: () => void) => { await s.tap(el, after); };
+      bar.style.width = "30%"; q.textContent = "Search Netflix"; q.classList.remove("typed");
+      await s.wait(900);
+      await tap(pad("right")); await s.wait(500);
+      await tap(s.q(".rm-ok"), () => { bar.style.width = "36%"; }); await s.wait(700);
+      await tap(s.q(".rm-k"), () => { bar.style.width = "62%"; }); await s.wait(1200);
+      const word = "Quiet";
+      for (let i = 1; i <= word.length; i++) { q.textContent = word.slice(0, i); q.classList.add("typed"); await s.wait(130); }
+      await s.wait(1500);
     },
   },
 ];

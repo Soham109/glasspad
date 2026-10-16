@@ -3,14 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Glasspad: your iPhone as a Mac trackpad</title>
-<meta name="description" content="Glasspad turns your iPhone into a wireless Mac trackpad with haptics, plus a keyboard, media remote, your Mac's Dock and buttons that follow the app in front. Free, private and open source.">
+<title>Glasspad: a control surface for your Mac</title>
+<meta name="description" content="Glasspad turns your iPhone into a control surface for your Mac: a trackpad you can feel, keyboard, media, Dock, buttons that follow the app in front, a couch remote and split screen layouts. Free, private and open source.">
 <meta name="theme-color" content="#F2F1EE">
 <script>document.documentElement.classList.add("js")</script>
 <link rel="icon" href="/icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <meta property="og:title" content="Glasspad">
-<meta property="og:description" content="Your iPhone, as a Mac trackpad. Free, private and open source.">
+<meta property="og:description" content="A control surface for your Mac, on your iPhone. Free, private and open source.">
 <link rel="canonical" href="https://glasspad.sohamaggarwal.com/">
 <meta property="og:url" content="https://glasspad.sohamaggarwal.com/">
 <meta property="og:image" content="https://glasspad.sohamaggarwal.com/og-light.png">
@@ -37,6 +37,7 @@
     <symbol id="i-macros" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="3.2"/></symbol>
     <symbol id="i-clipboard" viewBox="0 0 24 24"><path d="M9 4.5H7.5A2.5 2.5 0 0 0 5 7v11.5A2.5 2.5 0 0 0 7.5 21h9a2.5 2.5 0 0 0 2.5-2.5V7a2.5 2.5 0 0 0-2.5-2.5H15"/><rect x="9" y="3" width="6" height="3.2" rx="1.2"/><path d="M8.5 11.5h7M8.5 15h4.5"/></symbol>
     <symbol id="i-present" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2.5"/><path d="M12 16v4M8.5 20h7"/><circle cx="14.5" cy="9.5" r="1.4"/></symbol>
+    <symbol id="i-remote" viewBox="0 0 24 24"><rect x="8" y="2.5" width="8" height="19" rx="3.5"/><circle cx="12" cy="8.5" r="1.8"/><path d="M12 13v.01M12 17v.01"/></symbol>
     <symbol id="i-qr" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="6" height="6" rx="1.5"/><rect x="14.5" y="3.5" width="6" height="6" rx="1.5"/><rect x="3.5" y="14.5" width="6" height="6" rx="1.5"/><path d="M14.5 14.5h2.5v2.5M20.5 14.5v.01M14.5 20.5h.01M18 18v2.5h2.5"/></symbol>
     <symbol id="i-lock" viewBox="0 0 24 24"><rect x="4.5" y="10.5" width="15" height="10" rx="2.5"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/></symbol>
     <symbol id="i-home" viewBox="0 0 24 24"><path d="M4 10.5 12 4l8 6.5V19a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 19Z"/><path d="M9 14.2a4.2 4.2 0 0 1 6 0M10.8 16.8a1.7 1.7 0 0 1 2.4 0"/></symbol>
@@ -53,9 +54,11 @@
   </a>
   <nav class="nav-links" aria-label="Sections" id="navLinks">
     <span class="nav-ind" id="navInd" aria-hidden="true"></span>
-    <a href="#how">How it works</a>
-    <a href="#try">Try it</a>
     <a href="#modes">Modes</a>
+    <a href="#actions">Actions</a>
+    <a href="#remote">Remote</a>
+    <a href="#layouts">Layouts</a>
+    <a href="#try">Trackpad</a>
     <a href="#privacy">Privacy</a>
     <a href="#get">Install</a>
   </nav>
@@ -65,9 +68,11 @@
   <button class="nav-menu" id="navMenu" aria-expanded="false" aria-controls="navSheet">Menu</button>
 </header>
 <nav class="nav-sheet" id="navSheet" aria-label="Sections">
-  <a href="#how">How it works</a>
-  <a href="#try">Try it</a>
   <a href="#modes">Modes</a>
+  <a href="#actions">Actions</a>
+  <a href="#remote">Remote</a>
+  <a href="#layouts">Layouts</a>
+  <a href="#try">Trackpad</a>
   <a href="#privacy">Privacy</a>
   <a href="#get">Install</a>
   <a href="https://github.com/Soham109/glasspad">GitHub</a>
@@ -87,7 +92,7 @@
   </div>
   <h1 class="hero-title">Glasspad</h1>
   <p class="hero-line">Your iPhone, as a Mac trackpad.</p>
-  
+  <p class="hero-sub">And a keyboard, a Dock, a remote, and buttons for every app.</p>
   <div class="hero-actions">
     <a class="btn btn-ink" href="https://github.com/Soham109/glasspad">
       <svg width="18" height="18" aria-hidden="true"><use href="#i-github"/></svg>
@@ -115,7 +120,7 @@
 <section class="how" id="how" aria-labelledby="how-title">
   <div class="wrap">
     <div class="section-head center">
-      <h2 id="how-title" class="reveal">Lay it down. Touch the glass.</h2>
+      <h2 id="how-title" class="reveal">A control surface for your Mac.</h2>
     </div>
     <div class="scene" id="scene" role="img" aria-label="An iPhone lying in front of a MacBook Pro. Finger dots on the phone move the Mac pointer, scroll a window, swipe between Spaces, open an app from Dock, then show Actions: the buttons for the app in front beside Pinned.">
       <div class="sc-desk"></div>
@@ -160,66 +165,12 @@
   </div>
 </section>
 
-<!-- Interactive demo -->
-<section class="demo dark" id="try" aria-labelledby="try-title">
-  <div class="wrap">
-    <div class="section-head center">
-      <h2 id="try-title" class="reveal">Try it here.</h2>
-      <p class="lede reveal" data-touch-copy="Put one, two or three fingers on the phone." data-mouse-copy="Move, click and scroll on the phone.">Move, click and scroll on the phone.</p>
-    </div>
-
-    <div class="stage">
-      <div class="phone-col">
-        <div class="iphone " data-orient="landscape" data-finish="dark" id="phone">
-          <i class="ip-btn l action"></i><i class="ip-btn l up"></i><i class="ip-btn l down"></i><i class="ip-btn r side"></i><i class="ip-btn r cam"></i>
-          <div class="ip-body"><div class="ip-bezel"></div><div class="ip-screen"><div class="phone-screen" id="surface" role="application" aria-label="Trackpad demo. Use your pointer or fingers on this surface." tabindex="0"><svg class="trails" id="trails" aria-hidden="true"></svg><div class="dots" id="dots" aria-hidden="true"></div></div></div><div class="ip-island"></div></div>
-        </div>
-      </div>
-
-      <div class="mac-col">
-        <div class="mac" id="mac" aria-hidden="true">
-          <div class="mac-bar"><span class="mac-apple"></span><span class="mac-menu"></span><span class="mac-menu short"></span></div>
-          <div class="mac-viewport">
-            <div class="spaces" id="spaces">
-              <div class="space">
-                <div class="win" id="win">
-                  <div class="win-bar"><i></i><i></i><i></i></div>
-                  <div class="win-body"><div class="doc" id="doc"></div></div>
-                </div>
-                <div class="win win-b"><div class="win-bar"><i></i><i></i><i></i></div></div>
-              </div>
-              <div class="space space-2"><div class="win win-c"><div class="win-bar"><i></i><i></i><i></i></div></div></div>
-              <div class="space space-3"><div class="win win-d"><div class="win-bar"><i></i><i></i><i></i></div></div></div>
-            </div>
-            <svg class="cursor" id="cursor" width="16" height="22" viewBox="0 0 16 22"><path d="M1 1v17l4.6-4.4 3 6.9 3-1.3-3-6.8H15Z" fill="#1A1A1A" stroke="#fff" stroke-width="1.4" stroke-linejoin="round"/></svg>
-          </div>
-          <div class="mac-dots" id="macSpaces"><i class="on"></i><i></i><i></i></div>
-        </div>
-        <div class="caption" aria-live="polite"><span class="caption-text" id="caption">Move the pointer</span></div>
-      </div>
-    </div>
-
-    <div class="gestures" role="group" aria-label="Show a gesture">
-      <button class="chip" data-g="move">Move</button>
-      <button class="chip" data-g="click">Tap to click</button>
-      <button class="chip" data-g="scroll">Two finger scroll</button>
-      <button class="chip" data-g="pinch">Pinch to zoom</button>
-      <button class="chip" data-g="spaces">Three finger swipe</button>
-      <button class="chip" data-g="mission">Mission Control</button>
-      <span class="theme-row" role="radiogroup" aria-label="Surface theme">
-        <button role="radio" aria-checked="true" data-theme="paper">Paper</button>
-        <button role="radio" aria-checked="false" data-theme="graphite">Graphite</button>
-      </span>
-    </div>
-  </div>
-</section>
-
 <!-- Modes -->
 <section class="modes" id="modes" aria-labelledby="modes-title">
   <div class="wrap">
     <div class="section-head center">
-      <h2 id="modes-title" class="reveal">More than a trackpad.</h2>
-      <p class="lede reveal">Five modes, one touch on the pill away.</p>
+      <h2 id="modes-title" class="reveal">One surface. Every control.</h2>
+      <p class="lede reveal">Six modes and two quick tools, one touch on the pill away.</p>
     </div>
   </div>
   <div class="modes-scroll" id="modesScroll">
@@ -271,12 +222,12 @@
               <div class="ax-cols">
                 <div class="ax-col">
                   <div class="ax-h" id="axHead"></div>
-                  <p class="ax-tip">The best buttons for the app in front on your Mac. They change when you switch apps.</p>
+                  <p class="ax-tip">The best buttons for the app in front. They change when you switch apps.</p>
                   <div class="ax-grid" id="axFront"></div>
                 </div>
                 <div class="ax-col">
                   <div class="ax-h"><b>Pinned</b><span class="ax-more"><i></i><i></i><i></i></span></div>
-                  <p class="ax-tip">Your favourites. Tap + to add anything; touch and hold one to change it.</p>
+                  <p class="ax-tip">Your favourites: Mac controls, macros, Shortcuts and websites.</p>
                   <div class="ax-grid" id="axPinned"></div>
                 </div>
               </div>
@@ -291,6 +242,109 @@
     </div>
     <p class="sr-only" id="axLive" aria-live="polite"></p>
 
+  </div>
+</section>
+
+<!-- Remote -->
+<section class="remote dark" id="remote" aria-labelledby="rm-title">
+  <div class="wrap">
+    <div class="section-head center">
+      <h2 id="rm-title" class="reveal">Your couch remote.</h2>
+      <p class="lede reveal">Netflix and YouTube on the big screen. Smart keys for each app, and type to search.</p>
+    </div>
+    <div class="rm-stage" id="rmStage">
+      <div class="rm-tvwrap" aria-hidden="true">
+        <div class="rm-tv" id="rmTv">
+          <div class="tv-frame"><div class="tv-screen">
+            <div class="tv-bar"><i></i><span class="tv-title">Netflix</span></div>
+            <div class="tv-hero"></div>
+            <div class="tv-row"><div class="tv-t"><span></span></div><div class="tv-t"><span></span></div><div class="tv-t"><span></span></div><div class="tv-t"><span></span></div></div>
+            <div class="tv-play"><b>Now playing</b><i></i></div>
+          </div></div>
+          <div class="tv-stand"></div>
+        </div>
+      </div>
+      <div class="rm-phone" aria-hidden="true">
+        <div class="iphone" data-orient="portrait" data-finish="dark">
+          <i class="ip-btn l action"></i><i class="ip-btn l up"></i><i class="ip-btn l down"></i><i class="ip-btn r side"></i><i class="ip-btn r cam"></i>
+          <div class="ip-body"><div class="ip-bezel"></div><div class="ip-screen"></div><div class="ip-island"></div></div>
+        </div>
+      </div>
+    </div>
+    <div class="seg"><div class="seg-in" id="rmSwitch" role="radiogroup" aria-label="Streaming app"></div></div>
+  </div>
+</section>
+
+<!-- Layouts -->
+<section class="layouts" id="layouts" aria-labelledby="lp-title">
+  <div class="wrap">
+    <div class="section-head center">
+      <h2 id="lp-title" class="reveal">Two modes at once.</h2>
+      <p class="lede reveal">Split the screen. Trackpad on one side, Actions on the other. Drag the divider, or save your own.</p>
+    </div>
+    <div class="lp-stage" id="lpStage">
+      <div class="iphone" data-orient="landscape" data-finish="light">
+        <i class="ip-btn l action"></i><i class="ip-btn l up"></i><i class="ip-btn l down"></i><i class="ip-btn r side"></i><i class="ip-btn r cam"></i>
+        <div class="ip-body"><div class="ip-bezel"></div><div class="ip-screen"></div><div class="ip-island"></div></div>
+      </div>
+    </div>
+    <div class="seg"><div class="seg-in" id="lpChips" role="radiogroup" aria-label="Layout templates"></div></div>
+    <p class="seg-cap" id="lpCap" aria-live="polite"></p>
+  </div>
+</section>
+
+<!-- Interactive demo -->
+<section class="demo dark" id="try" aria-labelledby="try-title">
+  <div class="wrap">
+    <div class="section-head center">
+      <h2 id="try-title" class="reveal">Feel the trackpad.</h2>
+      <p class="lede reveal" data-touch-copy="Put one, two or three fingers on the phone." data-mouse-copy="Move, click and scroll on the phone.">Move, click and scroll on the phone.</p>
+    </div>
+
+    <div class="stage">
+      <div class="phone-col">
+        <div class="iphone " data-orient="landscape" data-finish="dark" id="phone">
+          <i class="ip-btn l action"></i><i class="ip-btn l up"></i><i class="ip-btn l down"></i><i class="ip-btn r side"></i><i class="ip-btn r cam"></i>
+          <div class="ip-body"><div class="ip-bezel"></div><div class="ip-screen"><div class="phone-screen" id="surface" role="application" aria-label="Trackpad demo. Use your pointer or fingers on this surface." tabindex="0"><svg class="trails" id="trails" aria-hidden="true"></svg><div class="dots" id="dots" aria-hidden="true"></div></div></div><div class="ip-island"></div></div>
+        </div>
+      </div>
+
+      <div class="mac-col">
+        <div class="mac" id="mac" aria-hidden="true">
+          <div class="mac-bar"><span class="mac-apple"></span><span class="mac-menu"></span><span class="mac-menu short"></span></div>
+          <div class="mac-viewport">
+            <div class="spaces" id="spaces">
+              <div class="space">
+                <div class="win" id="win">
+                  <div class="win-bar"><i></i><i></i><i></i></div>
+                  <div class="win-body"><div class="doc" id="doc"></div></div>
+                </div>
+                <div class="win win-b"><div class="win-bar"><i></i><i></i><i></i></div></div>
+              </div>
+              <div class="space space-2"><div class="win win-c"><div class="win-bar"><i></i><i></i><i></i></div></div></div>
+              <div class="space space-3"><div class="win win-d"><div class="win-bar"><i></i><i></i><i></i></div></div></div>
+            </div>
+            <svg class="cursor" id="cursor" width="16" height="22" viewBox="0 0 16 22"><path d="M1 1v17l4.6-4.4 3 6.9 3-1.3-3-6.8H15Z" fill="#1A1A1A" stroke="#fff" stroke-width="1.4" stroke-linejoin="round"/></svg>
+          </div>
+          <div class="mac-dots" id="macSpaces"><i class="on"></i><i></i><i></i></div>
+        </div>
+        <div class="caption" aria-live="polite"><span class="caption-text" id="caption">Move the pointer</span></div>
+      </div>
+    </div>
+
+    <div class="gestures" role="group" aria-label="Show a gesture">
+      <button class="chip" data-g="move">Move</button>
+      <button class="chip" data-g="click">Tap to click</button>
+      <button class="chip" data-g="scroll">Two finger scroll</button>
+      <button class="chip" data-g="pinch">Pinch to zoom</button>
+      <button class="chip" data-g="spaces">Three finger swipe</button>
+      <button class="chip" data-g="mission">Mission Control</button>
+      <span class="theme-row" role="radiogroup" aria-label="Surface theme">
+        <button role="radio" aria-checked="true" data-theme="paper">Paper</button>
+        <button role="radio" aria-checked="false" data-theme="graphite">Graphite</button>
+        <button role="radio" aria-checked="false" data-theme="mono">Mono</button>
+      </span>
+    </div>
   </div>
 </section>
 
