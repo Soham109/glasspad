@@ -571,11 +571,11 @@ private struct PairPage: View {
 
     var body: some View {
         VStack(spacing: 22) {
-            VStack(spacing: 8) {
-                Text(PairingCopy.title)
-                    .font(.system(size: 26, weight: .bold))
-                    .accessibilityAddTraits(.isHeader)
-            }
+            Text(isPaired ? WelcomeCopy.allSet : PairingCopy.title)
+                .font(.system(size: 26, weight: .bold))
+                .contentTransition(.opacity)
+                .animation(.smooth, value: isPaired)
+                .accessibilityAddTraits(.isHeader)
             PairingPanel(qrSize: 260, onFinished: onFinished, fixedTime: fixedTime)
                 .frame(maxWidth: 420)
         }

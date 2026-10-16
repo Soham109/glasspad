@@ -59,6 +59,7 @@ enum WelcomeCopy {
     static let skip = "Skip for Now"
     static let later = "Later"
     static let done = "Done"
+    static let allSet = "You're All Set"
 }
 
 // MARK: - Permissions

@@ -23,6 +23,8 @@ struct PairingCodeView: View {
     var phase: Phase = .live
     /// The snapshot harness draws a fixed moment of the motion; the app leaves it nil.
     var fixedTime: Double?
+    /// The harness's frame export also fixes how far the gather has got.
+    var fixedGather: Double?
 
     @Environment(\.colorScheme) private var scheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -59,6 +61,7 @@ struct PairingCodeView: View {
 
     private func gather(at now: Date) -> Double {
         guard case .gathered(let since) = phase else { return 0 }
+        if let fixedGather { return fixedGather }
         if fixedTime != nil { return 1 }
         let p = now.timeIntervalSince(since) / PairingPattern.gatherDuration
         return min(1, max(0, p))
