@@ -57,7 +57,8 @@ EOF
 build() {
   local ref=$1 slug=${1//\//-}
   local src=$CACHE/src-$slug dd=$CACHE/dd-$slug
-  local sha; sha=$(git -C "$REPO" rev-parse "$ref")
+  # The cache key covers the ref and the film's demo scenes that may be copied into it.
+  local sha; sha="$(git -C "$REPO" rev-parse "$ref") $(git -C "$REPO" rev-parse "$FILM_REF:Apps/iOS/Sources/App/FilmV4.swift")"
   if [ -f "$CACHE/$slug.sha" ] && [ "$(cat "$CACHE/$slug.sha")" = "$sha" ] && [ -d "$dd/Build/Products/Debug-iphonesimulator/Glasspad.app" ]; then
     echo "$dd/Build/Products/Debug-iphonesimulator/Glasspad.app"; return
   fi
