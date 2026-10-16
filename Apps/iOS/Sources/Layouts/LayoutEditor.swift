@@ -106,7 +106,7 @@ struct LayoutEditor: View {
             EditorCanvas(layout: $layout, landscape: previewLandscape)
                 .frame(height: max(160, height))
                 .frame(maxWidth: .infinity)
-            Text("Tap a pane to change it. Drag the line to resize, or off the edge to remove a pane.")
+            Text("Tap a pane to change it. Drag the line to resize, double tap it to even out, or drag it off the edge to remove a pane.")
                 .font(.footnote)
                 .foregroundStyle(palette.inkSoftColor)
                 .multilineTextAlignment(.center)
@@ -140,7 +140,7 @@ struct LayoutEditor: View {
                         Haptics.shared.tap()
                         withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) { rotatePanes() }
                     } label: {
-                        actionLabel(layout.panes.count == 2 ? "Swap" : "Rotate", symbol: "arrow.triangle.swap")
+                        actionLabel("Swap", symbol: "arrow.triangle.swap")
                     }
                     .buttonStyle(TileStyle())
                     .accessibilityHint(layout.panes.count == 2 ? "Swaps the two panes" : "Moves each mode to the next pane")
@@ -156,14 +156,6 @@ struct LayoutEditor: View {
                     }
                     .buttonStyle(TileStyle())
                 }
-                Button {
-                    Haptics.shared.tap()
-                    withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) { layout.resetSizes() }
-                } label: {
-                    actionLabel("Even", symbol: "equal.square")
-                }
-                .buttonStyle(TileStyle())
-                .accessibilityHint("Makes the panes the same size")
             }
 
             if !isNew {
