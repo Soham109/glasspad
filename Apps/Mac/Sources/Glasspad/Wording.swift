@@ -73,6 +73,42 @@ enum PermissionCopy {
     static let openPlayerFirst = "Open Spotify or Music, then ask again. Or skip this: macOS asks the first time you use Media."
 }
 
+// MARK: - Gesture overrides
+
+/// Settings > Trackpad, "If a gesture stops working", and the Diagnostics list.
+enum GestureCopy {
+    static let sectionTitle = "If a Gesture Stops Working"
+    static let footer = "Glasspad sends gestures the way a real trackpad does. If one stops working, for example after a macOS update, choose Keyboard shortcut for it. Changes apply right away."
+
+    /// The choice as the picker shows it.
+    static func choice(_ p: GesturePreference) -> String {
+        switch p {
+        case .automatic: "Automatic"
+        case .native: "Trackpad gesture"
+        case .keyboardShortcut: "Keyboard shortcut"
+        }
+    }
+
+    /// The line under a gesture's name: what reaches the Mac now.
+    static func inUse(_ mode: SynthMode) -> String {
+        switch mode {
+        case .native: "Now sent as a trackpad gesture"
+        case .fallback: "Now sent as a keyboard shortcut"
+        case .unavailable: "Not available on this Mac"
+        }
+    }
+
+    /// Gestures that have a choice to make (both a trackpad gesture and a shortcut).
+    static var adjustable: [SynthGesture] {
+        SynthGesture.allCases.filter { GesturePreference.options(for: $0).count > 1 }
+    }
+
+    /// Diagnostics: the path in use, and whether the user picked it.
+    static func diagnostics(_ mode: SynthMode, preference: GesturePreference) -> String {
+        preference == .automatic ? mode.label : "\(mode.label), your choice"
+    }
+}
+
 // MARK: - Gestures
 
 /// Phone gestures a macro can be bound to, with the names people read.

@@ -94,7 +94,7 @@ public final class GlasspadServer: @unchecked Sendable {
     private var listenerFailure: String?
     /// Pauses before replacing a failed listener; the last one repeats. Internal for tests.
     var listenerBackoff: [TimeInterval] = [0.5, 1, 2, 5, 10]
-    /// Last authenticated TCP frame or touch datagram from the active phone.
+    /// Last authenticated TCP frame, touch datagram or partial frame from the active phone.
     private var lastHeard: TimeInterval = 0
     /// The active session is closed after this long without hearing from the phone (it answers
     /// a ping every second, so this is several missed pongs). Internal so tests can shorten it.
@@ -352,6 +352,13 @@ public final class GlasspadServer: @unchecked Sendable {
         s.channel.onClosed = { [weak self, weak s] reason in
             guard let s else { return }
             self?.closed(s, reason: reason)
+        }
+        // Bytes of a large message still on its way (a clipboard image pushed over slow Wi-Fi)
+        // count as hearing the phone, but only on the active, authenticated session: its pongs
+        // are queued behind that message.
+        s.channel.onBytes = { [weak self, weak s] in
+            guard let self, let s, s === self.active else { return }
+            self.lastHeard = uptime()
         }
         s.channel.start()
         queue.asyncAfter(deadline: .now() + handshakeTimeout) { [weak s] in

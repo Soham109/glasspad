@@ -103,7 +103,7 @@ extension AppModel {
 }
 
 extension SynthMode {
-    /// Advanced > Gestures: how each gesture reaches the Mac.
+    /// Advanced > Diagnostics: how each gesture reaches the Mac.
     var label: String {
         switch self {
         case .native: "Trackpad gesture"

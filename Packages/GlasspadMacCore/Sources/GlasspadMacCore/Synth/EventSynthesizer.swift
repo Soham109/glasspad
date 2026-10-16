@@ -333,6 +333,17 @@ public final class EventSynthesizer {
 
     /// Releases any held buttons and ends an open dock swipe (call on disconnect so nothing
     /// stays stuck down).
+    /// Switches gesture paths while running (Settings > Trackpad, "If a gesture stops
+    /// working"). A native Dock swipe in progress whose gesture leaves the native path is
+    /// cancelled first, through the native path, so the Dock is never left mid-transition.
+    public func updateCapabilities(_ new: SynthCapabilities) {
+        if let d = dock, new.mode(for: d.kind.synthGesture) != .native {
+            nativeDockSwipe(d.kind, progress: 0, phase: .cancelled)
+            dock = nil
+        }
+        capabilities = new
+    }
+
     public func reset() {
         for raw in buttonsDown {
             let b: MouseButton = raw == Int(CGMouseButton.left.rawValue) ? .left : (raw == Int(CGMouseButton.right.rawValue) ? .right : .middle)

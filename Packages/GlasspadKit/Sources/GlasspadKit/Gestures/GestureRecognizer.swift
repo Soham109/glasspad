@@ -240,9 +240,9 @@ public final class GestureRecognizer {
             isStalled = false
             for tch in frame.touches where touches[tch.id] != nil {
                 let p = V(tch.x, tch.y)
-                touches[tch.id]!.cur = p
-                touches[tch.id]!.restRef = p
-                touches[tch.id]!.restRefTime = t
+                touches[tch.id]?.cur = p
+                touches[tch.id]?.restRef = p
+                touches[tch.id]?.restRefTime = t
             }
             speedHistory = []
             lastSpeedSampleTime = nil

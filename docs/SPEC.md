@@ -166,7 +166,10 @@ public var heartbeatsEnabled: Bool                // true while the trackpad scr
 - Liveness: the client reconnects at once after `clientSilenceTimeout` (3.5 s) with no frame from
   the Mac, on an `NWPathMonitor` change (interface gone, another Wi-Fi network, back from no
   network), and on `client.reconnectNow()` (call it on foreground). The Mac closes a session after
-  `serverSilenceTimeout` (6 s) without hearing from the phone.
+  `serverSilenceTimeout` (6 s) without hearing from the phone. Any bytes from the peer count, including part of a frame
+  still arriving (`ControlChannel.onBytes`; on the Mac only for the active, authenticated
+  session), so a large clipboard message on slow Wi-Fi keeps the link up while the pings queue
+  behind it (`ConnectivityTests.slowLargeMessage*`, through a throttling loopback proxy).
 - Wake-on-LAN: after each handshake the Mac sends a sealed, transport-internal
   `{"t":"wake","target":WakeTarget}` (hardware address, subnet broadcast, last IPv4) worked out
   from the interface the phone connected on (`server.wakeTargetOverride` replaces it). The client
@@ -251,6 +254,10 @@ As built (GlasspadKit):
   `clipboardContent(ClipboardContent?)`, `presentNext`, `presentPrevious`,
   `presentLaser(on:)`, `presentLaserPosition(x:y:)` (0...1 of the main display),
   `macro(MacroMessage)` (docs/SPEC-macros.md section 6, plus `recordingFailed(message:)`).
+  Clipboard answers (Oct 2026, additive): `clipboardPushResult(ok:message:)` answers every
+  `clipboardPush`, and `clipboardPullRefused(message:)` comes just before `clipboardContent(nil)`
+  when the Mac will not send what it has. Text over `ClipboardContent.maxTextBytes` (2 MB,
+  UTF-8) is refused whole, never cut. The phone shows "Sent" only after `ok: true`.
   `GlasspadMode.macros` exists for `modeSelected(.macros)`, which makes the Mac send `macroList`.
 - `ControlMessage.macStatus(MacStatus)` (Oct 2026, additive), Mac -> phone, JSON
   `{"t":"macStatus","status":{"accessibilityTrusted":false,"automationMedia":"notDetermined","macName":"Soham's MacBook Pro"}}`.
@@ -526,7 +533,9 @@ As built (Oct 2026 UX pass):
 - The Mac uses the phone's words: Trackpad, Keyboard, Media, Dock, Actions (Pinned, Library),
   Macros. Settings > Macros has "All Macros" and "For Each App" (the sets behind "For <app>" in
   Macros on the iPhone). The macro editor shows gestures, keys and apps by name, never as
-  identifiers. Advanced keeps round trip and packet counts under a Diagnostics disclosure.
+  identifiers. Advanced keeps round trip and packet counts under a Diagnostics disclosure, with the last
+  clipboard refusal and the path each gesture uses now. Trackpad has "If a Gesture Stops Working":
+  Automatic, Trackpad gesture or Keyboard shortcut per gesture, applied at once.
 
 ## 11. Definition of done
 

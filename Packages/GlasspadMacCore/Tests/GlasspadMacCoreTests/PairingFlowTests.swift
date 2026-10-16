@@ -133,4 +133,36 @@ struct PairingFlowTests {
         #expect(!c.accessibilityTrusted)
         #expect(c.macStatus == MacStatus(accessibilityTrusted: false, automationMedia: c.automation, macName: "Test Mac"))
     }
+
+    /// Reliability H5: a gesture choice in Settings applies at once (no restart), is saved, and
+    /// a new launch starts with it. Uses its own preferences suite, never the app's.
+    @MainActor @Test func gestureChoicesApplyLiveAndPersist() throws {
+        let suite = "glasspad-tests-\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let c = GlasspadController(pairing: PairingStore(store: InMemorySecretStore()), macName: "Test Mac",
+                                   accessibilityCheck: { false }, preferences: defaults)
+        #expect(c.capabilities.mode(for: .spaces) == c.detectedMode(for: .spaces))
+        #expect(c.gesturePreferences == GesturePreferences())
+
+        c.setGesturePreference(.keyboardShortcut, for: .spaces)
+        #expect(c.capabilities.mode(for: .spaces) == .fallback)
+        #expect(c.synthCapabilities.mode(for: .spaces) == .fallback)
+        #expect(GesturePreferences.load(from: defaults).preference(for: .spaces) == .keyboardShortcut)
+
+        c.setGesturePreference(.native, for: .spaces)
+        #expect(c.synthCapabilities.mode(for: .spaces) == .native)
+
+        // Rotate has no shortcut: the choice is stored as Automatic and nothing changes.
+        c.setGesturePreference(.keyboardShortcut, for: .rotate)
+        #expect(c.gesturePreferences.preference(for: .rotate) == .automatic)
+
+        let next = GlasspadController(pairing: PairingStore(store: InMemorySecretStore()), macName: "Test Mac",
+                                      accessibilityCheck: { false }, preferences: defaults)
+        #expect(next.capabilities.mode(for: .spaces) == .native)
+
+        c.setGesturePreference(.automatic, for: .spaces)
+        #expect(c.synthCapabilities.mode(for: .spaces) == c.detectedMode(for: .spaces))
+        #expect(defaults.object(forKey: GesturePreferences.defaultsKey) == nil)
+    }
 }

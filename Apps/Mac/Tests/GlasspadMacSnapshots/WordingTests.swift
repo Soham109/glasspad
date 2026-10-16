@@ -20,6 +20,15 @@ final class WordingTests: XCTestCase {
         }
     }
 
+    /// Trackpad > If a Gesture Stops Working: plain words, and only gestures with a real choice.
+    func testGestureOverrideWords() {
+        XCTAssertEqual(GestureCopy.adjustable, [.magnify, .navigate, .spaces, .missionControl, .appExpose, .launchpad, .showDesktop])
+        XCTAssertEqual(GesturePreference.allCases.map(GestureCopy.choice), ["Automatic", "Trackpad gesture", "Keyboard shortcut"])
+        XCTAssertEqual(GestureCopy.diagnostics(.fallback, preference: .keyboardShortcut), "Keyboard shortcut, your choice")
+        XCTAssertEqual(GestureCopy.diagnostics(.native, preference: .automatic), "Trackpad gesture")
+        XCTAssertFalse(GestureCopy.footer.contains("native") || GestureCopy.footer.contains("private"))
+    }
+
     func testKeyCaptions() {
         XCTAssertEqual(KeyCaption.caption(KeyCombo(.special(.space), [.command])), "⌘ Space")
         XCTAssertEqual(KeyCaption.caption(KeyCombo("t", [.command, .shift])), "⇧⌘ T")

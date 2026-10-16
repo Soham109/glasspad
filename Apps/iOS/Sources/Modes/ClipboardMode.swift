@@ -11,7 +11,7 @@ struct ClipboardMode: View {
     var embedded = false
     private let accent = AppMode.clipboard.accent(.paper)
 
-    @State private var sentNote: String?
+    /// Reading the pasted items (the Mac's answer is `session.clipboardPush`).
     @State private var sending = false
     /// Checking for content does not read it, so iOS shows no paste prompt.
     @State private var pasteboardHasContent = UIPasteboard.general.hasStrings || UIPasteboard.general.hasImages || UIPasteboard.general.hasURLs
@@ -46,22 +46,37 @@ struct ClipboardMode: View {
                 .labelStyle(.titleAndIcon)
                 .buttonBorderShape(.capsule)
                 .tint(accent)
-                .disabled(sending)
+                .disabled(sending || isWaiting)
                 Spacer()
-                if sending { ProgressView() }
+                if sending || isWaiting { ProgressView() }
             }
-            if !pasteboardHasContent && sentNote == nil {
+            if !pasteboardHasContent && session.clipboardPush == nil {
                 Text("Copy something on this iPhone first, then tap Paste.")
                     .font(.footnote)
                     .foregroundStyle(palette.inkSoftColor)
             }
-            if let sentNote {
-                Label(sentNote, systemImage: "checkmark.circle.fill")
+            switch session.clipboardPush {
+            case .waiting?:
+                Text("Sending to your Mac…")
+                    .font(.footnote)
+                    .foregroundStyle(palette.inkSoftColor)
+            case .accepted(let note)?:
+                Label(note, systemImage: "checkmark.circle.fill")
                     .font(.footnote)
                     .foregroundStyle(accent)
                     .transition(.opacity)
+            case .refused(let reason)?:
+                ClipboardProblem(title: "Not sent", message: reason)
+                    .transition(.opacity)
+            case nil:
+                EmptyView()
             }
         }
+        .animation(.snappy, value: session.clipboardPush)
+    }
+
+    private var isWaiting: Bool {
+        if case .waiting = session.clipboardPush { true } else { false }
     }
 
     private func refreshPasteboard() {
@@ -73,18 +88,11 @@ struct ClipboardMode: View {
         sending = true
         defer { sending = false }
         guard let content = await ClipboardReader.content(from: providers) else {
-            sentNote = nil
-            Haptics.shared.play(.error)
+            session.clipboardPushFailed("Glasspad could not read what was copied, or the image is too large to send. Copy text or a smaller image, then tap Paste again.")
             return
         }
-        session.send(.clipboardPush(content))
-        Haptics.shared.play(.snap)
-        withAnimation {
-            switch content {
-            case .text(let t): sentNote = "Sent \(t.count) characters"
-            case .imagePNG: sentNote = "Sent an image"
-            }
-        }
+        // "Sent" appears only once the Mac says it took it.
+        session.pushClipboard(content)
     }
 
     // MARK: From Mac
@@ -118,16 +126,23 @@ private struct PulledPreview: View {
     @Environment(\.palette) private var palette
     let pulled: PulledClipboard
     let accent: Color
+    static let previewCharacters = 4000
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             switch pulled.content {
             case .none:
-                Text("The Mac clipboard has no text or image.")
-                    .font(.subheadline)
-                    .foregroundStyle(palette.inkSoftColor)
+                if let problem = pulled.problem {
+                    ClipboardProblem(title: "Not copied", message: problem)
+                } else {
+                    Text("The Mac clipboard has no text or image.")
+                        .font(.subheadline)
+                        .foregroundStyle(palette.inkSoftColor)
+                }
             case .text(let text):
-                Text(text)
+                // A few thousand characters are plenty to recognise it; laying out megabytes of
+                // text in one Text view freezes the screen. The whole text is on the clipboard.
+                Text(text.count > Self.previewCharacters ? String(text.prefix(Self.previewCharacters)) + "…" : text)
                     .font(.body)
                     .foregroundStyle(palette.inkColor)
                     .lineLimit(8)
@@ -162,10 +177,44 @@ private struct PulledPreview: View {
     }
 }
 
-/// What the Mac sent back, with a timestamp so the same text twice still animates.
+/// What the Mac sent back, with an id so the same text twice still animates.
 struct PulledClipboard: Equatable {
     let id = UUID()
     let content: ClipboardContent?
+    /// Why nothing came, in the Mac's words (or "did not answer"); nil for an empty clipboard.
+    var problem: String? = nil
+}
+
+/// A send to the Mac clipboard, from tapping Paste to the Mac's answer.
+enum ClipboardPushStatus: Equatable {
+    /// Sent; the Mac has not answered yet. `whenDone` is shown once it says it took it.
+    case waiting(whenDone: String)
+    case accepted(String)
+    /// The Mac's reason, or the phone's when it never got there.
+    case refused(String)
+
+    static let noConfirmation = "Your Mac did not confirm it got this. Check the Mac clipboard. If Glasspad on your Mac is an older version, update it so this iPhone can tell."
+    static let noAnswer = "Your Mac did not answer. Try again."
+}
+
+/// A refusal or failure, in words, with a warning sign.
+private struct ClipboardProblem: View {
+    @Environment(\.palette) private var palette
+    let title: String
+    let message: String
+
+    var body: some View {
+        Label {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title).font(.footnote.weight(.semibold)).foregroundStyle(palette.inkColor)
+                Text(message).font(.footnote).foregroundStyle(palette.inkSoftColor)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        } icon: {
+            Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+        }
+        .accessibilityElement(children: .combine)
+    }
 }
 
 /// Reads pasted items into a `ClipboardContent`. Large photos are scaled down so a 48 MP

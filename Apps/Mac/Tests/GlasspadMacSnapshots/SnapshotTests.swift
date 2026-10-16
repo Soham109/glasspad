@@ -133,6 +133,12 @@ final class SnapshotTests: XCTestCase {
         model.settings.tuning = TrackpadTuning(pointerSpeed: 1.5, acceleration: .mac, scrollSpeed: 1,
                                                momentumStrength: 0.75, clickHaptic: 1, forceClickHaptic: 0.6,
                                                dragLockHaptic: 0)
+        // One gesture moved to its shortcut by the user, and a refused clipboard pull.
+        var prefs = GesturePreferences()
+        prefs.set(.keyboardShortcut, for: .spaces)
+        model.gesturePreferences = prefs
+        model.capabilities = model.capabilities.applying(prefs)
+        model.clipboardRefusal = ClipboardLimits.tooLargeMessage(bytes: 5 << 20)
 
         for tab in SettingsTab.allCases where tab != .macros && tab != .about {
             try shoot(tab.pane, model: model, size: tab.size, name: "settings-\(tab.rawValue)", chrome: .window)
@@ -140,7 +146,7 @@ final class SnapshotTests: XCTestCase {
         try shoot(AboutPane(icon: Fixtures.appIcon, version: "Version 0.1.0 (1)"), model: model, size: SettingsTab.about.size,
                   name: "settings-about", chrome: .window)
         // Whole forms, for review: the real panes scroll.
-        try shoot(TrackpadPane(), model: model, size: CGSize(width: 520, height: 1000), name: "full-trackpad", chrome: .window)
+        try shoot(TrackpadPane(), model: model, size: CGSize(width: 520, height: 1500), name: "full-trackpad", chrome: .window)
         try shoot(AdvancedPane(diagnosticsExpanded: true), model: model, size: CGSize(width: 520, height: 1500),
                   name: "full-advanced", chrome: .window)
         try shoot(MacrosSettings(page: .macros), model: model, size: SettingsTab.macros.size,

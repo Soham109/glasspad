@@ -210,6 +210,27 @@ public enum ClipboardContent: Codable, Equatable, Sendable {
     /// Largest image that fits in one control message: JSON carries it as base64 (4/3 the
     /// size), and the whole frame must stay under `GlasspadService.maxFrameLength`.
     public static let maxImageBytes = 11 << 20
+
+    /// Largest text either side sends in one message, in UTF-8 bytes (about 2 million
+    /// characters of English). Over it the sender refuses with `tooLargeMessage` instead of
+    /// cutting the text: a cut paste is worse than none.
+    public static let maxTextBytes = 2 << 20
+
+    /// Size in bytes as it counts against the limits (UTF-8 for text).
+    public var byteCount: Int {
+        switch self {
+        case .text(let s): s.utf8.count
+        case .imagePNG(let d): d.count
+        }
+    }
+
+    /// Text over `maxTextBytes`, said in words for the user. `holder` is "The Mac clipboard",
+    /// "This text" and so on.
+    public static func tooLargeMessage(bytes: Int, holder: String) -> String {
+        let mb = Double(bytes) / Double(1 << 20)
+        return String(format: "%@ is %.1f MB of text, more than the %d MB Glasspad sends at once. Copy a smaller part.",
+                      locale: Locale(identifier: "en_US_POSIX"), holder, mb, maxTextBytes >> 20)
+    }
 }
 
 /// Messages for the extra modes, carried inside `ControlMessage.mode`.
@@ -302,6 +323,14 @@ public enum ModeMessage: Codable, Equatable, Sendable {
     case clipboardPull
     /// Mac -> phone: answer to `clipboardPull`; nil when the pasteboard has no text or image.
     case clipboardContent(ClipboardContent?)
+    /// Mac -> phone: answer to `clipboardPush`. `ok` is true once the content is on the Mac
+    /// pasteboard; otherwise `message` says why not, in words for the user. Macs from before
+    /// this message never send it.
+    case clipboardPushResult(ok: Bool, message: String?)
+    /// Mac -> phone: the Mac pasteboard has something but the Mac will not send it (text over
+    /// `ClipboardContent.maxTextBytes`), with the reason in words for the user. Sent just before
+    /// `clipboardContent(nil)`, which is all an older phone understands.
+    case clipboardPullRefused(message: String)
 
     // Present
     /// Phone -> Mac: next slide (right arrow).

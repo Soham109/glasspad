@@ -389,6 +389,33 @@ func int(_ e: CGEvent, _ f: CGEventField) -> Int64 { e.getIntegerValueField(f) }
         #expect(defaults.object(forKey: GesturePreferences.defaultsKey) == nil)
     }
 
+    /// Reliability H5: a change in Settings applies to the running synthesizer. A native Spaces
+    /// swipe in progress is cancelled through the native path first (the Dock is never left
+    /// mid-transition), and the rest of the swipe uses the keyboard shortcut.
+    @Test func switchingAGestureMidSwipeEndsTheNativeSwipeFirst() throws {
+        let (s, p) = makeSynth()
+        s.handle([.swipe(.spaces, progress: 0.1, phase: .began),
+                  .swipe(.spaces, progress: 0.4, phase: .changed)])
+        let before = p.posted.count
+        var prefs = GesturePreferences()
+        prefs.set(.keyboardShortcut, for: .spaces)
+        s.updateCapabilities(SynthCapabilities.select(probe: { _ in true }).applying(prefs))
+        let cancel = p.posted.dropFirst(before).filter { $0.delay == 0 }.map(\.event)
+        #expect(cancel.count == 2)
+        #expect(cancel.last?.type.rawValue == 30)
+        #expect(cancel.last?.get(.gesturePhase) == HIDPhase.cancelled.rawValue)
+        #expect(s.capabilities.mode(for: .spaces) == .fallback)
+        let afterCancel = p.posted.count
+        s.handle(.swipe(.spaces, progress: 0.8, phase: .ended))
+        let rest = p.posted.dropFirst(afterCancel).map(\.event)
+        #expect(rest.contains { $0.type == .keyDown })
+        #expect(!rest.contains { $0.type.rawValue == 30 })
+        // Nothing in flight: switching back posts nothing.
+        let quiet = p.posted.count
+        s.updateCapabilities(SynthCapabilities.select(probe: { _ in true }))
+        #expect(p.posted.count == quiet)
+    }
+
     /// The self-check now also needs every phase to build and, for type-29 gesture events, the
     /// private fields to survive serialisation (never posted).
     @Test func selfCheckFailsWhenFieldsDoNotSurviveSerialisation() {

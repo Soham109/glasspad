@@ -74,6 +74,12 @@ final class MacSession {
     private(set) var deckFailure: DeckFailure?
     private(set) var clipboardPulled: PulledClipboard?
     private(set) var clipboardPullPending = false
+    /// The last send to the Mac clipboard and what the Mac said about it.
+    private(set) var clipboardPush: ClipboardPushStatus?
+    @ObservationIgnored private var clipboardPushGeneration = 0
+    @ObservationIgnored private var clipboardPullGeneration = 0
+    /// The Mac explained a refused pull; the plain nil it sends next (for older phones) is skipped.
+    @ObservationIgnored private var clipboardSkipNextEmpty = false
 
     private(set) var macroProfile: ActiveProfileInfo?
     private(set) var allMacros: [MacroSummary]?
@@ -333,11 +339,62 @@ final class MacSession {
 
     func pullClipboard() {
         clipboardPullPending = true
+        clipboardSkipNextEmpty = false
+        clipboardPullGeneration += 1
+        let generation = clipboardPullGeneration
         send(.clipboardPull)
+        // A large image takes a few seconds on slow Wi-Fi; past this the Mac is not answering.
         Task { @MainActor in
-            try? await Task.sleep(for: .seconds(8))
+            try? await Task.sleep(for: .seconds(15))
+            guard self.clipboardPullGeneration == generation, self.clipboardPullPending else { return }
             self.clipboardPullPending = false
+            self.clipboardPulled = PulledClipboard(content: nil, problem: ClipboardPushStatus.noAnswer)
         }
+    }
+
+    /// Sends content to the Mac clipboard. It shows as sent only once the Mac says it took it
+    /// (`clipboardPushResult`); a refusal shows the Mac's reason.
+    func pushClipboard(_ content: ClipboardContent) {
+        if case .text(let text) = content, content.byteCount > ClipboardContent.maxTextBytes {
+            clipboardPush = .refused(ClipboardContent.tooLargeMessage(bytes: text.utf8.count, holder: "This text"))
+            Haptics.shared.play(.error)
+            return
+        }
+        guard isConnected else {
+            clipboardPush = .refused("Not connected to your Mac. Connect, then tap Paste again.")
+            Haptics.shared.play(.error)
+            return
+        }
+        clipboardPushGeneration += 1
+        let generation = clipboardPushGeneration
+        let done: String
+        switch content {
+        case .text(let t): done = "Sent \(t.count) characters"
+        case .imagePNG: done = "Sent an image"
+        }
+        clipboardPush = .waiting(whenDone: done)
+        send(.clipboardPush(content))
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(20))
+            guard self.clipboardPushGeneration == generation, case .waiting = self.clipboardPush else { return }
+            self.clipboardPush = .refused(ClipboardPushStatus.noConfirmation)
+        }
+    }
+
+    /// `pushClipboard`, then waits for the Mac's answer (Shortcuts uses it). Still `.waiting`
+    /// when the Mac did not answer within `timeout`.
+    func pushClipboardConfirmed(_ content: ClipboardContent, timeout: TimeInterval = 10) async -> ClipboardPushStatus? {
+        pushClipboard(content)
+        let end = Date().addingTimeInterval(timeout)
+        while case .waiting = clipboardPush, Date() < end { try? await Task.sleep(for: .milliseconds(50)) }
+        return clipboardPush
+    }
+
+    /// A problem found on the phone before anything was sent (nothing readable was pasted).
+    func clipboardPushFailed(_ message: String) {
+        clipboardPushGeneration += 1
+        clipboardPush = .refused(message)
+        Haptics.shared.play(.error)
     }
 
     func laser(at point: CGPoint) {
@@ -387,6 +444,10 @@ final class MacSession {
 
     fileprivate func linkStateChanged(_ new: LinkState) {
         setState(new)
+        if !new.isConnectedState, case .waiting = clipboardPush {
+            // The answer cannot come any more; never leave it looking sent.
+            clipboardPush = .refused("The connection dropped before your Mac confirmed it. Try again.")
+        }
         if case .connected = new {
             connectedAt = Date()
             // The connector marked this Mac as last used; show it.
@@ -499,7 +560,21 @@ final class MacSession {
                 try? await Task.sleep(for: .seconds(1.6))
                 if self.deckOutcomes[id] == outcome { self.deckOutcomes[id] = nil }
             }
+        case .clipboardPushResult(let ok, let message):
+            guard case .waiting(let done) = clipboardPush else { return }
+            clipboardPush = ok ? .accepted(done) : .refused(message ?? "Your Mac did not take it.")
+            Haptics.shared.play(ok ? .snap : .error)
+        case .clipboardPullRefused(let message):
+            clipboardPullPending = false
+            clipboardSkipNextEmpty = true
+            clipboardPulled = PulledClipboard(content: nil, problem: message)
+            Haptics.shared.play(.error)
         case .clipboardContent(let content):
+            if clipboardSkipNextEmpty, content == nil {
+                clipboardSkipNextEmpty = false
+                return
+            }
+            clipboardSkipNextEmpty = false
             clipboardPullPending = false
             clipboardPulled = PulledClipboard(content: content)
             switch content {
@@ -661,6 +736,7 @@ final class MacSession {
         deckOutcomes = [:]
         deckPending = []
         clipboardPulled = nil
+        clipboardPush = nil
         macroProfile = nil
         allMacros = nil
         macroRunning = nil

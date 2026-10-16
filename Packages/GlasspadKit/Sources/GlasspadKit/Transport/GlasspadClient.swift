@@ -377,6 +377,8 @@ public final class GlasspadClient: @unchecked Sendable {
             self?.sendHello()
         }
         ch.onFrame = { [weak self] data in self?.handleFrame(data) }
+        // Part of a large message (a clipboard image on slow Wi-Fi) counts as hearing the Mac.
+        ch.onBytes = { [weak self] in self?.lastReceived = uptime() }
         ch.onClosed = { [weak self, weak ch] reason in
             guard let self else { return }
             if !opened, gen == self.generation {

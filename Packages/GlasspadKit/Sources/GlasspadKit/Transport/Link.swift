@@ -174,6 +174,11 @@ final class ControlChannel: @unchecked Sendable {
     private let queue: DispatchQueue
     var onReady: (() -> Void)?
     var onFrame: ((Data) -> Void)?
+    /// Any bytes arrived from the peer, including part of a frame that is not complete yet.
+    /// Liveness checks use it: a large message (a clipboard image) can take longer than the
+    /// silence timeout to arrive on slow Wi-Fi, and the pings queued behind it arrive only
+    /// after it, so counting whole frames alone dropped a link that was busy, not dead.
+    var onBytes: (() -> Void)?
     var onClosed: ((String?) -> Void)?
     private var acc = FrameAccumulator()
     private(set) var closed = false
@@ -211,6 +216,7 @@ final class ControlChannel: @unchecked Sendable {
         connection.receive(minimumIncompleteLength: 1, maximumLength: 1 << 16) { [weak self] data, _, isComplete, error in
             guard let self, !self.closed else { return }
             if let data, !data.isEmpty {
+                self.onBytes?()
                 do {
                     self.acc.push(data)
                     while let f = try self.acc.next(limit: self.maxIncomingFrame) {
@@ -247,6 +253,7 @@ final class ControlChannel: @unchecked Sendable {
     func sendThenClose(_ payload: Data, reason: String) {
         guard !closed else { return }
         onFrame = nil
+        onBytes = nil
         // Strong captures on purpose: the owner may already have dropped this channel.
         connection.send(content: FrameAccumulator.wrap(payload), completion: .contentProcessed { _ in
             self.close(reason)
@@ -261,6 +268,7 @@ final class ControlChannel: @unchecked Sendable {
         let cb = onClosed
         onClosed = nil
         onFrame = nil
+        onBytes = nil
         onReady = nil
         cb?(reason)
     }

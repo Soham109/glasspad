@@ -255,7 +255,8 @@ final class LoggingPoster: EventPoster {
         defer { pb.releaseGlobally() }
         let clip = ClipboardMode(pasteboard: pb)
         let huge = String(repeating: "x", count: ClipboardLimits.maxTextBytes + 1)
-        clip.push(.text(huge))
+        pb.clearContents()
+        pb.setString(huge, forType: .string)
         #expect(await clip.pullResult() == .tooLarge(bytes: huge.utf8.count))
         #expect(await clip.pull() == nil)
         #expect(clip.lastRefusal?.contains("MB") == true)
@@ -266,6 +267,57 @@ final class LoggingPoster: EventPoster {
         // Counted in UTF-8 bytes: multi-byte text hits the cap with fewer characters.
         #expect(ClipboardMode.checkText(String(repeating: "é", count: ClipboardLimits.maxTextBytes / 2 + 1))
                 == .tooLarge(bytes: ClipboardLimits.maxTextBytes + 2))
+    }
+
+    /// The phone used to say "Sent" whatever happened. A push over the limits, or an image the
+    /// Mac cannot read, is refused with a reason and leaves the pasteboard as it was.
+    @Test func pushesOverTheLimitsAreRefusedAndThePasteboardKept() {
+        let pb = NSPasteboard(name: NSPasteboard.Name("glasspad-test-\(UUID().uuidString)"))
+        defer { pb.releaseGlobally() }
+        let clip = ClipboardMode(pasteboard: pb)
+        var changes: [String?] = []
+        clip.onRefusalChange = { changes.append($0) }
+        #expect(clip.push(.text("keep me")) == nil)
+        let huge = String(repeating: "x", count: ClipboardContent.maxTextBytes + 1)
+        let refusal = clip.push(.text(huge))
+        #expect(refusal?.hasPrefix("This text is 2.0 MB") == true)
+        #expect(clip.lastRefusal == refusal)
+        #expect(pb.string(forType: .string) == "keep me")
+        #expect(clip.push(.imagePNG(Data("not an image".utf8))) == ClipboardLimits.unreadableImage)
+        #expect(clip.push(.imagePNG(Data(count: ClipboardContent.maxImageBytes + 1)))?.contains("MB") == true)
+        #expect(pb.string(forType: .string) == "keep me")
+        #expect(clip.push(.text("fine")) == nil)
+        #expect(clip.lastRefusal == nil)
+        #expect(changes.count == 4 && changes.last == .some(nil))
+    }
+
+    /// The router answers every push, and a refused pull says why before the plain nil.
+    @Test func routerAnswersPushesAndExplainsRefusedPulls() async {
+        let pb = NSPasteboard(name: NSPasteboard.Name("glasspad-test-\(UUID().uuidString)"))
+        defer { pb.releaseGlobally() }
+        let poster = CapturingEventPoster()
+        let keys = KeysMode(poster: poster, source: nil)
+        let r = ModeRouter(keys: keys, dock: DockMode(workspace: FakeWorkspace(), cacheDirectory: nil),
+                           media: MediaMode(poster: poster), deck: DeckMode(env: FakeDeckEnvironment(), url: tempURL("deck.json")),
+                           clipboard: ClipboardMode(pasteboard: pb), present: PresentMode(keys: keys),
+                           macDock: FakeDockHider.make().hider)
+        r.disconnectGrace = 0
+        var sent: [ModeMessage] = []
+        r.send = { sent.append($0) }
+        r.handle(.clipboardPush(.text("hello")))
+        #expect(sent.contains(.clipboardPushResult(ok: true, message: nil)))
+        r.handle(.clipboardPush(.imagePNG(Data("junk".utf8))))
+        #expect(sent.contains(.clipboardPushResult(ok: false, message: ClipboardLimits.unreadableImage)))
+        pb.clearContents()
+        pb.setString(String(repeating: "x", count: ClipboardContent.maxTextBytes + 1), forType: .string)
+        sent = []
+        r.handle(.clipboardPull)
+        for _ in 0..<200 where !sent.contains(.clipboardContent(nil)) { try? await Task.sleep(for: .milliseconds(10)) }
+        #expect(sent.contains(.clipboardContent(nil)))
+        guard sent.count == 2, case .clipboardPullRefused(let message) = sent[0] else {
+            Issue.record("expected the refusal before the nil, got \(sent)"); return
+        }
+        #expect(message.hasPrefix("The Mac clipboard is"))
     }
 }
 

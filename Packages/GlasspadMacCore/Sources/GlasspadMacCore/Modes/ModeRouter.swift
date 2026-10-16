@@ -136,12 +136,20 @@ public final class ModeRouter {
                 let catalog = await self.deck.catalog()
                 self.send(.deckCatalog(catalog))
             }
-        case .clipboardPush(let c): clipboard.push(c)
+        case .clipboardPush(let c):
+            let refusal = clipboard.push(c)
+            send(.clipboardPushResult(ok: refusal == nil, message: refusal))
         case .clipboardPull:
             Task { [weak self] in
                 guard let self else { return }
-                let content = await self.clipboard.pull()
-                self.send(.clipboardContent(content))
+                switch await self.clipboard.pullResult() {
+                case .content(let content): self.send(.clipboardContent(content))
+                case .empty: self.send(.clipboardContent(nil))
+                case .tooLarge, .imageNotSendable:
+                    // The reason first; the nil after it is all an older phone understands.
+                    if let reason = self.clipboard.lastRefusal { self.send(.clipboardPullRefused(message: reason)) }
+                    self.send(.clipboardContent(nil))
+                }
             }
         case .presentNext: present.next()
         case .presentPrevious: present.previous()
@@ -149,7 +157,8 @@ public final class ModeRouter {
         case .presentLaserPosition(let x, let y): present.moveLaser(x: x, y: y)
         case .macro(let m): macros?.handle(m)
         // Mac -> phone messages: ignore if echoed back.
-        case .dockList, .mediaState, .deckButtons, .deckResult, .clipboardContent, .dockOpenResult, .dockCatalog,
+        case .dockList, .mediaState, .deckButtons, .deckResult, .clipboardContent, .dockOpenResult,
+             .clipboardPushResult, .clipboardPullRefused, .dockCatalog,
              .dockIcons, .frontmostApp, .macDockState, .deckLayout, .deckSaveResult, .deckCatalog, .deckImage:
             break
         }

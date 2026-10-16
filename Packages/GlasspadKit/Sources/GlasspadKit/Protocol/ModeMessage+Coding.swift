@@ -89,6 +89,9 @@ extension ModeMessage {
         case "clipboardPush": self = .clipboardPush(try f.value(ClipboardContent.self, "content", unlabeled: true))
         case "clipboardPull": self = .clipboardPull
         case "clipboardContent": self = .clipboardContent(try f.optional(ClipboardContent.self, "content", unlabeled: true))
+        case "clipboardPushResult":
+            self = .clipboardPushResult(ok: try f.value(Bool.self, "ok"), message: try f.optional(String.self, "message"))
+        case "clipboardPullRefused": self = .clipboardPullRefused(message: try f.value(String.self, "message"))
         case "presentNext": self = .presentNext
         case "presentPrevious": self = .presentPrevious
         case "presentLaser": self = .presentLaser(on: try f.value(Bool.self, "on"))
@@ -145,6 +148,10 @@ extension ModeMessage {
             try c.encodeIfPresent(message, forKey: AnyCodingKey("message"))
         case .clipboardPush(let content): try put(content, "content")
         case .clipboardContent(let content): try c.encodeIfPresent(content, forKey: AnyCodingKey("content"))
+        case .clipboardPushResult(let ok, let message):
+            try put(ok, "ok")
+            try c.encodeIfPresent(message, forKey: AnyCodingKey("message"))
+        case .clipboardPullRefused(let message): try put(message, "message")
         case .presentLaser(let on): try put(on, "on")
         case .presentLaserPosition(let x, let y):
             try put(x, "x")
@@ -195,6 +202,8 @@ extension ModeMessage {
         case .clipboardPush: "clipboardPush"
         case .clipboardPull: "clipboardPull"
         case .clipboardContent: "clipboardContent"
+        case .clipboardPushResult: "clipboardPushResult"
+        case .clipboardPullRefused: "clipboardPullRefused"
         case .presentNext: "presentNext"
         case .presentPrevious: "presentPrevious"
         case .presentLaser: "presentLaser"

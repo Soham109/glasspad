@@ -35,6 +35,10 @@ final class AppModel: ObservableObject {
     @Published var allowShellButtons = false
     /// Glasspad stopped listening on purpose: the phone cannot connect until resumed.
     @Published var isPaused = false
+    /// Why the last clipboard transfer did not happen (Advanced > Diagnostics).
+    @Published var clipboardRefusal: String?
+    /// The user's per-gesture choices (Trackpad > If a Gesture Stops Working).
+    @Published var gesturePreferences = GesturePreferences()
 
     let macName: String
     let macros: MacroCoordinator
@@ -58,6 +62,8 @@ final class AppModel: ObservableObject {
         var setLaunchAtLogin: @MainActor (Bool) -> Void = { _ in }
         var setPaused: @MainActor (Bool) -> Void = { _ in }
         var setAllowShellButtons: @MainActor (Bool) -> Void = { _ in }
+        /// Applies at once; no restart.
+        var setGesturePreference: @MainActor (GesturePreference, SynthGesture) -> Void = { _, _ in }
         var showActionsFile: @MainActor () -> Void = {}
         var showMacrosFolder: @MainActor () -> Void = {}
         var openConsole: @MainActor () -> Void = {}
@@ -195,6 +201,7 @@ extension AppModel {
                 NSWorkspace.shared.openApplication(at: url, configuration: .init())
             }
         }
+        a.setGesturePreference = { controller.setGesturePreference($0, for: $1) }
         a.openTrackpadSettings = { SystemSettings.openTrackpad() }
         a.openLoginItems = { SystemSettings.openLoginItems() }
         a.refresh = {
@@ -223,6 +230,8 @@ extension AppModel {
         controller.$pairingPhase.assign(to: &model.$pairing)
         controller.$automation.assign(to: &model.$automation)
         controller.$lastError.assign(to: &model.$lastError)
+        controller.$clipboardRefusal.assign(to: &model.$clipboardRefusal)
+        controller.$gesturePreferences.assign(to: &model.$gesturePreferences)
         hider.$published.assign(to: &model.$dock)
         media.$deniedApps.assign(to: &model.$automationDenied)
         return model

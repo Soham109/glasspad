@@ -40,6 +40,9 @@ import Testing
             .deckLayout(layout),
             .deckSave(layout),
             .deckSaveResult(ok: false, message: "no"),
+            .clipboardPushResult(ok: true, message: nil),
+            .clipboardPushResult(ok: false, message: "This text is 2.1 MB of text"),
+            .clipboardPullRefused(message: "The Mac clipboard is 3.0 MB of text"),
             .deckRunConfirmed(id: id),
             .deckCatalogRequest,
             .deckCatalog(DeckCatalog(audioOutputs: ["Speakers"], shortcuts: ["Focus"])),
@@ -48,6 +51,16 @@ import Testing
                                      inDock: true, recent: false, hidden: true)]),
         ]
         for m in all { try roundTrip(m) }
+    }
+
+    @Test func clipboardAnswersHaveAPlainWireShape() throws {
+        let decoded = try JSONDecoder().decode(ModeMessage.self, from: Data(#"{"t":"clipboardPushResult","ok":false,"message":"m"}"#.utf8))
+        #expect(decoded == .clipboardPushResult(ok: false, message: "m"))
+        let refused = try JSONDecoder().decode(ModeMessage.self, from: Data(#"{"t":"clipboardPullRefused","message":"r"}"#.utf8))
+        #expect(refused == .clipboardPullRefused(message: "r"))
+        #expect(ClipboardContent.text("é").byteCount == 2)
+        #expect(ClipboardContent.tooLargeMessage(bytes: 3 << 20, holder: "This text")
+                == "This text is 3.0 MB of text, more than the 2 MB Glasspad sends at once. Copy a smaller part.")
     }
 
     @Test func olderDockAppAndDeckButtonStillDecode() throws {

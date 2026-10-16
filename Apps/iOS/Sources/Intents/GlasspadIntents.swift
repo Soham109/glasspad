@@ -64,8 +64,14 @@ struct SendClipboardToMacIntent: AppIntent {
         } else {
             return .result(dialog: "There is nothing copied on this iPhone.")
         }
-        try await MacSession.shared.withConnection { $0.send(.clipboardPush(content)) }
-        return .result(dialog: "Sent to your Mac's clipboard.")
+        var outcome: ClipboardPushStatus?
+        try await MacSession.shared.withConnection { outcome = await $0.pushClipboardConfirmed(content) }
+        // Only say it was sent when the Mac said it took it.
+        switch outcome {
+        case .accepted?: return .result(dialog: "Sent to your Mac's clipboard.")
+        case .refused(let reason)?: return .result(dialog: "\(reason)")
+        case .waiting?, nil: return .result(dialog: "\(ClipboardPushStatus.noConfirmation)")
+        }
     }
 }
 

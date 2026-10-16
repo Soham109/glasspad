@@ -305,6 +305,25 @@ struct TrackpadPane: View {
                 Text("Change these in Glasspad on your iPhone, under Settings > Feel. This Mac keeps them and uses them for every gesture.")
                     .foregroundStyle(.secondary)
             }
+
+            Section {
+                ForEach(GestureCopy.adjustable, id: \.self) { g in
+                    Picker(selection: Binding(get: { model.gesturePreferences.preference(for: g) },
+                                              set: { model.actions.setGesturePreference($0, g) })) {
+                        ForEach(GesturePreference.options(for: g), id: \.self) { p in
+                            Text(GestureCopy.choice(p)).tag(p)
+                        }
+                    } label: {
+                        Text(g.displayName)
+                        Text(GestureCopy.inUse(model.capabilities.mode(for: g)))
+                    }
+                }
+            } header: {
+                Text(GestureCopy.sectionTitle)
+            } footer: {
+                Text(GestureCopy.footer)
+                    .foregroundStyle(.secondary)
+            }
         }
         .formStyle(.grouped)
     }
@@ -343,20 +362,26 @@ struct AdvancedPane: View {
                     LabeledContent("Touch updates received", value: stats.framesReceived.formatted())
                     LabeledContent("Rejected packets", value: rejected(stats).formatted())
                         .help("Packets that failed the encryption check, arrived twice, or could not be read. A few are normal on busy networks.")
+                    LabeledContent {
+                        Text(model.clipboardRefusal == nil ? "None" : "Not sent")
+                    } label: {
+                        Text("Last clipboard problem")
+                        if let refusal = model.clipboardRefusal { Text(refusal) }
+                    }
+                    Text("How each gesture reaches this Mac")
+                        .font(.subheadline.weight(.semibold))
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.top, 6)
+                    ForEach(model.capabilities.summary, id: \.gesture) { item in
+                        LabeledContent(item.gesture.displayName,
+                                       value: GestureCopy.diagnostics(item.mode, preference: model.gesturePreferences.preference(for: item.gesture)))
+                            .help(item.mode.help)
+                    }
                 }
             } header: {
                 Text("Connection")
-            }
-
-            Section {
-                ForEach(model.capabilities.summary, id: \.gesture) { item in
-                    LabeledContent(item.gesture.displayName, value: item.mode.label)
-                        .help(item.mode.help)
-                }
-            } header: {
-                Text("Gestures")
             } footer: {
-                Text("Trackpad gestures follow your fingers. Where this Mac cannot accept one, Glasspad sends the matching keyboard shortcut instead.")
+                Text("A trackpad gesture follows your fingers. A keyboard shortcut plays all at once. Choose per gesture in Trackpad settings.")
                     .foregroundStyle(.secondary)
             }
 

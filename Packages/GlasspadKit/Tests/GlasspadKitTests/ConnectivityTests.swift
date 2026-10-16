@@ -35,6 +35,58 @@ final class LatencyRecorder: GlasspadLinkDelegate, @unchecked Sendable {
     }
 }
 
+/// A loopback TCP proxy that slows one direction to about 400 KB/s, standing in for slow Wi-Fi.
+final class SlowProxy: @unchecked Sendable {
+    private let listener: NWListener
+    private let queue = DispatchQueue(label: "test.slowproxy")
+    private let target: UInt16
+    private let slowToPhone: Bool
+    private let chunk = 16 << 10
+    private let pause: TimeInterval = 0.04
+    private let open = Box<[NWConnection]>([])
+    var port: UInt16 { listener.port?.rawValue ?? 0 }
+
+    init(target: UInt16, slowToPhone: Bool) throws {
+        self.target = target
+        self.slowToPhone = slowToPhone
+        listener = try NWListener(using: .tcp, on: .any)
+        listener.newConnectionHandler = { [weak self] inbound in self?.accept(inbound) }
+        listener.start(queue: queue)
+    }
+
+    private func accept(_ phoneSide: NWConnection) {
+        guard let port = NWEndpoint.Port(rawValue: target) else { return phoneSide.cancel() }
+        let macSide = NWConnection(host: "127.0.0.1", port: port, using: .tcp)
+        open.value += [phoneSide, macSide]
+        phoneSide.start(queue: queue)
+        macSide.start(queue: queue)
+        pump(from: phoneSide, to: macSide, slow: !slowToPhone)
+        pump(from: macSide, to: phoneSide, slow: slowToPhone)
+    }
+
+    private func pump(from: NWConnection, to: NWConnection, slow: Bool) {
+        from.receive(minimumIncompleteLength: 1, maximumLength: slow ? chunk : 1 << 16) { [weak self] data, _, done, error in
+            guard let self else { return }
+            guard let data, !data.isEmpty else {
+                if done || error != nil { to.cancel(); from.cancel() } else { self.pump(from: from, to: to, slow: slow) }
+                return
+            }
+            to.send(content: data, completion: .contentProcessed { _ in
+                if slow {
+                    self.queue.asyncAfter(deadline: .now() + self.pause) { self.pump(from: from, to: to, slow: slow) }
+                } else {
+                    self.pump(from: from, to: to, slow: slow)
+                }
+            })
+        }
+    }
+
+    func stop() {
+        listener.cancel()
+        for c in open.value { c.cancel() }
+    }
+}
+
 @Suite("Connectivity", .serialized)
 struct ConnectivityTests {
     let macID = UUID()
@@ -410,7 +462,66 @@ struct ConnectivityTests {
         client.reconnectNow()               // heard from the Mac within the last second
         try await Task.sleep(nanoseconds: 300_000_000)
         #expect(crec.states.filter(\.isConnected).count == 1)
-        #expect(srec.states.filter(\.isConnected).count == 1)
+        #expect(stayedConnected(srec.states))
+    }
+
+    // MARK: Large messages on slow Wi-Fi
+
+    /// Reliability M1: a big clipboard message from the Mac takes longer than the phone's
+    /// silence timeout on slow Wi-Fi, and the pings queue behind it. The partial message now
+    /// counts as hearing the Mac, so the link stays up and the message arrives.
+    @Test func slowLargeMessageToThePhoneKeepsTheLink() async throws {
+        let key = self.key
+        let (server, srec, port) = try await makeServer { _ in key }
+        defer { server.stop() }
+        server.pingInterval = 0.2
+        let proxy = try SlowProxy(target: port, slowToPhone: true)
+        defer { proxy.stop() }
+        #expect(await waitUntil { proxy.port != 0 })
+        let (client, crec) = makeClient()
+        defer { client.disconnect() }
+        client.silenceTimeout = 0.6
+        client.connect(host: "127.0.0.1", port: proxy.port)
+        #expect(await waitUntil { client.state.isConnected && server.state.isConnected })
+        // About 1.5 s through the proxy, well over the 0.6 s silence timeout.
+        let text = String(repeating: "x", count: 600_000)
+        let start = Date()
+        server.send(.mode(.clipboardContent(.text(text))))
+        #expect(await waitUntil(8) { crec.messages.contains(.mode(.clipboardContent(.text(text)))) })
+        #expect(Date().timeIntervalSince(start) > 1.0, "the proxy did not slow the message down")
+        #expect(crec.states.filter(\.isConnected).count == 1)
+        #expect(stayedConnected(srec.states))
+    }
+
+    /// The same the other way: a big push from the phone keeps the Mac from closing the session
+    /// while the phone's pongs wait behind it.
+    @Test func slowLargeMessageToTheMacKeepsTheSession() async throws {
+        let key = self.key
+        let (server, srec, port) = try await makeServer { _ in key }
+        defer { server.stop() }
+        server.pingInterval = 0.2
+        server.silenceTimeout = 0.6
+        let proxy = try SlowProxy(target: port, slowToPhone: false)
+        defer { proxy.stop() }
+        #expect(await waitUntil { proxy.port != 0 })
+        let (client, crec) = makeClient()
+        defer { client.disconnect() }
+        client.connect(host: "127.0.0.1", port: proxy.port)
+        #expect(await waitUntil { client.state.isConnected && server.state.isConnected })
+        let text = String(repeating: "y", count: 600_000)
+        let start = Date()
+        client.send(message: .mode(.clipboardPush(.text(text))))
+        #expect(await waitUntil(8) { srec.messages.contains(.mode(.clipboardPush(.text(text)))) })
+        #expect(Date().timeIntervalSince(start) > 1.0, "the proxy did not slow the message down")
+        #expect(stayedConnected(srec.states))
+        #expect(crec.states.filter(\.isConnected).count == 1)
+    }
+
+    /// The Mac reports `connected` again whenever the round trip changes; any other state after
+    /// the first `connected` means the session dropped.
+    private func stayedConnected(_ states: [LinkState]) -> Bool {
+        guard let first = states.firstIndex(where: \.isConnected) else { return false }
+        return states[first...].allSatisfy(\.isConnected)
     }
 
     // MARK: Several Macs

@@ -14,12 +14,19 @@ import UniformTypeIdentifiers
 /// (about 15 MB as base64) takes longer than that on a slow Wi-Fi, which dropped the session and
 /// any drag with it, and text had no cap at all. So what the Mac sends is kept to
 /// `ClipboardLimits`: images are scaled down to fit, and text over the cap is refused rather than
-/// cut (a cut paste is worse than none), with the reason in `lastRefusal`.
+/// cut (a cut paste is worse than none), with the reason in `lastRefusal`. A push from the phone
+/// is checked the same way and answered with `clipboardPushResult`, so the phone never says
+/// "Sent" for something the Mac did not take.
 @MainActor
 public final class ClipboardMode {
     private let pasteboard: NSPasteboard
-    /// Why the last pull sent nothing although the pasteboard had something, nil when it sent it.
-    public private(set) var lastRefusal: String?
+    /// Why the last clipboard transfer (either way) did not happen, in words for the user; nil
+    /// once a transfer works again. Shown in Settings > Advanced > Diagnostics.
+    public private(set) var lastRefusal: String? {
+        didSet { if lastRefusal != oldValue { onRefusalChange?(lastRefusal) } }
+    }
+    /// Called on the main actor whenever `lastRefusal` changes.
+    public var onRefusalChange: ((String?) -> Void)?
 
     public init(pasteboard: NSPasteboard = .general) { self.pasteboard = pasteboard }
 
@@ -30,23 +37,57 @@ public final class ClipboardMode {
         case empty
         /// Text larger than `ClipboardLimits.maxTextBytes` (UTF-8 bytes).
         case tooLarge(bytes: Int)
+        /// An image that could not be read or shrunk to `ClipboardLimits.maxImageBytes`.
+        case imageNotSendable
     }
 
-    /// Puts the content on the pasteboard. For an image the PNG is there at once; a TIFF copy
-    /// (many apps only read TIFF) is added once converted, unless the pasteboard changed meanwhile.
-    public func push(_ content: ClipboardContent) {
+    /// Puts the content on the pasteboard and returns nil, or returns why it did not (and leaves
+    /// the pasteboard as it was). For an image the PNG is there at once; a TIFF copy (many apps
+    /// only read TIFF) is added once converted, unless the pasteboard changed meanwhile.
+    @discardableResult
+    public func push(_ content: ClipboardContent) -> String? {
+        if let refusal = Self.check(push: content) {
+            lastRefusal = refusal
+            GPLog.log("clipboard: refused a \(content.byteCount) byte push from the phone")
+            return refusal
+        }
         pasteboard.clearContents()
+        let written: Bool
         switch content {
         case .text(let s):
-            pasteboard.setString(s, forType: .string)
+            written = pasteboard.setString(s, forType: .string)
         case .imagePNG(let data):
-            pasteboard.setData(data, forType: .png)
+            written = pasteboard.setData(data, forType: .png)
             let change = pasteboard.changeCount
-            Task { [weak self] in
-                guard let tiff = await Self.offMain({ Self.tiff(fromPNG: data) }),
-                      let self, self.pasteboard.changeCount == change else { return }
-                self.pasteboard.setData(tiff, forType: .tiff)
+            if written {
+                Task { [weak self] in
+                    guard let tiff = await Self.offMain({ Self.tiff(fromPNG: data) }),
+                          let self, self.pasteboard.changeCount == change else { return }
+                    self.pasteboard.setData(tiff, forType: .tiff)
+                }
             }
+        }
+        guard written else {
+            let refusal = ClipboardLimits.notWritten
+            lastRefusal = refusal
+            return refusal
+        }
+        lastRefusal = nil
+        return nil
+    }
+
+    /// Why a push from the phone cannot go on the pasteboard, nil when it can.
+    nonisolated static func check(push content: ClipboardContent) -> String? {
+        switch content {
+        case .text(let s):
+            let bytes = s.utf8.count
+            return bytes > ClipboardContent.maxTextBytes ? ClipboardContent.tooLargeMessage(bytes: bytes, holder: "This text") : nil
+        case .imagePNG(let data):
+            if data.count > ClipboardContent.maxImageBytes { return ClipboardLimits.imageTooLarge(bytes: data.count) }
+            guard let source = CGImageSourceCreateWithData(data as CFData, nil), CGImageSourceGetCount(source) > 0 else {
+                return ClipboardLimits.unreadableImage
+            }
+            return nil
         }
     }
 
@@ -61,18 +102,22 @@ public final class ClipboardMode {
     public func pullResult() async -> PullResult {
         let result: PullResult
         if let png = pasteboard.data(forType: .png) {
-            result = await Self.offMain { Self.fitting(png) }.map { .content(.imagePNG($0)) } ?? .empty
+            result = await Self.offMain { Self.fitting(png) }.map { .content(.imagePNG($0)) } ?? .imageNotSendable
         } else if let tiff = pasteboard.data(forType: .tiff) {
-            result = await Self.offMain { Self.png(fromImage: tiff).flatMap { Self.fitting($0) } }.map { .content(.imagePNG($0)) } ?? .empty
+            result = await Self.offMain { Self.png(fromImage: tiff).flatMap { Self.fitting($0) } }.map { .content(.imagePNG($0)) } ?? .imageNotSendable
         } else if let s = pasteboard.string(forType: .string) {
             result = Self.checkText(s)
         } else {
             result = .empty
         }
-        if case .tooLarge(let bytes) = result {
+        switch result {
+        case .tooLarge(let bytes):
             lastRefusal = ClipboardLimits.tooLargeMessage(bytes: bytes)
             GPLog.log("clipboard: not sending \(bytes) bytes of text, over the \(ClipboardLimits.maxTextBytes) byte limit")
-        } else {
+        case .imageNotSendable:
+            lastRefusal = ClipboardLimits.imageNotSendable
+            GPLog.log("clipboard: the image on the pasteboard could not be read or shrunk to send")
+        case .content, .empty:
             lastRefusal = nil
         }
         return result
@@ -131,18 +176,25 @@ public final class ClipboardMode {
     }
 }
 
-/// How much the Mac puts in one clipboard message.
+/// How much the Mac puts in one clipboard message, and what it says when it will not.
 public enum ClipboardLimits {
-    /// Text, in UTF-8 bytes. About 2 million characters of English text; at a slow 1 MB/s the
-    /// message still arrives well inside the phone's silence timeout.
-    public static let maxTextBytes = 2 << 20
+    /// Text, in UTF-8 bytes (the same limit the phone uses). At a slow 1 MB/s the message still
+    /// arrives in a couple of seconds, and the link counts partial messages as alive anyway.
+    public static let maxTextBytes = ClipboardContent.maxTextBytes
     /// Images, in PNG bytes (the message carries them as base64, 4/3 the size). A full-screen
     /// screenshot scaled to this is still sharp on a phone.
     public static let maxImageBytes = 3 << 20
 
     public static func tooLargeMessage(bytes: Int) -> String {
-        let mb = Double(bytes) / Double(1 << 20)
-        return String(format: "The Mac clipboard holds %.1f MB of text, more than the %d MB Glasspad sends at once. Copy a smaller part.",
-                      locale: Locale(identifier: "en_US_POSIX"), mb, maxTextBytes >> 20)
+        ClipboardContent.tooLargeMessage(bytes: bytes, holder: "The Mac clipboard")
     }
+
+    static func imageTooLarge(bytes: Int) -> String {
+        String(format: "This image is %.1f MB, more than the %d MB Glasspad takes at once.",
+               locale: Locale(identifier: "en_US_POSIX"), Double(bytes) / Double(1 << 20), ClipboardContent.maxImageBytes >> 20)
+    }
+
+    static let imageNotSendable = "The image on the Mac clipboard could not be made small enough to send. Copy a smaller part of it."
+    static let unreadableImage = "Your Mac could not read this image. Try copying it again."
+    static let notWritten = "The Mac clipboard did not take it. Try again."
 }

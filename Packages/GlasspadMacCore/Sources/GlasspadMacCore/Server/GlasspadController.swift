@@ -21,6 +21,10 @@ public final class GlasspadController: ObservableObject {
     /// Spotify and Music control (optional).
     @Published public private(set) var automation: AutomationState = .notDetermined
     @Published public private(set) var lastError: String?
+    /// Why the last clipboard transfer did not happen (`ClipboardMode.lastRefusal`).
+    @Published public private(set) var clipboardRefusal: String?
+    /// The user's per-gesture choices (Settings > Trackpad, "If a gesture stops working").
+    @Published public private(set) var gesturePreferences: GesturePreferences
 
     public let pairing: PairingStore
     public let macName: String
@@ -36,14 +40,24 @@ public final class GlasspadController: ObservableObject {
     private var reporter = MacStatusReporter()
     private var deniedWatch: AnyCancellable?
     private var axMonitor: AccessibilityMonitor
+    /// What the launch self-check found, before the user's choices are applied.
+    private let detectedCapabilities: SynthCapabilities
+    private let preferencesDefaults: UserDefaults
 
     /// `accessibilityCheck` reads the Accessibility permission (tests inject their own).
+    /// `preferences` holds the per-gesture choices (tests pass their own suite).
     public init(pairing: PairingStore = PairingStore(), macName: String = Host.current().localizedName ?? "Mac",
-                accessibilityCheck: @escaping @Sendable () -> Bool = { AXIsProcessTrusted() }) {
+                accessibilityCheck: @escaping @Sendable () -> Bool = { AXIsProcessTrusted() },
+                preferences: UserDefaults = .standard) {
         self.pairing = pairing
         self.axMonitor = AccessibilityMonitor(check: accessibilityCheck)
         self.macName = macName
-        let caps = SynthCapabilities.selfCheck()
+        self.preferencesDefaults = preferences
+        let detected = SynthCapabilities.select(probe: SynthCapabilities.probeNative)
+        let prefs = GesturePreferences.load(from: preferences)
+        self.detectedCapabilities = detected
+        self.gesturePreferences = prefs
+        let caps = detected.applying(prefs)
         let poster = LiveEventPoster()
         let watcher = TrackpadPrefsWatcher()
         self.watcher = watcher
@@ -62,7 +76,30 @@ public final class GlasspadController: ObservableObject {
         }
         self.phones = pairing.phones
         self.accessibilityTrusted = axMonitor.trusted
+        modes.clipboard.onRefusalChange = { [weak self] reason in self?.clipboardRefusal = reason }
     }
+
+    // MARK: Gestures
+
+    /// Sets how one gesture reaches the Mac and applies it at once, without a restart. Saved in
+    /// the app's preferences; a choice the gesture cannot honour is stored as Automatic.
+    public func setGesturePreference(_ preference: GesturePreference, for gesture: SynthGesture) {
+        var prefs = gesturePreferences
+        prefs.set(preference, for: gesture)
+        guard prefs != gesturePreferences else { return }
+        prefs.save(to: preferencesDefaults)
+        gesturePreferences = prefs
+        let caps = detectedCapabilities.applying(prefs)
+        pipeline.synth.updateCapabilities(caps)
+        capabilities = caps
+        GPLog.log("gestures: \(gesture.rawValue) set to \(prefs.preference(for: gesture).rawValue), now \(caps.mode(for: gesture).rawValue)")
+    }
+
+    /// What the launch self-check found for a gesture, before the user's choice.
+    public func detectedMode(for gesture: SynthGesture) -> SynthMode { detectedCapabilities.mode(for: gesture) }
+
+    /// The paths the synthesizer is using right now (tests check the live apply with it).
+    var synthCapabilities: SynthCapabilities { pipeline.synth.capabilities }
 
     public func start() {
         let bridge = LinkBridge(owner: self)
