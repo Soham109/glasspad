@@ -25,7 +25,7 @@ struct RemoteCover: View {
             .persistentSystemOverlays(.hidden)
         .statusBarHidden(true)
         .onAppear { MacSession.shared.send(.modeSelected(.remote)) }
-        .onDisappear { MacSession.shared.send(.modeSelected(AppRouter.shared.mode.wireMode)) }
+        .onDisappear { MacSession.shared.modesDidChange(to: AppRouter.shared.screenModes) }
     }
 }
 

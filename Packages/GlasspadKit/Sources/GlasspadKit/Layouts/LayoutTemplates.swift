@@ -26,16 +26,19 @@ public struct LayoutTemplate: Identifiable, Equatable, Sendable {
     }
 
     /// The built-in templates, most useful first. Mode names match `AppMode` on the phone; the
-    /// app hides any template whose modes this build does not have.
+    /// app hides any template whose modes this build does not have. The first four are also
+    /// the layouts a new install starts with (`LayoutLibrary.starter`).
     public static let builtIn: [LayoutTemplate] = [
-        LayoutTemplate(id: "trackpad-actions", name: "Trackpad and Actions", panes: ["trackpad", "actions"], split: 0.6),
-        LayoutTemplate(id: "trackpad-keys", name: "Trackpad and Keyboard", panes: ["trackpad", "keys"], split: 0.5),
-        LayoutTemplate(id: "trackpad-media", name: "Trackpad and Media", panes: ["trackpad", "media"], split: 0.6),
+        LayoutTemplate(id: "desk", name: "Desk", panes: ["trackpad", "actions"], split: 0.6),
+        LayoutTemplate(id: "type", name: "Type", panes: ["trackpad", "keys"], split: 0.5),
+        LayoutTemplate(id: "listen", name: "Listen", panes: ["trackpad", "media"], split: 0.6),
+        LayoutTemplate(id: "couch", name: "Couch", panes: ["remote", "trackpad"], split: 0.6),
         LayoutTemplate(id: "trackpad-dock", name: "Trackpad and Dock", panes: ["trackpad", "dock"], split: 0.6),
         LayoutTemplate(id: "media-actions", name: "Media and Actions", panes: ["media", "actions"]),
-        LayoutTemplate(id: "desk", name: "Desk", panes: ["trackpad", "media", "actions"], split: 0.5),
+        LayoutTemplate(id: "studio", name: "Studio", panes: ["trackpad", "media", "actions"], split: 0.5),
         LayoutTemplate(id: "presenter", name: "Presenter", panes: ["present", "trackpad"], split: 0.5),
-        LayoutTemplate(id: "couch", name: "Couch", panes: ["remote", "media"], split: 0.5),
-        LayoutTemplate(id: "remote-trackpad", name: "Remote and Trackpad", panes: ["remote", "trackpad"], split: 0.5),
     ]
+
+    /// The layouts a new install starts with.
+    public static let starterIDs = ["desk", "type", "listen", "couch"]
 }

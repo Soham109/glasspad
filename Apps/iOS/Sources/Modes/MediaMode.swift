@@ -88,7 +88,7 @@ struct MediaMode: View {
             header
             if h >= 280 { progress.padding(.top, 10) }
             transport.padding(.top, 2)
-            if h >= 390 { volumeSlider.padding(.top, 6) }
+            if h >= 360 { volumeSlider.padding(.top, 6) }
             Spacer(minLength: 8)
         }
         .padding(.horizontal, 24)

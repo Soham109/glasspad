@@ -22,8 +22,14 @@ final class LayoutStore {
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
-        library = defaults.data(forKey: Self.key)
-            .flatMap { try? JSONDecoder().decode(LayoutLibrary.self, from: $0) } ?? LayoutLibrary()
+        if let data = defaults.data(forKey: Self.key) {
+            library = (try? JSONDecoder().decode(LayoutLibrary.self, from: data)) ?? LayoutLibrary()
+        } else {
+            // First run: start with Desk, Type, Listen and Couch. Saved at once, so deleting
+            // them later sticks.
+            library = .starter { AppMode(rawValue: $0) != nil }
+            save()
+        }
     }
 
     func layout(_ id: UUID) -> ScreenLayout? { library.layout(id) }

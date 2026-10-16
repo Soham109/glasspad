@@ -190,6 +190,14 @@ import Testing
         #expect(library.layout(a.id)?.name == "Studio" && library.layouts.count == 3)
     }
 
+    @Test func newInstallsStartWithAFewLayouts() {
+        let all = LayoutLibrary.starter()
+        #expect(all.layouts.map(\.name) == ["Desk", "Type", "Listen", "Couch"])
+        #expect(all.activeID == nil)
+        // A build without Remote leaves Couch out rather than showing a broken pane.
+        #expect(LayoutLibrary.starter(known: { $0 != "remote" }).layouts.map(\.name) == ["Desk", "Type", "Listen"])
+    }
+
     @Test func templatesAreValid() {
         let ids = LayoutTemplate.builtIn.map(\.id)
         #expect(Set(ids).count == ids.count)
@@ -212,5 +220,7 @@ import Testing
         #expect(LayoutWirePlan(modes: [.trackpad, .deck, .media]).primary == .deck)
         #expect(LayoutWirePlan(modes: [.keys, .present]).primary == .present)
         #expect(LayoutWirePlan(modes: []).primary == .trackpad)
+        let couch = LayoutWirePlan(modes: [.remote, .trackpad, .media])
+        #expect(couch.primary == .remote && !couch.requestsMedia)
     }
 }

@@ -340,6 +340,15 @@ enum DebugLaunch {
             store.save(layout)
             AppRouter.shared.show(layout: layout)
         }
+        // -GPLayoutPanes trackpad,media,actions: a throwaway layout with exactly those panes.
+        if let list = value("-GPLayoutPanes") {
+            PhoneSettings.shared.hasOnboarded = true
+            var layout = ScreenLayout(name: "Test", panes: list.split(separator: ",").map(String.init))
+            if let old = LayoutStore.shared.layouts.first(where: { $0.name == "Test" }) { layout.id = old.id }
+            if let d = value("-GPLayoutDirection").flatMap(SplitDirection.init(rawValue:)) { layout.direction = d }
+            LayoutStore.shared.save(layout)
+            AppRouter.shared.show(layout: layout)
+        }
         if args.contains("-GPLayouts") { AppRouter.shared.showLayouts = true }
         if let id = value("-GPLayoutEdit"), let template = LayoutTemplate.builtIn.first(where: { $0.id == id }) {
             AppRouter.shared.layoutDraft = AppRouter.shared.newLayout(from: template)

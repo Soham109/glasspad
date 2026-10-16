@@ -26,10 +26,16 @@ struct LayoutMenuRow: View {
                 }
                 .buttonStyle(TileStyle())
                 .accessibilityHint("Puts two or three modes on one screen")
+            } else if store.layouts.count <= 4 {
+                // Up to four share the row evenly, like the modes above them.
+                HStack(spacing: 6) {
+                    ForEach(store.layouts) { layout in tile(layout, width: nil) }
+                    newTile
+                }
             } else {
                 ScrollView(.horizontal) {
                     HStack(spacing: 6) {
-                        ForEach(store.layouts) { layout in tile(layout) }
+                        ForEach(store.layouts) { layout in tile(layout, width: 70) }
                         newTile
                     }
                     .padding(.horizontal, 2)
@@ -47,7 +53,7 @@ struct LayoutMenuRow: View {
 
     private var landscape: Bool { verticalSize == .compact }
 
-    private func tile(_ layout: ScreenLayout) -> some View {
+    private func tile(_ layout: ScreenLayout, width: CGFloat?) -> some View {
         let current = router.layoutID == layout.id
         return Button {
             Haptics.shared.tap()
@@ -64,8 +70,9 @@ struct LayoutMenuRow: View {
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
             }
-            .padding(.horizontal, 6)
-            .frame(width: 78, height: 68)
+            .padding(.horizontal, 4)
+            .frame(width: width, height: 68)
+            .frame(maxWidth: width == nil ? .infinity : nil)
             .background {
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
                     .fill(palette.inkColor.opacity(current ? 0.10 : 0))
@@ -103,7 +110,7 @@ struct LayoutMenuRow: View {
                     .font(.caption2.weight(.medium))
                     .foregroundStyle(palette.inkSoftColor)
             }
-            .frame(width: 56, height: 68)
+            .frame(width: 48, height: 68)
             .background {
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
                     .strokeBorder(palette.inkColor.opacity(0.14), style: StrokeStyle(lineWidth: 1, dash: [3, 3]))

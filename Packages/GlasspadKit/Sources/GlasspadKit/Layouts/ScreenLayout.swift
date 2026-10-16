@@ -242,6 +242,16 @@ public struct LayoutLibrary: Codable, Equatable, Sendable {
         self.activeID = activeID
     }
 
+    /// What a new install starts with: a few ready layouts, so split screen is one tap away
+    /// before anyone opens the editor. `known` filters out modes this build lacks.
+    public static func starter(known: (String) -> Bool = { _ in true }) -> LayoutLibrary {
+        let layouts = LayoutTemplate.starterIDs
+            .compactMap { id in LayoutTemplate.builtIn.first { $0.id == id } }
+            .filter { $0.panes.allSatisfy(known) }
+            .map { $0.makeLayout() }
+        return LayoutLibrary(layouts: layouts)
+    }
+
     private enum CodingKeys: String, CodingKey { case version, layouts, activeID }
 
     public init(from decoder: Decoder) throws {
