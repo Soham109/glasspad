@@ -320,7 +320,10 @@ As built (GlasspadKit):
   (`brightness`, `resolution`, `mirror`, `makeMain`, `arrange`, `keepChanges`, `revertChanges`)
   are answered with `displaysResult(id:ok:message:)`. Frames for tiles, splits and moves come
   from `DisplaysState.frames(for:window:)`, the same code on both sides, so the phone shows the
-  result before the Mac confirms. A new resolution or mirroring is applied for Glasspad's run
+  result before the Mac confirms. `windowHighlight(windowID:)` has the Mac outline that window for
+  about a second in a click-through overlay (no fade with Reduce Motion; nothing moves or comes
+  forward, no answer), sent only when `DisplaysState.highlightsWindows` is true.
+  A new resolution or mirroring is applied for Glasspad's run
   only and shows as `pending`; `keepChanges` makes it permanent, and without it the Mac restores
   the permanent setup after 15 seconds by itself (`CGRestorePermanentDisplayConfiguration`), like
   macOS's own "Keep these display settings?". Other display changes wait until then. Night Shift

@@ -284,6 +284,19 @@ private enum Arrangement {
         #expect(try JSONDecoder().decode(DisplaysState.self, from: Data(newer.utf8)).offeredArrangements == [.quarters])
     }
 
+    @Test func aHighlightTravelsOnlyToAMacThatSaysItCan() throws {
+        let m = ModeMessage.windowHighlight(windowID: 42)
+        #expect(try roundTrip(m) == m)
+        let data = try JSONEncoder().encode(m)
+        let json = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        #expect(json["t"] as? String == "windowHighlight" && json["windowID"] as? Int == 42)
+        // A Mac from before highlights says nothing, so the phone never sends one.
+        let older = #"{"displays":[],"windows":[],"canArrangeWindows":true,"tileMargin":8}"#
+        #expect(try JSONDecoder().decode(DisplaysState.self, from: Data(older.utf8)).highlightsWindows == nil)
+        let newer = DisplaysState(displays: [], windows: [], highlightsWindows: true)
+        #expect(try JSONDecoder().decode(DisplaysState.self, from: JSONEncoder().encode(newer)).highlightsWindows == true)
+    }
+
     @Test func aBuildWithoutDisplaysDropsTheMessagesAndKeepsTalking() throws {
         // What an older peer sees: an unknown mode message fails to decode, and the transport
         // drops that one frame (it never ends the session). Simulated with a tag nobody knows.

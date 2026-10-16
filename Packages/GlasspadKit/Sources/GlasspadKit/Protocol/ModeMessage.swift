@@ -475,6 +475,10 @@ public enum ModeMessage: Codable, Equatable, Sendable {
     case displayCommand(id: UUID, command: DisplayCommand)
     /// Mac -> phone: how `windowCommand` or `displayCommand` `id` went; `message` says why on failure.
     case displaysResult(id: UUID, ok: Bool, message: String?)
+    /// Phone -> Mac: outline this window on the Mac for a moment, so the person sees which one
+    /// they picked. Nothing moves or comes forward, and there is no answer. Sent only to a Mac
+    /// whose `DisplaysState.highlightsWindows` is true (an older Mac drops unknown messages).
+    case windowHighlight(windowID: UInt32)
 
     // Macros
     /// Both ways: Macros mode (docs/SPEC-macros.md section 6). Direction is noted on each `MacroMessage` case.

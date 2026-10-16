@@ -120,7 +120,7 @@ Each theme defines every color, its own accent included. `ThemeContrastTests` ch
 All of these are additive: an older build drops what it does not know and keeps the session (`ControlMessage.unknown`).
 
 - **Remote:** `modeSelected(.remote)` makes the Mac send now playing and the front app. `remoteSystem(id:action:)` runs one Mac control without a Deck button and is answered with `deckResult`, including a switch's new state ("Do Not Disturb is on").
-- **Displays:** `displaysWatch(on:)` starts `displaysState` updates, read four times a second while watched. `windowCommand` and `displayCommand` are answered with `displaysResult`. Tile and move frames come from one shared function, so the phone shows the result before the Mac confirms.
+- **Displays:** `displaysWatch(on:)` starts `displaysState` updates, read four times a second while watched. `windowCommand` and `displayCommand` are answered with `displaysResult`; `windowHighlight` (to a Mac whose state says `highlightsWindows`) outlines a window on the Mac for a second, unanswered. Tile and move frames come from one shared function, so the phone shows the result before the Mac confirms.
 - **modesShown:** every pane of a layout, so the front app and Dock changes reach the panes that show them.
 - **Lenient Deck decoding:** a Deck action from a newer build decodes as `DeckAction.unsupported` with its raw JSON and is written back unchanged. Lists skip only an element that cannot be read at all. The phone shows such a button as "Update Glasspad to use this"; the Mac refuses to run or add it.
 - **macStatus:** Accessibility and Automation state, sent after the handshake and on every change.
