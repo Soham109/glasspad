@@ -209,6 +209,50 @@ final class FakeDisplays: DisplaysBackend {
         #expect(m.state().pending == nil)
     }
 
+    @Test func arrangementsThatStrandADisplayAreRefused() {
+        let (m, fake, sent) = mode()
+        func refused(_ origins: [DisplayOrigin]) -> Bool {
+            let id = UUID()
+            let before = fake.applied.count
+            m.handle(id: id, command: .arrange(origins))
+            return result(sent(), id)?.ok == false && fake.applied.count == before
+        }
+        // Far away, overlapping, touching only at a corner, or too large for CoreGraphics.
+        #expect(refused([DisplayOrigin(display: 2, origin: CGPoint(x: 5000, y: 0))]))
+        #expect(refused([DisplayOrigin(display: 2, origin: CGPoint(x: 100, y: 100))]))
+        #expect(refused([DisplayOrigin(display: 2, origin: CGPoint(x: 1512, y: 982))]))
+        #expect(refused([DisplayOrigin(display: 2, origin: CGPoint(x: 1e20, y: 0))]))
+        #expect(refused([DisplayOrigin(display: 1, origin: CGPoint(x: -1e20, y: 0)), DisplayOrigin(display: 2, origin: .zero)]))
+        // The same display twice, or one that copies another.
+        #expect(refused([DisplayOrigin(display: 2, origin: CGPoint(x: 1512, y: 0)), DisplayOrigin(display: 2, origin: CGPoint(x: 5000, y: 0))]))
+        fake.shown[1].mirrorOf = 1
+        #expect(refused([DisplayOrigin(display: 2, origin: CGPoint(x: -2560, y: 0))]))
+        fake.shown[1].mirrorOf = nil
+        // Below the laptop, sharing part of its bottom edge: fine.
+        #expect(!refused([DisplayOrigin(display: 2, origin: CGPoint(x: -500, y: 982))]))
+        #expect(fake.applied.last?.0 == .origins([DisplayOrigin(display: 2, origin: CGPoint(x: -500, y: 982))]))
+    }
+
+    @Test func mirroringAMirrorIsRefused() {
+        let (m, fake, sent) = mode()
+        fake.shown.append(MacDisplay(id: 3, name: "Projector", frame: CGRect(x: 1512, y: -458, width: 2560, height: 1440),
+                                     visibleFrame: CGRect(x: 1512, y: -458, width: 2560, height: 1440), isMain: false, mirrorOf: 2))
+        // 2 copying 3, which already copies 2, would be a loop.
+        let loop = UUID()
+        m.handle(id: loop, command: .mirror(display: 2, of: 3))
+        #expect(result(sent(), loop)?.ok == false)
+        let chain = UUID()
+        m.handle(id: chain, command: .mirror(display: 1, of: 3))
+        #expect(result(sent(), chain)?.ok == false)
+        #expect(fake.applied.isEmpty && m.state().pending == nil)
+    }
+
+    @Test func aMoveToAPointFarAwayStaysOnTheDisplay() {
+        let (m, fake, _) = mode()
+        m.handle(id: UUID(), windowID: 100, command: .move(display: 1, origin: CGPoint(x: 1e300, y: -1e300)))
+        #expect(fake.open[0].frame == CGRect(x: 712, y: 37, width: 800, height: 600))
+    }
+
     @Test func theRouterPassesDisplaysMessagesAndStopsOnDisconnect() {
         let poster = CapturingEventPoster()
         let keys = KeysMode(poster: poster, source: nil)

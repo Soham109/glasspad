@@ -114,7 +114,12 @@ public final class LiveDisplays: DisplaysBackend {
             ok = CGConfigureDisplayMirrorOfDisplay(config, display, master ?? kCGNullDirectDisplay) == .success
         case .origins(let origins):
             for o in origins where ok {
-                ok = CGConfigureDisplayOrigin(config, o.display, Int32(o.origin.x.rounded()), Int32(o.origin.y.rounded())) == .success
+                // Never trap on a value too large for CoreGraphics; refuse the change instead.
+                guard let x = Int32(exactly: o.origin.x.rounded()), let y = Int32(exactly: o.origin.y.rounded()) else {
+                    ok = false
+                    break
+                }
+                ok = CGConfigureDisplayOrigin(config, o.display, x, y) == .success
             }
         }
         guard ok else {

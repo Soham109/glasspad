@@ -17,6 +17,9 @@ importers:
       '@remotion/fonts':
         specifier: 4.0.529
         version: 4.0.529(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@remotion/motion-blur':
+        specifier: 4.0.529
+        version: 4.0.529(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@remotion/renderer':
         specifier: 4.0.529
         version: 4.0.529(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -571,6 +574,12 @@ packages:
 
   '@remotion/media@4.0.529':
     resolution: {integrity: sha512-ritB7TVRR3ZvYLNVCPwgZ33riUNn/B7IasroxLFXarMLZbz/9tHBbznO02Dth2ldkt643DTILUO/cBrnTtVWKg==}
+    peerDependencies:
+      react: '>=16.8.0'
+      react-dom: '>=16.8.0'
+
+  '@remotion/motion-blur@4.0.529':
+    resolution: {integrity: sha512-ZmoJozAOpfzuSPhHpteyigGsgtiLFL2Op6SH7nS80jgNkIxPHOc2m4h+xYwCVSpbtSvythANSEH224uxwvQ1Jg==}
     peerDependencies:
       react: '>=16.8.0'
       react-dom: '>=16.8.0'
@@ -2004,6 +2013,12 @@ snapshots:
       react-dom: 18.3.1(react@18.3.1)
       remotion: 4.0.529(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       zod: 4.5.4
+
+  '@remotion/motion-blur@4.0.529(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
+    dependencies:
+      react: 18.3.1
+      react-dom: 18.3.1(react@18.3.1)
+      remotion: 4.0.529(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
 
   '@remotion/paths@4.0.529(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
     dependencies:

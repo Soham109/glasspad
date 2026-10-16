@@ -289,6 +289,21 @@ final class LoggingPoster: EventPoster {
         #expect(changes.count == 4 && changes.last == .some(nil))
     }
 
+    /// A file of a few hundred kilobytes that holds 110 million pixels (440 MB once decoded for
+    /// the TIFF copy) is refused before anything decodes it, and the pasteboard is left as it was.
+    @Test func decompressionBombFromThePhoneIsRefused() {
+        let pb = NSPasteboard(name: NSPasteboard.Name("glasspad-test-\(UUID().uuidString)"))
+        defer { pb.releaseGlobally() }
+        let clip = ClipboardMode(pasteboard: pb)
+        #expect(clip.push(.text("keep me")) == nil)
+        let bomb = blankPNG(width: 11_000, height: 10_000)
+        #expect(bomb.count < 200_000)
+        #expect(clip.push(.imagePNG(bomb)) == ClipboardLimits.tooManyPixels)
+        #expect(pb.string(forType: .string) == "keep me")
+        // A 48 MP photo's size is fine.
+        #expect(ClipboardMode.check(push: .imagePNG(blankPNG(width: 8064, height: 6048))) == nil)
+    }
+
     /// The router answers every push, and a refused pull says why before the plain nil.
     @Test func routerAnswersPushesAndExplainsRefusedPulls() async {
         let pb = NSPasteboard(name: NSPasteboard.Name("glasspad-test-\(UUID().uuidString)"))
@@ -356,4 +371,29 @@ private final class OffMainProbe: @unchecked Sendable {
     func record(_ onMain: Bool) { lock.lock(); _calls += 1; if onMain { _ranOnMain = true }; lock.unlock() }
     var calls: Int { lock.lock(); defer { lock.unlock() }; return _calls }
     var ranOnMain: Bool { lock.lock(); defer { lock.unlock() }; return _ranOnMain }
+}
+
+/// A black grey-scale PNG this size. Black rows pack a thousand to one, so the file is tiny
+/// next to what it takes once decoded: the shape of a decompression bomb.
+func blankPNG(width: UInt32, height: UInt32) -> Data {
+    func crc32(_ bytes: [UInt8]) -> UInt32 {
+        var c: UInt32 = 0xFFFF_FFFF
+        for b in bytes {
+            c ^= UInt32(b)
+            for _ in 0..<8 { c = c & 1 != 0 ? (c >> 1) ^ 0xEDB8_8320 : c >> 1 }
+        }
+        return ~c
+    }
+    func be(_ v: UInt32) -> [UInt8] { [UInt8(v >> 24), UInt8(v >> 16 & 0xFF), UInt8(v >> 8 & 0xFF), UInt8(v & 0xFF)] }
+    func chunk(_ type: String, _ body: [UInt8]) -> [UInt8] {
+        let typed = Array(type.utf8) + body
+        return be(UInt32(body.count)) + typed + be(crc32(typed))
+    }
+    // Each row: filter byte 0, then the pixels. zlib framing around Foundation's raw deflate.
+    let raw = Data(count: Int(height) * (Int(width) + 1))
+    let deflated = (try? (raw as NSData).compressed(using: .zlib) as Data) ?? Data()
+    // Adler-32 of all zero bytes: 1, and the length.
+    let idat = [0x78, 0x9C] + Array(deflated) + be(UInt32(raw.count % 65521) << 16 | 1)
+    let header = be(width) + be(height) + [8, 0, 0, 0, 0]
+    return Data([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A] + chunk("IHDR", header) + chunk("IDAT", idat) + chunk("IEND", []))
 }

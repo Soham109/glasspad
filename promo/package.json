@@ -16,12 +16,17 @@
     "render:novo": "scripts/remux-copy.sh out/glasspad-demo.mp4 public/mix-film-novo.wav out/glasspad-demo-no-vo.mp4",
     "render:teaser": "remotion render src/index.ts GlasspadTeaser out/glasspad-teaser-vertical.mp4 && scripts/remux.sh out/glasspad-teaser-vertical.mp4 public/mix-teaser.wav",
     "render:all": "pnpm voice && pnpm mix && pnpm verify && pnpm render && pnpm render:novo && pnpm render:teaser",
-    "typecheck": "tsc -p ."
+    "typecheck": "tsc -p .",
+    "v4:cues": "esbuild scripts/v4/cues.ts --bundle --platform=node --format=esm --outfile=voice/work/v4-cues.mjs --log-level=warning && node voice/work/v4-cues.mjs",
+    "render:v4": "scripts/v4/render.sh",
+    "render:4k": "scripts/v4/render-4k.sh",
+    "v4:verify": "python3 -I scripts/v4/verify.py"
   },
   "dependencies": {
     "@remotion/bundler": "4.0.529",
     "@remotion/cli": "4.0.529",
     "@remotion/fonts": "4.0.529",
+    "@remotion/motion-blur": "4.0.529",
     "@remotion/renderer": "4.0.529",
     "react": "18.3.1",
     "react-dom": "18.3.1",

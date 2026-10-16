@@ -133,6 +133,43 @@ public enum DisplayGeometry {
         return (free.min { distance($0) < distance($1) } ?? proposed.origin).rounded
     }
 
+    /// How far from the main display's corner an arrangement may reach, in points: far beyond
+    /// any real desk, and well inside the whole numbers CoreGraphics takes for an origin.
+    public static let maxArrangementOffset: CGFloat = 100_000
+
+    /// True when displays at these frames make one desktop the pointer can cross, as System
+    /// Settings allows: none overlap, each shares part of an edge with another (directly or
+    /// through others), and every value is a sensible finite number. The Mac refuses any other
+    /// arrangement, so no display is ever left where the pointer cannot reach it.
+    public static func isReachableArrangement(_ frames: [CGRect]) -> Bool {
+        guard !frames.isEmpty else { return false }
+        for f in frames {
+            let values = [f.minX, f.minY, f.maxX, f.maxY]
+            guard values.allSatisfy({ $0.isFinite && abs($0) <= maxArrangementOffset }), f.width > 0, f.height > 0 else { return false }
+        }
+        func overlap(_ a0: CGFloat, _ a1: CGFloat, _ b0: CGFloat, _ b1: CGFloat) -> CGFloat { min(a1, b1) - max(a0, b0) }
+        func touching(_ a: CGRect, _ b: CGRect) -> Bool {
+            let sideBySide = abs(a.maxX - b.minX) <= 0.5 || abs(b.maxX - a.minX) <= 0.5
+            let stacked = abs(a.maxY - b.minY) <= 0.5 || abs(b.maxY - a.minY) <= 0.5
+            return sideBySide && overlap(a.minY, a.maxY, b.minY, b.maxY) > 0.5
+                || stacked && overlap(a.minX, a.maxX, b.minX, b.maxX) > 0.5
+        }
+        for i in frames.indices {
+            for j in frames.indices where j > i {
+                if overlap(frames[i].minX, frames[i].maxX, frames[j].minX, frames[j].maxX) > 0.5,
+                   overlap(frames[i].minY, frames[i].maxY, frames[j].minY, frames[j].maxY) > 0.5 { return false }
+            }
+        }
+        var reached: Set<Int> = [0], queue = [0]
+        while let i = queue.popLast() {
+            for j in frames.indices where !reached.contains(j) && touching(frames[i], frames[j]) {
+                reached.insert(j)
+                queue.append(j)
+            }
+        }
+        return reached.count == frames.count
+    }
+
     /// The arrangement moved so `main` sits at 0, 0 (the dragged display may have been the main one).
     public static func normalized(_ origins: [DisplayOrigin], main: UInt32) -> [DisplayOrigin] {
         guard let m = origins.first(where: { $0.display == main })?.origin else { return origins }
@@ -158,7 +195,8 @@ extension DisplaysState {
             let halves = DisplayGeometry.split(in: current.visibleFrame, gap: gap)
             return [(id, halves.left), (other, halves.right)]
         case .move(let displayID, let origin):
-            guard let to = shownDisplays.first(where: { $0.id == displayID }) else { return nil }
+            guard let to = shownDisplays.first(where: { $0.id == displayID }),
+                  origin.map({ $0.x.isFinite && $0.y.isFinite }) ?? true else { return nil }
             if let origin { return [(id, DisplayGeometry.placed(window.frame, origin: origin, in: to.visibleFrame))] }
             if to.id == current.id { return [(id, window.frame)] }
             return [(id, DisplayGeometry.moved(window.frame, from: current.visibleFrame, to: to.visibleFrame))]
