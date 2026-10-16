@@ -11,6 +11,7 @@ git clone https://github.com/Soham109/glasspad.git
 cd glasspad
 scripts/test.sh          # runs every package's tests
 scripts/build-mac.sh     # builds build/Glasspad.app
+scripts/live-check.sh    # tries the Mac features for real, by hand (docs/LIVE-CHECK.md)
 ```
 
 For the iPhone app, run `xcodegen generate` and open the project in Xcode.

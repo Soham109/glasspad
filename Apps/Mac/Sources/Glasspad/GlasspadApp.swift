@@ -8,7 +8,8 @@ struct GlasspadApp: App {
     @StateObject private var model = AppDelegate.model
 
     var body: some Scene {
-        MenuBarExtra {
+        // The live check runs on its own, with no menu bar item and no phone listening.
+        MenuBarExtra(isInserted: .constant(!LiveCheckWindow.requested)) {
             PopoverView()
                 .environmentObject(model)
         } label: {
@@ -29,10 +30,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     static let model = AppModel.live(controller)
     private let recordingIndicator = RecordingIndicator()
     private let welcome = WelcomeWindow()
+    private let liveCheck = LiveCheckWindow()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Menu bar only, even when launched without the bundle's LSUIElement (swift run).
         NSApp.setActivationPolicy(.accessory)
+        if LiveCheckWindow.requested {
+            liveCheck.show(router: Self.controller.modeRouter)
+            return
+        }
         Self.controller.start()
         recordingIndicator.observe(Self.controller.macros)
         // First launch (or every phone forgotten): open a window with the code and the steps
@@ -43,6 +49,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationWillTerminate(_ notification: Notification) {
         // Put the Mac's own Dock back before anything else.
         MacDockHider.shared.appWillTerminate()
-        if !Self.model.isPaused { Self.controller.stop() }
+        if !Self.model.isPaused, !LiveCheckWindow.requested { Self.controller.stop() }
     }
 }

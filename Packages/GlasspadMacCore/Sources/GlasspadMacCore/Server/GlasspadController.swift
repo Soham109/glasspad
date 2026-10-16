@@ -34,6 +34,8 @@ public final class GlasspadController: ObservableObject {
     private let watcher: TrackpadPrefsWatcher
     private let pipeline: TouchPipeline
     private let modes: ModeRouter
+    /// The mode handlers, for the live check (which drives them without starting the server).
+    public var modeRouter: ModeRouter { modes }
     private var statusTimer: Timer?
     private var bridge: LinkBridge?
     private var flow = PairingFlow()

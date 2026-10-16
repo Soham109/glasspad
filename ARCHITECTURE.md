@@ -50,3 +50,5 @@ Pointer, clicks and scrolling use public `CGEvent` calls. Spaces, Mission Contro
 ## Testing
 
 Tests use swift-testing and run with `scripts/test.sh`. Tests never post events into the live session: they build events and check their fields. A loopback test pairs a client and a server in one process and checks that touch frames arrive.
+
+What only the real Mac can show (Control Center, Night Shift, window moves, display changes) is covered by the live check, run by hand with `scripts/live-check.sh`: Glasspad started with `--live-check` runs each feature through `DeckMode` and `ModeRouter`, the paths the phone uses, and puts the Mac back after each one (`Packages/GlasspadMacCore/Sources/GlasspadMacCore/LiveCheck`). Its state reading and restoring is tested with a fake Mac. See [docs/LIVE-CHECK.md](docs/LIVE-CHECK.md).

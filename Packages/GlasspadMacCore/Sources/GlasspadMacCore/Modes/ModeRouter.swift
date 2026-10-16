@@ -48,6 +48,9 @@ public final class ModeRouter {
     public static let defaultDisconnectGrace: TimeInterval = 30
     public var disconnectGrace: TimeInterval = ModeRouter.defaultDisconnectGrace
     private var disconnectTask: Task<Void, Never>?
+    /// False for the live check: messages it sends are not a phone connecting, so the Dock does
+    /// not hide "while connected".
+    public var tracksSession = true
 
     public init(poster: EventPoster, macDock: MacDockHider = .shared, observeWorkspace: Bool = true) {
         let keys = KeysMode.live(poster: poster)
@@ -228,6 +231,7 @@ public final class ModeRouter {
 
     /// A message arrived, so a phone is connected now.
     private func sessionActive() {
+        guard tracksSession else { return }
         disconnectTask?.cancel()
         disconnectTask = nil
         macDock.setConnected(true)

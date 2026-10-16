@@ -225,11 +225,11 @@ final class SnapshotTests: XCTestCase {
 
     enum Chrome { case popover, window, desktop }
 
-    private func shoot<V: View>(_ view: V, model: AppModel, width: CGFloat?, name: String, chrome: Chrome) throws {
+    func shoot<V: View>(_ view: V, model: AppModel, width: CGFloat?, name: String, chrome: Chrome) throws {
         try shoot(view, model: model, size: nil, width: width, name: name, chrome: chrome)
     }
 
-    private func shoot<V: View>(_ view: V, model: AppModel, size: CGSize?, width: CGFloat? = nil,
+    func shoot<V: View>(_ view: V, model: AppModel, size: CGSize?, width: CGFloat? = nil,
                                 name: String, chrome: Chrome) throws {
         for dark in [false, true] {
             let appearance = NSAppearance(named: dark ? .darkAqua : .aqua)!
