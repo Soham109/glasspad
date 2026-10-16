@@ -173,7 +173,9 @@ public final class LiveAppleScriptRunner: AppleScriptRunning, @unchecked Sendabl
     private let queue = DispatchQueue(label: "glasspad.media.applescript", qos: .userInitiated)
     private var compiled: [String: NSAppleScript] = [:]
 
-    public init() {}
+    public init() {
+        self.check = LiveAppleScriptRunner.askMacOS
+    }
 
     public func run(_ source: String) async -> AppleScriptOutcome {
         await withCheckedContinuation { continuation in
@@ -210,7 +212,39 @@ public final class LiveAppleScriptRunner: AppleScriptRunning, @unchecked Sendabl
                 message: (error?[NSAppleScript.errorMessage] as? String) ?? "AppleScript failed")
     }
 
+    /// The last answer macOS gave for each app, refreshed in the background. Never waits:
+    /// `AEDeterminePermissionToAutomateTarget` can block forever when macOS doesn't answer, and
+    /// called from the main thread it froze the menu bar icon. A refresh that never comes back
+    /// only holds one background thread, and no second one starts for that app meanwhile.
     public func permission(for bundleID: String) -> Bool? {
+        permissionLock.lock()
+        let known = permissions[bundleID] ?? nil
+        let start = !checking.contains(bundleID)
+        if start { checking.insert(bundleID) }
+        permissionLock.unlock()
+        if start {
+            DispatchQueue.global(qos: .utility).async {
+                let answer = self.check(bundleID)
+                self.permissionLock.lock()
+                self.permissions[bundleID] = answer
+                self.checking.remove(bundleID)
+                self.permissionLock.unlock()
+            }
+        }
+        return known
+    }
+
+    private let permissionLock = NSLock()
+    private var permissions: [String: Bool?] = [:]
+    private var checking: Set<String> = []
+    private let check: @Sendable (String) -> Bool?
+
+    /// `check` stands in for the real permission call in tests.
+    init(check: @escaping @Sendable (String) -> Bool?) {
+        self.check = check
+    }
+
+    static func askMacOS(_ bundleID: String) -> Bool? {
         let target = NSAppleEventDescriptor(bundleIdentifier: bundleID)
         guard let desc = target.aeDesc else { return nil }
         let status = AEDeterminePermissionToAutomateTarget(desc, typeWildCard, typeWildCard, false)
