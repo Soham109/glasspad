@@ -244,29 +244,29 @@ private struct RemoteScreen: View {
     // MARK: Buttons
 
     private var transport: some View {
-        TimelineView(.periodic(from: .now, by: 0.5)) { context in
-            let playing = store.playback.isPlaying(at: context.date)
-            HStack(spacing: 10) {
-                if keymap.has(.back, canSeek: canSeek) {
-                    bigButton(keymap.skipsTracks ? "backward.fill" : "gobackward.10",
-                              keymap.skipsTracks ? "Previous" : "Back 10 seconds", size: 26) { run(.back) }
-                }
-                Button {
-                    Haptics.shared.play(.click)
-                    run(.playPause)
-                } label: {
-                    Image(systemName: playing ? "pause.fill" : "play.fill")
-                        .font(.system(size: 34, weight: .semibold))
-                        .foregroundStyle(palette.inkColor)
-                        .contentTransition(.symbolEffect(.replace.downUp))
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                }
-                .buttonStyle(KeyCapStyle(cornerRadius: 24))
-                .accessibilityLabel(playing ? "Pause" : "Play")
-                if keymap.has(.forward, canSeek: canSeek) {
-                    bigButton(keymap.skipsTracks ? "forward.fill" : "goforward.10",
-                              keymap.skipsTracks ? "Next" : "Forward 10 seconds", size: 26) { run(.forward) }
-                }
+        // Redrawn when the state changes (a tap's confirm window ends with a redraw), so
+        // nothing ticks while the Remote sits still.
+        let playing = store.playback.isPlaying(at: Date())
+        return HStack(spacing: 10) {
+            if keymap.has(.back, canSeek: canSeek) {
+                bigButton(keymap.skipsTracks ? "backward.fill" : "gobackward.10",
+                          keymap.skipsTracks ? "Previous" : "Back 10 seconds", size: 26) { run(.back) }
+            }
+            Button {
+                Haptics.shared.play(.click)
+                run(.playPause)
+            } label: {
+                Image(systemName: playing ? "pause.fill" : "play.fill")
+                    .font(.system(size: 34, weight: .semibold))
+                    .foregroundStyle(palette.inkColor)
+                    .contentTransition(.symbolEffect(.replace.downUp))
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+            .buttonStyle(KeyCapStyle(cornerRadius: 24))
+            .accessibilityLabel(playing ? "Pause" : "Play")
+            if keymap.has(.forward, canSeek: canSeek) {
+                bigButton(keymap.skipsTracks ? "forward.fill" : "goforward.10",
+                          keymap.skipsTracks ? "Next" : "Forward 10 seconds", size: 26) { run(.forward) }
             }
         }
     }
