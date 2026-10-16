@@ -459,7 +459,7 @@ private struct DockIconPreview: View {
             Text(app.name).font(.headline).foregroundStyle(palette.inkColor)
         }
         .padding(20)
-        .background(palette.backgroundColor)
+        .background(palette.solidColor)
     }
 }
 
@@ -494,7 +494,7 @@ private struct HiddenAppsSheet: View {
                 .listRowBackground(palette.raisedColor)
             }
             .scrollContentBackground(.hidden)
-            .background(palette.backgroundColor)
+            .background(SurfaceBackground())
             .navigationTitle("Hidden Apps")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

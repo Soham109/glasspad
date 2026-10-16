@@ -66,7 +66,7 @@ struct PairingScanner: View {
     @ViewBuilder private var pasteArea: some View {
         Text(errorText ?? " ")
             .font(.footnote)
-            .foregroundStyle(Color(uiColor: .systemRed))
+            .foregroundStyle(palette.bad)
             .multilineTextAlignment(.center)
             .frame(minHeight: 18)
             .accessibilityHidden(errorText == nil)
@@ -214,7 +214,7 @@ struct PairSheet: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(palette.backgroundColor.ignoresSafeArea())
+        .background(SurfaceBackground())
     }
 
     private func heading(alignment: HorizontalAlignment) -> some View {
@@ -248,10 +248,10 @@ struct PairedBadge: View {
     var body: some View {
         VStack(spacing: 14) {
             ZStack {
-                Circle().fill(Color(uiColor: .systemGreen).opacity(0.14)).frame(width: 96, height: 96)
+                Circle().fill(palette.good.opacity(0.14)).frame(width: 96, height: 96)
                 Image(systemName: "checkmark")
                     .font(.system(size: 38, weight: .semibold))
-                    .foregroundStyle(Color(uiColor: .systemGreen))
+                    .foregroundStyle(palette.good)
             }
             Label(name, systemImage: "laptopcomputer")
                 .font(.headline)

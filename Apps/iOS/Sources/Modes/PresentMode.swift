@@ -19,7 +19,7 @@ struct PresentMode: View {
             if verticalSize == .compact { landscape } else { portrait }
         }
         .overlay {
-            if !session.isConnected { ModeOfflineMessage(mode: .present).background(palette.backgroundColor) }
+            if !session.isConnected { ModeOfflineMessage(mode: .present).background(SurfaceBackground()) }
         }
         .onDisappear { session.laserOff() }
     }
@@ -148,7 +148,7 @@ struct PresentMode: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .buttonStyle(KeyCapStyle(accent: accent, cornerRadius: 26))
+        .buttonStyle(KeyCapStyle(prominent: true, cornerRadius: 26))
         .accessibilityLabel("Next slide")
         .accessibilityHint("Starts the timer on the first press")
     }
@@ -172,7 +172,7 @@ private struct LaserPad: View {
                     .strokeBorder(palette.lineColor)
                 if let point {
                     Circle()
-                        .fill(Color.red)
+                        .fill(palette.monochrome ? palette.inkColor : palette.bad)
                         .frame(width: 18, height: 18)
                         .position(x: point.x * geo.size.width, y: point.y * geo.size.height)
                 } else {
