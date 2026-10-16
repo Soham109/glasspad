@@ -190,10 +190,13 @@ final class PhoneNetwork {
 
     private(set) var onWiFi: Bool?
     @ObservationIgnored private var monitor: NWPathMonitor?
+    @ObservationIgnored private var users = 0
 
     private init() {}
 
+    /// Watches the network while a screen that shows it is open; pair each call with `stop`.
     func start() {
+        users += 1
         guard monitor == nil else { return }
         let m = NWPathMonitor()
         m.pathUpdateHandler = { path in
@@ -205,6 +208,8 @@ final class PhoneNetwork {
     }
 
     func stop() {
+        users = max(0, users - 1)
+        guard users == 0 else { return }
         monitor?.cancel()
         monitor = nil
     }

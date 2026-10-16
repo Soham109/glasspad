@@ -25,6 +25,8 @@ public final class ModeRouter {
             }
         }
     }
+    /// Displays mode. The app sets the live one; tests set one with a fake backend.
+    public var displays: DisplaysMode? { didSet { wireDisplays() } }
     public var send: (ModeMessage) -> Void = { _ in }
 
     private let deckEnvironment: LiveDeckEnvironment?
@@ -63,6 +65,15 @@ public final class ModeRouter {
         macDock.onChange = { [weak self] state in self?.send(.macDockState(state)) }
         media.onChange = { [weak self] in self?.pushMedia() }
         if observeWorkspace { startWorkspaceObservers() }
+        displays = DisplaysMode(backend: LiveDisplays())
+        wireDisplays()
+    }
+
+    /// Displays answers through `send` and sends icons from the Dock's cache.
+    private func wireDisplays() {
+        displays?.send = { [weak self] in self?.send($0) }
+        displays?.icons = { [weak self] ids in self?.dock.icons(for: ids) ?? [] }
+        displays?.nightShift = { NightShift.isOn() }
     }
 
     /// For tests: every part injected, nothing observed.
@@ -171,11 +182,15 @@ public final class ModeRouter {
                 let outcome = await self.deck.perform(.system(action))
                 self.send(.deckResult(id: id, ok: outcome.ok, message: outcome.ok ? nil : outcome.message))
             }
+        case .displaysWatch(let on): displays?.watch(on)
+        case .windowCommand(let id, let window, let command): displays?.handle(id: id, windowID: window, command: command)
+        case .displayCommand(let id, let command): displays?.handle(id: id, command: command)
         case .macro(let m): macros?.handle(m)
         // Mac -> phone messages: ignore if echoed back.
         case .dockList, .mediaState, .deckButtons, .deckResult, .clipboardContent, .dockOpenResult,
              .clipboardPushResult, .clipboardPullRefused, .dockCatalog,
-             .dockIcons, .frontmostApp, .macDockState, .deckLayout, .deckSaveResult, .deckCatalog, .deckImage:
+             .dockIcons, .frontmostApp, .macDockState, .deckLayout, .deckSaveResult, .deckCatalog, .deckImage,
+             .displaysState, .displaysResult:
             break
         }
     }
@@ -214,6 +229,7 @@ public final class ModeRouter {
         present.setLaser(on: false)
         keys.restoreInputMethod()
         stopMediaUpdates()
+        displays?.sessionEnded()
         dock.resetSession()
         phoneMode = nil
         disconnectTask?.cancel()

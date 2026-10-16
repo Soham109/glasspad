@@ -53,6 +53,8 @@ struct ModeSwitcher: View {
                             pill.transition(transition(bottom: bottom, scale: 0.85))
                         } else if !session.isConnected {
                             ConnectionDot(state: session.state)
+                                // The one lit spot left on a dimmed screen; dim it too (OLED).
+                                .opacity(router.isDimmed ? 0.3 : 1)
                                 .padding(bottom ? .bottom : .top, 8)
                                 .transition(.opacity)
                         }

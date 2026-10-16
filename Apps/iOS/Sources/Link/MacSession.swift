@@ -97,11 +97,14 @@ final class MacSession {
     @ObservationIgnored private var foreground = false
     @ObservationIgnored private var backgroundUsers = 0
     @ObservationIgnored private var trackpadVisible = false
+    /// Set only by an explicit move to the background (not at launch, before the first scene
+    /// phase arrives).
+    @ObservationIgnored private var backgrounded = false
+    @ObservationIgnored private var hapticsWarm = false
     @ObservationIgnored private var lastLocalHaptic: [HapticKind: TimeInterval] = [:]
     @ObservationIgnored private var stateWaiters: [UUID: CheckedContinuation<Bool, Never>] = [:]
     @ObservationIgnored private var laserOn = false
-    @ObservationIgnored private var thermalObserver: NSObjectProtocol?
-    @ObservationIgnored private var powerObserver: NSObjectProtocol?
+    @ObservationIgnored private var power = PowerPolicy()
     @ObservationIgnored private var diagnosticsVisible = 0
 
     private static let settingsKey = "lastMacSettings"
@@ -132,17 +135,7 @@ final class MacSession {
             dockApps = (try? JSONDecoder().decode([DockApp].self, from: data)) ?? []
         }
         bridge.session = self
-        thermalObserver = NotificationCenter.default.addObserver(
-            forName: ProcessInfo.thermalStateDidChangeNotification, object: nil, queue: .main
-        ) { _ in
-            MainActor.assumeIsolated { MacSession.shared.updateThermal() }
-        }
-        powerObserver = NotificationCenter.default.addObserver(
-            forName: .NSProcessInfoPowerStateDidChange, object: nil, queue: .main
-        ) { _ in
-            MainActor.assumeIsolated { MacSession.shared.updateThermal() }
-        }
-        updateThermal()
+        PowerMonitor.shared.onChange { [weak self] in self?.powerChanged($0) }
         refreshHapticStrength()
     }
 
@@ -151,6 +144,8 @@ final class MacSession {
     /// The app came to the foreground or went to the background.
     func setForeground(_ active: Bool) {
         foreground = active
+        backgrounded = !active
+        applyHapticEngine()
         if active {
             connectIfNeeded()
         } else {
@@ -163,7 +158,21 @@ final class MacSession {
         GPLog.log("trackpad visible: \(visible), client \(client == nil ? "nil" : "ok")")
         trackpadVisible = visible
         applyHeartbeats()
-        if visible { Haptics.shared.warmUp() } else { Haptics.shared.coolDown() }
+        applyHapticEngine()
+    }
+
+    /// The trackpad dimmed or woke. A dimmed trackpad swallows the touch that wakes it, so the
+    /// haptic engine can rest meanwhile and be ready again before the first real click.
+    func dimmedChanged() {
+        applyHapticEngine()
+    }
+
+    /// The Taptic Engine stays powered only while the trackpad is on screen, awake and in front.
+    private func applyHapticEngine() {
+        let wanted = trackpadVisible && !backgrounded && !AppRouter.shared.isDimmed
+        guard wanted != hapticsWarm else { return }
+        hapticsWarm = wanted
+        if wanted { Haptics.shared.warmUp() } else { Haptics.shared.coolDown() }
     }
 
     /// A diagnostics screen (Connection, the setup checklist) appeared or disappeared. While one
@@ -434,19 +443,19 @@ final class MacSession {
         lastLocalHaptic[kind] = ProcessInfo.processInfo.systemUptime
     }
 
-    private func updateThermal() {
-        let warm = ProcessInfo.processInfo.thermalState.rawValue >= ProcessInfo.ThermalState.serious.rawValue
-        isWarm = warm
-        Haptics.shared.suspendedForHeat = warm
-        isLowPower = ProcessInfo.processInfo.isLowPowerModeEnabled
+    private func powerChanged(_ policy: PowerPolicy) {
+        power = policy
+        if isWarm != policy.isWarm { isWarm = policy.isWarm }
+        if isLowPower != policy.lowPower { isLowPower = policy.lowPower }
+        Haptics.shared.suspendedForHeat = !policy.allowsHaptics
         applyHeartbeats()
     }
 
     private func applyHeartbeats() {
         guard let client else { return }
-        client.heartbeatIdleTimeout = isLowPower ? 10 : GlasspadService.heartbeatIdleTimeout
+        client.heartbeatIdleTimeout = power.heartbeatIdleTimeout
         client.measuresRoundTrip = diagnosticsVisible > 0
-        client.heartbeatsEnabled = (trackpadVisible || diagnosticsVisible > 0) && !isWarm
+        client.heartbeatsEnabled = (trackpadVisible || diagnosticsVisible > 0) && power.allowsHeartbeats
     }
 
     // MARK: Receiving
@@ -463,6 +472,7 @@ final class MacSession {
             PairingStore.shared.reload()
             let modes = AppRouter.shared.screenModes
             modesDidChange(to: modes)
+            DisplaysStore.shared.linkConnected()
             // Refresh whatever the screen shows (every pane of a layout).
             for mode in modes {
                 switch mode {
@@ -597,6 +607,8 @@ final class MacSession {
             Haptics.shared.play(content == nil ? .error : .snap)
         case .macro(let macro):
             received(macro)
+        case .displaysState, .displaysResult:
+            DisplaysStore.shared.receive(message)
         default:
             // Phone -> Mac messages never arrive here.
             break
@@ -744,6 +756,7 @@ final class MacSession {
         UserDefaults.standard.removeObject(forKey: Self.dockListCacheKey)
         media = nil
         MediaStore.shared.reset()
+        DisplaysStore.shared.reset()
         deckButtons = nil
         deckOutcomes = [:]
         deckPending = []
@@ -774,6 +787,8 @@ final class MacSession {
             break
         }
         LiveActivityController.shared.refresh()
+        // The screen is held on only while connected.
+        ScreenAwake.update()
     }
 
     #if DEBUG

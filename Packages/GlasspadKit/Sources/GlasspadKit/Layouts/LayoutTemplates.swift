@@ -37,6 +37,8 @@ public struct LayoutTemplate: Identifiable, Equatable, Sendable {
         LayoutTemplate(id: "media-actions", name: "Media and Actions", panes: ["media", "actions"]),
         LayoutTemplate(id: "studio", name: "Studio", panes: ["trackpad", "media", "actions"], split: 0.5),
         LayoutTemplate(id: "presenter", name: "Presenter", panes: ["present", "trackpad"], split: 0.5),
+        LayoutTemplate(id: "standby", name: "StandBy", panes: ["clock", "nowPlaying"]),
+        LayoutTemplate(id: "clock-trackpad", name: "Clock and Trackpad", panes: ["clock", "trackpad"], split: 0.4),
     ]
 
     /// The layouts a new install starts with.

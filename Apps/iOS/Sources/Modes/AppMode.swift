@@ -3,10 +3,13 @@ import GlasspadKit
 
 /// The screens the pill switches between. Each has one SF Symbol and one accent colour.
 /// By default five show: Trackpad, Keyboard, Media, Dock and Actions. Actions combines Deck,
-/// Macros, Clipboard and Present; Settings can split it back into those four. Remote starts
-/// hidden and opens from the mode menu's tools until Settings shows it in the pill.
+/// Macros, Clipboard and Present; Settings can split it back into those four. Remote and
+/// Displays start hidden and open from the mode menu's tools until Settings shows them in the pill.
+/// Clock, Now Playing and Calendar are the StandBy screens (StandByMode.swift): hidden too, they
+/// show in layouts, side by side with another mode.
 enum AppMode: String, CaseIterable, Identifiable, Sendable {
-    case trackpad, keys, media, dock, actions, deck, macros, clipboard, present, remote
+    case trackpad, keys, media, dock, actions, deck, macros, clipboard, present, remote, displays
+    case clock, nowPlaying, calendar
 
     var id: String { rawValue }
 
@@ -23,6 +26,10 @@ enum AppMode: String, CaseIterable, Identifiable, Sendable {
         case .clipboard: "Clipboard"
         case .present: "Present"
         case .remote: "Remote"
+        case .displays: "Displays"
+        case .clock: "Clock"
+        case .nowPlaying: "Now Playing"
+        case .calendar: "Calendar"
         }
     }
 
@@ -38,6 +45,10 @@ enum AppMode: String, CaseIterable, Identifiable, Sendable {
         case .clipboard: "doc.on.clipboard.fill"
         case .present: "play.rectangle.fill"
         case .remote: "appletvremote.gen4.fill"
+        case .displays: "display.2"
+        case .clock: "clock.fill"
+        case .nowPlaying: "music.note"
+        case .calendar: "calendar"
         }
     }
 
@@ -56,25 +67,22 @@ enum AppMode: String, CaseIterable, Identifiable, Sendable {
         case .clipboard: Color(uiColor: .systemGreen)
         case .present: Color(uiColor: .systemRed)
         case .remote: Color(uiColor: .systemPurple)
+        case .displays: Color(uiColor: .systemMint)
+        case .clock: Color(uiColor: .systemCyan)
+        case .nowPlaying: Color(uiColor: .systemPink)
+        case .calendar: Color(uiColor: .systemRed)
         }
     }
 
-    /// Clipboard, Present and Remote: small tools in the mode menu unless shown as modes.
-    var isTool: Bool { self == .clipboard || self == .present || self == .remote }
+    /// Clipboard, Present, Remote and Displays: small tools in the mode menu unless shown as modes.
+    var isTool: Bool { self == .clipboard || self == .present || self == .remote || self == .displays }
 
-    /// The tool's lighter symbol and spoken hint in the mode menu.
-    var toolSymbol: String {
-        switch self {
-        case .present: "play.rectangle"
-        case .remote: "appletvremote.gen4"
-        default: "doc.on.clipboard"
-        }
-    }
-
+    /// The tool's spoken hint in the mode menu (its tile uses the mode's own symbol).
     var toolHint: String {
         switch self {
         case .present: "Opens the slide remote full screen"
         case .remote: "Opens a remote for films and music, full screen"
+        case .displays: "Shows your Mac's displays and windows, full screen"
         default: "Copies between this iPhone and your Mac"
         }
     }
@@ -92,6 +100,11 @@ enum AppMode: String, CaseIterable, Identifiable, Sendable {
         case .clipboard: .clipboard
         case .present: .present
         case .remote: .remote
+        case .displays: .displays
+        // Now Playing needs the Mac's now playing stream, as Media does. The clock and the
+        // calendar need nothing from the Mac.
+        case .nowPlaying: .media
+        case .clock, .calendar: .trackpad
         }
     }
 }
@@ -110,6 +123,10 @@ extension AppMode {
         case .clipboard: "Copy between iPhone and Mac."
         case .present: "A slide remote with timer and laser."
         case .remote: "Watch from the couch: play, skip, volume and search."
+        case .displays: "Your Mac's displays and windows: move, tile and arrange."
+        case .clock: "A big clock for your desk or nightstand, like StandBy."
+        case .nowPlaying: "What your Mac is playing, large, like StandBy."
+        case .calendar: "Your next events at a glance, like StandBy."
         }
     }
 
