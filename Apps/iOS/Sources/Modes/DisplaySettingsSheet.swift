@@ -91,7 +91,11 @@ struct DisplaySettingsSheet: View {
             }
         } else {
             if d.brightness != nil {
-                card {
+                card(spacing: 6) {
+                    Text("Brightness")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(palette.inkColor)
+                        .accessibilityHidden(true)
                     LevelSlider(value: $brightness, low: "sun.min.fill", high: "sun.max.fill", label: "Brightness", enabled: true) { editing in
                         editingBrightness = editing
                         if !editing { heldUntil = Date().addingTimeInterval(0.8) }

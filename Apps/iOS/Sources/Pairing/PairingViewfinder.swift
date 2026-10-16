@@ -156,7 +156,7 @@ struct PairingViewfinder: View {
                         } else {
                             Text("Hold your iPhone over the Mac's screen")
                                 .font(.title2.weight(.semibold))
-                            Text(notGlasspad ? "That code is not from Glasspad." : "Line up the pattern in the frame.")
+                            Text(notGlasspad ? "That code is not from Glasspad." : "Line up the code in the frame.")
                                 .font(.body)
                                 .foregroundStyle(.secondary)
                                 .contentTransition(.opacity)

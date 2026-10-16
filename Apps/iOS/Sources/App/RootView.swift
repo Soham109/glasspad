@@ -36,6 +36,8 @@ struct RootView: View {
     var session = MacSession.shared
 
     var body: some View {
+        // Read so a new photo redraws everything even when Photo is already the theme.
+        let photo = settings.photoVersion
         let palette = settings.theme.resolved(systemScheme).customized(settings)
         @Bindable var router = router
         ZStack {
@@ -55,7 +57,7 @@ struct RootView: View {
         // Paper and Graphite force the window light or dark; System leaves it to the phone.
         // Set on the window, not with preferredColorScheme, so that system text, controls,
         // sheets already on screen, menus, alerts and the keyboard all follow a change at once.
-        .background(WindowAppearance(style: settings.theme.interfaceStyle))
+        .background(WindowAppearance(style: settings.theme.interfaceStyle, photo: photo))
         .tint(palette.inkColor)
         .statusBarHidden(true)
         .sheet(isPresented: $router.showSettings, onDismiss: ScreenAwake.update) {

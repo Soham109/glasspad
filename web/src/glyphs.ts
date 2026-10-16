@@ -101,6 +101,7 @@ GLYPH["logo.wikipedia"] = '<rect x="2.5" y="2.5" width="19" height="19" rx="4.5"
 GLYPH["arrow.counterclockwise"] = '<path d="M5 12a7 7 0 1 0 2.05-4.95"/><path d="M5 4.5V8h3.5"/>';
 GLYPH["dot.radiowaves"] = '<circle class="f" cx="12" cy="12" r="1.8"/><path d="M8.6 8.6a4.8 4.8 0 0 0 0 6.8M15.4 8.6a4.8 4.8 0 0 1 0 6.8M6 6a8.5 8.5 0 0 0 0 12M18 6a8.5 8.5 0 0 1 0 12"/>';
 GLYPH["chevron.left"] = '<path d="m14.5 5-7 7 7 7"/>';
+GLYPH["chevron.down"] = '<path d="m6 9.5 6 6 6-6"/>';
 GLYPH["sun.max.fill"] = '<circle class="f" cx="12" cy="12" r="4"/><path d="M12 3v2.2M12 18.8V21M3 12h2.2M18.8 12H21M5.6 5.6l1.6 1.6M16.8 16.8l1.6 1.6M18.4 5.6l-1.6 1.6M7.2 16.8l-1.6 1.6"/>';
 GLYPH["pause.fill"] = '<rect class="f" x="6.5" y="5" width="4" height="14" rx="1.2"/><rect class="f" x="13.5" y="5" width="4" height="14" rx="1.2"/>';
 GLYPH["xmark"] = '<path d="m6.5 6.5 11 11M17.5 6.5l-11 11"/>';

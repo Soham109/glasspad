@@ -96,12 +96,14 @@ struct DisplaysMode: View {
                     Haptics.shared.tap()
                     settingsFor = DisplayPick(id: main.id)
                 } label: {
-                    Image(systemName: "slider.horizontal.3")
-                        .font(.body.weight(.semibold))
+                    // Named, not just a symbol: it opens brightness, resolution and Night Shift.
+                    Text("Settings")
+                        .font(.subheadline.weight(.semibold))
                         .foregroundStyle(palette.inkColor)
-                        .frame(width: 40, height: 40)
-                        .background(Circle().fill(palette.raisedColor))
-                        .overlay(Circle().strokeBorder(palette.lineColor, lineWidth: 1))
+                        .padding(.horizontal, 16)
+                        .frame(height: 40)
+                        .background(Capsule().fill(palette.raisedColor))
+                        .overlay(Capsule().strokeBorder(palette.lineColor, lineWidth: 1))
                 }
                 .buttonStyle(TileStyle())
                 .accessibilityLabel("Display Settings")
@@ -113,7 +115,7 @@ struct DisplaysMode: View {
         let name = session.macName ?? "Your Mac"
         guard session.isConnected, let s = store.state else { return name }
         let displays = s.displays.count, windows = s.windows.count
-        return "\(displays == 1 ? "1 Display" : "\(displays) Displays") · \(windows == 1 ? "1 Window" : "\(windows) Windows")"
+        return "\(displays == 1 ? "1 display" : "\(displays) displays") · \(windows == 1 ? "1 window" : "\(windows) windows")"
     }
 
     // MARK: Content

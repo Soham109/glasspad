@@ -131,7 +131,7 @@ struct SettingsView: View {
     }
 
     private var modes: some View {
-        Section("Modes") {
+        Section {
             NavigationLink {
                 ModesSettings()
             } label: {
@@ -151,6 +151,22 @@ struct SettingsView: View {
                         Image(systemName: mode.symbol).foregroundStyle(mode.accent(palette))
                     }
                 }
+            }
+            // Keyboard has one option, so it sits here rather than on a page of its own.
+            if AppMode.visible.contains(.keys) {
+                Toggle(isOn: $settings.keysShowsShortcuts) {
+                    Label {
+                        Text("Keyboard Shortcut Row")
+                    } icon: {
+                        Image(systemName: AppMode.keys.symbol).foregroundStyle(AppMode.keys.accent(palette))
+                    }
+                }
+            }
+        } header: {
+            Text("Modes")
+        } footer: {
+            if AppMode.visible.contains(.keys) {
+                Text("The shortcut row puts Copy, Paste, Undo and more above the arrow keys.")
             }
         }
         .listRowBackground(palette.raisedColor)
@@ -464,7 +480,7 @@ struct ThemeSettings: View {
         }
         hasPhoto = true
         Haptics.shared.tap()
-        // Set even when Photo is already the theme, so every screen picks up the new photo.
+        // Every screen redraws with the new photo through `photoVersion`; this switches to it.
         ThemeTransition.run { settings.theme = .photo }
     }
 }

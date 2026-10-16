@@ -101,6 +101,9 @@ final class PhoneSettings {
 
     // Look
     var theme: ThemeChoice { didSet { defaults.set(theme.rawValue, forKey: Key.theme) } }
+    /// Goes up each time a new photo is made the Photo theme's backdrop. Setting the theme to
+    /// the value it already has tells no view, so screens watch this to redraw with the photo.
+    var photoVersion = 0
     var showDots: Bool { didSet { defaults.set(showDots, forKey: Key.showDots) } }
     var dotSizeChoice: DotSize { didSet { defaults.set(dotSizeChoice.rawValue, forKey: Key.dotSize) } }
     /// Points across.

@@ -206,7 +206,7 @@ const MODES: Mode[] = [
         <div class="crow"><span class="cbtn paste">${glyph("doc.on.clipboard")}Paste</span><span class="ok">${glyph("checkmark")}Sent</span></div></div>
       <div class="cc from"><div class="ch">${glyph("square.and.arrow.down")}<div><b>Get from Mac</b><span>Whatever is copied on your Mac, copied here too.</span></div></div>
         <div class="img"><i class="a1"></i><i class="a2"></i><i class="a3"></i></div>
-        <div class="crow"><span class="cbtn get">${glyph("square.and.arrow.down")}Get Clipboard</span><span class="ok">${glyph("checkmark")}Copied to iPhone</span></div></div>
+        <div class="crow"><span class="cbtn get">${glyph("square.and.arrow.down")}Get from Mac</span><span class="ok">${glyph("checkmark")}Copied to iPhone</span></div></div>
     </div></div>`,
     mac: () => `${win("w-a mm-cnote", '<div class="mm-type"><span class="txt"></span><span class="caret"></span></div>', true, "left:5%;top:12%;width:50%;height:58%")}${win("w-b mm-cphoto", '<div class="ph"><i class="a1"></i><i class="a2"></i><i class="a3"></i></div>', false, "left:47%;top:24%;width:47%;height:58%")}${menuBar("Notes", ["File", "Edit", "Format", "View", "Window"])}<div class="mm-toast">Copied</div>`,
     async run(s) {

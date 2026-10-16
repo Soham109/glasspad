@@ -271,7 +271,7 @@ struct TrackpadPane: View {
                         }
                     } label: {
                         Text(g.displayName)
-                        Text(GestureCopy.inUse(model.capabilities.mode(for: g)))
+                        if let line = GestureCopy.inUse(model.capabilities.mode(for: g)) { Text(line) }
                     }
                 }
             } header: {
@@ -332,7 +332,7 @@ struct AboutPane: View {
                 .font(.callout)
                 .foregroundStyle(.secondary)
                 .textSelection(.enabled)
-            Text("Your iPhone as a wireless trackpad and remote for your Mac.")
+            Text(WelcomeCopy.helloDetail)
                 .multilineTextAlignment(.center)
                 .padding(.top, 8)
             Text("It talks only to your paired iPhone, encrypted with a key only the two share.")

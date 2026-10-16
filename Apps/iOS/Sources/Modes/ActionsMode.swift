@@ -537,13 +537,7 @@ struct ActionsMode: View {
         Menu {
             Button("New Folder", systemImage: "folder.badge.plus") { newFolder() }
             Button("Reset to Defaults", systemImage: "arrow.counterclockwise") { confirmingReset = true }
-            Divider()
-            Toggle("Show Labels", isOn: $settings.deckShowsTitles)
-            Picker("Tile Size", selection: $settings.deckTileScale) {
-                Text("Small").tag(0.85)
-                Text("Medium").tag(1.0)
-                Text("Large").tag(1.3)
-            }
+            // Button size and labels are in Settings > Actions, in one place.
         } label: {
             Image(systemName: "ellipsis")
                 .font(.body.weight(.semibold))
@@ -583,7 +577,6 @@ struct ActionsMode: View {
         return reorderable(tile, id: key, section: section) {
             Button("Edit", systemImage: "pencil") { open(button, page: index) }
             if inPinned {
-                Button("Edit Pinned", systemImage: "square.grid.3x3.square") { editing = true }
                 Button("Duplicate", systemImage: "plus.square.on.square") {
                     var copy = button
                     copy.id = UUID()

@@ -574,7 +574,7 @@ final class MacSession {
         case .deckSaveResult(let ok, let message):
             deckSaveWatch.settle()
             if !ok {
-                deckSaveError = message ?? "Your Mac did not save the Deck."
+                deckSaveError = message ?? "Your Mac did not save your buttons."
                 Haptics.shared.play(.error)
                 send(.deckRequest)
             }
@@ -886,7 +886,7 @@ final class MacSession {
         for waiter in waiters.values { waiter.resume(returning: value) }
     }
 
-    /// Waits for the Deck list (for the "Run Deck button" action's picker).
+    /// Waits for the Deck list (for the "Run Glasspad Button" action's picker).
     func fetchDeckButtons() async -> [DeckButton] {
         send(.deckRequest)
         for _ in 0..<20 {

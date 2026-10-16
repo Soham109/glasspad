@@ -114,7 +114,8 @@ struct PresentMode: View {
                     .contentTransition(.symbolEffect(.replace))
                     .frame(width: 32, height: 32)
             }
-            .glassButton(prominent: true, accent: accent)
+            // Plain, like Reset beside it, so it reads as the timer's control and not as starting the slides.
+            .glassButton()
             .buttonBorderShape(.circle)
             .accessibilityLabel(timer.isRunning ? "Pause timer" : "Start timer")
         }

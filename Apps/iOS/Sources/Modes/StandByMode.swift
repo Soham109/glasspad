@@ -266,9 +266,14 @@ struct StandBySettingsSections: View {
             Picker("Night Mode", selection: $settings.nightMode) {
                 ForEach(NightMode.allCases, id: \.self) { Text($0.title).tag($0) }
             }
+        } footer: {
+            Text("At Night turns the screen a dim red from \(Self.hour(NightMode.startHour)) to \(Self.hour(NightMode.endHour)).")
+        }
+        .listRowBackground(palette.raisedColor)
+        Section {
             Toggle("Stay On When Unplugged", isOn: $settings.keepOnUnplugged)
         } footer: {
-            Text("At Night turns Clock, Now Playing and Calendar a dim red from \(Self.hour(NightMode.startHour)) to \(Self.hour(NightMode.endHour)). They keep the screen on while the iPhone charges. Stay On When Unplugged keeps it on with the battery too, except in Low Power Mode.")
+            Text("The screen stays on while your iPhone charges. This keeps it on with the battery too, except in Low Power Mode.")
         }
         .listRowBackground(palette.raisedColor)
     }

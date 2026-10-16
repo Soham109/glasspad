@@ -57,7 +57,6 @@ final class AppModel: ObservableObject {
         var requestAccessibility: @MainActor () -> Void = {}
         var openAutomationSettings: @MainActor () -> Void = {}
         var recheckPermissions: @MainActor () -> Void = {}
-        var setDockHidden: @MainActor (Bool) -> Void = { _ in }
         /// Never, While Connected or Always, as one change.
         var setDockHiding: @MainActor (MacDockHiding) -> Void = { _ in }
         var setLaunchAtLogin: @MainActor (Bool) -> Void = { _ in }
@@ -161,7 +160,6 @@ extension AppModel {
             }
         }
         a.recheckPermissions = { controller.refreshAccessibility() }
-        a.setDockHidden = { hider.setManual($0) }
         a.setDockHiding = { hider.set($0.state) }
         a.setLaunchAtLogin = { on in
             login.set(on)

@@ -303,7 +303,7 @@ struct SetupChecklistView: View {
             .frame(maxWidth: .infinity)
         }
         .background(SurfaceBackground())
-        .navigationTitle("Set Up")
+        .navigationTitle("Setup")
         .navigationBarTitleDisplayMode(.inline)
         .animation(.smooth, value: allDone)
     }

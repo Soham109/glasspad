@@ -17,6 +17,6 @@ labels: bug
 - iPhone model and iOS version:
 - Glasspad version or commit:
 - Wi-Fi or direct connection:
-- Mac menu: which gestures show as native, which as fallback:
+- Gestures: in Glasspad Settings > Trackpad on the Mac, which gestures say "Now sent as a keyboard shortcut" or "Not available on this Mac":
 
 **Anything else** (screenshots, a short screen recording)

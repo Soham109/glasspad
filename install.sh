@@ -449,7 +449,7 @@ step "Done. What is installed:"
 printf '%s' "$SUMMARY"
 if [ "$PHONE_DONE" = 1 ]; then
   printf '\n'
-  say "Pair: click the Glasspad icon in your Mac's menu bar > Pair new iPhone, then scan the code"
+  say "Pair: click Glasspad in your Mac's menu bar, choose Pair Your iPhone, then scan the code"
   say "with the Glasspad app (or the iPhone Camera)."
 fi
 }

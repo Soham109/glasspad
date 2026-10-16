@@ -362,7 +362,7 @@ private struct RemoteScreen: View {
                     .buttonStyle(TileStyle())
                     .accessibilityLabel("Close search")
                 }
-                Text(keymap.searchPrefix.isEmpty ? "Types where the cursor is on your Mac, then presses Return."
+                Text(keymap.searchPrefix.isEmpty ? "Types into the search box selected on your Mac, then presses Return."
                                                  : "Goes into \(keymap.name ?? "the site")'s search box, then presses Return.")
                     .font(.footnote)
                     .foregroundStyle(palette.inkSoftColor)

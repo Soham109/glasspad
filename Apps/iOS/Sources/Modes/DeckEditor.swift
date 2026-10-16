@@ -132,6 +132,10 @@ struct DeckButtonEditor: View {
 
     static let colors = ["#0A84FF", "#5E5CE6", "#BF5AF2", "#FF375F", "#FF453A", "#FF9F0A",
                          "#FFD60A", "#34C759", "#30B0C7", "#64D2FF", "#8E8E93", "#636366"]
+    /// What VoiceOver says for each swatch.
+    static let colorNames = ["#0A84FF": "Blue", "#5E5CE6": "Indigo", "#BF5AF2": "Purple", "#FF375F": "Pink",
+                             "#FF453A": "Red", "#FF9F0A": "Orange", "#FFD60A": "Yellow", "#34C759": "Green",
+                             "#30B0C7": "Teal", "#64D2FF": "Cyan", "#8E8E93": "Gray", "#636366": "Dark Gray"]
 
     var body: some View {
         NavigationStack {
@@ -172,7 +176,7 @@ struct DeckButtonEditor: View {
                     NavigationLink {
                         SymbolPicker(symbol: $button.symbol, tint: button.tint)
                     } label: {
-                        LabeledContent(button.action.websiteLink != nil ? "Symbol If No Logo" : "Symbol") {
+                        LabeledContent(button.action.websiteLink != nil ? "Icon When There's No Logo" : "Icon") {
                             Image(systemName: button.symbol).foregroundStyle(palette.tint(button.tint))
                         }
                     }
@@ -255,27 +259,26 @@ struct DeckButtonEditor: View {
     }
 
     private var colorRow: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 10) {
-                ForEach(Self.colors, id: \.self) { hex in
-                    let selected = (button.color ?? "").uppercased() == hex
-                    Button {
-                        Haptics.shared.tap()
-                        button.color = hex
-                    } label: {
-                        Circle()
-                            .fill(Color(hexString: hex) ?? .gray)
-                            .frame(width: 30, height: 30)
-                            .overlay { if selected { Circle().strokeBorder(.white, lineWidth: 2.5).padding(2) } }
-                            .overlay { Circle().strokeBorder(palette.lineColor) }
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Color \(hex)")
-                    .accessibilityAddTraits(selected ? .isSelected : [])
+        // Two even rows of six, so every swatch shows whole at any width.
+        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 6), spacing: 10) {
+            ForEach(Self.colors, id: \.self) { hex in
+                let selected = (button.color ?? "").uppercased() == hex
+                Button {
+                    Haptics.shared.tap()
+                    button.color = hex
+                } label: {
+                    Circle()
+                        .fill(Color(hexString: hex) ?? .gray)
+                        .frame(width: 30, height: 30)
+                        .overlay { if selected { Circle().strokeBorder(.white, lineWidth: 2.5).padding(2) } }
+                        .overlay { Circle().strokeBorder(palette.lineColor) }
                 }
+                .buttonStyle(.plain)
+                .accessibilityLabel(Self.colorNames[hex] ?? "Color")
+                .accessibilityAddTraits(selected ? .isSelected : [])
             }
-            .padding(.vertical, 4)
         }
+        .padding(.vertical, 4)
     }
 }
 
@@ -622,7 +625,7 @@ struct SymbolPicker: View {
         }
         .background(SurfaceBackground())
         .searchable(text: $query, prompt: "Search symbols")
-        .navigationTitle("Symbol")
+        .navigationTitle("Icon")
         .navigationBarTitleDisplayMode(.inline)
     }
 }

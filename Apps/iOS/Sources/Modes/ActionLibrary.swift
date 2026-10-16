@@ -125,7 +125,7 @@ struct ActionLibrary: View {
                     VStack(alignment: .leading, spacing: 1) {
                         Text(session.isRecordingMacro ? "Stop Recording" : "Record New Macro")
                             .foregroundStyle(palette.inkColor)
-                        Text("Do the steps on your Mac; the macro is pinned here.")
+                        Text("Record on your Mac, replay with a tap.")
                             .font(.footnote)
                             .foregroundStyle(palette.inkSoftColor)
                     }

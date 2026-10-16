@@ -17,7 +17,7 @@ const html = () => `<div class="scene uc uc-dp on"><div class="uc-wall"></div><d
   <div class="mbw mb-dp"><div class="mbp"><div class="mbp-lid"><div class="mbp-glass"></div><div class="mbp-display"><div class="mbx">${menuBar("Mail", ["File", "Edit", "View", "Mailbox"], "")}${macWin("m-mb front", "mail")}${macWin("g-mb", "msg")}</div></div><div class="mbp-notch"></div></div><div class="mbp-hinge"></div><div class="mbp-base"><div class="mbp-keys"></div><div class="mbp-pad"></div></div><div class="mbp-lip"></div><div class="mbp-shadow"></div></div></div>
   <div class="mon mon-dp"><div class="mon-frame"><div class="mon-screen"><div class="mbx">${menuBar("Safari", ["File", "Edit", "View", "History", "Bookmarks", "Window"])}${macWin("s-st front", "web")}${macWin("x-st", "xcode")}${macWin("m-st", "mail")}<div class="dim"></div></div></div></div><div class="mon-neck"></div><div class="mon-foot"></div></div>
   <div class="sp sp-dp">${phone("landscape", "light", `<div class="pt land dsp">
-    <span class="dx">${glyph("xmark")}</span><div class="dh"><b>Displays</b><span>2 Displays &middot; 4 Windows</span></div><span class="dset">${glyph("slider.horizontal.3")}</span>
+    <span class="dx">${glyph("xmark")}</span><div class="dh"><b>Displays</b><span>2 displays &middot; 4 windows</span></div><span class="dset">Settings</span>
     <div class="dbox">
       <div class="dd small"><div class="ds">${thumb("mail", "w-mail")}${thumb("msg", "w-msg")}</div><small>Built-in Retina Display</small></div>
       <div class="dd big"><div class="ds">${thumb("web", "w-saf")}${thumb("xcode", "w-xc")}</div><small>Studio Display</small></div>
@@ -26,7 +26,7 @@ const html = () => `<div class="scene uc uc-dp on"><div class="uc-wall"></div><d
     <div class="dmenu">${menuItem("Left Half", "rectangle.lefthalf.filled")}${menuItem("Right Half", "rectangle.righthalf.filled")}${menuItem("Top Half", "rectangle.tophalf.filled")}${menuItem("Bottom Half", "rectangle.bottomhalf.filled")}<i></i>${menuItem("Fill", "rectangle.inset.filled", "fill")}${menuItem("Center", "rectangle.center.inset.filled")}${menuItem("Split With", "rectangle.split.2x1", "", true)}</div>
     <div class="dsheet"><div class="dsh"><b>Studio Display</b><span class="ok">${glyph("checkmark")}</span></div>
       <div class="dseg"><span>Built-in</span><span class="on">Studio Display</span></div>
-      <div class="dbri">${glyph("sun.min")}<div class="bri-bar"><i style="width:80%"></i><b style="left:80%"></b></div>${glyph("sun.max")}</div>
+      <div class="dbl">Brightness</div><div class="dbri">${glyph("sun.min")}<div class="bri-bar"><i style="width:80%"></i><b style="left:80%"></b></div>${glyph("sun.max")}</div>
       <div class="dres"><b>Resolution</b><span>Looks like 2560 &times; 1440</span></div>
       <div class="dns">${glyph("moon.fill")}<b>Night Shift</b><i></i></div></div>
   </div>`)}<div class="sp-stand"><i></i></div></div>
