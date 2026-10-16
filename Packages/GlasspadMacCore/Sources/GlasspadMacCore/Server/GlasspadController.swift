@@ -128,7 +128,26 @@ public final class GlasspadController: ObservableObject {
             .sink { [weak self] _ in
                 MainActor.assumeIsolated { self?.refreshAutomation() }
             }
-        let t = Timer(timeInterval: 1, repeats: true) { [weak self] _ in
+        scheduleStatus()
+    }
+
+    /// Every second while a phone is connected or a pairing code is up (the phone sees
+    /// Accessibility change, the code runs out on time); every 5 s otherwise.
+    nonisolated static func statusInterval(phoneConnected: Bool, pairing: Bool) -> TimeInterval {
+        phoneConnected || pairing ? 1 : 5
+    }
+
+    private var statusInterval: TimeInterval {
+        let connected = if case .connected = linkState { true } else { false }
+        return Self.statusInterval(phoneConnected: connected, pairing: flow.phase.url != nil)
+    }
+
+    /// Starts the status timer, or restarts it when its interval should change.
+    private func scheduleStatus() {
+        let interval = statusInterval
+        if let statusTimer, statusTimer.isValid, statusTimer.timeInterval == interval { return }
+        statusTimer?.invalidate()
+        let t = Timer(timeInterval: interval, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated { self?.refreshStatus() }
         }
         RunLoop.main.add(t, forMode: .common)
@@ -137,6 +156,7 @@ public final class GlasspadController: ObservableObject {
 
     public func stop() {
         statusTimer?.invalidate()
+        statusTimer = nil
         watcher.stop()
         pipeline.cancelAll()
         macros.stop()
@@ -151,6 +171,7 @@ public final class GlasspadController: ObservableObject {
         server.pendingPairKey = payload.pairKey
         flow.begin(url: payload.url, now: Date())
         publishPairing()
+        if statusTimer != nil { scheduleStatus() }
     }
 
     /// Cancel a code on screen, or dismiss the result of the last attempt.
@@ -263,6 +284,9 @@ public final class GlasspadController: ObservableObject {
     fileprivate func linkStateChanged(_ state: LinkState) {
         let wasConnected = { if case .connected = linkState { return true } else { return false } }()
         linkState = state
+        let connected = if case .connected = state { true } else { false }
+        watcher.setPhoneConnected(connected)
+        if statusTimer != nil { scheduleStatus() }
         if case .connected = state {
             connectedPhoneName = server.connectedPhone?.phoneName
         } else {
@@ -337,6 +361,7 @@ public final class GlasspadController: ObservableObject {
             disarmPairingKey()
             publishPairing()
         }
+        scheduleStatus()
     }
 }
 
