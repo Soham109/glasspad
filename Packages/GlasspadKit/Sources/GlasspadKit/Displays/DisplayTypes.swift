@@ -128,15 +128,25 @@ public struct DisplaysState: Codable, Equatable, Sendable {
     /// The gap macOS leaves around tiled windows ("Tiled windows have margins"), in points.
     public var tileMargin: Double
     public var pending: PendingDisplayChange?
+    /// The arrangements this Mac takes in `WindowCommand.arrange` (`WindowArrangement` raw
+    /// values, kept as text so a newer Mac's are skipped). nil from a Mac from before them,
+    /// which splits two windows only.
+    public var arrangements: [String]?
 
     public init(displays: [MacDisplay], windows: [MacWindow], nightShift: Bool? = nil, canArrangeWindows: Bool = true,
-                tileMargin: Double = 0, pending: PendingDisplayChange? = nil) {
+                tileMargin: Double = 0, pending: PendingDisplayChange? = nil, arrangements: [String]? = nil) {
         self.displays = displays
         self.windows = windows
         self.nightShift = nightShift
         self.canArrangeWindows = canArrangeWindows
         self.tileMargin = tileMargin
         self.pending = pending
+        self.arrangements = arrangements
+    }
+
+    /// The arrangements the Mac takes that this build knows; empty for an older Mac.
+    public var offeredArrangements: [WindowArrangement] {
+        (arrangements ?? []).compactMap(WindowArrangement.init(rawValue:))
     }
 
     /// Displays with a picture of their own (mirrors are drawn as the display they copy).
@@ -194,6 +204,9 @@ public enum WindowCommand: Codable, Equatable, Sendable, Hashable {
     case minimize
     case close
     case fullScreen
+    /// These windows (this one first) arranged on `display`, each in its place in order.
+    /// Only for a Mac that lists the arrangement in `DisplaysState.arrangements`.
+    case arrange(WindowArrangement, windows: [UInt32], display: UInt32)
 }
 
 /// Where one display sits in the arrangement.

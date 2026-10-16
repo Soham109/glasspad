@@ -27,6 +27,10 @@ public enum WindowOperation: Equatable, Sendable {
     /// This window on the left of `visible` and `with` on the right, `gap` around and between
     /// them; `display` names the display in messages.
     case split(with: UInt32, visible: CGRect, gap: CGFloat, display: String)
+    /// This window and `with` in their places of `arrangement` on `visible`, in order.
+    case arrange(WindowArrangement, with: [UInt32], visible: CGRect, gap: CGFloat, display: String)
+    /// Split View: this window on the left in full screen, `with` on the right.
+    case fullScreenSplit(with: UInt32)
     case raise
     case minimize
     case close
@@ -102,7 +106,8 @@ public final class DisplaysMode {
         let left = pending.map { max(0, Int($0.deadline.timeIntervalSince(now()).rounded(.up))) }
         return DisplaysState(displays: backend.displays(), windows: backend.windows(), nightShift: nightShift(),
                              canArrangeWindows: backend.canArrangeWindows, tileMargin: Double(backend.tileMargin),
-                             pending: pending.map { PendingDisplayChange(summary: $0.summary, secondsLeft: left ?? 0) })
+                             pending: pending.map { PendingDisplayChange(summary: $0.summary, secondsLeft: left ?? 0) },
+                             arrangements: WindowArrangement.allCases.map(\.rawValue))
     }
 
     /// Sends the state when it changed, with the icons of apps the phone has not seen first.
@@ -157,6 +162,18 @@ public final class DisplaysMode {
             return [(id, .split(with: other, visible: d.visibleFrame, gap: CGFloat(s.tileMargin), display: d.name)),
                     (other, .raise), (id, .raise)]
         case .tile, .move: return framed + [(id, .raise)]
+        case .arrange(let arrangement, let ids, let displayID):
+            guard let d = s.shownDisplays.first(where: { $0.id == displayID }) else { return nil }
+            if arrangement == .fullScreen {
+                // Split View happens on the first window's display: over there first.
+                guard let w = s.window(id), let from = s.display(of: w) else { return nil }
+                let over: [(window: UInt32, operation: WindowOperation)] = from.id == d.id ? []
+                    : [(id, .setFrame(DisplayGeometry.moved(w.frame, from: from.visibleFrame, to: d.visibleFrame)))]
+                return over + [(id, .fullScreenSplit(with: ids[1]))]
+            }
+            // All together, so a window that will not get small enough leaves the others the rest.
+            return [(id, .arrange(arrangement, with: Array(ids.dropFirst()), visible: d.visibleFrame, gap: CGFloat(s.tileMargin),
+                                  display: d.name))]
         }
     }
 

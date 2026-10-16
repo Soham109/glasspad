@@ -84,6 +84,10 @@ public enum DeckSystemAction: String, Codable, Sendable, CaseIterable {
     case notificationCenter
     /// Front window to the left or right half, top or bottom half, full (not full screen), centred.
     case windowLeft, windowRight, windowTop, windowBottom, windowFill, windowCenter
+    /// Front window to a quarter of its display.
+    case windowTopLeft, windowTopRight, windowBottomLeft, windowBottomRight
+    /// Front window back where it was before Glasspad (or macOS) last tiled it.
+    case windowPreviousSize
     /// The two frontmost windows side by side, front one on the left.
     case windowSplit
     /// Front window to the next display, keeping its relative frame.

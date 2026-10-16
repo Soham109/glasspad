@@ -194,6 +194,12 @@ extension DisplaysState {
             guard other != id, self.window(other) != nil else { return nil }
             let halves = DisplayGeometry.split(in: current.visibleFrame, gap: gap)
             return [(id, halves.left), (other, halves.right)]
+        case .arrange(let arrangement, let ids, let displayID):
+            guard ids.first == id, Set(ids).count == ids.count, ids.count >= arrangement.minimumWindows,
+                  ids.count <= arrangement.slots.count, ids.allSatisfy({ self.window($0) != nil }),
+                  let to = shownDisplays.first(where: { $0.id == displayID }) else { return nil }
+            let frames = DisplayGeometry.frames(for: arrangement, display: to.frame, visible: to.visibleFrame, gap: gap)
+            return Array(zip(ids, frames))
         case .move(let displayID, let origin):
             guard let to = shownDisplays.first(where: { $0.id == displayID }),
                   origin.map({ $0.x.isFinite && $0.y.isFinite }) ?? true else { return nil }
@@ -219,6 +225,9 @@ extension DisplaysState {
         case .split(let other):
             toFront(other)
             toFront(id)
+        case .arrange(_, let ids, _):
+            // The first in front, the rest behind it in order, as macOS leaves them.
+            for w in ids.reversed() { toFront(w) }
         default: toFront(id)
         }
         return s
@@ -264,7 +273,7 @@ private extension CGPoint {
     var rounded: CGPoint { CGPoint(x: x.rounded(), y: y.rounded()) }
 }
 
-private extension CGRect {
+extension CGRect {
     /// No larger than `bounds`, moved inside it.
     func clamped(inside bounds: CGRect) -> CGRect {
         var r = self

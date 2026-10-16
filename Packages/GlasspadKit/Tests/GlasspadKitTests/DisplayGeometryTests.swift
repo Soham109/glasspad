@@ -240,6 +240,8 @@ private enum Arrangement {
             .windowCommand(id: id, windowID: 42, command: .minimize),
             .windowCommand(id: id, windowID: 42, command: .close),
             .windowCommand(id: id, windowID: 42, command: .fullScreen),
+            .windowCommand(id: id, windowID: 42, command: .arrange(.quarters, windows: [42, 43, 44, 45], display: 1)),
+            .windowCommand(id: id, windowID: 42, command: .arrange(.fullScreen, windows: [42, 43], display: 2)),
             .displayCommand(id: id, command: .brightness(display: 1, value: 0.4)),
             .displayCommand(id: id, command: .resolution(display: 1, id: 7)),
             .displayCommand(id: id, command: .mirror(display: 2, of: 1)),
@@ -261,6 +263,25 @@ private enum Arrangement {
         let window = try JSONEncoder().encode(MacWindow(id: 5, bundleID: nil, appName: "App", frame: CGRect(x: 1, y: 2, width: 3, height: 4)))
         let w = try #require(JSONSerialization.jsonObject(with: window) as? [String: Any])
         #expect((w["frame"] as? [[Double]]) == [[1, 2], [3, 4]])
+    }
+
+    @Test func everyArrangementTravelsAndAnOlderMacSaysItHasNone() throws {
+        for a in WindowArrangement.allCases {
+            let m = ModeMessage.windowCommand(id: UUID(), windowID: 3, command: .arrange(a, windows: [3, 4, 5], display: 9))
+            #expect(try roundTrip(m) == m)
+        }
+        // The shape: the arrangement by name, the windows in order, the display.
+        let data = try JSONEncoder().encode(WindowCommand.arrange(.rightAndLeft, windows: [7, 8], display: 2))
+        let json = try #require(JSONSerialization.jsonObject(with: data) as? [String: [String: Any]])
+        #expect(json["arrange"]?["_0"] as? String == "rightAndLeft")
+        #expect(json["arrange"]?["windows"] as? [Int] == [7, 8] && json["arrange"]?["display"] as? Int == 2)
+        // A state from a Mac from before arrangements has none, so the phone splits the old way.
+        let older = #"{"displays":[],"windows":[],"canArrangeWindows":true,"tileMargin":8}"#
+        let old = try JSONDecoder().decode(DisplaysState.self, from: Data(older.utf8))
+        #expect(old.arrangements == nil && old.offeredArrangements.isEmpty)
+        // A newer Mac's list keeps only what this build knows.
+        let newer = #"{"displays":[],"windows":[],"canArrangeWindows":true,"tileMargin":8,"arrangements":["quarters","spiral"]}"#
+        #expect(try JSONDecoder().decode(DisplaysState.self, from: Data(newer.utf8)).offeredArrangements == [.quarters])
     }
 
     @Test func aBuildWithoutDisplaysDropsTheMessagesAndKeepsTalking() throws {

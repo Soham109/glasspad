@@ -198,8 +198,20 @@ public final class LiveDisplays: DisplaysBackend {
         case .split(let otherID, let visible, let gap, let display):
             if axWindows[otherID] == nil, let pid = ownerPID(otherID) { refreshAccessibility(pids: [pid], force: true) }
             guard let other = axWindows[otherID] else { return WindowFailure.closed.message }
-            return WindowMover.split(left: (app, window), right: (other.app, other.window), in: visible, gap: gap,
-                                     displayName: display)?.message
+            return WindowMover.arrange([(app, window), (other.app, other.window)], .leftAndRight, in: visible, gap: gap,
+                                       displayName: display)?.message
+        case .arrange(let arrangement, let others, let visible, let gap, let display):
+            var pairs: [WindowMover.Pair] = [(app, window)]
+            for otherID in others {
+                if axWindows[otherID] == nil, let pid = ownerPID(otherID) { refreshAccessibility(pids: [pid], force: true) }
+                guard let other = axWindows[otherID] else { return WindowFailure.closed.message }
+                pairs.append((other.app, other.window))
+            }
+            return WindowMover.arrange(pairs, arrangement, in: visible, gap: gap, displayName: display)?.message
+        case .fullScreenSplit(let otherID):
+            if axWindows[otherID] == nil, let pid = ownerPID(otherID) { refreshAccessibility(pids: [pid], force: true) }
+            guard let other = axWindows[otherID] else { return WindowFailure.closed.message }
+            return WindowMover.fullScreenSplit(left: (app, window), right: (other.app, other.window))?.message
         case .raise:
             AXUIElementSetAttributeValue(window, kAXMainAttribute as CFString, kCFBooleanTrue)
             AXUIElementPerformAction(window, kAXRaiseAction as CFString)

@@ -221,6 +221,11 @@ public final class LiveDeckEnvironment: DeckEnvironment {
         return nil
     }
 
+    public func returnFrontWindowToPreviousSize() -> String? {
+        if case .failure(let f) = WindowMover.returnToPreviousSize() { return f.message }
+        return nil
+    }
+
     public func moveFrontWindowToNextDisplay() -> String? {
         if case .failure(let f) = WindowMover.toNextScreen() { return f.message }
         return nil

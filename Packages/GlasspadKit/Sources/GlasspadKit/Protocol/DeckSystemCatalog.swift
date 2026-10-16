@@ -22,7 +22,8 @@ public extension DeckSystemAction {
         switch self {
         case .lockScreen, .sleepDisplay, .sleepMac, .toggleDarkMode, .showDesktop, .missionControl, .appExpose,
              .launchpad, .doNotDisturb, .keepAwake, .notificationCenter: .mac
-        case .windowLeft, .windowRight, .windowTop, .windowBottom, .windowFill, .windowCenter, .windowSplit,
+        case .windowLeft, .windowRight, .windowTop, .windowBottom, .windowFill, .windowCenter, .windowTopLeft,
+             .windowTopRight, .windowBottomLeft, .windowBottomRight, .windowPreviousSize, .windowSplit,
              .windowNextDisplay: .windows
         case .volumeUp, .volumeDown, .mute, .micMute: .sound
         case .brightnessUp, .brightnessDown, .nightShift: .display
@@ -62,6 +63,11 @@ public extension DeckSystemAction {
         case .windowBottom: "Bottom Half"
         case .windowFill: "Fill"
         case .windowCenter: "Center"
+        case .windowTopLeft: "Top Left Quarter"
+        case .windowTopRight: "Top Right Quarter"
+        case .windowBottomLeft: "Bottom Left Quarter"
+        case .windowBottomRight: "Bottom Right Quarter"
+        case .windowPreviousSize: "Return to Previous Size"
         case .windowSplit: "Split Screen"
         case .windowNextDisplay: "Next Display"
         }
@@ -99,6 +105,11 @@ public extension DeckSystemAction {
         case .windowBottom: "rectangle.bottomhalf.filled"
         case .windowFill: "rectangle.inset.filled"
         case .windowCenter: "rectangle.center.inset.filled"
+        case .windowTopLeft: "rectangle.inset.topleft.filled"
+        case .windowTopRight: "rectangle.inset.topright.filled"
+        case .windowBottomLeft: "rectangle.inset.bottomleft.filled"
+        case .windowBottomRight: "rectangle.inset.bottomright.filled"
+        case .windowPreviousSize: "arrow.uturn.backward"
         case .windowSplit: "rectangle.split.2x1.fill"
         case .windowNextDisplay: "display.2"
         }

@@ -17,6 +17,20 @@ public enum WindowFailure: Error, Equatable, Sendable {
     case tooWide(String)
     /// Neither window gets narrow enough to share the display.
     case bothTooWide(String, String, display: String)
+    /// The window will not get short enough for half the display.
+    case tooTall(String)
+    /// Neither window gets short enough to share the display top and bottom.
+    case bothTooTall(String, String, display: String)
+    /// These apps' windows will not get small enough for their quarters.
+    case tooBigForQuarters([String], display: String)
+    /// Return to Previous Size with nothing to return to.
+    case noPreviousSize
+    /// The window's earlier place is on a display that is not connected any more.
+    case previousDisplayGone
+    /// The app has no Full-Screen Tile for this window.
+    case noSplitView(String)
+    /// Split View did not take the second window; the first is back on the desktop.
+    case splitViewUnfinished
 
     public var message: String {
         switch self {
@@ -30,6 +44,19 @@ public enum WindowFailure: Error, Equatable, Sendable {
         case .tooWide(let app): "\(app) can't be resized that small. Try a wider display."
         case .bothTooWide(let a, let b, let display):
             "\(a == b ? "These \(a) windows" : "\(a) and \(b)") can't both fit on \(display). Try a wider display."
+        case .tooTall(let app): "\(app) can't be made short enough for Top & Bottom. Try Left & Right."
+        case .bothTooTall(let a, let b, let display):
+            "\(a == b ? "These \(a) windows" : "\(a) and \(b)") can't both fit on \(display), one above the other. Try Left & Right."
+        case .tooBigForQuarters(let apps, let display):
+            switch apps.count {
+            case 0, 1: "\(apps.first ?? "This window") can't be made small enough for a quarter of \(display). Try Left & Right."
+            case 2: "\(apps[0]) and \(apps[1]) can't both fit in quarters on \(display). Try Left & Right."
+            default: "\(apps.dropLast().joined(separator: ", ")) and \(apps[apps.count - 1]) can't all fit in quarters on \(display). Try Left & Right."
+            }
+        case .noPreviousSize: "This window has no previous size to return to."
+        case .previousDisplayGone: "This window's previous place is on a display that isn't connected."
+        case .noSplitView(let app): "\(app) can't tile this window in full screen. Try Left & Right."
+        case .splitViewUnfinished: "Couldn't finish Split View. Pick the second window on your Mac."
         }
     }
 }
@@ -76,22 +103,9 @@ public enum SplitScreen {
     /// the rest. nil when the two cannot share the display.
     public static func halves(in visible: CGRect, gap: CGFloat = 0, leftMinimum: CGFloat = 0,
                               rightMinimum: CGFloat = 0) -> (left: CGRect, right: CGRect)? {
-        let even = DisplayGeometry.split(in: visible, gap: gap)
-        let wideLeft = leftMinimum.rounded(.up) > even.left.width, wideRight = rightMinimum.rounded(.up) > even.right.width
-        if !wideLeft && !wideRight { return even }
-        if wideLeft && wideRight { return nil }
-        // Room for both, between the outer edges of the halves.
-        let room = even.right.maxX - even.left.minX - gap
-        if wideLeft {
-            let lw = leftMinimum.rounded(.up), rw = room - lw
-            guard rw > 0, rw >= rightMinimum else { return nil }
-            return (CGRect(x: even.left.minX, y: even.left.minY, width: lw, height: even.left.height),
-                    CGRect(x: even.right.maxX - rw, y: even.right.minY, width: rw, height: even.right.height))
-        }
-        let rw = rightMinimum.rounded(.up), lw = room - rw
-        guard lw > 0, lw >= leftMinimum else { return nil }
-        return (CGRect(x: even.left.minX, y: even.left.minY, width: lw, height: even.left.height),
-                CGRect(x: even.right.maxX - rw, y: even.right.minY, width: rw, height: even.right.height))
+        let minimums = [CGSize(width: leftMinimum, height: 0), CGSize(width: rightMinimum, height: 0)]
+        guard let f = ArrangementLayout.frames(.leftAndRight, in: visible, gap: gap, minimums: minimums) else { return nil }
+        return (f[0], f[1])
     }
 
     /// Why two windows with these minimum widths (0 when they fit their half) cannot share.
@@ -121,6 +135,8 @@ public protocol MovableWindow: AnyObject {
     /// nil once the window has gone.
     var frame: CGRect? { get }
     var isFullScreen: Bool { get }
+    /// The window server's id, for Return to Previous Size; nil when not known.
+    var windowID: UInt32? { get }
     /// Asks the window to leave full screen. False when it refuses.
     @discardableResult func exitFullScreen() -> Bool
     @discardableResult func setPosition(_ origin: CGPoint) -> Bool
@@ -136,13 +152,16 @@ public struct WindowArranger {
     public var displays: [CGRect]
     /// Waits this long (the live one sleeps; tests move a fake clock).
     public var pause: (TimeInterval) -> Void
+    /// Where each window was before Glasspad last moved it; nil keeps no record.
+    public var history: WindowHistory?
 
     /// How long a window gets to land after it was moved, and how often it is read meanwhile.
     public static let settleTime: TimeInterval = 0.3
     public static let readInterval: TimeInterval = 0.05
 
-    public init(displays: [CGRect], pause: @escaping (TimeInterval) -> Void) {
+    public init(displays: [CGRect], history: WindowHistory? = nil, pause: @escaping (TimeInterval) -> Void) {
         self.displays = displays
+        self.history = history
         self.pause = pause
     }
 
@@ -186,30 +205,64 @@ public struct WindowArranger {
         return .refused
     }
 
-    /// Side by side on `visible`: `right` first (it may come from another display), then
-    /// `left`. A window that will not get as narrow as its half keeps its width and the other
-    /// gets the rest. nil when it worked.
+    /// Side by side on `visible`, `left` on the left. nil when it worked.
     public func split(left: MovableWindow, right: MovableWindow, in visible: CGRect, gap: CGFloat,
                       displayName: String) -> WindowFailure? {
-        for w in [left, right] where !leaveFullScreen(w) { return .fullScreen(w.appName) }
-        var leftMinimum: CGFloat = 0, rightMinimum: CGFloat = 0
-        // Each pass can learn one more minimum width; three passes settle any pair.
-        for _ in 0..<3 {
-            guard let halves = SplitScreen.halves(in: visible, gap: gap, leftMinimum: leftMinimum, rightMinimum: rightMinimum) else {
-                break
-            }
-            let r = move(right, to: halves.right), l = move(left, to: halves.left)
-            for (landing, w) in [(r, right), (l, left)] {
-                if landing == .gone { return .closed }
-                if landing == .refused { return .refused(w.appName) }
+        arrange([left, right], .leftAndRight, in: visible, gap: gap, displayName: displayName)
+    }
+
+    /// The windows in their places on `visible`, in order, the last first (each may come from
+    /// another display). A window that will not get as small as its place keeps its size and
+    /// its neighbours get the rest. Split View is not done here (`FullScreenSplit`). nil when
+    /// it worked.
+    public func arrange(_ windows: [MovableWindow], _ arrangement: WindowArrangement, in visible: CGRect, gap: CGFloat,
+                        displayName: String) -> WindowFailure? {
+        guard windows.count >= 2, windows.count <= arrangement.slots.count else { return .noSecondWindow }
+        // Out of full screen first, as macOS does when a full-screen window is tiled.
+        for w in windows where !leaveFullScreen(w) { return .fullScreen(w.appName) }
+        for w in windows { history?.remember(w) }
+        var minimums = [CGSize](repeating: .zero, count: windows.count)
+        // Each pass learns every window that stayed larger than its place; four settle any grid.
+        for _ in 0..<4 {
+            guard let frames = ArrangementLayout.frames(arrangement, in: visible, gap: gap, minimums: minimums) else { break }
+            var landings = [Landing](repeating: .refused, count: windows.count)
+            for i in windows.indices.reversed() { landings[i] = move(windows[i], to: frames[i]) }
+            for i in windows.indices.reversed() {
+                if landings[i] == .gone { return .closed }
+                if landings[i] == .refused { return .refused(windows[i].appName) }
             }
             var learned = false
-            if let f = l.frame, f.width > halves.left.width + 2 { leftMinimum = f.width; learned = true }
-            if let f = r.frame, f.width > halves.right.width + 2 { rightMinimum = f.width; learned = true }
+            for i in windows.indices {
+                guard let f = landings[i].frame else { continue }
+                if f.width > frames[i].width + 2 { minimums[i].width = f.width; learned = true }
+                if f.height > frames[i].height + 2 { minimums[i].height = f.height; learned = true }
+            }
             if !learned { return nil }
         }
-        return SplitScreen.tooWide(left: left.appName, right: right.appName, leftMinimum: leftMinimum,
-                                   rightMinimum: rightMinimum, display: displayName)
+        return ArrangementLayout.failure(arrangement, apps: windows.map(\.appName), minimums: minimums, display: displayName)
+    }
+
+    /// One window to `target`, remembered for Return to Previous Size first.
+    public func place(_ w: MovableWindow, to target: CGRect) -> Landing {
+        history?.remember(w)
+        return move(w, to: target)
+    }
+
+    /// Back where the window was before Glasspad last moved it. nil when it worked.
+    public func returnToPreviousSize(_ w: MovableWindow) -> WindowFailure? {
+        guard let id = w.windowID, let previous = history?.previous(id) else { return .noPreviousSize }
+        guard displays.contains(where: { $0.intersects(previous.insetBy(dx: 40, dy: 40)) }) else {
+            history?.forget(id)
+            return .previousDisplayGone
+        }
+        guard leaveFullScreen(w) else { return .fullScreen(w.appName) }
+        switch move(w, to: previous) {
+        case .gone: return .closed
+        case .refused: return .refused(w.appName)
+        case .placed, .closest:
+            history?.forget(id)
+            return nil
+        }
     }
 
     /// How long macOS gets to play its leave-full-screen animation, and the pause after it

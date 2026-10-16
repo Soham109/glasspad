@@ -198,7 +198,9 @@ public enum MacControlName {
         "launchpad": "Apps", "emptyTrash": "Empty Trash", "ejectAll": "Eject All", "doNotDisturb": "Do Not Disturb",
         "nightShift": "Night Shift", "keepAwake": "Keep Awake", "notificationCenter": "Notification Center",
         "windowLeft": "Left Half", "windowRight": "Right Half", "windowTop": "Top Half", "windowBottom": "Bottom Half",
-        "windowFill": "Fill", "windowCenter": "Center", "windowSplit": "Split Screen",
+        "windowFill": "Fill", "windowCenter": "Center", "windowTopLeft": "Top Left Quarter",
+        "windowTopRight": "Top Right Quarter", "windowBottomLeft": "Bottom Left Quarter",
+        "windowBottomRight": "Bottom Right Quarter", "windowPreviousSize": "Return to Previous Size", "windowSplit": "Split Screen",
         "windowNextDisplay": "Next Display",
     ]
 
