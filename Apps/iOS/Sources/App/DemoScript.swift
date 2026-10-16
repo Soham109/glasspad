@@ -27,6 +27,7 @@ final class FilmDirector {
     func start(scene: String, iconFolder: String?) {
         active = true
         self.iconFolder = iconFolder
+        if FilmV4.start(scene: scene, iconFolder: iconFolder) { return }
         PhoneSettings.shared.seenTips.formUnion(["actions.front", "actions.pinned"])
         MacSession.shared.applyDemo(Self.filmData(iconFolder: iconFolder, front: scene == "actions" ? "com.microsoft.Word" : "com.apple.Safari"))
         switch scene {
