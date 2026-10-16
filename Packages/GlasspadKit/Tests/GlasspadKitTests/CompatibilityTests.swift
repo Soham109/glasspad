@@ -1,3 +1,4 @@
+import CoreGraphics
 import Foundation
 import Testing
 @testable import GlasspadKit
@@ -52,6 +53,16 @@ import Testing
                 .clipboardPullRefused(message: "too big")]
         all += [.presentNext, .presentPrevious, .presentLaser(on: false), .presentLaserPosition(x: 0, y: 1)]
         all += DeckSystemAction.allCases.map { .remoteSystem(id: id, action: $0) }
+        let shown = DisplaysState(displays: [], windows: [], nightShift: true, canArrangeWindows: false, tileMargin: 4,
+                                  pending: PendingDisplayChange(summary: "Studio Display looks like 2560 by 1440", secondsLeft: 12))
+        all += [.displaysWatch(on: true), .displaysWatch(on: false), .displaysState(shown),
+                .displaysResult(id: id, ok: false, message: "That display is not connected any more.")]
+        all += ([.raise, .split(with: 7), .move(display: 2, origin: nil), .move(display: 2, origin: CGPoint(x: 1, y: 2)),
+                 .minimize, .close, .fullScreen] + WindowTile.allCases.map(WindowCommand.tile))
+            .map { .windowCommand(id: id, windowID: 42, command: $0) }
+        all += [DisplayCommand.brightness(display: 1, value: 0.5), .resolution(display: 1, id: 3), .mirror(display: 2, of: 1),
+                .mirror(display: 2, of: nil), .makeMain(display: 2), .arrange([DisplayOrigin(display: 1, origin: .zero)]),
+                .keepChanges, .revertChanges].map { .displayCommand(id: id, command: $0) }
         all += ControlMessageTests.everyMacroMessage.map(ModeMessage.macro)
         return all
     }
@@ -65,14 +76,15 @@ import Testing
              .mediaControl, .deckRequest, .deckButtons, .deckRun, .deckResult, .deckLayout, .deckSave, .deckSaveResult,
              .deckRunConfirmed, .deckCatalogRequest, .deckCatalog, .deckImage, .clipboardPush, .clipboardPull,
              .clipboardContent, .clipboardPushResult, .clipboardPullRefused, .presentNext, .presentPrevious, .presentLaser,
-             .presentLaserPosition, .remoteSystem, .macro:
+             .presentLaserPosition, .remoteSystem, .displaysWatch, .displaysState, .windowCommand, .displayCommand,
+             .displaysResult, .macro:
             m.tag
         }
     }
 
     @Test func everyMessageAndPayloadRoundTripsOnTheWire() throws {
         let all = Self.everyMessage
-        #expect(Set(all.map(Self.covered)).count == 44)      // every case at least once
+        #expect(Set(all.map(Self.covered)).count == 49)      // every case at least once
         for m in all {
             let data = try ControlMessage.mode(m).jsonData()
             #expect(try ControlMessage.from(jsonData: data) == .mode(m), "\(m.tag)")
@@ -111,8 +123,10 @@ import Testing
     @Test func aModeListSavedBeforeRemoteLoads() throws {
         let old = #"{"order":["trackpad","media","keys","dock","actions","deck","macros","clipboard","present"],"hidden":["media"],"splitActions":false}"#
         let list = try JSONDecoder().decode(ModeListLayout.self, from: Data(old.utf8))
-        #expect(list.order.last == "remote")
-        #expect(list.hidden == ["media", "remote"])
+        // Every mode added since starts hidden, after the saved ones.
+        #expect(list.order.prefix(9) == ["trackpad", "media", "keys", "dock", "actions", "deck", "macros", "clipboard", "present"])
+        #expect(Set(list.order.dropFirst(9)) == ModeListLayout.hiddenAtFirst)
+        #expect(list.hidden == Set(["media"]).union(ModeListLayout.hiddenAtFirst))
         #expect(list.visible(known: ModeListLayout.defaultOrder) == ["trackpad", "keys", "dock", "actions"])
         // Saving and loading again changes nothing; a Remote the user turned on stays on.
         var shown = list

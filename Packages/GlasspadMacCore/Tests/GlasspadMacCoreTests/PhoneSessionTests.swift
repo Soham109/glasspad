@@ -621,6 +621,54 @@ func isCase(_ m: ModeMessage, _ tag: String) -> Bool { m.tag == tag }
         #expect(s.server.stats.malformed == 0)
     }
 
+    // MARK: Displays
+
+    @Test func displaysWatchMoveWindowsAndChangeDisplays() async throws {
+        let s = try await PhoneSession()
+        defer { s.close() }
+        let fake = FakeDisplays()
+        s.router.displays = DisplaysMode(backend: fake)
+        await s.send(.modeSelected(.displays))
+        let first = await s.send(.displaysWatch(on: true)) { isCase($0, "displaysState") }
+        guard case .displaysState(let state)? = first else { Issue.record("no displays state"); return }
+        #expect(state.displays.count == 2 && state.windows.count == 2)
+
+        func run(_ m: ModeMessage, _ id: UUID) async -> (ok: Bool, message: String?)? {
+            let r = await s.send(m) { if case .displaysResult(id, _, _) = $0 { true } else { false } }
+            guard case .displaysResult(_, let ok, let text)? = r else { return nil }
+            return (ok, text)
+        }
+        let commands: [WindowCommand] = [.raise, .split(with: 101), .move(display: 2, origin: nil),
+                                         .move(display: 1, origin: CGPoint(x: 10, y: 40)), .minimize, .fullScreen, .close]
+            + WindowTile.allCases.map(WindowCommand.tile)
+        // Each command answers for its own id.
+        for c in commands {
+            let id = UUID()
+            let r = await run(.windowCommand(id: id, windowID: 100, command: c), id)
+            #expect(r?.ok == true, "\(c): \(r?.message ?? "no answer")")
+        }
+        #expect(!fake.operations.isEmpty)
+        let gone = UUID()
+        #expect(await run(.windowCommand(id: gone, windowID: 999, command: .raise), gone)?.ok == false)
+
+        let displayCommands: [DisplayCommand] = [
+            .brightness(display: 1, value: 0.8), .makeMain(display: 2),
+            .arrange([DisplayOrigin(display: 1, origin: .zero), DisplayOrigin(display: 2, origin: CGPoint(x: -2560, y: 0))]),
+            .resolution(display: 1, id: 10), .keepChanges, .mirror(display: 2, of: 1), .revertChanges,
+        ]
+        for c in displayCommands {
+            let id = UUID()
+            let r = await run(.displayCommand(id: id, command: c), id)
+            #expect(r?.ok == true, "\(c): \(r?.message ?? "no answer")")
+        }
+        #expect(fake.brightness.first?.1 == 0.8)
+        #expect(fake.restored == 1)
+        let missing = UUID()
+        #expect(await run(.displayCommand(id: missing, command: .makeMain(display: 77)), missing)?.ok == false)
+        await s.send(.displaysWatch(on: false))
+        #expect(s.server.stats.malformed == 0)
+    }
+
     // MARK: Layouts
 
     /// Several panes on screen: the phone reports one primary screen (`LayoutWirePlan`). Each
@@ -653,7 +701,8 @@ func isCase(_ m: ModeMessage, _ tag: String) -> Bool { m.tag == tag }
             return missing
         }
         // The built-in templates, with their phone mode names.
-        let wire: [String: GlasspadMode] = ["actions": .deck]
+        // The phone's AppMode.wireMode: panes that need nothing from the Mac report as the trackpad.
+        let wire: [String: GlasspadMode] = ["actions": .deck, "nowPlaying": .media, "clock": .trackpad, "calendar": .trackpad]
         for t in LayoutTemplate.builtIn {
             let modes = t.panes.compactMap { wire[$0] ?? GlasspadMode(rawValue: $0) }
             #expect(modes.count == t.panes.count, "\(t.id)")
