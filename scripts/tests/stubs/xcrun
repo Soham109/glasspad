@@ -1,0 +1,48 @@
+#!/bin/bash
+# Fake xcrun: only "xcrun devicectl ...". Behaviour comes from files in $STUB.
+echo "xcrun $*" >> "$STUB/calls"
+[ "$1" = devicectl ] || exit 72
+shift
+json=""; dev=""; args=("$@")
+for ((i=0; i<${#args[@]}; i++)); do
+  case "${args[$i]}" in --json-output|-j) json="${args[$((i+1))]}" ;; --device|-d) dev="${args[$((i+1))]}" ;; esac
+done
+# bump NAME: counts calls; "after N" files flip state once the count passes N.
+bump() { local n; n=$(( $(cat "$STUB/count.$1" 2>/dev/null || echo 0) + 1 )); echo "$n" > "$STUB/count.$1"; echo "$n"; }
+state() { # state NAME COUNTER default: $STUB/NAME, or $STUB/NAME.after ("N value") once COUNTER > N
+  local n; n="$(cat "$STUB/count.$2" 2>/dev/null || echo 0)"
+  if [ -f "$STUB/$1.after" ] && [ "$n" -gt "$(cut -d' ' -f1 "$STUB/$1.after")" ]; then cut -d' ' -f2 "$STUB/$1.after"
+  else cat "$STUB/$1" 2>/dev/null || echo "$3"; fi; }
+case "$1 $2" in
+  "list devices")
+    [ -n "$json" ] && cp "$STUB/list.json" "$json" 2>/dev/null || echo '{"result":{"devices":[]}}' > "$json"; exit 0 ;;
+  "device info")
+    case "$3" in
+      details)
+        bump details >/dev/null
+        grep -qx "$dev" "$STUB/reachable" 2>/dev/null || { echo "ERROR: device unavailable" >&2; exit 1; }
+        dm="$(state devmode details enabled)"
+        if [ -n "$json" ]; then
+          if [ "$dm" = none ]; then printf '{"result":{"deviceProperties":{"name":"Test iPhone"}}}' > "$json"
+          else printf '{"result":{"deviceProperties":{"name":"Test iPhone","developerModeStatus":"%s"}}}' "$dm" > "$json"; fi
+        else
+          [ "$dm" = none ] || echo "    • Developer Mode Status: $(echo "$dm" | awk '{print toupper(substr($0,1,1)) substr($0,2)}') (1)"
+        fi ;;
+      processes)
+        app=""; [ -f "$STUB/app_running" ] && app=',{"processIdentifier":402,"executable":"file:///private/var/containers/Bundle/Application/X/Glasspad.app/Glasspad"}'
+        printf '{"result":{"runningProcesses":[{"processIdentifier":1,"executable":"file:///sbin/launchd"},{"processIdentifier":7,"executable":"file:///private/var/containers/Bundle/Application/X/Glasspad.app/PlugIns/GlasspadWidgets.appex/GlasspadWidgets"}%s]}}' "$app" > "$json" ;;
+      apps)
+        n=0; [ -f "$STUB/app_installed" ] && n=1
+        printf '{"result":{"apps":[%s]}}' "$([ $n = 1 ] && echo '{"bundleIdentifier":"com.soham109.glasspad.ios"}')" > "$json" ;;
+    esac ;;
+  "device process")
+    bump launch >/dev/null
+    case "$(state launch launch ok)" in
+      ok) echo "Launched application with com.soham109.glasspad.ios bundle identifier." ;;
+      untrusted) echo "ERROR: Unable to launch com.soham109.glasspad.ios because it has an invalid code signature, inadequate entitlements or its profile has not been explicitly trusted by the user." >&2; exit 1 ;;
+      locked) echo "ERROR: The request was denied by service delegate (SBMainWorkspace) for reason: Locked (\"Unable to launch com.soham109.glasspad.ios because the device was not, or could not be, unlocked\")." >&2; exit 1 ;;
+      *) echo "ERROR: something else broke" >&2; exit 1 ;;
+    esac ;;
+  "device install") touch "$STUB/app_installed"; exit 0 ;;
+esac
+exit 0

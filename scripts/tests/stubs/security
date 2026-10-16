@@ -1,0 +1,13 @@
+#!/bin/bash
+# Fake security: identities come from $STUB/identities, lines of "SHA1 TEAM NAME".
+echo "security $*" >> "$STUB/calls"
+case "$1" in
+  find-identity)
+    i=0; while read -r h t n; do [ -n "$h" ] || continue; i=$((i+1)); echo "  $i) $h \"Apple Development: $n ($t)\""; done < "$STUB/identities" 2>/dev/null
+    echo "     $i valid identities found" ;;
+  find-certificate)
+    while read -r h t n; do [ -n "$h" ] || continue
+      echo "SHA-1 hash: $h"; echo "-----BEGIN CERTIFICATE-----"; echo "FAKE OU=$t"; echo "-----END CERTIFICATE-----"
+    done < "$STUB/identities" 2>/dev/null ;;
+esac
+exit 0

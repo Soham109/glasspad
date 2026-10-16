@@ -1,0 +1,6 @@
+#!/bin/bash
+# Fake sudo: works only when $STUB/sudo_ok exists (a cached password).
+echo "sudo $*" >> "$STUB/calls"
+[ "$1" = -n ] && shift
+[ -f "$STUB/sudo_ok" ] || { echo "sudo: a password is required" >&2; exit 1; }
+"$@"

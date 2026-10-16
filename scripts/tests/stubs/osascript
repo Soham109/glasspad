@@ -1,0 +1,3 @@
+#!/bin/bash
+echo "osascript $*" >> "$STUB/calls"
+exit 0

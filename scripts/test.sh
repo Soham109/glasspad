@@ -15,6 +15,9 @@ for pkg in Packages/*/; do
     failed+=("$name")
   fi
 done
+# The installer scripts, against fake Apple tools (no iPhone or Apple account needed).
+echo "== installer"
+if ! /bin/bash scripts/tests/installer-test.sh; then failed+=("installer"); fi
 if [ ${#failed[@]} -gt 0 ]; then
   echo "FAILED: ${failed[*]}"
   exit 1

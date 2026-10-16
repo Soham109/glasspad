@@ -1,0 +1,3 @@
+#!/bin/bash
+echo "pkill $*" >> "$STUB/calls"
+exit 0

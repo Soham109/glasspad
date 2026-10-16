@@ -1,0 +1,9 @@
+#!/bin/bash
+# Fake xcodebuild (installed inside the fake Xcode.app).
+echo "xcodebuild $*" >> "$STUB/calls"
+case "$1" in
+  -license) [ "$2" = check ] && { [ -f "$STUB/license_ok" ]; exit $?; }; touch "$STUB/license_ok"; exit 0 ;;
+  -checkFirstLaunchStatus) [ -f "$STUB/firstlaunch_ok" ]; exit $? ;;
+  -runFirstLaunch) touch "$STUB/firstlaunch_ok"; exit 0 ;;
+  -version) [ -f "$STUB/license_ok" ] || exit 69; echo "Xcode 27.0"; echo "Build version 27A1" ;;
+esac

@@ -1,0 +1,4 @@
+#!/bin/bash
+echo "brew $*" >> "$STUB/calls"
+[ "$1 $2" = "install xcodegen" ] && cp "$STUBS/xcodegen" "$STUB/bin/xcodegen"
+exit 0

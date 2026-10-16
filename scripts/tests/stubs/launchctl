@@ -1,0 +1,7 @@
+#!/bin/bash
+echo "launchctl $*" >> "$STUB/calls"
+case "$1" in
+  print) [ -f "$STUB/launchd_loaded" ] ;;
+  bootstrap) touch "$STUB/launchd_loaded" ;;
+  bootout) rm -f "$STUB/launchd_loaded" ;;
+esac

@@ -1,0 +1,6 @@
+#!/bin/bash
+# Fake curl: "downloads" junk, so the checksum check must reject it. Fails when $STUB/offline exists.
+echo "curl $*" >> "$STUB/calls"
+[ -f "$STUB/offline" ] && exit 6
+out=""; while [ $# -gt 0 ]; do [ "$1" = -o ] && out="$2"; shift; done
+echo "not really a zip" > "$out"
