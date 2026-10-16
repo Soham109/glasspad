@@ -377,12 +377,13 @@ enum ThemeTransition {
     }
 }
 
-/// Every theme as a small live phone screen, four to a row.
+/// Every theme as a small live phone screen: four to a row in portrait, all in one row when
+/// the sheet is wide.
 private struct ThemePicker: View {
     @Binding var selection: ThemeChoice
 
     var body: some View {
-        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 4), spacing: 14) {
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 66, maximum: 92), spacing: 10)], spacing: 14) {
             ForEach(ThemeChoice.allCases) { choice in
                 ThemeSwatch(choice: choice, selected: selection == choice) {
                     guard selection != choice else { return }

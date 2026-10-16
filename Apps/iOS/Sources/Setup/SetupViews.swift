@@ -306,7 +306,7 @@ struct SetupChecklistView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(allDone ? "You're All Set" : "Four Quick Checks")
+            Text(allDone ? "You're all set" : "Four quick checks")
                 .font(.title2.bold())
                 .foregroundStyle(palette.inkColor)
             Text(allDone ? "Glasspad can move and click on \(macName)." : "So the first touch on the trackpad works on \(macName).")
