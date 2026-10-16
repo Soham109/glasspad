@@ -25,14 +25,14 @@ struct OnboardingView: View {
             .padding(.horizontal, 24)
             .padding(.bottom, 16)
         }
-        .background(palette.backgroundColor.ignoresSafeArea())
+        .background(SurfaceBackground())
     }
 
     // MARK: Pages
 
     private var welcome: some View {
         OnboardingPage(title: "Your iPhone,\nas a trackpad",
-                       detail: "Move, click, scroll and swipe on your Mac from this phone, with a small tap you can feel. Everything stays on your Wi-Fi.") {
+                       detail: "Move, click, scroll and swipe on your Mac, with a tap you can feel. Everything stays on your Wi-Fi.") {
             FingerDotsArt()
         }
     }
@@ -46,7 +46,7 @@ struct OnboardingView: View {
 
     private func scanHeading(alignment: HorizontalAlignment) -> some View {
         VStack(alignment: alignment, spacing: 10) {
-            Text(paired == nil ? "Scan the code" : "You are set")
+            Text(paired == nil ? "Scan the code" : "You're all set")
                 .font(.largeTitle.bold())
                 .foregroundStyle(palette.inkColor)
             Text(paired == nil ? "Point the camera at the code on your Mac." : "Glasspad will connect whenever this Mac is nearby.")
@@ -190,9 +190,11 @@ private struct OnboardingPage<Art: View>: View {
                     Text(title)
                         .font(.largeTitle.bold())
                         .foregroundStyle(palette.inkColor)
+                        .fixedSize(horizontal: false, vertical: true)
                     Text(detail)
                         .font(.body)
                         .foregroundStyle(palette.inkSoftColor)
+                        .fixedSize(horizontal: false, vertical: true)
                         .frame(maxWidth: 340, alignment: .leading)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)

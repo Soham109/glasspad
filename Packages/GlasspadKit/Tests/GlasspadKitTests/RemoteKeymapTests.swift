@@ -19,7 +19,7 @@ import Testing
         #expect(RemoteKeymap.player(bundleID: "org.videolan.vlc") == .vlc)
         #expect(RemoteKeymap.player(bundleID: "com.firecore.infuse") == .infuse)
         #expect(RemoteKeymap.player(bundleID: "com.spotify.client") == .music)
-        #expect(RemoteKeymap.player(bundleID: "com.apple.Music") == .music)
+        #expect(RemoteKeymap.player(bundleID: "com.apple.Music") == .appleMusic)
         #expect(RemoteKeymap.player(bundleID: "com.apple.finder") == .other)
         #expect(RemoteKeymap.player(bundleID: nil) == .other)
     }
@@ -38,7 +38,7 @@ import Testing
     }
 
     @Test func playAndPauseAlwaysUseNowPlaying() {
-        for player: RemotePlayer in [.browser(.netflix), .browser(.youtube), .appleTV, .quickTime, .iina, .vlc, .infuse, .music, .other] {
+        for player: RemotePlayer in [.browser(.netflix), .browser(.youtube), .appleTV, .quickTime, .iina, .vlc, .infuse, .music, .appleMusic, .other] {
             #expect(RemoteKeymap(player: player).output(.playPause) == .media(.playPause))
         }
     }
@@ -66,9 +66,10 @@ import Testing
             let map = RemoteKeymap(player: .browser(site))
             #expect(map.output(.forward) == .keystroke(special(.right)))
             #expect(map.output(.fullScreen) == .keystroke(key("f")))
-            #expect(!map.has(.subtitles))
             #expect(!map.has(.skipIntro))
         }
+        #expect(RemoteKeymap(player: .browser(.primeVideo)).output(.subtitles) == .keystroke(key("c")))
+        #expect(!RemoteKeymap(player: .browser(.disneyPlus)).has(.subtitles))
         // An unknown site gets the keys most players share.
         let web = RemoteKeymap(player: .browser(.other))
         #expect(web.output(.back) == .keystroke(special(.left)))
@@ -79,12 +80,39 @@ import Testing
     @Test func macPlayersSeekThroughNowPlayingWithAKeyAsFallback() {
         #expect(RemoteKeymap(player: .appleTV).output(.back) == .seek(-10, fallback: special(.left)))
         #expect(RemoteKeymap(player: .iina).output(.forward) == .seek(10, fallback: special(.right)))
-        #expect(RemoteKeymap(player: .vlc).output(.forward) == .seek(10, fallback: special(.right, [.command, .option])))
-        for player: RemotePlayer in [.appleTV, .quickTime, .iina, .infuse, .other] {
+        #expect(RemoteKeymap(player: .vlc).output(.forward) == .seek(10, fallback: special(.right, [.command, .control])))
+        for player: RemotePlayer in [.appleTV, .iina, .infuse, .other] {
             #expect(RemoteKeymap(player: player).output(.fullScreen) == .keystroke(fullScreenShortcut))
             #expect(!RemoteKeymap(player: player).has(.subtitles))
         }
         #expect(RemoteKeymap(player: .vlc).output(.fullScreen) == .keystroke(key("f", .command)))
+        #expect(!RemoteKeymap(player: .quickTime).has(.subtitles))
+    }
+
+    @Test func quickTimeJumpsOnlyThroughNowPlaying() {
+        // Its arrows step frames, so there is no key to fall back on and the buttons hide
+        // when the player cannot seek.
+        let qt = RemoteKeymap(player: .quickTime)
+        #expect(qt.output(.forward) == .seek(10, fallback: nil))
+        #expect(qt.has(.forward, canSeek: true))
+        #expect(!qt.has(.forward, canSeek: false))
+        #expect(qt.output(.fullScreen) == .keystroke(key("f", .command)))
+        #expect(RemoteKeymap(player: .appleTV).has(.forward, canSeek: false))
+    }
+
+    @Test func keysAreLeftOutWhenThePlayerIsBehindAnotherApp() {
+        // Finder in front, IINA playing: a full screen key would go to Finder.
+        let behind = RemoteKeymap(frontmost: "com.apple.finder", playing: "com.colliderli.iina")
+        #expect(behind.player == .iina)
+        #expect(!behind.keysReachPlayer)
+        #expect(!behind.has(.fullScreen))
+        #expect(behind.output(.forward) == .seek(10, fallback: nil))
+        // A video in Chrome while Safari is in front: no web keys at all.
+        let web = RemoteKeymap(frontmost: "com.apple.Safari", playing: "com.google.Chrome", nowPlaying: ["YouTube"])
+        #expect(web.player == .browser(.youtube))
+        #expect(web.output(.back) == .seek(-10, fallback: nil))
+        #expect(!web.has(.subtitles) && !web.has(.next) && web.searchPrefix.isEmpty)
+        #expect(RemoteKeymap(frontmost: "com.apple.Safari", playing: "com.apple.Safari", nowPlaying: ["YouTube"]).keysReachPlayer)
     }
 
     @Test func musicSkipsSongs() {
@@ -96,6 +124,13 @@ import Testing
         #expect(!music.has(.fullScreen))
         #expect(!music.has(.subtitles))
         #expect(music.name == nil)
+
+        let appleMusic = RemoteKeymap(player: .appleMusic)
+        #expect(appleMusic.skipsTracks)
+        #expect(appleMusic.output(.forward) == .media(.nextTrack))
+        #expect(appleMusic.output(.fullScreen) == .keystroke(key("f", [.command, .shift])))
+        // Behind another app its full screen key would go elsewhere.
+        #expect(!RemoteKeymap(frontmost: "com.apple.finder", playing: "com.apple.Music").has(.fullScreen))
     }
 
     @Test func resolvingSeeksClampsAndFallsBack() {

@@ -297,8 +297,17 @@ final class MacSession {
     }
 
     func modeDidChange(to mode: AppMode) {
-        if mode != .present, laserOn { laserOff() }
-        send(.modeSelected(mode.wireMode))
+        modesDidChange(to: [mode])
+    }
+
+    /// Tells the Mac what is on screen: one mode, or every open pane of a layout. The Mac
+    /// follows one screen at a time, so `LayoutWirePlan` picks the one it must follow and the
+    /// rest are asked for directly.
+    func modesDidChange(to modes: [AppMode]) {
+        if !modes.contains(.present), laserOn { laserOff() }
+        let plan = LayoutWirePlan(modes: modes.map(\.wireMode))
+        send(.modeSelected(plan.primary))
+        if plan.requestsMedia { send(.mediaRequest) }
     }
 
     /// Asks for the Dock list, telling the Mac which icons this phone already has.
@@ -452,18 +461,21 @@ final class MacSession {
             connectedAt = Date()
             // The connector marked this Mac as last used; show it.
             PairingStore.shared.reload()
-            send(.modeSelected(AppRouter.shared.mode.wireMode))
+            let modes = AppRouter.shared.screenModes
+            modesDidChange(to: modes)
             DisplaysStore.shared.linkConnected()
-            // Refresh whatever the current screen shows.
-            switch AppRouter.shared.mode {
-            case .dock: requestDock()
-            case .media: send(.mediaRequest)
-            case .deck: send(.deckRequest)
-            case .actions:
-                send(.deckRequest)
-                send(.macro(.listMacros))
-            case .macros: send(.macro(.listMacros))
-            default: break
+            // Refresh whatever the screen shows (every pane of a layout).
+            for mode in modes {
+                switch mode {
+                case .dock: requestDock()
+                case .media: send(.mediaRequest)
+                case .deck: send(.deckRequest)
+                case .actions:
+                    send(.deckRequest)
+                    send(.macro(.listMacros))
+                case .macros: send(.macro(.listMacros))
+                default: break
+                }
             }
         }
     }

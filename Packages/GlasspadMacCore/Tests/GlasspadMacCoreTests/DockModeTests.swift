@@ -51,7 +51,33 @@ nonisolated(unsafe) private let sample: [[String: Any]] = [
         let image = NSImage(size: NSSize(width: 1024, height: 1024))
         let png = try #require(DockMode.renderPNG(image, pixels: DockApp.iconPixels))
         let rep = try #require(NSBitmapImageRep(data: png))
-        #expect(rep.pixelsWide == 256 && rep.pixelsHigh == 256)
+        #expect(rep.pixelsWide == 384 && rep.pixelsHigh == 384)
+    }
+
+    @Test func realAppIconsHaveADetailedEnoughSourceForThePhone() throws {
+        // macOS keeps app icons up to 1024 px, so 384 px is drawn down from a larger image,
+        // never scaled up from a small one.
+        let icon = NSWorkspace.shared.icon(forFile: "/System/Library/CoreServices/Finder.app")
+        #expect(icon.representations.map(\.pixelsWide).max() ?? 0 >= DockApp.iconPixels)
+        let png = try #require(DockMode.renderPNG(icon, pixels: DockApp.iconPixels))
+        #expect(NSBitmapImageRep(data: png)?.pixelsWide == DockApp.iconPixels)
+        // A sane size for one icon over Wi-Fi.
+        #expect(png.count < 400_000)
+    }
+
+    @Test func bigIconSetsAreSplitAcrossMessages() {
+        let png = Data(count: 600_000)
+        let apps = (0..<5).map { DockApp(bundleID: "a\($0)", name: "A", iconPNG: png, running: false, active: false) }
+        let (list, later) = DockMode.splitIcons(apps, budget: 1_500_000)
+        #expect(list.count == 5)
+        #expect(list.filter { $0.iconPNG != nil }.count == 2)
+        #expect(later.map(\.bundleID) == ["a2", "a3", "a4"])
+        let batches = DockMode.iconBatches(later, budget: 1_500_000)
+        #expect(batches.map { $0.map(\.bundleID) } == [["a2", "a3"], ["a4"]])
+        // One icon bigger than the budget still goes, on its own.
+        let huge = DockApp(bundleID: "h", name: "H", iconPNG: Data(count: 2_000_000), running: false, active: false)
+        #expect(DockMode.splitIcons([huge]).later.isEmpty)
+        #expect(DockMode.iconBatches([huge, huge]).count == 2)
     }
 
     @Test func iconsAreSentOncePerKeyAndKeyedByModificationDate() {
@@ -63,13 +89,13 @@ nonisolated(unsafe) private let sample: [[String: Any]] = [
         let dock = DockMode(workspace: ws, cacheDirectory: nil)
         let first = dock.currentList()
         #expect(first.allSatisfy { $0.iconPNG != nil })
-        #expect(first[0].iconKey == "com.microsoft.Word@1700000000")
+        #expect(first[0].iconKey == "com.microsoft.Word@1700000000-384")
         #expect(first[0].inDock == true)
         // Same session: no icons again.
         #expect(dock.currentList().allSatisfy { $0.iconPNG == nil })
         // New session, phone says it has Word's: only the other one comes.
         dock.resetSession()
-        dock.phoneHas(iconKeys: ["com.microsoft.Word@1700000000"])
+        dock.phoneHas(iconKeys: ["com.microsoft.Word@1700000000-384"])
         let third = dock.currentList()
         #expect(third[0].iconPNG == nil && third[1].iconPNG != nil)
         // Rendered once per key; memory cache after that.

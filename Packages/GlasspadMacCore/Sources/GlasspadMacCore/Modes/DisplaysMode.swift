@@ -46,7 +46,7 @@ public final class DisplaysMode {
     /// Icons for apps the phone has not been sent yet (DockMode's, PNG keyed by bundle id).
     public var icons: ([String]) -> [DockApp] = { _ in [] }
     /// Night Shift on now, nil when unknown.
-    public var nightShift: () -> Bool? = { nil }
+    public var nightShift: @MainActor () -> Bool? = { nil }
 
     /// How long an unconfirmed change waits for Keep.
     public static let keepSeconds = 15

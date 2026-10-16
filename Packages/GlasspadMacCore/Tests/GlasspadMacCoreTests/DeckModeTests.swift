@@ -9,7 +9,9 @@ import Testing
         -> (DeckMode, FakeDeckEnvironment) {
         let url = tempURL("deck.json")
         try DeckConfig(allowShellCommands: shell, buttons: buttons, pages: nil).save(to: url)
-        return (DeckMode(env: env, url: url), env)
+        let d = DeckMode(env: env, url: url)
+        d.recordingStartCheck = .zero
+        return (d, env)
     }
 
     private func outcome(_ d: DeckMode, _ action: DeckAction) async -> DeckMode.Outcome { await d.perform(action) }
@@ -204,6 +206,9 @@ import Testing
     @Test func systemControlsMapToTheRightCalls() async throws {
         let (d, env) = try deck([])
         #expect(await outcome(d, .system(.lockScreen)).ok)
+        #expect(env.locks == 1 && env.pressed.isEmpty)
+        env.canLockDirectly = false
+        #expect(await outcome(d, .system(.lockScreen)).ok)
         #expect(env.pressed.last == Keystroke(key: .character("q"), modifiers: [.command, .control]))
         _ = await outcome(d, .system(.sleepDisplay))
         #expect(env.runs.last?.0 == "/usr/bin/pmset" && env.runs.last?.1 == ["displaysleepnow"])
@@ -215,6 +220,9 @@ import Testing
         #expect(env.runs.last?.1 == [])
         _ = await outcome(d, .system(.appExpose))
         #expect(env.runs.last?.1 == ["2"])
+        #expect(await outcome(d, .system(.toggleDarkMode)) == DeckMode.Outcome(ok: true, message: "Dark"))
+        #expect(env.runs.last?.0 != "/usr/bin/osascript")
+        env.darkModeResult = nil
         _ = await outcome(d, .system(.toggleDarkMode))
         #expect(env.runs.last?.0 == "/usr/bin/osascript")
         #expect(env.runs.last?.1.last?.contains("dark mode") == true)
@@ -226,6 +234,119 @@ import Testing
             _ = await outcome(d, .system(a))
             #expect(env.mediaCommands.last == c)
         }
+    }
+
+    @Test func fullScreenShotSavesOneFilePerDisplay() throws {
+        let env = FakeDeckEnvironment()
+        env.displayCount = 3
+        let (d, _) = try deck([], env: env)
+        let file = URL(fileURLWithPath: "/x/Screenshot at 1.png")
+        #expect(d.screencaptureArguments(.fullScreen, file: file)
+                == ["/x/Screenshot at 1.png", "/x/Screenshot at 1 (2).png", "/x/Screenshot at 1 (3).png"])
+    }
+
+    @Test func recordingThatQuitsAtOnceAsksForPermission() async throws {
+        let (d, env) = try deck([])
+        d.recordingStartCheck = .milliseconds(1)
+        // The fake's process "quits" before the check, like screencapture without permission.
+        let quitting = Task { @MainActor in
+            while env.lastProcess == nil { await Task.yield() }
+            env.lastProcess?.isRunning = false
+        }
+        let r = await outcome(d, .screenRecording)
+        await quitting.value
+        #expect(!r.ok && r.message == DeckMode.screenRecordingHint)
+        #expect(!d.isRecording)
+    }
+
+    @Test func missingShortcutIsNamedAsMissing() async throws {
+        let (d, env) = try deck([])
+        env.runResult = (false, "Error: The operation couldn't be completed.")
+        #expect(await outcome(d, .runShortcut(name: "Nope")).message == "There is no shortcut named \u{201C}Nope\u{201D} on this Mac")
+        #expect(await outcome(d, .runShortcut(name: "focus on")).message == "Shortcut \u{201C}focus on\u{201D} stopped with an error")
+        env.runResult = (false, "Timed out")
+        #expect(await outcome(d, .runShortcut(name: "Focus On")).message == "Shortcut \u{201C}Focus On\u{201D} took too long")
+    }
+
+    @Test func switchesReportTheirNewStateToThePhone() async throws {
+        let id = UUID()
+        let (d, env) = try deck([DeckButton(id: id, title: "DND", symbol: "moon", action: .system(.doNotDisturb))])
+        #expect(await d.run(id: id) == [.deckResult(id: id, ok: true, message: "Do Not Disturb is on")])
+        env.doNotDisturb = .off
+        #expect(await outcome(d, .system(.doNotDisturb)).message == "Do Not Disturb is off")
+        env.doNotDisturb = .changed
+        #expect(await outcome(d, .system(.doNotDisturb)) == DeckMode.Outcome(ok: true))
+        env.nightShift = .off
+        #expect(await outcome(d, .system(.nightShift)).message == "Night Shift is off")
+        env.nightShift = .failed("Night Shift is not available on this Mac")
+        #expect(await outcome(d, .system(.nightShift)) == DeckMode.Outcome(ok: false, message: "Night Shift is not available on this Mac"))
+        #expect(await outcome(d, .system(.keepAwake)).message == "Staying awake")
+        #expect(await outcome(d, .system(.keepAwake)).message == "Keep Awake is off")
+        #expect(await outcome(d, .system(.notificationCenter)).ok)
+        env.notificationCenterWorks = false
+        #expect(await outcome(d, .system(.notificationCenter)).ok == false)
+        #expect(env.notificationCenterOpens == 2)
+    }
+
+    @Test func doNotDisturbFallsBackToTheUsersShortcut() async throws {
+        let (d, env) = try deck([])
+        env.doNotDisturb = .failed("Could not find Do Not Disturb in Control Center")
+        #expect(await outcome(d, .system(.doNotDisturb)) == DeckMode.Outcome(ok: false, message: "Could not find Do Not Disturb in Control Center"))
+        #expect(env.runs.isEmpty)
+        env.shortcuts = ["Morning", "Toggle Focus"]
+        #expect(await outcome(d, .system(.doNotDisturb)).ok)
+        #expect(env.runs.last?.0 == "/usr/bin/shortcuts" && env.runs.last?.1 == ["run", "Toggle Focus"])
+    }
+
+    @Test func windowButtonsMoveTheFrontWindow() async throws {
+        let (d, env) = try deck([])
+        let all: [(DeckSystemAction, WindowPlacement)] = [(.windowLeft, .left), (.windowRight, .right), (.windowTop, .top),
+                                                          (.windowBottom, .bottom), (.windowFill, .fill), (.windowCenter, .center)]
+        for (action, _) in all { #expect(await outcome(d, .system(action)).ok) }
+        #expect(env.placed == all.map(\.1))
+        #expect(await outcome(d, .system(.windowSplit)).ok && env.splits == 1)
+        #expect(await outcome(d, .system(.windowNextDisplay)).ok && env.nextDisplayMoves == 1)
+        env.windowFailure = "No window to move"
+        #expect(await outcome(d, .system(.windowLeft)) == DeckMode.Outcome(ok: false, message: "No window to move"))
+    }
+
+    @Test func oldFocusShortcutButtonBecomesDoNotDisturb() throws {
+        let url = tempURL("deck.json")
+        let focus = DeckButton(title: "Focus", symbol: "moon.circle.fill", action: .runShortcut(name: "Toggle Focus"))
+        let mine = DeckButton(title: "Mine", symbol: "bolt", action: .runShortcut(name: "Morning"))
+        let folder = DeckButton(title: "Mac", symbol: "macbook", action: .folder, children: [focus])
+        let page = DeckPage(id: DeckConfig.myPageID, title: "Pinned", buttons: [folder, mine])
+        try DeckConfig(buttons: [focus, mine], pages: [page]).save(to: url)
+        let loaded = DeckConfig.load(from: url)
+        let all = loaded.layout.allButtons
+        #expect(all.first { $0.id == focus.id }?.action == .system(.doNotDisturb))
+        #expect(all.first { $0.id == focus.id }?.title == "Do Not Disturb")
+        #expect(all.first { $0.id == mine.id }?.action == .runShortcut(name: "Morning"))
+        #expect(!DeckConfig.macStarterButtons().contains { $0.action == .runShortcut(name: "Toggle Focus") })
+        // Written back, so ids and the fix stick.
+        let d = DeckMode(env: FakeDeckEnvironment(), url: url)
+        #expect(d.config.layout.allButtons.contains { $0.action == .system(.doNotDisturb) })
+        let onDisk = try JSONDecoder().decode(DeckConfig.self, from: Data(contentsOf: url))
+        #expect(!onDisk.layout.allButtons.contains { $0.action == .runShortcut(name: "Toggle Focus") })
+    }
+
+    @Test func everyMacControlIsBuilt() async throws {
+        let (d, _) = try deck([])
+        for action in DeckSystemAction.allCases {
+            let r = await outcome(d, .system(action))
+            #expect(r.message != "Not built yet", "\(action)")
+        }
+    }
+
+    @Test func volumeUpUnmutesLikeTheKeys() async throws {
+        let (d, env) = try deck([])
+        env.outputMuted = true
+        _ = await outcome(d, .system(.volumeUp))
+        #expect(env.mutedToggles == 1)
+        env.outputMuted = false
+        _ = await outcome(d, .system(.volumeUp))
+        _ = await outcome(d, .system(.volumeDown))
+        #expect(env.mutedToggles == 1)
     }
 
     @Test func volumeBrightnessAndMicrophone() async throws {

@@ -55,6 +55,12 @@ public protocol ScriptRunning: Sendable {
     func runShell(_ command: String, timeoutMs: Int) async throws -> String
 }
 
+/// Runs one of Glasspad's Mac controls by id (see `MacroStep.macControl`).
+public protocol MacControlRunning: Sendable {
+    /// Throws `MacroError.macControlFailed` with a message for the user when it does not work.
+    func run(_ id: String) async throws
+}
+
 public protocol ClipboardWriting: Sendable {
     func setString(_ text: String)
 }

@@ -1,6 +1,7 @@
 import AppKit
 import ApplicationServices
 import CoreGraphics
+import GlasspadKit
 import GlasspadMacros
 
 /// Holds the app's `EventPoster` for the macro player, which runs off the main thread. The
@@ -217,6 +218,35 @@ public extension MacroEnvironment {
             clipboard: PasteboardClipboard(),
             notifier: SystemNotifier(),
             clock: ContinuousMacroClock(),
-            inputMonitor: EventTapUserInputMonitor())
+            inputMonitor: EventTapUserInputMonitor(),
+            controls: MacControlRelay.shared)
+    }
+}
+
+// MARK: - Mac controls
+
+/// Runs macro steps that use a Mac control (window tiling, Do Not Disturb...) exactly as the
+/// Actions button would, through the Deck. The router points `perform` at its Deck.
+@MainActor
+public final class MacControlRelay: MacControlRunning {
+    public nonisolated static let shared = MacControlRelay()
+
+    nonisolated init() {}
+
+    public var perform: ((DeckSystemAction) async -> DeckMode.Outcome)?
+
+    public nonisolated func run(_ id: String) async throws {
+        guard let action = DeckSystemAction(rawValue: id) else {
+            throw MacroError.macControlFailed("This version of Glasspad does not have the Mac control \u{201C}\(id)\u{201D}.")
+        }
+        guard let outcome = await perform(action) else {
+            throw MacroError.macControlFailed("Mac controls are not ready yet.")
+        }
+        if !outcome.ok { throw MacroError.macControlFailed(outcome.message ?? "\(action.title) did not work.") }
+    }
+
+    private func perform(_ action: DeckSystemAction) async -> DeckMode.Outcome? {
+        guard let perform else { return nil }
+        return await perform(action)
     }
 }

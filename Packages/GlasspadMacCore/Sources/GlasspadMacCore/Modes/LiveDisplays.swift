@@ -32,10 +32,7 @@ public final class LiveDisplays: DisplaysBackend {
     public var tileMargin: CGFloat {
         if Date().timeIntervalSince(marginReadAt) > 2 {
             marginReadAt = Date()
-            let domain = "com.apple.WindowManager" as CFString
-            CFPreferencesAppSynchronize(domain)
-            let on = CFPreferencesCopyAppValue("EnableTiledWindowMargins" as CFString, domain) as? Bool
-            margin = on ?? true ? DisplayGeometry.tileMargin : 0
+            margin = WindowMover.gap()
         }
         return margin
     }
@@ -174,9 +171,9 @@ public final class LiveDisplays: DisplaysBackend {
             let app = AXUIElementCreateApplication(pid)
             // A busy app must never stall the poll.
             AXUIElementSetMessagingTimeout(app, 0.2)
-            for window in Self.elements(app, kAXWindowsAttribute) {
-                guard let id = Self.windowID(window) else { continue }
-                found[id] = (app, window, Self.attribute(window, kAXTitleAttribute) as? String)
+            for window in AXUI.elements(app, kAXWindowsAttribute) {
+                guard let id = WindowMover.windowID(window) else { continue }
+                found[id] = (app, window, AXUI.string(window, kAXTitleAttribute))
             }
         }
         axWindows = found
@@ -188,11 +185,11 @@ public final class LiveDisplays: DisplaysBackend {
         }
         if axWindows[id] == nil, let pid = ownerPID(id) { refreshAccessibility(pids: [pid], force: true) }
         guard let (app, window, _) = axWindows[id] else { return "That window cannot be reached." }
-        let fullScreen = (Self.attribute(window, "AXFullScreen") as? NSNumber)?.boolValue == true
+        let fullScreen = AXUI.bool(window, "AXFullScreen") == true
         switch operation {
         case .setFrame(let frame):
             if fullScreen { return "That window is in full screen." }
-            return Self.set(window, app: app, to: frame) ? nil : "That window cannot be moved."
+            return WindowMover.set(window, app: app, to: frame) ? nil : "That window cannot be moved."
         case .raise:
             AXUIElementSetAttributeValue(window, kAXMainAttribute as CFString, kCFBooleanTrue)
             AXUIElementPerformAction(window, kAXRaiseAction as CFString)
@@ -203,8 +200,7 @@ public final class LiveDisplays: DisplaysBackend {
             return AXUIElementSetAttributeValue(window, kAXMinimizedAttribute as CFString, kCFBooleanTrue) == .success
                 ? nil : "That window cannot be minimized."
         case .close:
-            guard let v = Self.attribute(window, kAXCloseButtonAttribute), CFGetTypeID(v) == AXUIElementGetTypeID(),
-                  AXUIElementPerformAction(v as! AXUIElement, kAXPressAction as CFString) == .success
+            guard let button = AXUI.element(window, kAXCloseButtonAttribute), AXUI.press(button)
             else { return "That window cannot be closed." }
             return nil
         case .fullScreen:
@@ -216,48 +212,5 @@ public final class LiveDisplays: DisplaysBackend {
     private func ownerPID(_ id: UInt32) -> pid_t? {
         guard let info = (CGWindowListCopyWindowInfo([.optionIncludingWindow], id) as? [[String: Any]])?.first else { return nil }
         return info[kCGWindowOwnerPID as String] as? pid_t
-    }
-
-    // MARK: Accessibility helpers
-
-    private static func attribute(_ element: AXUIElement, _ name: String) -> CFTypeRef? {
-        var value: CFTypeRef?
-        return AXUIElementCopyAttributeValue(element, name as CFString, &value) == .success ? value : nil
-    }
-
-    private static func elements(_ element: AXUIElement, _ name: String) -> [AXUIElement] {
-        guard let array = attribute(element, name) as? [AnyObject] else { return [] }
-        return array.compactMap { CFGetTypeID($0) == AXUIElementGetTypeID() ? ($0 as! AXUIElement) : nil }
-    }
-
-    private typealias GetWindowFn = @convention(c) (AXUIElement, UnsafeMutablePointer<CGWindowID>) -> AXError
-    /// `_AXUIElementGetWindow`, the private call every window manager uses to match an
-    /// Accessibility window with the window server's id. Without it, titles are left out and
-    /// windows cannot be moved, but they still show.
-    private static let getWindow: GetWindowFn? = {
-        guard let sym = dlsym(UnsafeMutableRawPointer(bitPattern: -2), "_AXUIElementGetWindow") else { return nil }
-        return unsafeBitCast(sym, to: GetWindowFn.self)
-    }()
-
-    private static func windowID(_ window: AXUIElement) -> UInt32? {
-        guard let getWindow else { return nil }
-        var id = CGWindowID(0)
-        return getWindow(window, &id) == .success && id != 0 ? id : nil
-    }
-
-    /// Size, position, size again (a window crossing displays can be limited by the display it
-    /// starts on). "Enhanced user interface", which some apps turn on for assistive tools,
-    /// animates every change and makes sizes land wrong, so it is off while moving.
-    private static func set(_ window: AXUIElement, app: AXUIElement, to frame: CGRect) -> Bool {
-        let enhancedKey = "AXEnhancedUserInterface" as CFString
-        let enhanced = (attribute(app, enhancedKey as String) as? NSNumber)?.boolValue == true
-        if enhanced { AXUIElementSetAttributeValue(app, enhancedKey, kCFBooleanFalse) }
-        defer { if enhanced { AXUIElementSetAttributeValue(app, enhancedKey, kCFBooleanTrue) } }
-        var size = frame.size, origin = frame.origin
-        guard let sizeValue = AXValueCreate(.cgSize, &size), let originValue = AXValueCreate(.cgPoint, &origin) else { return false }
-        let sized = AXUIElementSetAttributeValue(window, kAXSizeAttribute as CFString, sizeValue) == .success
-        let moved = AXUIElementSetAttributeValue(window, kAXPositionAttribute as CFString, originValue) == .success
-        AXUIElementSetAttributeValue(window, kAXSizeAttribute as CFString, sizeValue)
-        return sized || moved
     }
 }
