@@ -11,11 +11,17 @@ A wireless trackpad you can feel, plus a keyboard, a media remote, your Mac's ap
   <img alt="platform" src="https://img.shields.io/badge/macOS-14%2B-lightgrey">
   <img alt="platform" src="https://img.shields.io/badge/iOS-18%2B-lightgrey">
   <img alt="status" src="https://img.shields.io/badge/status-0.1.0%20unreleased-orange">
+  <a href="https://glasspad.sohamaggarwal.com"><img alt="Website" src="https://img.shields.io/badge/website-glasspad-1a1a1a"></a>
+  <a href="https://www.youtube.com/watch?v=6AArTWOADGc"><img alt="Demo" src="https://img.shields.io/badge/demo-YouTube-red?logo=youtube&logoColor=white"></a>
 </p>
 
 <p align="center">
-  <img src="docs/brand/icon.png" alt="Glasspad icon" width="160">
+  <a href="https://www.youtube.com/watch?v=6AArTWOADGc">
+    <img src="https://img.youtube.com/vi/6AArTWOADGc/maxresdefault.jpg" alt="Watch the Glasspad demo on YouTube" width="820">
+  </a>
 </p>
+
+<p align="center"><sub>Watch the 64 second demo on YouTube</sub></p>
 
 <p align="center">
   <picture>
