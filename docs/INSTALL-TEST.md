@@ -96,7 +96,7 @@ Done. What is installed:
   iPhone          Soham’s iPhone (00008160-000E614036400036), f20b012
   Auto-renew      on (checks hourly, log: ~/Library/Logs/Glasspad/refresh.log)
 
-  Pair: click the Glasspad icon in your Mac's menu bar > Pair new iPhone, then scan the code
+  Pair: click Glasspad in your Mac's menu bar, choose Pair Your iPhone, then scan the code
   with the Glasspad app (or the iPhone Camera).
 ```
 

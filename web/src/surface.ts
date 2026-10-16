@@ -18,15 +18,23 @@ const PANES: Record<string, { name: string; dark?: boolean; html: () => string }
   remote: { name: "Remote", dark: true, html: () => `<div class="pz-rm"><div class="pad"><b>Tap to play or pause</b><span>Swipe sideways to skip</span></div></div>` },
   clock: { name: "Clock", dark: true, html: () => `<div class="pz-clk"><span>Fri, 16 Oct</span><b>10</b><b>09</b></div>` },
   nowPlaying: { name: "Now Playing", dark: true, html: () => `<div class="pz-np"><span class="art"><i class="s1"></i><i class="s2"></i><i class="s3"></i></span><b>Slow Light</b><small>Paper Rooms</small></div>` },
+  keys: { name: "Keyboard", html: () => `<div class="pz-kb"><div class="hd"><b>Start typing</b><span>Typing goes straight to your Mac</span></div>
+    <div class="kr">${[["⌃", "control"], ["⌥", "option"], ["⌘", "command"], ["⇧", "shift"]].map(([k, n]) => `<span class="kk"><b>${k}</b><small>${n}</small></span>`).join("")}</div>
+    <div class="kr">${["esc", "tab", "↑"].map(k => `<span class="kk"><b>${k}</b></span>`).join("")}<span class="kk gap"></span></div>
+    <div class="kr"><span class="kk"><b>⌫</b></span>${["←", "↓", "→"].map(k => `<span class="kk"><b>${k}</b></span>`).join("")}</div></div>` },
   present: { name: "Present", html: () => `<div class="pz-pr"><div class="time">4:12</div><div class="bn"><span class="b">${glyph("chevron.left")}Back</span><span class="n">${glyph("chevron.right")}Next</span></div></div>` },
 };
-/* A few of the gallery's templates (LayoutTemplates.swift) */
+/* The gallery's named templates (LayoutTemplates.swift), in its order and with its names */
 const TEMPLATES = [
   { name: "Desk", panes: ["trackpad", "actions"], split: 0.6, inner: 0.5 },
-  { name: "Studio", panes: ["trackpad", "media", "actions"], split: 0.5, inner: 0.36 },
+  { name: "Type", panes: ["trackpad", "keys"], split: 0.5, inner: 0.5 },
+  { name: "Listen", panes: ["trackpad", "media"], split: 0.6, inner: 0.5 },
   { name: "Couch", panes: ["remote", "trackpad"], split: 0.6, inner: 0.5 },
+  { name: "Studio", panes: ["trackpad", "media", "actions"], split: 0.5, inner: 0.5 },
+  { name: "Presenter", panes: ["present", "trackpad"], split: 0.5, inner: 0.5 },
   { name: "StandBy", panes: ["clock", "nowPlaying"], split: 0.5, inner: 0.5 },
 ];
+const STUDIO = TEMPLATES.findIndex(t => t.name === "Studio");
 
 type Rect = { x: number; y: number; w: number; h: number };
 /** Splits a rect at a share with a gap between, side by side or stacked: [first, second, line]. */
@@ -144,7 +152,7 @@ export function initLayouts() {
         await s.wait(1200);
         await drag(0, 0.35, 1100); await s.wait(1300);
         await drag(0, 0.64, 1200); await s.wait(1600);
-        build(1); await s.wait(1600);
+        build(STUDIO); await s.wait(1600);
         await drag(1, 0.52, 900); await s.wait(2000);
         build(0);
       }

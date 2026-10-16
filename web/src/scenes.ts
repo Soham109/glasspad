@@ -3,8 +3,12 @@ import { appIcon } from "./apps";
 import { glyph } from "./glyphs";
 import { phone, fitAll, tl, tlApp, settle, reduce, Scene } from "./kit";
 
-/* Four setups drawn as rooms: a desk with an external display, a MacBook editing film, a sofa
-   facing a TV, and a stage. Each phone shows the app's real screen for that moment. */
+/* Five setups drawn as rooms, each named after the layout (LayoutTemplates.swift) its phone
+   shows: Desk, Studio, Couch, Presenter and StandBy. */
+
+/* Portrait layouts: two panes stacked edge to edge, a divider between them. */
+const PT_H = 874, PT_GAP = 12;
+const PT_SPLIT = (share: number) => Math.round((PT_H - PT_GAP) * share);
 
 const cursor = '<svg class="md-cursor" viewBox="0 0 16 22"><path d="M1 1v17l4.6-4.4 3 6.9 3-1.3-3-6.8H15Z" fill="#1A1A1A" stroke="#fff" stroke-width="1.4" stroke-linejoin="round"/></svg>';
 const apple = '<svg class="mb-apple" viewBox="0 0 14 17"><path d="M11.6 9c0-2 1.6-2.9 1.7-3-1-1.4-2.4-1.6-2.9-1.6-1.2-.1-2.4.7-3 .7-.6 0-1.6-.7-2.6-.7C3.4 4.4 2.1 5.2 1.4 6.5 0 9 1 12.7 2.4 14.7c.7 1 1.5 2 2.5 2 1 0 1.4-.6 2.6-.6s1.5.6 2.6.6c1.1 0 1.8-1 2.4-2 .8-1.1 1.1-2.2 1.1-2.3 0 0-2-.8-2-3.4ZM9.7 3c.5-.7.9-1.6.8-2.5-.8 0-1.8.5-2.3 1.2-.5.6-1 1.5-.8 2.4.9.1 1.8-.5 2.3-1.1Z"/></svg>';
@@ -31,8 +35,10 @@ const handPhone = (cls: string, inner: string, finish: "light" | "dark") => `<di
 type B = [string, string, string];
 const SAFARI: B[] = [["New Tab", "plus.square.on.square", "#0A84FF"], ["Reopen Tab", "arrow.uturn.backward", "#0A84FF"], ["Reader", "doc.plaintext", "#30B0C7"]];
 const XCODE: B[] = [["Build", "hammer", "#147EFB"], ["Run", "play.fill", "#34C759"], ["Stop", "stop.fill", "#FF3B30"]];
-const FCP: B[] = [["Play / Pause", "playpause.fill", "#BF5AF2"], ["Blade at Playhead", "scissors", "#BF5AF2"], ["Snapping", "magnet", "#BF5AF2"], ["Mark In", "arrow.right.to.line", "#BF5AF2"], ["Mark Out", "arrow.left.to.line", "#BF5AF2"], ["Zoom to Fit", "arrow.up.left.and.arrow.down.right", "#BF5AF2"]];
+const FCP: B[] = [["Play / Pause", "playpause.fill", "#BF5AF2"], ["Blade at Playhead", "scissors", "#BF5AF2"], ["Mark In", "arrow.right.to.line", "#BF5AF2"], ["Snapping", "magnet", "#BF5AF2"], ["Mark Out", "arrow.left.to.line", "#BF5AF2"], ["Zoom to Fit", "arrow.up.left.and.arrow.down.right", "#BF5AF2"]];
 const tiles = (bs: B[]) => bs.map(([n, g, c]) => tl(n, g, c)).join("");
+/** Media as a pane: the player, the song and the three controls (MediaMode.swift). */
+const mediaPane = `<div class="pz-md"><div class="src"><i></i>SPOTIFY</div><b>Slow Light</b><span>Paper Rooms</span><div class="ctl">${glyph("backward.fill")}<span class="pp">${glyph("pause.fill")}</span>${glyph("forward.fill")}</div></div>`;
 const front = (key: string, name: string) => `<div class="af"><span class="af-i">${appIcon(key)}</span><div><b>${name}</b><span>In front on your Mac</span></div></div>`;
 
 /* ---------- Desk: an external display, the MacBook beside it, the phone on a stand ---------- */
@@ -88,17 +94,19 @@ const DESK = {
   },
 };
 
-/* ---------- Studio: Final Cut Pro on a MacBook, its own buttons on the phone ---------- */
+/* ---------- Studio: Final Cut Pro on a MacBook; the Studio layout on the phone ---------- */
 const DUR = 0.82; // where the timeline ends, as a share of its width
 const STUDIO = {
-  key: "studio", title: "Editing", text: "Final Cut Pro in front, and the phone shows its buttons: Blade, Mark In, Snapping. More than 70 apps get their own.",
+  key: "studio", title: "Studio", text: "Trackpad, Media and Actions on one screen. Final Cut Pro is in front, so Actions shows its buttons: Play, Blade, Mark In. More than 70 apps get their own.",
   html: () => `<div class="scene uc uc-studio"><div class="uc-wall"></div><div class="sc-desk"></div>
     ${macbook("mb-studio", `<div class="mbx fcp">${menuBar("Final Cut Pro", ["File", "Edit", "Trim", "Mark", "Clip", "Modify", "View"])}
       <div class="fc-top"><div class="fc-lib">${"<i></i>".repeat(6)}</div><div class="fc-view"><div class="fc-frame"><i class="sun"></i><i class="sea"></i></div></div></div>
       <div class="fc-tl"><div class="fc-track v"><i style="left:2%;width:30%"></i><i class="b" style="left:32.4%;width:28%"></i><i style="left:60.8%;width:21%"></i></div>
         <div class="fc-track a"><i style="left:2%;width:80%"></i></div><span class="fc-cut"></span><span class="fc-in"></span><span class="fc-head"></span></div></div>`)}
-    ${standPhone("sp-studio", `<div class="pt land acl"><div class="acl-a">${front("fcp", "Final Cut Pro")}<div class="ag f3">${tiles(FCP)}</div></div>
-      <div class="acl-b"><div class="ph5">Pinned</div><div class="ag f3">${tl("Do Not Disturb", "moon.fill", "#5E5CE6")}${tl("Keep Awake", "cup.and.saucer.fill", "#30B0C7")}${tl("Screenshot", "camera.viewfinder", "#0A84FF")}${tl("Night Shift", "sun.horizon.fill", "#FFD60A")}${tlApp("Music", "music")}${tl("Split Screen", "rectangle.split.2x1.fill", "#0A84FF")}</div></div></div>`)}
+    ${standPhone("sp-studio", `<div class="pt land lyt st3">
+      <div class="lp-pane tpad"></div><div class="lyt-div"><i></i></div>
+      <div class="lp-pane md">${mediaPane}</div><div class="lyt-div h"><i></i></div>
+      <div class="lp-pane ac">${front("fcp", "Final Cut Pro")}<div class="ag f3">${tiles(FCP)}</div></div></div>`)}
   </div>`,
   async run(s: Scene) {
     const head = s.m(".fc-head"), cut = s.m(".fc-cut"), mark = s.m(".fc-in"), frame = s.m(".fc-frame");
@@ -140,16 +148,18 @@ const rg = (g: string) => `<svg viewBox="0 0 24 24" aria-hidden="true">${(R as R
 const rkeys = (k: string[][]) => k.map(([n, g]) => `<span class="ro" data-k="${n}">${g in R ? rg(g) : glyph(g)}<small>${n}</small></span>`).join("");
 const poster = '<span class="pst"><i class="s1"></i><i class="s2"></i><i class="s3"></i></span>';
 const COUCH = {
-  key: "couch", title: "Couch", text: "A touch pad like the Siri Remote: tap to pause, swipe to skip 10 seconds, up or down for volume. The keys follow the player.",
+  key: "couch", title: "Couch", text: "Remote over the trackpad. Its pad works like the Siri Remote: tap to pause, swipe to skip 10 seconds, up or down for volume. The keys follow the player.",
   html: () => `<div class="scene uc uc-couch"><div class="uc-wall"></div><div class="uc-floor"></div>
     <div class="tv"><div class="tv-b"><div class="tv-s" data-p="netflix"><div class="tv-film">${poster}</div><div class="tv-dim"></div>
       <div class="tv-seek"><svg viewBox="0 0 24 24">${R.fwd10}</svg></div><div class="tv-vol"><i></i></div><div class="tv-bar"><i></i></div><div class="tv-pp"><svg viewBox="0 0 24 24">${R.pause}</svg></div></div></div></div>
     <div class="console"></div><div class="sofa"><i></i></div>
-    ${handPhone("hp-couch", `<div class="pt rmt">
-      <div class="rh"><span class="rc">${rg("x")}</span>${poster}<div class="rt"><b>The Quiet Coast</b><span>Netflix in Safari</span></div><span class="rc">${rg("more")}</span></div>
+    ${handPhone("hp-couch", `<div class="pt lyp">
+      <div class="lpt top rmt" style="height:${PT_SPLIT(0.6)}px">
+      <div class="rh">${poster}<div class="rt"><b>The Quiet Coast</b><span>Netflix in Safari</span></div><span class="rc">${rg("more")}</span></div>
       <div class="rpad"><span class="rhand">${rg("hand")}</span><b>Tap to play or pause</b><span>Swipe sideways to skip,<br>up or down for volume</span></div>
       <div class="rbig"><span>${rg("back10")}</span><span class="pp">${rg("pause")}</span><span>${rg("fwd10")}</span></div>
-      <div class="ropts">${rkeys(RK.netflix.keys)}</div></div>`, "dark")}
+      <div class="ropts">${rkeys(RK.netflix.keys)}</div></div>
+      <div class="lpt-div" style="top:${PT_SPLIT(0.6)}px"><i></i></div><div class="lpt bot" style="top:${PT_SPLIT(0.6) + PT_GAP}px"></div></div>`, "dark")}
   </div>`,
   async run(s: Scene) {
     const tvs = s.m(".tv-s"), bar = s.m(".tv-bar"), barI = s.m(".tv-bar i"), seek = s.m(".tv-seek"), vol = s.m(".tv-vol"), volI = s.m(".tv-vol i"), pp = s.m(".tv-pp");
@@ -184,20 +194,22 @@ const COUCH = {
   },
 };
 
-/* ---------- Stage: slides on the big screen, Present in hand ---------- */
+/* ---------- Presenter: slides on the big screen, the Presenter layout in hand ---------- */
 const SLIDES = [
   '<b class="sl-t" style="width:58%"></b><i style="width:44%"></i><i style="width:36%"></i><div class="sl-ch"><i style="height:38%"></i><i style="height:56%"></i><i style="height:48%"></i><i style="height:74%"></i><i style="height:90%"></i></div>',
   '<b class="sl-t" style="width:46%"></b><div class="sl-two"><span></span><span></span></div>',
   '<b class="sl-t big" style="width:64%"></b><i style="width:30%;margin:2cqh auto 0"></i>',
 ];
 const STAGE = {
-  key: "stage", title: "Presenting", text: "Next and Back as big as your thumb, a timer, and a laser you steer with one finger.",
+  key: "presenter", title: "Presenter", text: "Present over the trackpad: Next and Back as big as your thumb, a timer, and a laser you steer with one finger.",
   html: () => `<div class="scene uc uc-show"><div class="uc-wall"></div><div class="uc-floor"></div>
     <div class="screen"><div class="scr-roll"></div><div class="scr-s"><div class="slide">${SLIDES[0]}</div><span class="slaser"></span><span class="sl-n">1</span></div></div>
-    ${handPhone("hp-stage", `<div class="pt prs">
-      <span class="pc">${rg("x")}</span><div class="ptime">0:00</div><span class="pr">${glyph("arrow.counterclockwise")}</span><span class="pgo">${rg("play")}</span>
+    ${handPhone("hp-stage", `<div class="pt lyp">
+      <div class="lpt top prs" style="height:${PT_SPLIT(0.5)}px">
+      <div class="ptime">0:00</div><span class="pr">${glyph("arrow.counterclockwise")}</span><span class="pgo">${rg("play")}</span>
       <div class="plaser">${glyph("dot.radiowaves")}<span>Touch and hold to point</span></div>
-      <div class="pback">${glyph("chevron.left")}<b>Back</b></div><div class="pnext">${glyph("chevron.right")}<b>Next</b></div></div>`, "light")}
+      <div class="pback">${glyph("chevron.left")}<b>Back</b></div><div class="pnext">${glyph("chevron.right")}<b>Next</b></div></div>
+      <div class="lpt-div" style="top:${PT_SPLIT(0.5)}px"><i></i></div><div class="lpt bot" style="top:${PT_SPLIT(0.5) + PT_GAP}px"></div></div>`, "light")}
   </div>`,
   async run(s: Scene) {
     const slide = s.m(".slide"), n = s.m(".sl-n"), laser = s.m(".slaser"), time = s.q(".ptime"), go = s.q(".pgo");
@@ -206,7 +218,7 @@ const STAGE = {
     let tick = 0;
     try {
       await s.wait(700);
-      await s.tap(go, () => { go.classList.add("on"); time.classList.add("on"); tick = window.setInterval(() => { secs++; time.textContent = `0:${String(secs).padStart(2, "0")}`; }, 1000); });
+      await s.tap(go, () => { go.classList.add("on"); go.innerHTML = rg("pause"); time.classList.add("on"); tick = window.setInterval(() => { secs++; time.textContent = `0:${String(secs).padStart(2, "0")}`; }, 1000); });
       await s.wait(900);
       await s.tap(s.q(".pnext"), () => show(1));
       await s.wait(1500);
@@ -228,9 +240,9 @@ const STAGE = {
 };
 
 
-/* ---------- Night: StandBy on the nightstand, a clock beside Now Playing ---------- */
+/* ---------- StandBy: the StandBy layout on the nightstand, Clock beside Now Playing ---------- */
 const NIGHT = {
-  key: "night", title: "Night", text: "StandBy on the nightstand: a clock beside Now Playing or your calendar, in dim red when the room goes dark.",
+  key: "standby", title: "StandBy", text: "On the nightstand: Clock beside Now Playing, in dim red when the room goes dark.",
   html: () => `<div class="scene uc uc-night"><div class="uc-wall"></div><div class="nstand"></div><div class="lamp"><i class="shade"></i><i class="glow"></i><i class="stem"></i><i class="base"></i></div>
     ${standPhone("sp-night", `<div class="pt land sby">
       <div class="sb-pane clk"><div class="cd">Fri, 16 Oct <span class="chg">${glyph("bolt.fill")}82%</span></div><div class="dg"><b class="hh">10</b><b class="mm">09</b></div></div>

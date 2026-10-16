@@ -40,7 +40,7 @@ A small menu bar app on your Mac and an app on your iPhone, on the same Wi-Fi. F
 | **Layouts** | Up to three modes on one screen. The divider rests on thirds and the middle; your layouts sit in the mode menu. |
 | **StandBy** | A clock beside Now Playing or your calendar while the iPhone charges, in dim red at night. |
 | **Themes** | 28 themes in four groups: Classic, Glass, Color, and Photo, which blurs a picture of yours behind everything. |
-| **Private** | Paired by QR code, encrypted, no account. Nothing leaves your Wi-Fi. |
+| **Private** | Paired by QR code, encrypted, no account. Nothing leaves your Wi-Fi, except Website buttons fetching their site's name and logo. |
 
 <p align="center">
   <img src="docs/img/modes.png" alt="Four iPhones: the Mac's Dock, Present, Clipboard and Displays" width="820">
@@ -56,7 +56,7 @@ A small menu bar app on your Mac and an app on your iPhone, on the same Wi-Fi. F
 
 ## Install
 
-You need a Mac on macOS 14 or later with Xcode (free on the App Store), an iPhone on iOS 18 or later, a cable for the first install, and a free Apple ID. Paste this into Terminal:
+You need a Mac on macOS 14 or later with Xcode 26 or later (free on the App Store), an iPhone on iOS 18 or later, a cable for the first install, and a free Apple ID. Paste this into Terminal:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/Soham109/glasspad/main/install.sh | bash

@@ -32,12 +32,12 @@ export function initPairing() {
         <div class="ph"><b>Glasspad</b>${toggle(true)}</div>
         <div class="pstate wait">
           <div class="prow"><span class="pi">${glyph("iphone")}</span><div><b>No iPhone Paired</b><small>Scan the code below with your iPhone.</small></div></div>
-          <div class="pcode">${code}<p>Open Glasspad on your iPhone and tap Pair a Mac, then point the camera at this code.</p><div class="pw"><i></i><b>Waiting for your iPhone</b></div><small>This code works for 5 minutes.</small></div>
+          <div class="pcode">${code}<p>On your iPhone, open Glasspad, tap Pair a Mac and hold it over this code.</p><div class="plink">Show Code as Text</div><div class="pcancel">Cancel</div></div>
         </div>
-        <div class="pstate done"><span class="pok">${glyph("checkmark")}</span><b>Paired</b><small>Glasspad on Soham&rsquo;s iPhone now controls this Mac.</small></div>
+        <div class="pstate done"><span class="pok">${glyph("checkmark")}</span><b>Paired with Soham&rsquo;s iPhone</b><small>Your iPhone now controls this Mac. Glasspad stays in the menu bar.</small></div>
         <div class="pstate conn"><div class="prow"><span class="pi blue">${glyph("iphone")}</span><div><b>Soham&rsquo;s iPhone</b><small>Excellent signal</small></div><span class="bars"><i></i><i></i><i></i><i></i></span></div>
           <div class="prow"><span class="pi">${glyph("qrcode")}</span><div><b>Pair Your iPhone&hellip;</b></div></div></div>
-        <div class="pfoot"><div class="prow"><span class="pi">${glyph("menubar.dock.rectangle")}</span><div><b>Hide Mac Dock</b></div>${toggle(false)}</div><div class="gpm">Glasspad Settings&hellip;</div><div class="gpm">Quit Glasspad</div></div>
+        <div class="pfoot"><div class="prow"><span class="pi">${glyph("menubar.dock.rectangle")}</span><div><b>Hide Mac Dock</b></div><span class="pmenu">Never${glyph("chevron.down")}</span></div><div class="gpm">Glasspad Settings&hellip;</div><div class="gpm">Quit Glasspad</div></div>
       </div>
       <svg class="pd-cursor" viewBox="0 0 16 22"><path d="M1 1v17l4.6-4.4 3 6.9 3-1.3-3-6.8H15Z" fill="#1A1A1A" stroke="#fff" stroke-width="1.4" stroke-linejoin="round"/></svg>
     </div></div>
