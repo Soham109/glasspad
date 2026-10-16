@@ -168,6 +168,10 @@ final class NowPlayingAdapter {
     private var stdin: FileHandle?
     private var parser = AdapterStreamParser()
     private var buffer = Data()
+    /// The running helper closed its output, so all of it has been read.
+    private var outputEnded = false
+    /// The helper exited before its last output was read.
+    private var pendingExit: (process: Process, code: Int32)?
     private var restarts = 0
     private var launchedAt: TimeInterval = 0
     /// Restarts in a row (each after a short run) before giving up.
@@ -215,6 +219,7 @@ final class NowPlayingAdapter {
         try? stdin?.close()
         process?.terminate()
         process = nil
+        pendingExit = nil
         stdin = nil
         parser = AdapterStreamParser()
         buffer = Data()
@@ -246,10 +251,12 @@ final class NowPlayingAdapter {
         p.standardOutput = out
         p.standardInput = input
         p.standardError = err
-        out.fileHandleForReading.readabilityHandler = { [weak self] handle in
+        out.fileHandleForReading.readabilityHandler = { [weak self, weak p] handle in
             let chunk = handle.availableData
+            // Empty means the helper closed its output: every line it wrote came before this.
+            if chunk.isEmpty { handle.readabilityHandler = nil }
             // The main queue keeps chunks in order (separate Tasks might not).
-            DispatchQueue.main.async { MainActor.assumeIsolated { self?.received(chunk) } }
+            DispatchQueue.main.async { MainActor.assumeIsolated { self?.received(chunk, from: p) } }
         }
         err.fileHandleForReading.readabilityHandler = { handle in
             let chunk = handle.availableData
@@ -259,7 +266,8 @@ final class NowPlayingAdapter {
         }
         p.terminationHandler = { [weak self] proc in
             let code = proc.terminationStatus
-            out.fileHandleForReading.readabilityHandler = nil
+            // Standard output stays read to its end, so the helper's last lines (often why it
+            // stopped) still arrive; `exited` waits for them.
             err.fileHandleForReading.readabilityHandler = nil
             DispatchQueue.main.async { MainActor.assumeIsolated { self?.exited(proc, code: code) } }
         }
@@ -270,6 +278,8 @@ final class NowPlayingAdapter {
             launches += 1
             launchedAt = ProcessInfo.processInfo.systemUptime
             process = p
+            outputEnded = false
+            pendingExit = nil
             stdin = input.fileHandleForWriting
             setStatus(.running)
         } catch {
@@ -277,8 +287,15 @@ final class NowPlayingAdapter {
         }
     }
 
-    private func received(_ chunk: Data) {
-        guard !chunk.isEmpty else { return }
+    private func received(_ chunk: Data, from source: Process?) {
+        guard let source, source === process else { return }
+        guard !chunk.isEmpty else {
+            outputEnded = true
+            // A last line without its newline still counts.
+            if !buffer.isEmpty { received(Data([0x0A]), from: source) }
+            if let exit = pendingExit, exit.process === process { exited(exit.process, code: exit.code) }
+            return
+        }
         buffer.append(chunk)
         while let newline = buffer.firstIndex(of: 0x0A) {
             let lineData = buffer[buffer.startIndex..<newline]
@@ -295,6 +312,20 @@ final class NowPlayingAdapter {
 
     private func exited(_ proc: Process, code: Int32) {
         guard proc === process else { return }
+        if !outputEnded {
+            // Its last output is still on the way. Something else holding the pipe open must
+            // not keep the helper from restarting, so wait a second at most.
+            guard pendingExit == nil else { return }
+            pendingExit = (proc, code)
+            Task { [weak self] in
+                try? await Task.sleep(for: .seconds(1))
+                guard let self, let exit = self.pendingExit, exit.process === proc else { return }
+                self.outputEnded = true
+                self.exited(proc, code: code)
+            }
+            return
+        }
+        pendingExit = nil
         process = nil
         stdin = nil
         buffer = Data()

@@ -35,8 +35,12 @@ extension DeckAction {
         case .system(let s): s.spokenHint
         case .setAudioOutput(let name): "Switches the Mac's sound to \(name)"
         case .folder: "Opens this folder"
+        case .unsupported: DeckAction.updateToUse
         }
     }
+
+    /// What a button from a newer Glasspad says instead of running.
+    static let updateToUse = "Update Glasspad to use this."
 }
 
 extension DeckSystemAction {

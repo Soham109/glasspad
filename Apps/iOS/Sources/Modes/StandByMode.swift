@@ -89,7 +89,7 @@ final class StandByMonitor {
     /// 0...1, or nil when iOS does not know (the simulator).
     private(set) var batteryLevel: Double?
     private(set) var lowPower = ProcessInfo.processInfo.isLowPowerModeEnabled
-    private(set) var warmth = PhoneWarmth(ProcessInfo.processInfo.thermalState)
+    private(set) var heat = PowerMonitor.heat(ProcessInfo.processInfo.thermalState)
     /// StandBy screens on screen right now (a layout can show two).
     private(set) var visibleCount = 0
 
@@ -100,7 +100,7 @@ final class StandByMonitor {
 
     var power: StandByPower {
         StandByPower(visible: visibleCount > 0, charging: charging, keepOnUnplugged: StandBySettings.shared.keepOnUnplugged,
-                     lowPower: lowPower, warmth: warmth)
+                     lowPower: lowPower, heat: heat)
     }
 
     func appeared() {
@@ -145,12 +145,12 @@ final class StandByMonitor {
         if let demoLevel { level = demoLevel }
         #endif
         let saving = ProcessInfo.processInfo.isLowPowerModeEnabled
-        let heat = PhoneWarmth(ProcessInfo.processInfo.thermalState)
+        let thermal = PowerMonitor.heat(ProcessInfo.processInfo.thermalState)
         let before = power.keepsScreenOn
         if charging != plugged { charging = plugged }
         if batteryLevel != level { batteryLevel = level }
         if lowPower != saving { lowPower = saving }
-        if warmth != heat { warmth = heat }
+        if heat != thermal { heat = thermal }
         if power.keepsScreenOn != before { ScreenAwake.update() }
     }
 
@@ -161,17 +161,6 @@ final class StandByMonitor {
         refresh()
     }
     #endif
-}
-
-extension PhoneWarmth {
-    init(_ state: ProcessInfo.ThermalState) {
-        switch state {
-        case .nominal: self = .nominal
-        case .fair: self = .fair
-        case .serious: self = .serious
-        default: self = .critical
-        }
-    }
 }
 
 // MARK: - Screen

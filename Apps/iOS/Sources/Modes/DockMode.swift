@@ -10,6 +10,7 @@ import GlasspadKit
 /// Actions (Library > Apps lists every installed app).
 struct DockMode: View {
     @Environment(\.palette) private var palette
+    @Environment(\.modeTopClearance) private var topClearance
     @Environment(\.verticalSizeClass) private var verticalSize
     @Bindable var settings = PhoneSettings.shared
     var session = MacSession.shared
@@ -44,7 +45,7 @@ struct DockMode: View {
                             if editing { editFooter }
                         }
                         .padding(.horizontal, margin)
-                        .padding(.top, settings.pillPosition == .top ? (compact ? 40 : 60) : 12)
+                        .padding(.top, topClearance ?? (settings.pillPosition == .top ? (compact ? 40 : 60) : 12))
                         .padding(.bottom, settings.pillPosition == .bottom ? 80 : 32)
                     }
                     .refreshable { session.requestDock() }

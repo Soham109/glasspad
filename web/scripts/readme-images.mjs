@@ -1,58 +1,85 @@
-// Renders the clean README images from the website's drawn screens.
-// Usage: npm run build && npm run preview &   then   node scripts/readme-images.mjs [url]
-// Output: ../docs/img/{hero,actions,remote,modes}-{light,dark}.png  (generous whitespace, 1 to 3 devices each)
-// To use real simulator screenshots instead, drop PNGs with the same names into docs/img and skip this script.
+// Frames the app's screens in an iPhone and lays them out for the README and the guide.
+//
+// Usage:  npm run build && npm run preview &
+//         node scripts/readme-images.mjs <raw folder> [site url]
+//
+// <raw folder> holds simulator screenshots (iPhone 18 Pro, 1206 x 2622), named after what they show.
+// They come from the app's demo launch arguments (DebugLaunch in Apps/iOS/Sources/App/RootView.swift):
+//   actions, dock, media                                    -GPMode actions / dock / media
+//   theme-glass, theme-glassdark, theme-midnight, theme-mono  a mode in each theme (-GPTheme <theme>)
+//   displays                                                Displays, from the mode menu
+//   standby (landscape)                                     the StandBy layout, sideways
+//   present, clipboard                                      -GPActionsPage present / clipboard
+//   library, folder, website                                -GPActionsPage library / folder, and a new Website button
+//   remote                                                  -GPMode remote
+//   themes, menu                                            -GPSettings / -GPMenu
+//   trackpad (landscape)                                    -GPFilm trackpad -GPOrientation landscape
+// Keyboard and Layouts are taken from the website's drawn screens. macros-hud is the Mac's
+// recording indicator (a Mac screenshot), copied as it is.
+//
+// Output: ../docs/img/screens/<name>.png, one framed phone each on a clear background (the guide shows these),
+//         ../docs/img/{hero,modes,themes,layouts}.png, a few phones together for the README.
 import { chromium } from "playwright";
-import { mkdirSync } from "node:fs";
-const url = process.argv[2] || "http://localhost:4173/";
-const out = new URL("../../docs/img/", import.meta.url).pathname;
-mkdirSync(out, { recursive: true });
-const THEMES = { light: { bg: "#F2F1EE", finish: "light" }, dark: { bg: "#151515", finish: "dark" } };
+import { mkdirSync, readFileSync, existsSync, copyFileSync } from "node:fs";
+import { join } from "node:path";
 
+const [raw, url = "http://localhost:4173/"] = process.argv.slice(2);
+if (!raw || !existsSync(raw)) { console.error("usage: node scripts/readme-images.mjs <raw folder> [site url]"); process.exit(1); }
+const root = new URL("../../docs/img/", import.meta.url).pathname;
+const screens = join(root, "screens");
+mkdirSync(screens, { recursive: true });
+const deviceCSS = readFileSync(new URL("../src/device.css", import.meta.url), "utf8");
+const PAPER = "#F2F1EE";
 const browser = await chromium.launch();
-const ctx = await browser.newContext({ viewport: { width: 1400, height: 1000 }, deviceScaleFactor: 2, reducedMotion: "reduce" });
-const page = await ctx.newPage();
-await page.goto(url, { waitUntil: "load" });
-await page.waitForTimeout(1500);
-// Show every drawn device flat on a plain background, nothing else.
-await page.addStyleTag({ content: `.reveal{opacity:1!important;transform:none!important} *{animation:none!important} html,body,main,section{background:transparent!important}` });
 
-/** PNG of one element with a transparent background. */
-async function shot(sel) {
-  const el = page.locator(sel).first();
-  await el.scrollIntoViewIfNeeded();
-  await page.waitForTimeout(500);
-  return el.screenshot({ omitBackground: true });
+/* 1. The drawn screens, from the website, held still (reduced motion) */
+const site = await (await browser.newContext({ viewport: { width: 1440, height: 1000 }, deviceScaleFactor: 3, reducedMotion: "reduce" })).newPage();
+await site.goto(url, { waitUntil: "networkidle" });
+const shots = {};
+async function grab(name, sel, land, before) {
+  await site.evaluate(s => document.querySelector(s).scrollIntoView({ block: "center" }), sel);
+  if (before) await before();
+  await site.waitForTimeout(700);
+  const png = await site.locator(sel).first().screenshot({ omitBackground: true });
+  shots[name] = { src: `data:image/png;base64,${png.toString("base64")}`, land };
 }
-/** Lay PNGs out in a row on a background and save one image. */
-async function compose(name, theme, pngs, { width, height, gap = 80 }) {
-  const t = THEMES[theme];
-  const p = await ctx.newPage();
-  await p.setViewportSize({ width, height });
-  const imgs = pngs.map(b => `<img src="data:image/png;base64,${b.toString("base64")}" style="max-height:78%;max-width:${Math.floor(90 / pngs.length)}%;object-fit:contain">`).join("");
-  await p.setContent(`<body style="margin:0;background:${t.bg};display:flex;align-items:center;justify-content:center;gap:${gap}px;width:${width}px;height:${height}px">${imgs}</body>`);
-  await p.waitForTimeout(200);
-  await p.screenshot({ path: `${out}${name}-${theme}.png` });
-  await p.close();
-}
-const finish = f => page.evaluate(f => document.querySelectorAll(".iphone").forEach(d => d.setAttribute("data-finish", f)), f);
-async function mode(key) {
-  await page.evaluate(() => document.getElementById("modes").scrollIntoView());
-  await page.click(`#tab-${key}`);
-  await page.waitForTimeout(1200);
-  return shot("#modeIphone");
+await grab("keyboard", "#modeIphone .ip-screen", false, () => site.click("#tab-keys"));
+await grab("layouts", "#lpStage .ip-screen", true, () => site.getByRole("radio", { name: "Studio" }).click());
+
+/* 2. Every screen in the same drawn iPhone (web/src/device.css) */
+const REAL = ["actions", "theme-glass", "theme-glassdark", "theme-midnight", "theme-mono", "dock", "media", "present", "clipboard", "displays", "library", "folder", "website", "remote", "themes", "menu", "trackpad", "standby"];
+for (const n of REAL) {
+  const f = join(raw, n + ".png");
+  if (!existsSync(f)) { console.warn("missing", f); continue; }
+  shots[n] = { src: `data:image/png;base64,${readFileSync(f).toString("base64")}`, land: n === "trackpad" || n === "standby" };
 }
 
-for (const theme of ["light", "dark"]) {
-  await finish(THEMES[theme].finish);
-  // hero: one landscape phone, Trackpad beside Actions
-  await compose("hero", theme, [await shot("#lpStage .iphone")], { width: 1600, height: 900 });
-  // actions: buttons for the app in front, beside Pinned
-  await compose("actions", theme, [await shot("#axPhone")], { width: 1600, height: 900 });
-  // remote: couch remote and the TV
-  await compose("remote", theme, [await shot("#rmTv"), await shot(".rm-phone .iphone")], { width: 1600, height: 900, gap: 120 });
-  // modes: three portrait devices
-  await compose("modes", theme, [await mode("keys"), await mode("media"), await mode("dock")], { width: 1600, height: 900 });
+const page = await (await browser.newContext({ viewport: { width: 1600, height: 1000 }, deviceScaleFactor: 2 })).newPage();
+const phoneHTML = (s, w) => `<div class="iphone" data-orient="${s.land ? "landscape" : "portrait"}" data-finish="light" style="width:${w}px">
+  <i class="ip-btn l action"></i><i class="ip-btn l up"></i><i class="ip-btn l down"></i><i class="ip-btn r side"></i><i class="ip-btn r cam"></i>
+  <div class="ip-body"><div class="ip-bezel"></div><div class="ip-screen"><img src="${s.src}" style="display:block;width:100%;height:100%;object-fit:cover"></div><div class="ip-island"></div></div></div>`;
+const html = (body, bg = PAPER) => `<!doctype html><style>${deviceCSS} body{margin:0;background:${bg}} .row{display:flex;align-items:center;justify-content:center}</style><body>${body}</body>`;
+
+// the guide shows one of each; the theme samples only appear together in the README
+const GUIDE = ["trackpad", "keyboard", "media", "dock", "actions", "remote", "present", "clipboard", "displays", "layouts", "standby", "library", "website", "folder", "themes", "menu"];
+if (existsSync(join(raw, "macros-hud.png"))) copyFileSync(join(raw, "macros-hud.png"), join(screens, "macros-hud.png"));
+for (const n of GUIDE) {
+  const s = shots[n]; if (!s) continue;
+  await page.setContent(html(`<div id="o" style="padding:40px;display:inline-block">${phoneHTML(s, s.land ? 560 : 270)}</div>`, "transparent"));
+  await page.waitForTimeout(80);
+  await page.locator("#o").screenshot({ path: join(screens, n + ".png"), omitBackground: true });
 }
+
+/* 3. A few phones side by side, with room around them */
+async function compose(name, names, { gap = 72, w = 300 } = {}) {
+  await page.setContent(html(`<div class="row" id="o" style="gap:${gap}px;padding:80px 96px;display:inline-flex">${names.map(n => phoneHTML(shots[n], shots[n].land ? 600 : w)).join("")}</div>`));
+  await page.waitForTimeout(120);
+  await page.locator("#o").screenshot({ path: join(root, name + ".png") });
+}
+await compose("hero", ["remote", "actions", "media"]);
+await compose("modes", ["dock", "present", "clipboard", "displays"], { gap: 56, w: 260 });
+await compose("themes", ["theme-glass", "theme-glassdark", "theme-midnight", "theme-mono"], { gap: 56, w: 260 });
+await compose("layouts", ["layouts", "standby"]);
+
 await browser.close();
-console.log("wrote", out);
+console.log("wrote", root);

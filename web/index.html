@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Glasspad: a control surface for your Mac</title>
-<meta name="description" content="Glasspad turns your iPhone into a control surface for your Mac: a trackpad you can feel, keyboard, media, Dock, buttons that follow the app in front, a couch remote and split screen layouts. Free, private and open source.">
+<meta name="description" content="Glasspad turns your iPhone into a control surface for your Mac: a trackpad you can feel, a keyboard, media controls, your Dock, buttons for the app in front, a couch remote, a slide clicker, your displays and split screen layouts. Free, private and open source.">
 <meta name="theme-color" content="#F2F1EE">
 <script>document.documentElement.classList.add("js")</script>
 <link rel="icon" href="/icon.svg" type="image/svg+xml">
@@ -16,7 +16,7 @@
 <meta property="og:image" content="https://glasspad.sohamaggarwal.com/og-light.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
-<meta property="og:image:alt" content="Glasspad: your iPhone, as a Mac trackpad">
+<meta property="og:image:alt" content="Glasspad: a control surface for your Mac, on your iPhone">
 <meta name="twitter:image" content="https://glasspad.sohamaggarwal.com/og-light.png">
 <meta property="og:type" content="website">
 <meta name="twitter:card" content="summary_large_image">
@@ -28,20 +28,11 @@
   <defs>
     <symbol id="i-github" viewBox="0 0 16 16"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></symbol>
     <!-- Line icons, 24 grid, drawn for this site -->
-    <symbol id="i-trackpad" viewBox="0 0 24 24"><rect x="2.5" y="6" width="19" height="12" rx="3.5"/><circle cx="14.5" cy="11" r="2"/><path d="M8 14.2 12.5 12" opacity=".5"/></symbol>
     <symbol id="i-dock" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="3.5"/><rect x="6" y="14.5" width="12" height="3" rx="1.5"/></symbol>
     <symbol id="i-keys" viewBox="0 0 24 24"><rect x="2.5" y="6" width="19" height="12" rx="3"/><path d="M6.5 10h.01M10 10h.01M13.5 10h.01M17 10h.01M8.5 14h7"/></symbol>
     <symbol id="i-media" viewBox="0 0 24 24"><path d="M5 6.2v11.6a.8.8 0 0 0 1.2.7l9.3-5.8a.8.8 0 0 0 0-1.4L6.2 5.5A.8.8 0 0 0 5 6.2Z"/><path d="M19 6v12"/></symbol>
-    <symbol id="i-actions" viewBox="0 0 24 24"><path d="M13.5 3 6 13.5h5.5L10.5 21 18 10.5h-5.5Z"/></symbol>
-    <symbol id="i-deck" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="7" height="7" rx="2"/><rect x="13.5" y="3.5" width="7" height="7" rx="2"/><rect x="3.5" y="13.5" width="7" height="7" rx="2"/><rect x="13.5" y="13.5" width="7" height="7" rx="2"/></symbol>
     <symbol id="i-macros" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="3.2"/></symbol>
     <symbol id="i-clipboard" viewBox="0 0 24 24"><path d="M9 4.5H7.5A2.5 2.5 0 0 0 5 7v11.5A2.5 2.5 0 0 0 7.5 21h9a2.5 2.5 0 0 0 2.5-2.5V7a2.5 2.5 0 0 0-2.5-2.5H15"/><rect x="9" y="3" width="6" height="3.2" rx="1.2"/><path d="M8.5 11.5h7M8.5 15h4.5"/></symbol>
-    <symbol id="i-present" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2.5"/><path d="M12 16v4M8.5 20h7"/><circle cx="14.5" cy="9.5" r="1.4"/></symbol>
-    <symbol id="i-remote" viewBox="0 0 24 24"><rect x="8" y="2.5" width="8" height="19" rx="3.5"/><circle cx="12" cy="8.5" r="1.8"/><path d="M12 13v.01M12 17v.01"/></symbol>
-    <symbol id="i-qr" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="6" height="6" rx="1.5"/><rect x="14.5" y="3.5" width="6" height="6" rx="1.5"/><rect x="3.5" y="14.5" width="6" height="6" rx="1.5"/><path d="M14.5 14.5h2.5v2.5M20.5 14.5v.01M14.5 20.5h.01M18 18v2.5h2.5"/></symbol>
-    <symbol id="i-lock" viewBox="0 0 24 24"><rect x="4.5" y="10.5" width="15" height="10" rx="2.5"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/></symbol>
-    <symbol id="i-home" viewBox="0 0 24 24"><path d="M4 10.5 12 4l8 6.5V19a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 19Z"/><path d="M9 14.2a4.2 4.2 0 0 1 6 0M10.8 16.8a1.7 1.7 0 0 1 2.4 0"/></symbol>
-    <symbol id="i-noaccount" viewBox="0 0 24 24"><circle cx="12" cy="8.5" r="3.5"/><path d="M5 20a7 7 0 0 1 11.2-5.6M4 4l16 16"/></symbol>
     <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8.5" y="8.5" width="11" height="11" rx="2.5"/><path d="M15.5 8.5V6.5A2 2 0 0 0 13.5 4.5h-7a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h2"/></symbol>
     <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></symbol>
   </defs>
@@ -54,13 +45,11 @@
   </a>
   <nav class="nav-links" aria-label="Sections" id="navLinks">
     <span class="nav-ind" id="navInd" aria-hidden="true"></span>
+    <a href="#setups">Setups</a>
     <a href="#modes">Modes</a>
-    <a href="#actions">Actions</a>
-    <a href="#remote">Remote</a>
     <a href="#layouts">Layouts</a>
-    <a href="#try">Trackpad</a>
-    <a href="#privacy">Privacy</a>
     <a href="#get">Install</a>
+    <a href="/guide">Guide</a>
   </nav>
   <a class="nav-gh" href="https://github.com/Soham109/glasspad" aria-label="Glasspad on GitHub">
     <svg width="18" height="18" aria-hidden="true"><use href="#i-github"/></svg>
@@ -68,13 +57,11 @@
   <button class="nav-menu" id="navMenu" aria-expanded="false" aria-controls="navSheet">Menu</button>
 </header>
 <nav class="nav-sheet" id="navSheet" aria-label="Sections">
+  <a href="#setups">Setups</a>
   <a href="#modes">Modes</a>
-  <a href="#actions">Actions</a>
-  <a href="#remote">Remote</a>
   <a href="#layouts">Layouts</a>
-  <a href="#try">Trackpad</a>
-  <a href="#privacy">Privacy</a>
   <a href="#get">Install</a>
+  <a href="/guide">Guide</a>
   <a href="https://github.com/Soham109/glasspad">GitHub</a>
 </nav>
 
@@ -91,8 +78,7 @@
     </svg>
   </div>
   <h1 class="hero-title">Glasspad</h1>
-  <p class="hero-line">Your iPhone, as a Mac trackpad.</p>
-  <p class="hero-sub">And a keyboard, a Dock, a remote, and buttons for every app.</p>
+  <p class="hero-line">A control surface for your Mac, on your iPhone.</p>
   <div class="hero-actions">
     <a class="btn btn-ink" href="https://github.com/Soham109/glasspad">
       <svg width="18" height="18" aria-hidden="true"><use href="#i-github"/></svg>
@@ -116,189 +102,24 @@
   </div>
 </section>
 
-<!-- How it works: the full setup -->
-<section class="how" id="how" aria-labelledby="how-title">
+<!-- Setups: the rooms Glasspad is used in -->
+<section class="uses" id="setups" aria-labelledby="uc-title">
   <div class="wrap">
     <div class="section-head center">
-      <h2 id="how-title" class="reveal">A control surface for your Mac.</h2>
+      <h2 id="uc-title" class="reveal">Made for how you use your Mac.</h2>
     </div>
-    <div class="scene" id="scene" role="img" aria-label="An iPhone lying in front of a MacBook Pro. Finger dots on the phone move the Mac pointer, scroll a window, swipe between Spaces, open an app from Dock, then show Actions: the buttons for the app in front beside Pinned.">
-      <div class="sc-desk"></div>
-      <div class="mbp">
-        <div class="mbp-lid"><div class="mbp-glass"></div>
-          <div class="mbp-display" id="scDisplay">
-            <div class="md-spaces" id="scSpaces">
-              <div class="md-space s1">
-                <div class="md-win w-b" id="scWinB"><div class="wb"><i></i><i></i><i></i></div><div class="wbody"><div class="md-doc" id="scDocB"><i class="h"></i><i></i><i style="width:88%"></i><i style="width:94%"></i><i class="p"></i><i></i><i style="width:76%"></i><i style="width:90%"></i><i class="h"></i><i></i><i style="width:82%"></i><i class="p p2"></i><i></i><i style="width:70%"></i><i style="width:92%"></i><i></i></div></div></div>
-                <div class="md-win w-a front" id="scWinA"><div class="wb"><i></i><i></i><i></i></div><div class="wbody"><div class="md-doc" id="scDoc"><i class="h"></i><i></i><i style="width:88%"></i><i style="width:94%"></i><i class="p"></i><i></i><i style="width:76%"></i><i style="width:90%"></i><i class="h"></i><i></i><i style="width:82%"></i><i class="p p2"></i><i></i><i style="width:70%"></i><i style="width:92%"></i><i></i></div></div></div>
-                <div class="md-win w-new w-music" id="scWinNew"><div class="wb"><i></i><i></i><i></i></div><div class="mus"><i class="cover"></i><div class="note"><i></i><i></i><i style="width:80%"></i><i style="width:90%"></i><i style="width:60%"></i></div></div></div>
-              </div>
-              <div class="md-space s2"><div class="md-win w-c"><div class="wb"><i></i><i></i><i></i></div><div class="wbody"><div class="md-doc"><i class="h"></i><i></i><i style="width:80%"></i><i class="p"></i><i></i></div></div></div></div>
-            </div>
-            <div class="md-menubar"><i></i><i></i><i></i><i></i><i class="r"></i></div>
-            <div class="md-dock" id="scDock"><div class="app-slot" data-app="finder"><span class="app a-finder"><svg viewBox="0 0 24 24"><path d="M12 4v16M8 9v2M16 9v2M8.5 15.5c2 1.3 5 1.3 7 0"/></svg></span><i class="md-run on"></i></div><div class="app-slot" data-app="web"><span class="app a-web"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7.5"/><path d="m15 9-4.2 1.8L9 15l4.2-1.8Z"/></svg></span><i class="md-run on"></i></div><div class="app-slot" data-app="notes"><span class="app a-notes"><svg viewBox="0 0 24 24"><path d="M7 8h10M7 12h10M7 16h6"/></svg></span><i class="md-run"></i></div><div class="app-slot" data-app="music"><span class="app a-music"><svg viewBox="0 0 24 24"><path d="M10 17V6.5l8-1.8V15"/><circle cx="8" cy="17" r="2"/><circle cx="16" cy="15" r="2"/></svg></span><i class="md-run"></i></div><div class="app-slot" data-app="photos"><span class="app a-photos"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="2.2"/><path d="M12 5v3M12 16v3M5 12h3M16 12h3M7 7l2 2M15 15l2 2M17 7l-2 2M9 15l-2 2"/></svg></span><i class="md-run"></i></div><div class="app-slot" data-app="term"><span class="app a-term"><svg viewBox="0 0 24 24"><path d="m7 9 3 3-3 3M12.5 15H17"/></svg></span><i class="md-run"></i></div></div>
-            <svg class="md-cursor" id="scCursor" viewBox="0 0 16 22"><path d="M1 1v17l4.6-4.4 3 6.9 3-1.3-3-6.8H15Z" fill="#1A1A1A" stroke="#fff" stroke-width="1.4" stroke-linejoin="round"/></svg>
-          </div>
-          <div class="mbp-notch"></div>
-        </div>
-        <div class="mbp-hinge"></div>
-        <div class="mbp-base"><div class="mbp-keys"></div><div class="mbp-pad"></div></div>
-        <div class="mbp-lip"></div>
-        <div class="mbp-shadow"></div>
-      </div>
-      <div class="sc-phone">
-        <div class="iphone " data-orient="landscape" data-finish="light" >
-  <i class="ip-btn l action"></i><i class="ip-btn l up"></i><i class="ip-btn l down"></i><i class="ip-btn r side"></i><i class="ip-btn r cam"></i>
-  <div class="ip-body"><div class="ip-bezel"></div><div class="ip-screen"><div class="sp-surface" id="spSurface"></div><div class="sp-dock" id="spDock"><div class="tile" data-app="finder"><span class="app a-finder"><svg viewBox="0 0 24 24"><path d="M12 4v16M8 9v2M16 9v2M8.5 15.5c2 1.3 5 1.3 7 0"/></svg></span><span>Finder</span></div><div class="tile" data-app="web"><span class="app a-web"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7.5"/><path d="m15 9-4.2 1.8L9 15l4.2-1.8Z"/></svg></span><span>Safari</span></div><div class="tile" data-app="notes"><span class="app a-notes"><svg viewBox="0 0 24 24"><path d="M7 8h10M7 12h10M7 16h6"/></svg></span><span>Notes</span></div><div class="tile" data-app="music"><span class="app a-music"><svg viewBox="0 0 24 24"><path d="M10 17V6.5l8-1.8V15"/><circle cx="8" cy="17" r="2"/><circle cx="16" cy="15" r="2"/></svg></span><span>Music</span></div><div class="tile" data-app="photos"><span class="app a-photos"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="2.2"/><path d="M12 5v3M12 16v3M5 12h3M16 12h3M7 7l2 2M15 15l2 2M17 7l-2 2M9 15l-2 2"/></svg></span><span>Photos</span></div><div class="tile" data-app="term"><span class="app a-term"><svg viewBox="0 0 24 24"><path d="m7 9 3 3-3 3M12.5 15H17"/></svg></span><span>Terminal</span></div></div><div class="sp-act" id="spAct"><div class="sa-col"><div class="sa-head" id="saHead"></div><div class="sa-grid" id="saGrid"></div></div><div class="sa-col"><div class="sa-head"><b>Pinned</b></div><div class="sa-grid" id="saPinned"></div></div></div><div class="sp-pill" id="spPill"><i></i><span>Dock</span></div></div><div class="ip-island"></div></div>
-</div>
-      </div>
-    </div>
-    <ol class="how-steps" id="howSteps">
-      <li><button data-step="0"><span class="hs-bar"><i></i></span><b>Move</b><span class="t">One finger moves the pointer.</span></button></li>
-      <li><button data-step="1"><span class="hs-bar"><i></i></span><b>Click</b><span class="t">Tap to click. Feel it land.</span></button></li>
-      <li><button data-step="2"><span class="hs-bar"><i></i></span><b>Scroll</b><span class="t">Two fingers scroll.</span></button></li>
-      <li><button data-step="3"><span class="hs-bar"><i></i></span><b>Spaces</b><span class="t">Three fingers switch desktops.</span></button></li>
-      <li><button data-step="4"><span class="hs-bar"><i></i></span><b>Dock</b><span class="t">Open any app in your Dock.</span></button></li>
-      <li><button data-step="5"><span class="hs-bar"><i></i></span><b>Actions</b><span class="t">Buttons for the app in front.</span></button></li>
-    </ol>
-    <p class="how-caption" id="howCaption" aria-live="polite"><b>Move</b><span>One finger moves the pointer.</span></p>
-  </div>
-</section>
-
-<!-- Modes -->
-<section class="modes" id="modes" aria-labelledby="modes-title">
-  <div class="wrap">
-    <div class="section-head center">
-      <h2 id="modes-title" class="reveal">One surface. Every control.</h2>
-      <p class="lede reveal">Six modes and two quick tools, one touch on the pill away.</p>
-    </div>
-  </div>
-  <div class="modes-scroll" id="modesScroll">
-    <div class="modes-pin">
-      <div class="modes-stage">
-        <div class="mode-rail" role="tablist" aria-label="Modes" id="modeRail">
-          <span class="rail-ind" id="railInd" aria-hidden="true"></span>
-        </div>
-        <div class="mode-device" id="modeDevice">
-          <div class="md-rot" id="mdRot">
-            <div class="iphone " data-orient="portrait" data-finish="light" id="modeIphone">
-              <i class="ip-btn l action"></i><i class="ip-btn l up"></i><i class="ip-btn l down"></i><i class="ip-btn r side"></i><i class="ip-btn r cam"></i>
-              <div class="ip-body"><div class="ip-bezel"></div><div class="ip-screen"><div class="ms-wrap" id="msWrap"></div></div><div class="ip-island"></div></div>
-            </div>
-          </div>
-        </div>
-        <div class="mode-side">
-          <div class="mini-mac"><div class="mm-display" id="mmDisplay"></div></div>
-          <div class="mode-copy" id="modeCopy" aria-live="polite"></div>
-        </div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- Actions: buttons for the app in front, beside Pinned -->
-<section class="ax" id="actions" aria-labelledby="ax-title">
-  <div class="wrap">
-    <div class="section-head center">
-      <h2 id="ax-title" class="reveal">Buttons that follow your app.</h2>
-      <p class="lede reveal">Switch apps on your Mac. Actions switches too.</p>
-    </div>
-
-    <div class="ax-stage" id="axStage">
-      <div class="ax-mac" aria-hidden="true">
-        <div class="axm-lid"><div class="axm-screen">
-          <div class="axm-bar"><i class="ap"></i><b id="axMacApp">Safari</b><i></i><i></i><i></i><i class="r"></i></div>
-          <div class="axw" id="axWin"></div>
-          <div class="axm-dock" id="axDock"></div>
-        </div></div>
-        <div class="axm-base"></div>
-      </div>
-      <div class="ax-phone" aria-hidden="true">
-        <div class="iphone" data-orient="landscape" data-finish="light" id="axPhone">
-          <i class="ip-btn l action"></i><i class="ip-btn l up"></i><i class="ip-btn l down"></i><i class="ip-btn r side"></i><i class="ip-btn r cam"></i>
-          <div class="ip-body"><div class="ip-bezel"></div><div class="ip-screen">
-            <div class="pt land ax-pt" id="axPt">
-              <div class="ax-pill"><svg viewBox="0 0 24 24"><path d="M13.5 3 6 13.5h5.5L10.5 21 18 10.5h-5.5Z"/></svg>Actions<i></i></div>
-              <div class="ax-cols">
-                <div class="ax-col">
-                  <div class="ax-h" id="axHead"></div>
-                  <p class="ax-tip">The best buttons for the app in front. They change when you switch apps.</p>
-                  <div class="ax-grid" id="axFront"></div>
-                </div>
-                <div class="ax-col">
-                  <div class="ax-h"><b>Pinned</b><span class="ax-more"><i></i><i></i><i></i></span></div>
-                  <p class="ax-tip">Your favourites: Mac controls, macros, Shortcuts and websites.</p>
-                  <div class="ax-grid" id="axPinned"></div>
-                </div>
-              </div>
-            </div>
-          </div><div class="ip-island"></div></div>
-        </div>
-      </div>
-    </div>
-
-    <div class="ax-switch-wrap">
-      <div class="ax-switch" id="axSwitch" role="tablist" aria-label="App in front on your Mac"><span class="ax-ind" id="axInd" aria-hidden="true"></span></div>
-    </div>
-    <p class="sr-only" id="axLive" aria-live="polite"></p>
-
-  </div>
-</section>
-
-<!-- Remote -->
-<section class="remote dark" id="remote" aria-labelledby="rm-title">
-  <div class="wrap">
-    <div class="section-head center">
-      <h2 id="rm-title" class="reveal">Your couch remote.</h2>
-      <p class="lede reveal">Netflix and YouTube on the big screen. Smart keys for each app, and type to search.</p>
-    </div>
-    <div class="rm-stage" id="rmStage">
-      <div class="rm-tvwrap" aria-hidden="true">
-        <div class="rm-tv" id="rmTv">
-          <div class="tv-frame"><div class="tv-screen">
-            <div class="tv-bar"><i></i><span class="tv-title">Netflix</span></div>
-            <div class="tv-hero"></div>
-            <div class="tv-row"><div class="tv-t"><span></span></div><div class="tv-t"><span></span></div><div class="tv-t"><span></span></div><div class="tv-t"><span></span></div></div>
-            <div class="tv-play"><b>Now playing</b><i></i></div>
-          </div></div>
-          <div class="tv-stand"></div>
-        </div>
-      </div>
-      <div class="rm-phone" aria-hidden="true">
-        <div class="iphone" data-orient="portrait" data-finish="dark">
-          <i class="ip-btn l action"></i><i class="ip-btn l up"></i><i class="ip-btn l down"></i><i class="ip-btn r side"></i><i class="ip-btn r cam"></i>
-          <div class="ip-body"><div class="ip-bezel"></div><div class="ip-screen"></div><div class="ip-island"></div></div>
-        </div>
-      </div>
-    </div>
-    <div class="seg"><div class="seg-in" id="rmSwitch" role="radiogroup" aria-label="Streaming app"></div></div>
-  </div>
-</section>
-
-<!-- Layouts -->
-<section class="layouts" id="layouts" aria-labelledby="lp-title">
-  <div class="wrap">
-    <div class="section-head center">
-      <h2 id="lp-title" class="reveal">Two modes at once.</h2>
-      <p class="lede reveal">Split the screen. Trackpad on one side, Actions on the other. Drag the divider, or save your own.</p>
-    </div>
-    <div class="lp-stage" id="lpStage">
-      <div class="iphone" data-orient="landscape" data-finish="light">
-        <i class="ip-btn l action"></i><i class="ip-btn l up"></i><i class="ip-btn l down"></i><i class="ip-btn r side"></i><i class="ip-btn r cam"></i>
-        <div class="ip-body"><div class="ip-bezel"></div><div class="ip-screen"></div><div class="ip-island"></div></div>
-      </div>
-    </div>
-    <div class="seg"><div class="seg-in" id="lpChips" role="radiogroup" aria-label="Layout templates"></div></div>
-    <p class="seg-cap" id="lpCap" aria-live="polite"></p>
+    <div class="uc-stage" id="ucStage" role="tabpanel" aria-label="Setups, drawn"></div>
+    <div class="seg"><div class="seg-in" id="ucTabs" role="tablist" aria-label="Setups"></div></div>
+    <p class="uc-cap" id="ucCap" aria-live="polite"></p>
   </div>
 </section>
 
 <!-- Interactive demo -->
-<section class="demo dark" id="try" aria-labelledby="try-title">
+<section class="demo dark" id="trackpad" aria-labelledby="try-title">
   <div class="wrap">
     <div class="section-head center">
       <h2 id="try-title" class="reveal">Feel the trackpad.</h2>
-      <p class="lede reveal" data-touch-copy="Put one, two or three fingers on the phone." data-mouse-copy="Move, click and scroll on the phone.">Move, click and scroll on the phone.</p>
+      <p class="lede reveal" data-touch-copy="Real gestures, and a tap you can feel on every click. Put one, two or three fingers on the phone." data-mouse-copy="Real gestures, and a tap you can feel on every click. Try it on the phone.">Real gestures, and a tap you can feel on every click. Try it on the phone.</p>
     </div>
 
     <div class="stage">
@@ -311,7 +132,7 @@
 
       <div class="mac-col">
         <div class="mac" id="mac" aria-hidden="true">
-          <div class="mac-bar"><span class="mac-apple"></span><span class="mac-menu"></span><span class="mac-menu short"></span></div>
+          <div class="mac-bar"><svg class="mac-apple" viewBox="0 0 14 17" aria-hidden="true"><path d="M11.6 9c0-2 1.6-2.9 1.7-3-1-1.4-2.4-1.6-2.9-1.6-1.2-.1-2.4.7-3 .7-.6 0-1.6-.7-2.6-.7C3.4 4.4 2.1 5.2 1.4 6.5 0 9 1 12.7 2.4 14.7c.7 1 1.5 2 2.5 2 1 0 1.4-.6 2.6-.6s1.5.6 2.6.6c1.1 0 1.8-1 2.4-2 .8-1.1 1.1-2.2 1.1-2.3 0 0-2-.8-2-3.4ZM9.7 3c.5-.7.9-1.6.8-2.5-.8 0-1.8.5-2.3 1.2-.5.6-1 1.5-.8 2.4.9.1 1.8-.5 2.3-1.1Z"/></svg><b>Safari</b><span>File</span><span>Edit</span><span>View</span><span>History</span><span class="mac-clock">Fri 9:41</span></div>
           <div class="mac-viewport">
             <div class="spaces" id="spaces">
               <div class="space">
@@ -339,12 +160,72 @@
       <button class="chip" data-g="pinch">Pinch to zoom</button>
       <button class="chip" data-g="spaces">Three finger swipe</button>
       <button class="chip" data-g="mission">Mission Control</button>
-      <span class="theme-row" role="radiogroup" aria-label="Surface theme">
-        <button role="radio" aria-checked="true" data-theme="paper">Paper</button>
-        <button role="radio" aria-checked="false" data-theme="graphite">Graphite</button>
-        <button role="radio" aria-checked="false" data-theme="mono">Mono</button>
-      </span>
     </div>
+  </div>
+</section>
+
+<!-- Modes -->
+<section class="modes" id="modes" aria-labelledby="modes-title">
+  <div class="wrap">
+    <div class="section-head center">
+      <h2 id="modes-title" class="reveal">Everything else, one touch away.</h2>
+      <p class="lede reveal">Switch modes with the button at the top of the screen.</p>
+    </div>
+  </div>
+  <div class="modes-scroll" id="modesScroll">
+    <div class="modes-pin">
+      <div class="modes-stage">
+        <div class="mode-rail" role="tablist" aria-label="Modes" id="modeRail">
+          <span class="rail-ind" id="railInd" aria-hidden="true"></span>
+        </div>
+        <div class="mode-device" id="modeDevice">
+          <div class="md-rot" id="mdRot">
+            <div class="iphone " data-orient="portrait" data-finish="light" id="modeIphone">
+              <i class="ip-btn l action"></i><i class="ip-btn l up"></i><i class="ip-btn l down"></i><i class="ip-btn r side"></i><i class="ip-btn r cam"></i>
+              <div class="ip-body"><div class="ip-bezel"></div><div class="ip-screen"><div class="ms-wrap" id="msWrap"></div></div><div class="ip-island"></div></div>
+            </div>
+          </div>
+        </div>
+        <div class="mode-side">
+          <div class="mini-mac"><div class="mm-display" id="mmDisplay"></div></div>
+          <div class="mode-copy" id="modeCopy" aria-live="polite"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Displays -->
+<section class="displays" id="displays" aria-labelledby="dp-title">
+  <div class="wrap">
+    <div class="section-head center">
+      <h2 id="dp-title" class="reveal">Every display, every window.</h2>
+      <p class="lede reveal">Your displays as in System Settings, with every window on them. Drag a window to another display, touch and hold to tile it, and set brightness, resolution and Night Shift.</p>
+    </div>
+    <div class="dp-stage" id="dpStage" aria-hidden="true"></div>
+  </div>
+</section>
+
+<!-- Layouts -->
+<section class="layouts" id="layouts" aria-labelledby="lp-title">
+  <div class="wrap">
+    <div class="section-head center">
+      <h2 id="lp-title" class="reveal">Up to three modes at once.</h2>
+      <p class="lede reveal">Drag the divider and it rests on thirds or the middle. Save your own layouts; they sit in the mode menu.</p>
+    </div>
+    <div class="lp-stage" id="lpStage"></div>
+    <div class="seg"><div class="seg-in" id="lpChips" role="radiogroup" aria-label="Layout templates"></div></div>
+  </div>
+</section>
+
+<!-- Make it yours: what you can put in Pinned, and the look -->
+<section class="yours" id="yours" aria-labelledby="mk-title">
+  <div class="wrap">
+    <div class="section-head center">
+      <h2 id="mk-title" class="reveal">Make Actions yours.</h2>
+      <p class="lede reveal">Pin what you use most. Touch and hold a button to change it.</p>
+    </div>
+    <div class="mk-grid" id="mkGrid"></div>
   </div>
 </section>
 
@@ -353,22 +234,10 @@
   <div class="wrap">
     <div class="section-head center">
       <h2 id="privacy-title" class="reveal">Private by design.</h2>
-      <p class="lede reveal">Paired by QR code. Encrypted. Nothing leaves your Wi-Fi.</p>
+      <p class="lede reveal">Pair once with a QR code. Everything is encrypted and stays on your Wi-Fi.</p>
     </div>
 
-    <div class="net" aria-hidden="true">
-      <svg viewBox="0 0 720 220" id="net">
-        <rect x="1" y="1" width="718" height="218" rx="28" fill="none" stroke="currentColor" stroke-opacity="0.16" stroke-dasharray="2 7" stroke-linecap="round"/>
-        <text x="28" y="40" class="net-label">Your Wi-Fi</text>
-        <rect x="118" y="62" width="64" height="122" rx="16" fill="none" stroke="currentColor" stroke-opacity="0.7" stroke-width="2"/>
-        <rect x="508" y="74" width="112" height="76" rx="8" fill="none" stroke="currentColor" stroke-opacity="0.7" stroke-width="2"/>
-        <path d="M494 168h140" stroke="currentColor" stroke-opacity="0.7" stroke-width="2" stroke-linecap="round"/>
-        <path id="netPath" d="M196 123 H494" stroke="currentColor" stroke-opacity="0.18" stroke-width="2" stroke-linecap="round" fill="none"/>
-        <g id="netPackets"></g>
-        <text x="150" y="208" text-anchor="middle" class="net-cap">iPhone</text>
-        <text x="564" y="208" text-anchor="middle" class="net-cap">Mac</text>
-      </svg>
-    </div>
+    <div class="pair-stage" id="pairStage" aria-hidden="true"></div>
 
   </div>
 </section>
@@ -503,7 +372,8 @@
   <nav class="foot-links wrap" aria-label="Project links">
     <a href="https://github.com/Soham109/glasspad">GitHub</a>
     <a href="#get">Install</a>
-    <a href="https://github.com/Soham109/glasspad/blob/main/LICENSE">MIT licence</a>
+    <a href="/guide">Guide</a>
+    <a href="https://github.com/Soham109/glasspad/blob/main/LICENSE">MIT License</a>
     <a class="foot-by" href="https://sohamaggarwal.com">Made by Soham Aggarwal</a>
   </nav>
   <div class="foot-mark" aria-hidden="true"><span id="footMark">Glasspad</span></div>

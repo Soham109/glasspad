@@ -1,0 +1,56 @@
+/* ---------- Guide: short, scannable, one picture per thing ---------- */
+.g { padding-bottom: 40px; }
+.g-hero { padding-top: clamp(120px, 14vw, 176px); padding-bottom: clamp(24px, 4vw, 48px); }
+.g-hero h1 { margin: 0; font-size: clamp(48px, 8vw, 96px); font-weight: 700; letter-spacing: -0.045em; line-height: 1; }
+.g-hero .lede { margin: 16px 0 0; }
+.g-sec { padding-top: clamp(56px, 7vw, 96px); padding-bottom: 0; scroll-margin-top: 72px; }
+.g-sec h2 { max-width: none; margin: 0 0 clamp(24px, 3vw, 36px); font-size: clamp(30px, 3.6vw, 44px); letter-spacing: -0.035em; line-height: 1.1; padding-top: clamp(24px, 3vw, 32px); border-top: 1px solid var(--line); }
+.g h3 { margin: 0 0 8px; font-size: 21px; font-weight: 650; letter-spacing: -0.02em; display: flex; align-items: center; gap: 10px; }
+.g ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+.g li { position: relative; padding-left: 18px; font-size: 16px; line-height: 1.5; color: var(--ink-2); }
+.g li::before { content: ""; position: absolute; left: 2px; top: 0.66em; width: 5px; height: 5px; border-radius: 50%; background: var(--ink-3); }
+.g li b { color: var(--ink); font-weight: 600; }
+.g a { color: var(--ink); text-underline-offset: 3px; }
+.g code { font-family: var(--mono); font-size: 0.9em; }
+.g-new { font-size: 12px; font-weight: 600; letter-spacing: 0; padding: 3px 8px; border-radius: 999px; background: #0A84FF; color: #fff; }
+.g-k { letter-spacing: 0.1em; }
+
+.g-steps { margin: 0 0 clamp(40px, 5vw, 64px); padding: 0; list-style: none; counter-reset: s; display: grid; grid-template-columns: minmax(0, 1fr); gap: 22px; max-width: 760px; }
+.g-steps li { padding-left: 44px; counter-increment: s; }
+.g-steps li::before { content: counter(s); left: 0; top: 0; width: 28px; height: 28px; display: grid; place-items: center; border-radius: 50%; background: var(--ink); color: var(--paper); font-size: 14px; font-weight: 600; }
+.g-cmd { position: relative; margin: 12px 0 8px; padding: 18px 120px 18px 20px; border-radius: 16px; background: var(--graphite); color: var(--on-dark); overflow-x: auto; }
+.g-cmd code { white-space: nowrap; font-size: 14px; }
+.g-cmd .copy { top: 50%; transform: translateY(-50%); }
+.g-cmd .copy:active { transform: translateY(-50%) scale(0.94); }
+.g-more { display: block; font-size: 15px; }
+
+.g-fig { margin: 0; }
+.g-fig img { display: block; width: 100%; height: auto; }
+.g-row { display: grid; grid-template-columns: minmax(0, 300px) minmax(0, 1fr); gap: clamp(24px, 4vw, 56px); align-items: center; }
+.g-row.land { grid-template-columns: minmax(0, 560px) minmax(0, 1fr); }
+.g-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+.g-grid.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.g-card { display: grid; grid-template-columns: minmax(0, 200px) minmax(0, 1fr); gap: 24px; align-items: center; padding: 20px; border-radius: 30px; background: #FBFBF9; box-shadow: 0 0 0 1px var(--line); }
+.g-card.wide { grid-column: 1 / -1; grid-template-columns: minmax(0, 520px) minmax(0, 1fr); }
+.g-grid.three .g-card { grid-template-columns: 1fr; align-items: start; }
+.g-grid.three .g-fig { max-width: 240px; margin: 0 auto; }
+
+.g-help { margin: 0; display: grid; grid-template-columns: minmax(0, 320px) minmax(0, 1fr); gap: 0 40px; max-width: 980px; }
+.g-help dt { padding: 18px 0; font-weight: 600; border-top: 1px solid var(--line); }
+.g-help dd { margin: 0; padding: 18px 0; color: var(--ink-2); border-top: 1px solid var(--line); }
+
+@media (max-width: 980px) {
+  .g-grid, .g-grid.three { grid-template-columns: 1fr; }
+  .g-grid.three .g-card { grid-template-columns: minmax(0, 200px) minmax(0, 1fr); align-items: center; }
+  .g-card.wide, .g-row.land { grid-template-columns: 1fr; }
+}
+@media (max-width: 600px) {
+  .g-card, .g-grid.three .g-card, .g-row { grid-template-columns: 1fr; }
+  .g-card .g-fig, .g-row .g-fig { max-width: 220px; margin: 0 auto; }
+  .g-card.wide .g-fig, .g-row.land .g-fig { max-width: none; }
+  .g-help { grid-template-columns: 1fr; }
+  .g-help dd { border-top: 0; padding-top: 0; }
+  .g-cmd { padding-right: 20px; padding-bottom: 60px; }
+  .g-cmd .copy { top: auto; bottom: 12px; transform: none; }
+}
+.g-fig.hud { align-self: center; } .g-fig.hud img { border-radius: 22px; }

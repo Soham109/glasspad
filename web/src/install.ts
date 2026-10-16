@@ -83,17 +83,16 @@ const FIGS: Record<string, () => string> = {
     <div class="fp-card"><div class="fp-row"><span class="fp-app"></span><span>Glasspad</span></div></div>`),
 
   macPair: () => `<div class="mp">
-      <div class="mp-bar"><span class="mp-x"></span><span class="mp-x"></span><span class="mp-x"></span>${ring(`<span class="mp-ic"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="3.5"/><circle cx="14.5" cy="11" r="1.6" fill="currentColor" stroke="none"/><path d="M8.5 14.2 12.4 12.2"/></svg></span>`, "Click", "l", "r-ic")}<span class="mp-wifi"></span><span class="mp-batt"></span><span class="mp-cc"></span><span class="mp-clock">9:41</span></div>
+      <div class="mp-bar">${ring(`<span class="mp-ic"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="3.5"/><circle cx="15" cy="11" r="1.8" fill="currentColor" stroke="none"/></svg></span>`, "Click", "l", "r-ic")}<span class="mp-wifi"></span><span class="mp-batt"></span><span class="mp-cc"></span><span class="mp-clock">Fri 9:41</span></div>
       <div class="mp-pop">
-        <div class="mp-head"><span class="mp-circ"><svg viewBox="0 0 24 24"><rect x="7.5" y="3.5" width="9" height="17" rx="2.5"/><path d="M4 4l16 16"/></svg></span><b>No iPhone Paired</b></div>
+        <div class="mp-row t mp-title"><b>Glasspad</b>${toggle(true)}</div>
         <hr>
-        ${ring(`<div class="mp-row"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="6" height="6" rx="1.2"/><rect x="14" y="4" width="6" height="6" rx="1.2"/><rect x="4" y="14" width="6" height="6" rx="1.2"/><path d="M14 14h2.5v2.5M20 14v.01M14 20h.01M17.5 17.5V20H20"/></svg>Pair Your iPhone&hellip;</div>`, "Then this", "l", "r-row")}
-        <hr>
+        <div class="mp-head"><span class="mp-circ"><svg viewBox="0 0 24 24"><rect x="7.5" y="3.5" width="9" height="17" rx="2.5"/><path d="M4 4l16 16"/></svg></span><div><b>No iPhone Paired</b><small>Pair your iPhone to use it as a trackpad.</small></div></div>
+        ${ring(`<div class="mp-row"><span class="mp-circ s"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="6" height="6" rx="1.2"/><rect x="14" y="4" width="6" height="6" rx="1.2"/><rect x="4" y="14" width="6" height="6" rx="1.2"/><path d="M14 14h2.5v2.5M20 14v.01M14 20h.01M17.5 17.5V20H20"/></svg></span>Pair Your iPhone&hellip;</div>`, "Then this", "l", "r-row")}
         <div class="mp-row t">Hide Mac Dock${toggle(false)}</div>
-        <div class="mp-row t">Pause Glasspad${toggle(false)}</div>
         <hr>
-        <div class="mp-row">Settings&hellip;<span class="sc">⌘,</span></div>
-        <div class="mp-row">Quit Glasspad<span class="sc">⌘Q</span></div>
+        <div class="mp-row">Glasspad Settings&hellip;</div>
+        <div class="mp-row">Quit Glasspad</div>
       </div>
     </div>`,
 

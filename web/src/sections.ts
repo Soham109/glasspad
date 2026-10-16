@@ -25,7 +25,7 @@ export function initNav() {
   const ind = document.getElementById("navInd")!;
   const links = Array.from(document.querySelectorAll<HTMLAnchorElement>("#navLinks a"));
   const darks = Array.from(document.querySelectorAll<HTMLElement>(".dark"));
-  const targets = links.map(a => document.querySelector<HTMLElement>(a.getAttribute("href")!));
+  const targets = links.map(a => { const h = a.getAttribute("href")!; return h.startsWith("#") ? document.querySelector<HTMLElement>(h) : null; });
   const menu = document.getElementById("navMenu")!, sheet = document.getElementById("navSheet")!;
   let active = -1;
   const place = () => {
@@ -63,7 +63,7 @@ export function initScrollLinked() {
   if (reduce) return;
   const mark = document.querySelector<SVGElement>("#heroGlide");
   const phone = document.getElementById("phone");
-  const demo = document.getElementById("try");
+  const demo = document.getElementById("trackpad");
   let ticking = false;
   const update = () => {
     ticking = false;
@@ -93,40 +93,4 @@ export function initSteps() {
     for (const it of items) { it.classList.add("in"); await sleep(170); }
   }, { rootMargin: "0px 0px -25% 0px" });
   io.observe(document.getElementById("steps")!);
-}
-
-/* ---------- Privacy: packets travel phone to Mac, never past the network edge ---------- */
-export function initNet() {
-  const g = document.getElementById("netPackets");
-  const svg = document.getElementById("net");
-  if (!g || !svg) return;
-  const NS = "http://www.w3.org/2000/svg";
-  const x0 = 200, x1 = 490, y = 123;
-  if (reduce) {
-    for (const x of [260, 340, 420]) { const c = document.createElementNS(NS, "circle"); c.setAttribute("cx", String(x)); c.setAttribute("cy", String(y)); c.setAttribute("r", "4"); c.setAttribute("class", "packet"); g.appendChild(c); }
-    return;
-  }
-  type Pk = { el: SVGCircleElement; t0: number; dir: 1 | -1; dur: number };
-  const pks: Pk[] = [];
-  let visible = false, running = false, next = 0;
-  new IntersectionObserver(([e]) => { visible = e.isIntersecting; if (visible && !running) { running = true; requestAnimationFrame(tick); } }).observe(svg);
-  function tick(t: number) {
-    if (t > next) {
-      // mostly touches going to the Mac, now and then a reply coming back
-      const dir: 1 | -1 = Math.random() < 0.8 ? 1 : -1;
-      const el = document.createElementNS(NS, "circle") as SVGCircleElement;
-      el.setAttribute("r", dir === 1 ? "4" : "3"); el.setAttribute("cy", String(y + (dir === 1 ? -7 : 7))); el.setAttribute("class", "packet");
-      g!.appendChild(el); pks.push({ el, t0: t, dir, dur: 1300 + Math.random() * 200 });
-      next = t + (dir === 1 ? 260 : 120) + Math.random() * 260;
-    }
-    for (let i = pks.length - 1; i >= 0; i--) {
-      const p = pks[i]; const u = (t - p.t0) / p.dur;
-      if (u >= 1) { p.el.remove(); pks.splice(i, 1); continue; }
-      const e = u < 0.5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2; // ease in and out, like something with mass
-      const x = p.dir === 1 ? x0 + (x1 - x0) * e : x1 - (x1 - x0) * e;
-      p.el.setAttribute("cx", x.toFixed(1));
-      p.el.setAttribute("opacity", Math.min(1, Math.min(u, 1 - u) * 8).toFixed(2));
-    }
-    if (visible && !document.hidden) requestAnimationFrame(tick); else running = false;
-  }
 }

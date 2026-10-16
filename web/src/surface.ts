@@ -1,161 +1,154 @@
-import { reducedMotion, sleep } from "./spring";
-import { appIcon, APPS } from "./apps";
-import { glyph, GLYPH } from "./glyphs";
+import { appIcon } from "./apps";
+import { glyph } from "./glyphs";
+import { phone, fitAll, tl, reduce, Scene, Cancel } from "./kit";
 
-/* Remote and Layouts: drawn recreations of the iPhone app's screens, authored in iPhone points. */
-const reduce = reducedMotion();
-const svg = (body: string) => `<svg viewBox="0 0 24 24" aria-hidden="true">${body}</svg>`;
-const I = {
-  up: '<path d="m6 14 6-6 6 6"/>', down: '<path d="m6 10 6 6 6-6"/>', left: '<path d="m14 6-6 6 6 6"/>', right: '<path d="m10 6 6 6-6 6"/>',
-  back: '<path d="M10 6 4.5 11.5 10 17"/><path d="M5 11.5h9a5 5 0 0 1 0 10"/>',
-  home: '<path d="M4 10.5 12 4l8 6.5V19a1.5 1.5 0 0 1-1.500 1.500h-13A1.500 1.500 0 0 1 4 19Z"/>',
-  mute: '<path d="M3.5 9.5h3l4.500-4v13l-4.500-4h-3Z"/><path d="m14.500 9.500 5 5M19.500 9.500l-5 5"/>',
-  back10: '<path d="M5 12a7 7 0 1 1 2 5"/><path d="M5 6.500V12h5.500"/><path d="M9.500 10v4M12 10h2v4h-2Z"/>',
-  fwd10: '<path d="M19 12a7 7 0 1 0-2 5"/><path d="M19 6.500V12h-5.500"/><path d="M8.500 10v4M11 10h2v4h-2Z"/>',
-  play: '<path class="f" d="M7 4.800v14.400a1 1 0 0 0 1.500.900l11.200-7.200a1 1 0 0 0 0-1.700L8.500 3.900A1 1 0 0 0 7 4.800Z"/>',
-  search: '<circle cx="11" cy="11" r="5.500"/><path d="m15 15 4 4"/>',
-  skip: '<path d="M5 6.500v11l8-5.500Z"/><path d="M16 6v12"/>',
-  next: '<path d="M5 6.500v11l7-5.500Z"/><path d="M12.500 6.500v11l7-5.500Z"/>',
-  cc: '<rect x="3.500" y="6" width="17" height="12" rx="3"/><path d="M10 10.500a2 2 0 1 0 0 3M16 10.500a2 2 0 1 0 0 3"/>',
-  speed: '<path d="M4.500 16a8 8 0 1 1 15 0"/><path d="m12 13 3.500-4"/>',
-  theater: '<rect x="3" y="7" width="18" height="10" rx="2"/>',
+/* Layouts: up to three modes on one screen. The geometry follows ScreenLayout.arrangement in
+   GlasspadKit: two panes share the main split, a third splits the second pane, and a divider
+   rests on thirds or the middle when it is let go near them (DividerMath.snapPoints). */
+
+const SNAPS = [1 / 3, 0.5, 2 / 3];
+const GAP = 12;
+const AREA = { x: 52, y: 14, w: 874 - 52 - 14, h: 402 - 28 }; // inside the island and the corners
+
+const PANES: Record<string, { name: string; dark?: boolean; html: () => string }> = {
+  trackpad: { name: "Trackpad", html: () => `<div class="pz-tp"><i></i><i></i></div>` },
+  actions: { name: "Actions", html: () => `<div class="pz-ac"><div class="af"><span class="af-i">${appIcon("web")}</span><div><b>Safari</b><span>In front on your Mac</span></div></div>
+    <div class="ag">${tl("New Tab", "plus.square.on.square", "#0A84FF")}${tl("Reopen Tab", "arrow.uturn.backward", "#0A84FF")}${tl("Reader", "doc.plaintext", "#30B0C7")}${tl("Split Screen", "square.split.2x1", "#30B0C7")}${tl("Do Not Disturb", "moon.fill", "#5E5CE6")}${tl("Screenshot", "camera.viewfinder", "#0A84FF")}</div></div>` },
+  media: { name: "Media", html: () => `<div class="pz-md"><div class="src"><i></i>SPOTIFY</div><b>Slow Light</b><span>Paper Rooms</span><div class="ctl">${glyph("backward.fill")}<span class="pp">${glyph("pause.fill")}</span>${glyph("forward.fill")}</div></div>` },
+  remote: { name: "Remote", dark: true, html: () => `<div class="pz-rm"><div class="pad"><b>Tap to play or pause</b><span>Swipe sideways to skip</span></div></div>` },
+  clock: { name: "Clock", dark: true, html: () => `<div class="pz-clk"><span>Fri, 16 Oct</span><b>10</b><b>09</b></div>` },
+  nowPlaying: { name: "Now Playing", dark: true, html: () => `<div class="pz-np"><span class="art"><i class="s1"></i><i class="s2"></i><i class="s3"></i></span><b>Slow Light</b><small>Paper Rooms</small></div>` },
+  present: { name: "Present", html: () => `<div class="pz-pr"><div class="time">4:12</div><div class="bn"><span class="b">${glyph("chevron.left")}Back</span><span class="n">${glyph("chevron.right")}Next</span></div></div>` },
 };
-
-/* ---------- Remote ---------- */
-interface RApp { key: string; name: string; color: string; keys: [string, string][]; tiles: string[] }
-const RAPPS: RApp[] = [
-  { key: "netflix", name: "Netflix", color: "#E50914", keys: [["Skip Intro", I.skip], ["Next Episode", I.next], ["Subtitles", I.cc]], tiles: ["Night Harbor", "Quiet Orbit", "Paper Rooms", "Low Tide"] },
-  { key: "youtube", name: "YouTube", color: "#FF3B30", keys: [["Captions", I.cc], ["Speed", I.speed], ["Theater", I.theater]], tiles: ["Slow Light", "Desk Tour", "Glass Hours", "Field Notes"] },
+/* A few of the gallery's templates (LayoutTemplates.swift) */
+const TEMPLATES = [
+  { name: "Desk", panes: ["trackpad", "actions"], split: 0.6, inner: 0.5 },
+  { name: "Studio", panes: ["trackpad", "media", "actions"], split: 0.5, inner: 0.36 },
+  { name: "Couch", panes: ["remote", "trackpad"], split: 0.6, inner: 0.5 },
+  { name: "StandBy", panes: ["clock", "nowPlaying"], split: 0.5, inner: 0.5 },
 ];
-const rmBtn = (cls: string, g: string, label: string) => `<span class="rm-b ${cls}" data-k="${cls}">${svg(g)}<small>${label}</small></span>`;
-export const remoteScreen = (a: RApp = RAPPS[0], typed = "") => `<div class="pt rm" style="--rc:${a.color}">
-  <div class="rm-head"><b>Remote</b><span class="rm-chip"><i></i>${a.name}</span></div>
-  <div class="rm-search">${svg(I.search)}<span class="rm-q ${typed ? "typed" : ""}">${typed || "Search " + a.name}</span></div>
-  <div class="rm-pad"><span class="rm-d up">${svg(I.up)}</span><span class="rm-d down">${svg(I.down)}</span><span class="rm-d left">${svg(I.left)}</span><span class="rm-d right">${svg(I.right)}</span><span class="rm-ok">OK</span></div>
-  <div class="rm-row">${rmBtn("back", I.back, "Back")}${rmBtn("home", I.home, "Home")}${rmBtn("mute", I.mute, "Mute")}</div>
-  <div class="rm-tr"><span>${svg(I.back10)}</span><span class="pp">${svg(I.play)}</span><span>${svg(I.fwd10)}</span></div>
-  <div class="rm-keys">${a.keys.map(([n, g]) => `<span class="rm-k">${svg(g)}${n}</span>`).join("")}</div>
-</div>`;
 
-function fitPt(screen: HTMLElement, land: boolean) {
-  const apply = () => {
-    const w = screen.clientWidth; if (!w) return;
-    screen.querySelectorAll<HTMLElement>(".pt").forEach(pt => { pt.style.transform = `scale(${w / (land ? 874 : 402)})`; });
-  };
-  new ResizeObserver(apply).observe(screen); apply();
+type Rect = { x: number; y: number; w: number; h: number };
+/** Splits a rect at a share with a gap between, side by side or stacked: [first, second, line]. */
+function cut(r: Rect, share: number, across: boolean): [Rect, Rect, Rect] {
+  const len = across ? r.w : r.h, a = (len - GAP) * share, b = len - GAP - a;
+  return across
+    ? [{ ...r, w: a }, { x: r.x + a + GAP, y: r.y, w: b, h: r.h }, { x: r.x + a, y: r.y, w: GAP, h: r.h }]
+    : [{ ...r, h: a }, { x: r.x, y: r.y + a + GAP, w: r.w, h: b }, { x: r.x, y: r.y + a, w: r.w, h: GAP }];
 }
-
-export function initRemote() {
-  const stage = document.getElementById("rmStage"); if (!stage) return;
-  const screen = stage.querySelector<HTMLElement>(".ip-screen")!;
-  const tv = document.getElementById("rmTv")!, sw = document.getElementById("rmSwitch")!;
-  let cur = 0, token = 0, visible = false;
-  const draw = (typed = "") => {
-    screen.innerHTML = remoteScreen(RAPPS[cur], typed); fitPt(screen, false);
-    tv.style.setProperty("--rc", RAPPS[cur].color);
-    tv.querySelector(".tv-title")!.textContent = RAPPS[cur].name;
-    tv.querySelectorAll<HTMLElement>(".tv-t span").forEach((s, i) => { s.textContent = RAPPS[cur].tiles[i]; });
-  };
-  const tiles = () => Array.from(tv.querySelectorAll<HTMLElement>(".tv-t"));
-  const focus = (i: number) => tiles().forEach((t, k) => t.classList.toggle("on", k === i));
-  const press = (sel: string, ms = 160) => { const e = screen.querySelector<HTMLElement>(sel); if (!e) return; e.classList.add("hit"); setTimeout(() => e.classList.remove("hit"), ms); };
-  const ok = () => token;
-
-  async function loop(t: number) {
-    const w = async (ms: number) => { await sleep(ms); if (t !== token) throw new Error("x"); };
-    try {
-      for (;;) {
-        draw(); focus(0); tv.classList.remove("playing"); await w(1200);
-        for (const [i, d] of [[1, ".right"], [2, ".right"], [3, ".right"], [0, ".left"]] as [number, string][]) {
-          press(".rm-d" + d); focus(i); await w(900);
-        }
-        press(".rm-ok", 220); tv.classList.add("playing"); await w(1600);
-        press(".rm-k:first-child", 260); tv.classList.add("skipped"); await w(1300);
-        tv.classList.remove("playing", "skipped");
-        press(".rm-b.back", 220); await w(900);
-        const word = RAPPS[cur].tiles[1].split(" ")[0];
-        for (let n = 1; n <= word.length; n++) { draw(word.slice(0, n)); await w(130); }
-        await w(1400);
-      }
-    } catch { /* stopped */ }
-  }
-  const start = () => { token++; if (!reduce && visible) loop(token); };
-  const pick = (i: number) => {
-    cur = i; sw.querySelectorAll("button").forEach((b, k) => b.setAttribute("aria-checked", String(k === i)));
-    token++; draw(); focus(0); if (!reduce && visible) loop(token);
-  };
-  RAPPS.forEach((a, i) => {
-    const b = document.createElement("button");
-    b.type = "button"; b.setAttribute("role", "radio"); b.setAttribute("aria-checked", String(i === 0));
-    b.innerHTML = `${a.name}`; b.addEventListener("click", () => pick(i)); sw.appendChild(b);
-  });
-  draw(); focus(1);
-  new IntersectionObserver(([e]) => { const v = e.isIntersecting; if (v === visible) return; visible = v; if (v) start(); else token++; }, { threshold: 0.3 }).observe(stage);
-}
-
-/* ---------- Layouts ---------- */
-const keyRow = (s: string) => `<div>${[...s].map(c => `<span>${c}</span>`).join("")}</div>`;
-const PANES: Record<string, { name: string; html: () => string }> = {
-  trackpad: { name: "Trackpad", html: () => `<div class="lp-tp"><i class="a"></i><i class="b"></i><small>Trackpad</small></div>` },
-  actions: { name: "Actions", html: () => `<div class="lp-h">${appIcon("web")}<b>Safari</b></div><div class="lp-grid">${
-    [["New Tab", "plus.square.on.square", "#0A84FF"], ["Reload", "arrow.clockwise", "#0A84FF"], ["Reader", "doc.plaintext", "#30B0C7"], ["Next Tab", "chevron.right", "#34C759"], ["Do Not Disturb", "moon.fill", "#5E5CE6"], ["YouTube", "logo.youtube", "#FF3B30"], ["Screenshot", "camera.viewfinder", "#0A84FF"], ["GitHub", "logo.github", "#1A1A1A"]]
-      .map(([n, g, c]) => `<div class="ax-t" style="--c:${c}">${glyph(g)}<span>${n}</span></div>`).join("")}</div>` },
-  keyboard: { name: "Keyboard", html: () => `<div class="lp-echo">Start typing</div><div class="lp-kb">${keyRow("QWERTYUIOP")}${keyRow("ASDFGHJKL")}${keyRow("ZXCVBNM")}</div>` },
-  media: { name: "Media", html: () => `<div class="lp-media"><i class="art"></i><b>Slow Light</b><span>Paper Rooms</span><div class="bar"><i></i></div><div class="ctl">${svg(GLYPH["backward.fill"])}${svg(GLYPH["playpause.fill"])}${svg(GLYPH["forward.fill"])}</div></div>` },
-  remote: { name: "Remote", html: () => `<div class="lp-remote"><div class="rm-pad"><span class="rm-d up">${svg(I.up)}</span><span class="rm-d down">${svg(I.down)}</span><span class="rm-d left">${svg(I.left)}</span><span class="rm-d right">${svg(I.right)}</span><span class="rm-ok">OK</span></div></div>` },
-  dock: { name: "Dock", html: () => `<div class="lp-h"><b>Dock</b></div><div class="lp-apps">${["finder", "web", "mail", "notes", "music", "xcode", "term", "set"].map(k => `<div>${appIcon(k)}<span>${APPS[k][0]}</span></div>`).join("")}</div>` },
-};
-const TEMPLATES: { name: string; a: string; b: string; at: number }[] = [
-  { name: "Trackpad + Actions", a: "trackpad", b: "actions", at: 52 },
-  { name: "Keyboard + Media", a: "keyboard", b: "media", at: 58 },
-  { name: "Remote + Dock", a: "remote", b: "dock", at: 40 },
-];
+const innerAcross = (rest: Rect) => rest.w > rest.h * 1.6;
 
 export function initLayouts() {
   const root = document.getElementById("lpStage"); if (!root) return;
-  const screen = root.querySelector<HTMLElement>(".ip-screen")!;
+  root.innerHTML = phone("landscape", "light", `<div class="pt land lp"><div class="lp-snaps"></div></div>`);
+  fitAll(root);
+  const pt = root.querySelector<HTMLElement>(".pt")!, snaps = pt.querySelector<HTMLElement>(".lp-snaps")!;
   const chips = document.getElementById("lpChips")!;
-  const cap = document.getElementById("lpCap")!;
-  screen.innerHTML = `<div class="pt land lp"><div class="lp-a lp-pane"></div><div class="lp-div" role="separator" aria-orientation="vertical" aria-label="Divider. Drag to resize." tabindex="0"><i></i></div><div class="lp-b lp-pane"></div></div>`;
-  fitPt(screen, true);
-  const pt = screen.querySelector<HTMLElement>(".pt")!;
-  const A = pt.querySelector<HTMLElement>(".lp-a")!, B = pt.querySelector<HTMLElement>(".lp-b")!, D = pt.querySelector<HTMLElement>(".lp-div")!;
-  let at = 52;
-  const setAt = (v: number, animate = false) => {
-    at = Math.max(28, Math.min(72, v));
-    pt.classList.toggle("anim", animate);
-    pt.style.setProperty("--at", String(at));
-    D.setAttribute("aria-valuenow", String(Math.round(at)));
-  };
+  let t = TEMPLATES[0], split = t.split, inner = t.inner;
+  const panes: HTMLElement[] = [], divs: HTMLElement[] = [], lines: Rect[] = [];
   const btns: HTMLButtonElement[] = [];
-  const apply = (i: number) => {
-    const t = TEMPLATES[i];
-    A.innerHTML = PANES[t.a].html(); B.innerHTML = PANES[t.b].html();
-    A.dataset.pane = t.a; B.dataset.pane = t.b;
-    btns.forEach((b, k) => b.setAttribute("aria-checked", String(k === i)));
-    setAt(t.at, true);
-    cap.textContent = `${PANES[t.a].name} on the left, ${PANES[t.b].name} on the right. Drag the divider to resize.`;
+
+  const layout = () => {
+    const [a, rest, line] = cut(AREA, split, true);
+    const rects: Rect[] = [a]; lines.length = 0; lines.push(line);
+    if (t.panes.length === 3) { const [b, c, l2] = cut(rest, inner, innerAcross(rest)); rects.push(b, c); lines.push(l2); }
+    else rects.push(rest);
+    const put = (el: HTMLElement, r: Rect) => { el.style.transform = `translate(${r.x}px, ${r.y}px)`; el.style.width = r.w + "px"; el.style.height = r.h + "px"; };
+    panes.forEach((p, i) => put(p, rects[i]));
+    divs.forEach((d, i) => { put(d, lines[i]); d.setAttribute("aria-valuenow", String(Math.round((i ? inner : split) * 100))); });
   };
-  TEMPLATES.forEach((t, i) => {
+  const build = (i: number) => {
+    t = TEMPLATES[i]; split = t.split; inner = t.inner;
+    panes.splice(0).forEach(p => p.remove()); divs.splice(0).forEach(d => d.remove());
+    t.panes.forEach(k => {
+      const p = document.createElement("div"); p.className = "lp-pane" + (PANES[k].dark ? " dk" : ""); p.dataset.pane = k;
+      p.innerHTML = PANES[k].html(); pt.appendChild(p); panes.push(p);
+    });
+    t.panes.slice(1).forEach((_, j) => {
+      const d = document.createElement("div"); d.className = "lp-div" + (j ? " inner" : "");
+      d.setAttribute("role", "separator"); d.setAttribute("tabindex", "0");
+      d.setAttribute("aria-orientation", j ? "horizontal" : "vertical"); d.setAttribute("aria-label", j ? "Second divider. Drag to resize." : "Divider. Drag to resize.");
+      d.setAttribute("aria-valuemin", "0"); d.setAttribute("aria-valuemax", "100");
+      d.innerHTML = "<i></i>"; pt.appendChild(d); divs.push(d); wire(d, j);
+    });
+    btns.forEach((b, k) => b.setAttribute("aria-checked", String(k === i)));
+    layout();
+  };
+
+  // snap marks: shown while a divider moves; the one it will rest on lights up
+  const showSnaps = (level: number, value: number | null) => {
+    if (value === null) { snaps.classList.remove("on"); return; }
+    const [, rest] = cut(AREA, split, true);
+    const span = level ? rest : AREA, across = level ? innerAcross(rest) : true;
+    snaps.classList.add("on");
+    snaps.innerHTML = SNAPS.map(v => {
+      const near = Math.abs(v - value) < 0.04;
+      const pos = across
+        ? `left:${span.x + (span.w - GAP) * v + GAP / 2}px;top:${span.y}px;height:${span.h}px`
+        : `top:${span.y + (span.h - GAP) * v + GAP / 2}px;left:${span.x}px;width:${span.w}px`;
+      return `<i class="${across ? "v" : "h"}${near ? " near" : ""}" style="${pos}"></i>`;
+    }).join("");
+  };
+  const snap = (v: number) => { const b = SNAPS.reduce((p, c) => Math.abs(c - v) < Math.abs(p - v) ? c : p); return Math.abs(b - v) < 0.06 ? b : v; };
+  const set = (level: number, v: number) => { v = Math.min(0.8, Math.max(0.2, v)); if (level) inner = v; else split = v; layout(); return v; };
+  const settleAnim = () => { pt.classList.add("anim"); setTimeout(() => pt.classList.remove("anim"), 500); };
+
+  // drag a divider; the screen is scaled, so measure against the drawn point box
+  function wire(d: HTMLElement, level: number) {
+    let drag = false;
+    const share = (e: PointerEvent) => {
+      const r = pt.getBoundingClientRect(), k = r.width / 874;
+      const x = (e.clientX - r.left) / k, y = (e.clientY - r.top) / k;
+      if (!level) return (x - AREA.x) / AREA.w;
+      const [, rest] = cut(AREA, split, true);
+      return innerAcross(rest) ? (x - rest.x) / rest.w : (y - rest.y) / rest.h;
+    };
+    d.addEventListener("pointerdown", e => { drag = true; stopAuto(); d.setPointerCapture(e.pointerId); pt.classList.add("drag"); });
+    d.addEventListener("pointermove", e => { if (drag) showSnaps(level, set(level, share(e))); });
+    const end = () => { if (!drag) return; drag = false; pt.classList.remove("drag"); settleAnim(); set(level, snap(level ? inner : split)); showSnaps(level, null); };
+    d.addEventListener("pointerup", end); d.addEventListener("pointercancel", end);
+    d.addEventListener("keydown", e => {
+      const keys = level ? ["ArrowUp", "ArrowDown"] : ["ArrowLeft", "ArrowRight"];
+      const i = keys.indexOf(e.key); if (i < 0) return;
+      e.preventDefault(); stopAuto();
+      const cur = level ? inner : split;
+      const next = i ? SNAPS.find(v => v > cur + 0.01) ?? cur : [...SNAPS].reverse().find(v => v < cur - 0.01) ?? cur;
+      settleAnim(); set(level, next);
+    });
+  }
+
+  TEMPLATES.forEach((tp, i) => {
     const b = document.createElement("button");
-    b.type = "button"; b.setAttribute("role", "radio"); b.textContent = t.name; b.addEventListener("click", () => apply(i));
+    b.type = "button"; b.setAttribute("role", "radio"); b.textContent = tp.name;
+    b.addEventListener("click", () => { stopAuto(); build(i); });
     chips.appendChild(b); btns.push(b);
   });
-  apply(0);
-  // drag the divider; the stage is scaled, so measure in screen pixels
-  let drag = false;
-  const move = (e: PointerEvent) => {
-    if (!drag) return;
-    const r = pt.getBoundingClientRect();
-    const x = (e.clientX - r.left) / r.width * 100;
-    const lo = 7.5, hi = 96.5; // the content area inside the phone padding
-    setAt((x - lo) / (hi - lo) * 100);
-  };
-  D.addEventListener("pointerdown", e => { drag = true; D.setPointerCapture(e.pointerId); pt.classList.remove("anim"); pt.classList.add("drag"); btns.forEach(b => b.setAttribute("aria-checked", "false")); cap.textContent = "Your own layout. Saved on the phone."; });
-  D.addEventListener("pointermove", move);
-  const end = () => { drag = false; pt.classList.remove("drag"); };
-  D.addEventListener("pointerup", end); D.addEventListener("pointercancel", end);
-  D.addEventListener("keydown", e => { const d = e.key === "ArrowRight" ? 4 : e.key === "ArrowLeft" ? -4 : 0; if (d) { e.preventDefault(); setAt(at + d); } });
-  // one gentle nudge when it first scrolls into view, so the divider reads as movable
-  if (!reduce) new IntersectionObserver(([e], o) => { if (!e.isIntersecting) return; o.disconnect(); setTimeout(() => { if (!drag) { setAt(at + 7, true); setTimeout(() => !drag && setAt(at - 7, true), 700); } }, 600); }, { threshold: 0.6 }).observe(root);
+  build(0);
+
+  // Left alone, a finger drags the divider past the thirds and lets go near one; then the Desk template.
+  let token = 0, visible = false, auto = !reduce, sc: Scene | null = null;
+  function stopAuto() { auto = false; token++; sc?.clear(); }
+  async function play(tk: number) {
+    const s = sc = new Scene(root!.querySelector<HTMLElement>(".ip-screen")!, root!, () => tk === token && visible && auto && !document.hidden);
+    const mid = (level: number) => { const l = lines[level]; return [l.x + l.w / 2, l.y + l.h / 2]; };
+    const drag = async (level: number, to: number, ms: number) => {
+      const from = level ? inner : split;
+      let [fx, fy] = mid(level);
+      await s.touch(0, fx, fy);
+      await s.tween(ms, e => { showSnaps(level, set(level, from + (to - from) * e)); [fx, fy] = mid(level); s.put(0, fx, fy); });
+      settleAnim(); set(level, snap(to)); showSnaps(level, null); [fx, fy] = mid(level);
+      await s.lift(0, fx, fy);
+    };
+    try {
+      for (;;) {
+        await s.wait(1200);
+        await drag(0, 0.35, 1100); await s.wait(1300);
+        await drag(0, 0.64, 1200); await s.wait(1600);
+        build(1); await s.wait(1600);
+        await drag(1, 0.52, 900); await s.wait(2000);
+        build(0);
+      }
+    } catch (e) { s.clear(); if (!(e instanceof Cancel)) throw e; }
+  }
+  new IntersectionObserver(([e]) => { const v = e.isIntersecting; if (v === visible) return; visible = v; token++; if (v && auto) play(token); }, { threshold: 0.5 }).observe(root);
 }

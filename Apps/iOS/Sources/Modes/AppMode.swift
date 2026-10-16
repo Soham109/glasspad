@@ -82,16 +82,7 @@ enum AppMode: String, CaseIterable, Identifiable, Sendable {
     /// Clipboard, Present, Remote and Displays: small tools in the mode menu unless shown as modes.
     var isTool: Bool { self == .clipboard || self == .present || self == .remote || self == .displays }
 
-    /// The tool's lighter symbol and spoken hint in the mode menu.
-    var toolSymbol: String {
-        switch self {
-        case .present: "play.rectangle"
-        case .remote: "appletvremote.gen4"
-        case .displays: "display.2"
-        default: "doc.on.clipboard"
-        }
-    }
-
+    /// The tool's spoken hint in the mode menu (its tile uses the mode's own symbol).
     var toolHint: String {
         switch self {
         case .present: "Opens the slide remote full screen"

@@ -21,6 +21,7 @@ struct LayoutScreen: View {
     let safeArea: EdgeInsets
     var router = AppRouter.shared
     var store = LayoutStore.shared
+    var session = MacSession.shared
 
     @State private var drag: DividerDrag?
     @State private var keyboard = KeyboardHeight()
@@ -78,12 +79,29 @@ struct LayoutScreen: View {
             }
         }
         #endif
+        // The Mac follows one pane; a Dock pane it does not follow asks for the list again
+        // every few seconds, so running apps stay current. Stops when the pane or link goes.
+        .task(id: refreshesDock && session.isConnected) {
+            guard refreshesDock && session.isConnected else { return }
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(Self.dockRefresh))
+                guard !Task.isCancelled else { return }
+                session.requestDock()
+            }
+        }
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillChangeFrameNotification)) {
             keyboard.update($0)
         }
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
             keyboard.height = 0
         }
+    }
+
+    /// Seconds between Dock list requests for a Dock pane the Mac does not follow.
+    static let dockRefresh: Double = 3
+
+    private var refreshesDock: Bool {
+        LayoutWirePlan(modes: layout.shownModes.map(\.wireMode)).refreshesDock
     }
 
     /// Light: a soft grey line. Dark: the panes sit a shade apart on a slightly lighter well.
@@ -249,7 +267,7 @@ private struct LayoutPane: View {
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: rounded ? LayoutScreen.corner : 0, style: .continuous)
         ZStack(alignment: .topLeading) {
-            palette.backgroundColor
+            SurfaceBackground()
             if let contentSize {
                 content
                     .frame(width: resizing ? contentSize.width : frame.width,
@@ -284,8 +302,9 @@ private struct LayoutPane: View {
         }
         .safeAreaPadding(insets)
         .environment(\.inLayoutPane, true)
-        // Only a pane along the top edge sits under the mode pill.
-        .environment(\.modeTopClearance, insets.top > 0 || frame.minY <= 0.5 ? nil : 14)
+        // Only a pane along the top edge sits under the mode pill: it keeps the screen's room
+        // for it (set by RootView); any other pane starts near its own top.
+        .transformEnvironment(\.modeTopClearance) { if !(insets.top > 0 || frame.minY <= 0.5) { $0 = 14 } }
         // Size classes follow the pane, not the phone: a short pane wide enough for two
         // columns lays out the way the mode does sideways, any other the way it does upright.
         .environment(\.verticalSizeClass, compact ? .compact : .regular)
@@ -303,7 +322,7 @@ private struct LayoutPane: View {
     /// What a pane shows while it is being resized: its mode's symbol on the surface.
     private var placeholder: some View {
         ZStack {
-            palette.backgroundColor
+            SurfaceBackground()
             mode.accent(palette).opacity(palette.isDark ? 0.10 : 0.06)
             VStack(spacing: 8) {
                 Image(systemName: mode.symbol)

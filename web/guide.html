@@ -1,0 +1,269 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Glasspad Guide</title>
+<meta name="description" content="How to use Glasspad: setting up, every mode, Layouts, making Actions yours, themes and help.">
+<meta name="theme-color" content="#F2F1EE">
+<script>document.documentElement.classList.add("js")</script>
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="canonical" href="https://glasspad.sohamaggarwal.com/guide">
+<meta property="og:title" content="Glasspad Guide">
+<meta property="og:description" content="How to use Glasspad, a control surface for your Mac, on your iPhone.">
+<meta property="og:url" content="https://glasspad.sohamaggarwal.com/guide">
+<meta property="og:image" content="https://glasspad.sohamaggarwal.com/og-light.png">
+<meta property="og:image:alt" content="Glasspad: a control surface for your Mac, on your iPhone">
+<meta property="og:type" content="article">
+<meta name="twitter:card" content="summary_large_image">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<svg width="0" height="0" class="sr-sprite" aria-hidden="true"><defs>
+  <symbol id="i-github" viewBox="0 0 16 16"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8.5" y="8.5" width="11" height="11" rx="2.5"/><path d="M15.5 8.5V6.5A2 2 0 0 0 13.5 4.5h-7a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h2"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></symbol>
+</defs></svg>
+
+<header class="nav" id="nav">
+  <a class="brand" href="/" aria-label="Glasspad home">
+    <img src="/icon.svg" width="26" height="26" alt="">
+    <span>Glasspad</span>
+  </a>
+  <nav class="nav-links" aria-label="Guide sections" id="navLinks">
+    <span class="nav-ind" id="navInd" aria-hidden="true"></span>
+    <a href="#start">Get started</a>
+    <a href="#modes">Modes</a>
+    <a href="#layouts">Layouts</a>
+    <a href="#yours">Actions</a>
+    <a href="#help">Help</a>
+  </nav>
+  <a class="nav-gh" href="https://github.com/Soham109/glasspad" aria-label="Glasspad on GitHub">
+    <svg width="18" height="18" aria-hidden="true"><use href="#i-github"/></svg>
+  </a>
+  <button class="nav-menu" id="navMenu" aria-expanded="false" aria-controls="navSheet">Menu</button>
+</header>
+<nav class="nav-sheet" id="navSheet" aria-label="Guide sections">
+  <a href="#start">Get started</a>
+  <a href="#modes">Modes</a>
+  <a href="#layouts">Layouts</a>
+  <a href="#yours">Actions</a>
+  <a href="#help">Help</a>
+  <a href="/">Home</a>
+</nav>
+
+<main id="main" class="g">
+
+<header class="g-hero wrap">
+  <h1>Guide</h1>
+  <p class="lede">Everything Glasspad does, a few lines each.</p>
+</header>
+
+<!-- Get started -->
+<section class="g-sec wrap" id="start" aria-labelledby="start-t">
+  <h2 id="start-t">Get started</h2>
+  <ol class="g-steps">
+    <li><b>Install.</b> Paste this into Terminal on your Mac. It walks you through Xcode, your Apple ID and the iPhone, and waits for you where Apple needs a click.
+      <div class="g-cmd"><code>curl -fsSL https://raw.githubusercontent.com/Soham109/glasspad/main/install.sh | bash</code>
+        <button class="copy" type="button" data-copy="curl -fsSL https://raw.githubusercontent.com/Soham109/glasspad/main/install.sh | bash" aria-label="Copy the install command">
+          <svg width="15" height="15" class="ic-copy" aria-hidden="true"><use href="#i-copy"/></svg><svg width="15" height="15" class="ic-check" aria-hidden="true"><use href="#i-check"/></svg><span>Copy</span>
+        </button></div>
+      <span class="g-more">Every step, with pictures: <a href="/#get">Install</a>.</span></li>
+    <li><b>Allow Accessibility.</b> When System Settings opens, switch Glasspad on so it can move the pointer.</li>
+    <li><b>Pair.</b> Click Glasspad in the menu bar, choose Pair Your iPhone&hellip; and scan the code with the Glasspad app or the Camera.</li>
+  </ol>
+  <div class="g-row">
+    <figure class="g-fig"><img src="/img/screens/menu.png" width="350" height="644" alt="The mode menu: Trackpad, Keyboard, Media, Dock and Actions, your layouts, then Clipboard, Present, Remote, Displays, Rotation Locked and Settings" loading="lazy" decoding="async"></figure>
+    <div class="g-text">
+      <h3>Switching modes</h3>
+      <ul>
+        <li>Tap the mode button at the top of the screen for the mode menu.</li>
+        <li>Clipboard, Present, Remote and Displays open full screen from the same menu.</li>
+        <li>Settings is there too: Appearance, Trackpad, Haptics, the modes you show, Advanced and About.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- Modes -->
+<section class="g-sec wrap" id="modes" aria-labelledby="modes-t">
+  <h2 id="modes-t">Modes</h2>
+  <div class="g-grid">
+    <article class="g-card wide">
+      <figure class="g-fig"><img src="/img/screens/trackpad.png" width="640" height="349" alt="Trackpad, sideways, with three finger dots" loading="lazy" decoding="async"></figure>
+      <div class="g-text"><h3>Trackpad</h3><ul>
+        <li>One finger moves the pointer. Tap to click, and feel it.</li>
+        <li>Hold a finger still for a moment to force click.</li>
+        <li>Two fingers scroll, pinch to zoom, or tap for a right click.</li>
+        <li>Three fingers swipe between Spaces, or up for Mission Control.</li>
+      </ul></div>
+    </article>
+    <article class="g-card">
+      <figure class="g-fig"><img src="/img/screens/keyboard.png" width="350" height="644" alt="Keyboard: modifier keys, shortcuts and arrows above the iPhone keyboard" loading="lazy" decoding="async"></figure>
+      <div class="g-text"><h3>Keyboard</h3><ul>
+        <li>Type or dictate. The text lands wherever the cursor is on the Mac.</li>
+        <li>control, option, command and shift, the usual shortcuts, arrows, and fn for F1 to F12.</li>
+      </ul></div>
+    </article>
+    <article class="g-card">
+      <figure class="g-fig"><img src="/img/screens/media.png" width="350" height="644" alt="Media: artwork, the song, scrubber, controls, volume and brightness" loading="lazy" decoding="async"></figure>
+      <div class="g-text"><h3>Media</h3><ul>
+        <li>What is playing in Spotify, Music, Podcasts or a browser.</li>
+        <li>Drag to scrub. Set the volume, the sound output and the screen brightness.</li>
+      </ul></div>
+    </article>
+    <article class="g-card">
+      <figure class="g-fig"><img src="/img/screens/dock.png" width="350" height="644" alt="Dock: the Mac's apps in a grid, with dots under open ones" loading="lazy" decoding="async"></figure>
+      <div class="g-text"><h3>Dock</h3><ul>
+        <li>Your Mac's Dock. Tap an app to open it or switch to it.</li>
+        <li>Touch and hold an app to hide or quit it.</li>
+        <li>The <span class="g-k">&middot;&middot;&middot;</span> menu hides the Mac's own Dock, always or only while connected.</li>
+      </ul></div>
+    </article>
+    <article class="g-card">
+      <figure class="g-fig"><img src="/img/screens/actions.png" width="350" height="644" alt="Actions: Safari's buttons on top, Pinned buttons below" loading="lazy" decoding="async"></figure>
+      <div class="g-text"><h3>Actions</h3><ul>
+        <li>The top follows the app in front on your Mac. More than 70 apps have their own buttons.</li>
+        <li>Pinned holds yours. See <a href="#yours">Make Actions yours</a>.</li>
+      </ul></div>
+    </article>
+    <article class="g-card">
+      <figure class="g-fig"><img src="/img/screens/remote.png" width="350" height="644" alt="Remote: a large touch pad, skip and pause buttons, and Search, Skip Intro, Full Screen and Mute" loading="lazy" decoding="async"></figure>
+      <div class="g-text"><h3>Remote</h3><ul>
+        <li>Tap the pad to play or pause. Swipe sideways to skip 10 seconds, up or down for volume.</li>
+        <li>The buttons follow the player: Skip Intro on Netflix, Subtitles and Next on YouTube.</li>
+        <li>Search types on the Mac and presses Return. The screen stays dark and dim.</li>
+      </ul></div>
+    </article>
+    <article class="g-card">
+      <figure class="g-fig"><img src="/img/screens/present.png" width="350" height="644" alt="Present: a timer, the laser pad, and large Back and Next buttons" loading="lazy" decoding="async"></figure>
+      <div class="g-text"><h3>Present</h3><ul>
+        <li>Large Next and Back buttons, and a timer.</li>
+        <li>Touch and hold the pad to point with a laser on the slide.</li>
+      </ul></div>
+    </article>
+    <article class="g-card">
+      <figure class="g-fig"><img src="/img/screens/clipboard.png" width="350" height="644" alt="Clipboard: Send to Mac with Paste, Get from Mac with Get Clipboard" loading="lazy" decoding="async"></figure>
+      <div class="g-text"><h3>Clipboard</h3><ul>
+        <li>Send to Mac: tap Paste to send what you copied on the iPhone, text or an image.</li>
+        <li>Get from Mac: tap Get Clipboard to copy what your Mac has copied.</li>
+      </ul></div>
+    </article>
+    <article class="g-card">
+      <figure class="g-fig"><img src="/img/screens/displays.png" width="350" height="644" alt="Displays: the Built-in Retina Display and a Studio Display with their windows, and the list of windows" loading="lazy" decoding="async"></figure>
+      <div class="g-text"><h3>Displays</h3><ul>
+        <li>Your displays as in System Settings, with every window on them.</li>
+        <li>Tap a window to bring it forward, or drag it to another display.</li>
+        <li>Touch and hold a window for the halves, Fill, Center and Split With.</li>
+        <li>The settings button sets brightness, resolution, Night Shift and the main display.</li>
+      </ul></div>
+    </article>
+  </div>
+</section>
+
+<!-- Layouts -->
+<section class="g-sec wrap" id="layouts" aria-labelledby="layouts-t">
+  <h2 id="layouts-t">Layouts</h2>
+  <div class="g-row land">
+    <figure class="g-fig"><img src="/img/screens/layouts.png" width="640" height="349" alt="A layout with three panes: Trackpad on the left, Media above Actions on the right" loading="lazy" decoding="async"></figure>
+    <div class="g-text"><ul>
+      <li>In the mode menu, tap New and start from a template: Desk, Type, Listen, Couch, Studio, Presenter, StandBy and more.</li>
+      <li>Up to three panes. Tap a pane to change its mode.</li>
+      <li>Drag the line to resize; it rests on thirds and the middle. Double tap it to even out, or drag it off the edge to remove a pane.</li>
+      <li>Your layouts sit in the mode menu, next to the modes.</li>
+    </ul></div>
+  </div>
+</section>
+
+<!-- StandBy -->
+<section class="g-sec wrap" id="standby" aria-labelledby="standby-t">
+  <h2 id="standby-t">StandBy</h2>
+  <div class="g-row land">
+    <figure class="g-fig"><img src="/img/screens/standby.png" width="640" height="349" alt="StandBy, sideways: a large clock beside Now Playing" loading="lazy" decoding="async"></figure>
+    <div class="g-text"><ul>
+      <li>Pick the StandBy layout, or Clock and Trackpad, and stand the iPhone up while it charges.</li>
+      <li>Tap the clock to change its face: digital, analog or minimal. Now Playing and Calendar can sit beside it.</li>
+      <li>At night everything turns a dim red.</li>
+    </ul></div>
+  </div>
+</section>
+
+<!-- Make Actions yours -->
+<section class="g-sec wrap" id="yours" aria-labelledby="yours-t">
+  <h2 id="yours-t">Make Actions yours</h2>
+  <div class="g-grid">
+    <article class="g-card">
+      <figure class="g-fig"><img src="/img/screens/library.png" width="350" height="644" alt="Library: search, Pinned, Record New Macro, and apps with add buttons" loading="lazy" decoding="async"></figure>
+      <div class="g-text"><h3>Library</h3><ul>
+        <li>Tap + in Pinned. Every app, Mac control, macro, shortcut and website is here.</li>
+        <li>Search, then tap + to pin. Tap the check to unpin.</li>
+      </ul></div>
+    </article>
+    <article class="g-card">
+      <figure class="g-fig"><img src="/img/screens/website.png" width="350" height="644" alt="Edit Button for a GitHub website button, with name, symbol, color and size" loading="lazy" decoding="async"></figure>
+      <div class="g-text"><h3>Any button</h3><ul>
+        <li>Touch and hold a button to change its name, symbol, color and size.</li>
+        <li>Add a website and its logo appears by itself.</li>
+      </ul></div>
+    </article>
+    <article class="g-card">
+      <figure class="g-fig"><img src="/img/screens/folder.png" width="350" height="644" alt="An open Windows folder with Left Half, Right Half, Fill, Split Screen and Next Display" loading="lazy" decoding="async"></figure>
+      <div class="g-text"><h3>Folders</h3><ul>
+        <li>Add a Folder, save it, then tap it and add buttons inside.</li>
+        <li>Edit, next to the app's name, changes the buttons for that app.</li>
+      </ul></div>
+    </article>
+    <article class="g-card">
+      <figure class="g-fig hud"><img src="/img/screens/macros-hud.png" width="293" height="96" alt="On the Mac while recording: Recording Macro, with a Stop button" loading="lazy" decoding="async"></figure>
+      <div class="g-text"><h3>Macros</h3><ul>
+        <li>In the Library, tap Record New Macro and do the steps on your Mac.</li>
+        <li>The macro becomes a button in Pinned. Tap it to replay the steps.</li>
+      </ul></div>
+    </article>
+  </div>
+</section>
+
+<!-- Themes -->
+<section class="g-sec wrap" id="themes" aria-labelledby="themes-t">
+  <h2 id="themes-t">Themes</h2>
+  <div class="g-row">
+    <figure class="g-fig"><img src="/img/screens/themes.png" width="350" height="644" alt="Settings, Appearance: the theme picker" loading="lazy" decoding="async"></figure>
+    <div class="g-text"><ul>
+      <li data-themes>Settings, then Appearance.</li>
+      <li>Finger Dots, where the mode button sits, and Left-Handed are set there too.</li>
+    </ul></div>
+  </div>
+</section>
+
+<!-- Help -->
+<section class="g-sec wrap" id="help" aria-labelledby="help-t">
+  <h2 id="help-t">Help</h2>
+  <dl class="g-help">
+    <dt>The pointer does not move</dt>
+    <dd>System Settings &rsaquo; Privacy &amp; Security &rsaquo; Accessibility: switch Glasspad off and on. Reinstalls can reset it.</dd>
+    <dt>The iPhone cannot find the Mac</dt>
+    <dd>Put both on the same Wi-Fi, and allow Local Network in Settings &rsaquo; Privacy &amp; Security &rsaquo; Local Network &rsaquo; Glasspad.</dd>
+    <dt>Media shows no song from Spotify or Music</dt>
+    <dd>System Settings &rsaquo; Privacy &amp; Security &rsaquo; Automation &rsaquo; Glasspad: switch on Spotify and Music.</dd>
+    <dt>The app stopped opening after a week</dt>
+    <dd>With a free Apple ID, your Mac renews the app over Wi-Fi before the 7 days are up. It could not reach the phone in time: bring the phone onto the Mac's Wi-Fi and run <code>~/Projects/glasspad/scripts/refresh-phone.sh --now</code>.</dd>
+    <dt>Is anything sent over the internet?</dt>
+    <dd>No. Glasspad pairs once with a QR code, encrypts everything and stays on your Wi-Fi. There is no account.</dd>
+  </dl>
+</section>
+
+</main>
+
+<footer class="foot">
+  <nav class="foot-links wrap" aria-label="Project links">
+    <a href="/">Home</a>
+    <a href="https://github.com/Soham109/glasspad">GitHub</a>
+    <a href="https://github.com/Soham109/glasspad/blob/main/LICENSE">MIT License</a>
+    <a class="foot-by" href="https://sohamaggarwal.com">Made by Soham Aggarwal</a>
+  </nav>
+</footer>
+
+<script type="module" src="/src/guide.ts"></script>
+</body>
+</html>

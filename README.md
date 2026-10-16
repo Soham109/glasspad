@@ -1,121 +1,75 @@
 <h1 align="center">Glasspad</h1>
 
-<p align="center"><b>Your iPhone, as a Mac trackpad</b></p>
+<p align="center"><b>A control surface for your Mac, on your iPhone.</b></p>
 
 <p align="center">
-A control surface for your Mac. A trackpad you can feel, plus a keyboard, media, your Dock, buttons that follow the app in front, a couch remote and split screen layouts.
+  <a href="https://glasspad.sohamaggarwal.com">Website</a> &middot;
+  <a href="https://glasspad.sohamaggarwal.com/guide">Guide</a> &middot;
+  <a href="https://www.youtube.com/watch?v=6AArTWOADGc">Film</a>
 </p>
 
 <p align="center">
   <img alt="license" src="https://img.shields.io/badge/license-MIT-blue.svg">
-  <img alt="platform" src="https://img.shields.io/badge/macOS-14%2B-lightgrey">
-  <img alt="platform" src="https://img.shields.io/badge/iOS-18%2B-lightgrey">
+  <img alt="macOS" src="https://img.shields.io/badge/macOS-14%2B-lightgrey">
+  <img alt="iOS" src="https://img.shields.io/badge/iOS-18%2B-lightgrey">
   <img alt="status" src="https://img.shields.io/badge/status-0.1.0%20unreleased-orange">
-  <a href="https://glasspad.sohamaggarwal.com"><img alt="Website" src="https://img.shields.io/badge/website-glasspad-1a1a1a"></a>
-  <a href="https://www.youtube.com/watch?v=6AArTWOADGc"><img alt="Demo" src="https://img.shields.io/badge/demo-YouTube-red?logo=youtube&logoColor=white"></a>
 </p>
 
 <p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/img/hero-dark.png">
-    <img src="docs/img/hero-light.png" alt="An iPhone held sideways, split in two: a trackpad on the left, buttons for Safari on the right" width="820">
-  </picture>
+  <img src="docs/img/hero.png" alt="Three iPhones: Remote for a film on Netflix, Actions for Safari, and Media playing a song in Spotify" width="820">
 </p>
 
-<p align="center"><sub>Trackpad beside Actions, one of the split screen layouts.</sub></p>
+A small menu bar app on your Mac and an app on your iPhone, on the same Wi-Fi. Free, private and open source.
 
----
-
-## What it is
-
-Two apps on the same Wi-Fi: a small menu bar app on your Mac and the Glasspad app on your iPhone. The phone becomes whatever you need next to your keyboard.
-
-- **Private.** No accounts, no servers, no tracking. Nothing leaves your network.
-- **Free and open source.** MIT licensed.
-- **One command to install.**
-
-## What you can do with it
+## Features
 
 | | |
 | --- | --- |
-| **Trackpad** | Move, click, drag, scroll, pinch, swipe between Spaces. A small tap you can feel on every click. |
-| **Keyboard** | Type and dictate, with shortcut keys. |
-| **Media** | Now playing with artwork, scrubbing, volume and brightness. |
-| **Dock** | Your Mac's Dock on the phone. Tap to open, hold to quit or hide. |
-| **Actions** | Buttons that follow the app in front. Pinned keeps your own: Do Not Disturb, window tiling, Night Shift, Keep Awake, screenshots, macros, Shortcuts and websites. |
-| **Remote** | A couch remote for Netflix and YouTube, with keys for each app and typing to search. |
-| **Layouts** | Two modes side by side, such as Trackpad and Actions. Drag the divider, use a template or save your own. |
-| **Also** | Clipboard between phone and Mac, Present for slides, and themes (Paper, Graphite, Mono, or match your iPhone). |
+| **Trackpad** | Move, click, scroll, pinch and swipe between Spaces, with a tap you can feel on every click. |
+| **Keyboard** | Type or dictate. Modifier keys, shortcuts, arrows and F1 to F12. |
+| **Media** | What is playing in Spotify, Music or a browser: artwork, scrubbing, sound output, volume and screen brightness. |
+| **Dock** | Your Mac's Dock. Tap to open, hold to hide or quit, and hide the Mac's own Dock. |
+| **Actions** | Buttons that follow the app in front, for more than 70 apps. |
+| **Pinned** | Your own buttons: Do Not Disturb, Night Shift, Keep Awake, Split Screen and window tiling, screenshots, apps, and websites with their real logos. Folders keep them tidy; the Library finds anything. |
+| **Macros** | Record steps on your Mac once, replay them with a tap. |
+| **Shortcuts** | Run any shortcut from the Shortcuts app on your Mac. |
+| **Remote** | A touch pad like the Siri Remote: tap to pause, swipe to skip 10 seconds, up or down for volume. The keys follow the player, and Search types on the Mac. |
+| **Present** | Next and Back, a timer, and a laser you steer with one finger. |
+| **Clipboard** | Text and images, both ways. |
+| **Displays** | Every display and its windows. Move a window to another display or tile it, and set brightness, resolution and Night Shift. |
+| **Layouts** | Up to three modes on one screen. The divider rests on thirds and the middle; your layouts sit in the mode menu. |
+| **StandBy** | A clock beside Now Playing or your calendar while the iPhone charges, in dim red at night. |
+| **Themes** | Eight themes, from Paper to Glass, or follow the system. |
+| **Private** | Paired by QR code, encrypted, no account. Nothing leaves your Wi-Fi. |
 
 <p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/img/modes-dark.png">
-    <img src="docs/img/modes-light.png" alt="Keyboard, Media and Dock on three iPhones" width="820">
-  </picture>
+  <img src="docs/img/modes.png" alt="Four iPhones: the Mac's Dock, Present, Clipboard and Displays" width="820">
 </p>
 
 <p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/img/remote-dark.png">
-    <img src="docs/img/remote-light.png" alt="A TV showing a streaming app and an iPhone used as its remote" width="820">
-  </picture>
+  <img src="docs/img/layouts.png" alt="Two iPhones held sideways: a layout with Trackpad, Media and Actions, and StandBy with a clock beside Now Playing" width="820">
+</p>
+<p align="center"><sub>The layout on the left is drawn. Every other picture is the app.</sub></p>
+
+<p align="center">
+  <img src="docs/img/themes.png" alt="Four themes: Actions in Glass, Media in Glass Dark, Dock in Midnight and Media in Mono" width="820">
 </p>
 
 ## Install
 
-You need a Mac on macOS 14 or newer with Xcode (free on the App Store), an iPhone on iOS 18 or newer, a cable for the first install, and a free Apple ID.
-
-Paste this into Terminal:
+You need a Mac on macOS 14 or later with Xcode (free on the App Store), an iPhone on iOS 18 or later, a cable for the first install, and a free Apple ID. Paste this into Terminal:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/Soham109/glasspad/main/install.sh | bash
 ```
 
-It walks you through each step. Whatever it can do alone, it does; whenever Apple needs you to click or tap, it tells you exactly where and waits until it sees you did it. Safe to run again: finished steps are skipped.
+It does what it can by itself and waits for you where Apple needs a click: Xcode, your Apple ID, Accessibility for the Mac app, and Developer Mode and trust on the iPhone. It is safe to run again. Then click Glasspad in the menu bar, choose **Pair Your iPhone…** and scan the code.
 
-What it does, in order:
-
-1. **Xcode.** Opens the App Store page if Xcode is missing, then accepts its license and one-time setup (asks for your Mac password).
-2. **Build tools.** Downloads XcodeGen, the tool that creates the Xcode project.
-3. **Source.** Downloads Glasspad into `~/Projects/glasspad` (or updates it).
-4. **Your Apple account.** Asks you to sign in to Xcode with your Apple ID and pick your name as the team.
-5. **Mac app.** Installs Glasspad in Applications and starts it in the menu bar. You switch on Accessibility for it, so it can move the pointer.
-6. **iPhone.** Asks you to plug in and trust the Mac, and turn on Developer Mode. Then it builds and installs the app. The first time, you trust your Apple ID on the phone.
-7. **Automatic renewal.** Sets your Mac to renew the iPhone app before the 7-day limit (see the FAQ).
-
-Then pair: click the Glasspad icon in your Mac's menu bar, choose **Pair new iPhone**, and scan the code with the Glasspad app or the iPhone Camera.
-
-## FAQ
-
-**Why does a free Apple ID matter?** Apps you install yourself with a free Apple ID stop opening after 7 days. Glasspad handles this for you: your Mac checks every hour and, once the install is 5 days old, reinstalls the same version over Wi-Fi. You get a notification when it is done. Your Mac needs to be awake and your iPhone on the same Wi-Fi at some point in those two days. A paid developer account lasts a year instead.
-
-**Can I turn automatic renewal off?** Yes: `~/Projects/glasspad/scripts/setup-autorefresh.sh --remove`. Its log is in `~/Library/Logs/Glasspad/refresh.log`.
-
-**Why not the App Store?** Real gestures like Mission Control and Spaces swipes need parts of macOS the App Store does not allow. Each has a fallback that works without them.
-
-**Over the internet?** No. Same Wi-Fi only.
-
-**How fast is it?** Built for the shortest possible delay. Numbers will be published once measured on real devices.
-
-**Can others on my Wi-Fi use it?** Not without the key from your QR code.
-
-**More than one Mac or iPhone?** Pair several Macs and pick one from the mode menu. A Mac follows one iPhone at a time.
-
-## Troubleshooting
-
-**The pointer does not move after a reinstall or update.** macOS can quietly switch Accessibility off when the app is replaced. Open System Settings > Privacy & Security > Accessibility, switch Glasspad off and on again. If that does not help, remove it with the minus button and run the installer again.
-
-**Media shows no song from Spotify.** The first time, macOS asks whether Glasspad may control Spotify. Click OK. If you clicked Don't Allow, open System Settings > Privacy & Security > Automation, find Glasspad and switch Spotify on.
-
-**The iPhone app will not install or open.**
-- *Developer Mode:* on the iPhone, Settings > Privacy & Security > Developer Mode (at the bottom) > On. The phone restarts; after unlocking, tap Turn On and enter your passcode.
-- *Untrusted developer:* Settings > General > VPN & Device Management > your Apple ID > Trust.
-
-**The iPhone app stopped opening after a week.** Renewal could not reach the phone in time. Bring the phone onto your Mac's Wi-Fi (or plug it in) and run `~/Projects/glasspad/scripts/refresh-phone.sh --now`.
+With a free Apple ID, apps you install yourself stop opening after 7 days. Your Mac renews Glasspad over Wi-Fi before then. Every step, and help when something goes wrong, is in the [guide](https://glasspad.sohamaggarwal.com/guide).
 
 ## Security
 
-- Pair by scanning a QR code. The key lives in the Keychain, Apple's encrypted store for secrets, on both devices.
+- The pairing key lives in the Keychain on both devices.
 - Every message is encrypted (ChaCha20-Poly1305) with a fresh key per connection, and replays are rejected.
 - Remove a phone from the Mac menu to revoke it.
 
@@ -130,24 +84,12 @@ xcodegen generate
 open Glasspad.xcodeproj
 ```
 
-Run the **Glasspad Mac** scheme, then **Glasspad iOS** on your iPhone with your Apple ID under Signing. Scripts for each piece live in `scripts/`.
-
-## Roadmap
-
-- [ ] First tagged release (0.1.0)
-- [ ] Measured latency numbers on real hardware
-- [ ] Signed and notarized Mac download
-- [ ] Shareable macro files
-- [ ] iPad support
+Run the **Glasspad Mac** scheme, then **Glasspad iOS** on your iPhone with your Apple ID under Signing. Scripts for each piece are in `scripts/`. The website is in `web/`, and `web/scripts/readme-images.mjs` makes the pictures above.
 
 ## Contributing
 
-Bug reports, ideas and pull requests are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md). To report a security problem, see [SECURITY.md](SECURITY.md).
+Bug reports, ideas and pull requests are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
-## Credits
+## Credits and license
 
-Demo film music: "Uplifting Electronic Indie" by WinnieTheMoog, [CC BY 4.0](https://creativecommons.org/licenses/by/4.0), from [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Uplifting_Electronic_Indie_by_WinnieTheMoog.ogg). Details in [promo/MUSIC.md](promo/MUSIC.md).
-
-## License
-
-[MIT](LICENSE), copyright 2026 Soham Aggarwal.
+Film music: "Uplifting Electronic Indie" by WinnieTheMoog, [CC BY 4.0](https://creativecommons.org/licenses/by/4.0). [MIT](LICENSE), copyright 2026 Soham Aggarwal.
