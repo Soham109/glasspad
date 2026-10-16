@@ -15,7 +15,10 @@ struct ModeSwitcher: View {
     var store = PairingStore.shared
 
     @State private var visible = true
-    @State private var expanded = false
+    /// Starts open already when asked to (screenshots). Opening it from `onAppear` instead
+    /// swapped the pill's glass for the menu's in the first frame, which the glass container
+    /// cannot do ("glassEffect() tried to update multiple times per frame").
+    @State private var expanded = ModeSwitcher.opensAtLaunch
     @State private var hideTask: Task<Void, Never>?
     @Namespace private var glass
 
@@ -73,14 +76,19 @@ struct ModeSwitcher: View {
         .animation(.spring(response: 0.38, dampingFraction: 0.82), value: expanded)
         .animation(.easeInOut(duration: 0.2), value: session.isConnected)
         .onAppear {
-            #if DEBUG
-            if DebugLaunch.showMenuAtLaunch { expanded = true }
-            #endif
             scheduleHide()
         }
         .onChange(of: router.mode) { reveal() }
         .onChange(of: router.layoutID) { reveal() }
         .onChange(of: voiceOver) { reveal() }
+    }
+
+    private static var opensAtLaunch: Bool {
+        #if DEBUG
+        DebugLaunch.showMenuAtLaunch
+        #else
+        false
+        #endif
     }
 
     /// On iOS 26 the glass itself morphs between pill and menu; before that they scale and fade.

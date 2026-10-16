@@ -104,12 +104,12 @@ struct DockMode: View {
                 Button("Hidden Apps", systemImage: "eye.slash") { showHidden = true }
             }
             Divider()
-            Toggle(isOn: macDockBinding(\.hidden)) {
+            Picker(selection: macDockHiding) {
+                ForEach(MacDockHiding.allCases, id: \.self) { Text($0.title).tag($0) }
+            } label: {
                 Label("Hide Mac Dock", systemImage: "dock.rectangle")
             }
-            Toggle(isOn: macDockBinding(\.hideWhileConnected)) {
-                Label("Hide Mac Dock While Connected", systemImage: "link")
-            }
+            .pickerStyle(.menu)
             Divider()
             Picker("Icon Size", selection: $settings.dockDensity) {
                 Text("Small").tag(DockDensity.compact)
@@ -128,14 +128,12 @@ struct DockMode: View {
         .accessibilityLabel("Dock options")
     }
 
-    private func macDockBinding(_ key: WritableKeyPath<MacDockState, Bool>) -> Binding<Bool> {
+    private var macDockHiding: Binding<MacDockHiding> {
         Binding {
-            session.macDockState?[keyPath: key] ?? false
-        } set: { on in
-            var s = session.macDockState ?? MacDockState(hidden: false, hideWhileConnected: false)
-            s[keyPath: key] = on
+            MacDockHiding(session.macDockState)
+        } set: { choice in
             Haptics.shared.tap()
-            session.setMacDock(s)
+            session.setMacDock(choice.state)
         }
     }
 

@@ -2,8 +2,9 @@ import GlasspadKit
 import SwiftUI
 
 /// The layouts in the mode menu, under the modes: one tap opens a layout, a long press
-/// edits, copies or deletes it, and the last tile makes a new one. With no layouts yet it is
-/// a single quiet "New Layout" tile. The tiles are the menu's own (`MenuTile`).
+/// edits, copies or deletes it, and the + at the end of the "Layouts" line makes a new one
+/// (a tile for it would sit alone on a row after five). With no layouts yet it is a single
+/// quiet "New Layout" tile. The tiles are the menu's own (`MenuTile`).
 struct LayoutMenuRow: View {
     @Environment(\.palette) private var palette
     @Environment(\.verticalSizeClass) private var verticalSize
@@ -15,24 +16,32 @@ struct LayoutMenuRow: View {
 
     var body: some View {
         Group {
-            if store.layouts.count < Self.columns * 2 {
-                // In the modes' five columns, the New tile last: one row, or two.
+            if store.layouts.isEmpty {
                 LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: ModeSwitcher.tileSpacing), count: Self.columns),
                           spacing: ModeSwitcher.tileSpacing) {
-                    ForEach(store.layouts) { layout in tile(layout, width: nil) }
-                    newTile(width: nil)
+                    newTile
                 }
             } else {
-                // Many layouts scroll sideways; the last one showing is cut by the edge, which
-                // says there are more.
-                ScrollView(.horizontal) {
-                    HStack(spacing: ModeSwitcher.tileSpacing) {
-                        ForEach(store.layouts) { layout in tile(layout, width: Self.scrollingWidth) }
-                        newTile(width: Self.scrollingWidth)
+                VStack(spacing: 2) {
+                    header
+                    if store.layouts.count <= Self.columns * 2 {
+                        // In the modes' five columns: one row, or two.
+                        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: ModeSwitcher.tileSpacing), count: Self.columns),
+                                  spacing: ModeSwitcher.tileSpacing) {
+                            ForEach(store.layouts) { layout in tile(layout, width: nil) }
+                        }
+                    } else {
+                        // Many layouts scroll sideways; the last one showing is cut by the edge,
+                        // which says there are more.
+                        ScrollView(.horizontal) {
+                            HStack(spacing: ModeSwitcher.tileSpacing) {
+                                ForEach(store.layouts) { layout in tile(layout, width: Self.scrollingWidth) }
+                            }
+                        }
+                        .scrollIndicators(.hidden)
+                        .scrollBounceBehavior(.basedOnSize)
                     }
                 }
-                .scrollIndicators(.hidden)
-                .scrollBounceBehavior(.basedOnSize)
             }
         }
         .confirmationDialog(deleting.map { "Delete \($0.name)?" } ?? "",
@@ -57,9 +66,9 @@ struct LayoutMenuRow: View {
             close()
         } label: {
             MenuTile(title: layout.name, selected: current) {
-                // Drawn the way the screen splits now, in the modes' colours.
-                LayoutDiagram(layout: layout, landscape: landscape, showsSymbols: false, vivid: true)
-                    .frame(height: landscape ? 22 : 30)
+                // Its modes' symbols, in their colours, as the panes share the screen.
+                LayoutGlyph(layout: layout)
+                    .frame(width: 46, height: landscape ? 24 : 28)
             }
             .frame(width: width)
         }
@@ -83,18 +92,43 @@ struct LayoutMenuRow: View {
         .accessibilityAction(named: "Edit") { edit(layout) }
     }
 
-    private func newTile(width: CGFloat?) -> some View {
+    private var newTile: some View {
         Button(action: openGallery) {
-            MenuTile(title: store.layouts.isEmpty ? "New Layout" : "New", soft: true) {
+            MenuTile(title: "New Layout", soft: true) {
                 Image(systemName: "plus")
                     .font(.title3.weight(.medium))
                     .foregroundStyle(palette.inkSoftColor)
             }
-            .frame(width: width)
         }
         .buttonStyle(TileStyle())
-        .accessibilityLabel(store.layouts.isEmpty ? "New Layout" : "Layouts")
-        .accessibilityHint(store.layouts.isEmpty ? "Puts two or three modes on one screen" : "Make a new layout or change your layouts")
+        .accessibilityLabel("New Layout")
+        .accessibilityHint("Puts two or three modes on one screen")
+    }
+
+    /// "Layouts", with a small + at its end for a new one.
+    private var header: some View {
+        HStack {
+            Text("Layouts")
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(palette.inkSoftColor)
+                .accessibilityAddTraits(.isHeader)
+            Spacer(minLength: 0)
+            Button(action: openGallery) {
+                Image(systemName: "plus")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(palette.inkColor)
+                    .frame(width: 26, height: 26)
+                    .background(Circle().fill(palette.inkColor.opacity(palette.isDark ? 0.14 : 0.07)))
+                    .frame(width: 44, height: 36)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(TileStyle())
+            .accessibilityLabel("New Layout")
+            .accessibilityHint("Make a new layout or change your layouts")
+        }
+        // The word lines up with the round button in the menu's top corner, the + with the one
+        // at the other end.
+        .padding(.leading, 4)
     }
 
     private func openGallery() {

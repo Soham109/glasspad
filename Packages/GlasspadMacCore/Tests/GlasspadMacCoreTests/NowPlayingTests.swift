@@ -151,6 +151,23 @@ private let sep = ScriptablePlayer.separator
         adapter.stop()
     }
 
+    /// The helper's last words before it exits (here why it cannot work, without a final
+    /// newline) are read, not lost with the pipe: Glasspad gives up at once instead of
+    /// restarting it.
+    @Test func lastOutputBeforeExitIsRead() async {
+        let adapter = NowPlayingAdapter(library: URL(fileURLWithPath: "/dev/null"), launcher: { _ in
+            (URL(fileURLWithPath: "/bin/sh"), ["-c", #"echo '{"type":"data","diff":false,"payload":null}'; printf '{"type":"error","message":"MediaRemote said no"}'; exit 2"#])
+        })
+        adapter.restartDelays = [0.05]
+        var events: [AdapterStreamParser.Event] = []
+        adapter.onEvent = { events.append($0) }
+        adapter.start()
+        #expect(await waitFor(5) { adapter.status == .unavailable("MediaRemote said no") })
+        #expect(events == [.nothing, .failed("MediaRemote said no")])
+        #expect(adapter.launches == 1)
+        adapter.stop()
+    }
+
     /// A helper that ran for a good while before it died is restarted with a short pause again.
     @Test func longRunResetsTheBackoff() async {
         let adapter = NowPlayingAdapter(library: URL(fileURLWithPath: "/dev/null"), launcher: { _ in

@@ -16,7 +16,7 @@ public enum SynthGesture: String, CaseIterable, Sendable, Codable {
         case .spaces: "Swipe between spaces"
         case .missionControl: "Mission Control"
         case .appExpose: "App Exposé"
-        case .launchpad: "Launchpad"
+        case .launchpad: "Apps"
         case .showDesktop: "Show Desktop"
         case .lookUp: "Look Up"
         case .forceClick: "Force click"

@@ -9,8 +9,8 @@ import { phone, fitAll, tl, tlApp, settle, reduce, Scene } from "./kit";
 const cursor = '<svg class="md-cursor" viewBox="0 0 16 22"><path d="M1 1v17l4.6-4.4 3 6.9 3-1.3-3-6.8H15Z" fill="#1A1A1A" stroke="#fff" stroke-width="1.4" stroke-linejoin="round"/></svg>';
 const apple = '<svg class="mb-apple" viewBox="0 0 14 17"><path d="M11.6 9c0-2 1.6-2.9 1.7-3-1-1.4-2.4-1.6-2.9-1.6-1.2-.1-2.4.7-3 .7-.6 0-1.6-.7-2.6-.7C3.4 4.4 2.1 5.2 1.4 6.5 0 9 1 12.7 2.4 14.7c.7 1 1.5 2 2.5 2 1 0 1.4-.6 2.6-.6s1.5.6 2.6.6c1.1 0 1.8-1 2.4-2 .8-1.1 1.1-2.2 1.1-2.3 0 0-2-.8-2-3.4ZM9.7 3c.5-.7.9-1.6.8-2.5-.8 0-1.8.5-2.3 1.2-.5.6-1 1.5-.8 2.4.9.1 1.8-.5 2.3-1.1Z"/></svg>';
 /** The macOS menu bar: Apple menu, the app's menus, status items and the clock. */
-export const menuBar = (app: string, menus: string[], clock = "Fri 9:41") =>
-  `<div class="mb">${apple}<b class="mb-app">${app}</b>${menus.map(m => `<span>${m}</span>`).join("")}<span class="mb-r">${WIFI}${CC}${clock ? `<span>${clock}</span>` : ""}</span></div>`;
+export const menuBar = (app: string, menus: string[], clock = "Fri 9:41", extra = "") =>
+  `<div class="mb">${apple}<b class="mb-app">${app}</b>${menus.map(m => `<span>${m}</span>`).join("")}<span class="mb-r">${extra}${WIFI}${CC}${clock ? `<span>${clock}</span>` : ""}</span></div>`;
 const WIFI = '<svg class="mb-i" viewBox="0 0 24 24"><path d="M2.5 9.5a14 14 0 0 1 19 0M5.5 12.8a9.5 9.5 0 0 1 13 0M8.6 16a5 5 0 0 1 6.8 0"/><circle cx="12" cy="19" r="1.4" fill="currentColor" stroke="none"/></svg>';
 const CC = '<svg class="mb-i" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="6" rx="3"/><circle cx="17.5" cy="8" r="1.6" fill="currentColor"/><rect x="3" y="13" width="18" height="6" rx="3"/><circle cx="6.5" cy="16" r="1.6" fill="currentColor"/></svg>';
 const dock = (keys: string[], running: string[] = []) =>
@@ -42,7 +42,7 @@ const MENUS: Record<string, string[]> = {
 };
 const DESK = {
   key: "desk", title: "Desk", text: "Trackpad and Actions side by side on a stand. Tap Split Screen and two windows share the display.",
-  html: () => `<div class="scene uc uc-desk"><div class="uc-wall"></div><div class="sc-desk"></div>
+  html: () => `<div class="scene uc uc-desk"><div class="cam"><div class="uc-wall"></div><div class="sc-desk"></div>
     ${macbook("mb-left", `<div class="mbx">${menuBar("Mail", ["File", "Edit", "View", "Mailbox"], "")}${win("front ml", `<div class="mail"><div class="ml-l">${"<i></i>".repeat(6)}</div><div class="md-doc">${lines(6)}</div></div>`)}</div>`)}
     ${monitor("mon-c", `<div class="mbx">${menuBar("Safari", MENUS.Safari)}
       ${win("w-saf front", `<div class="md-doc">${lines(7)}</div>`, '<span class="url"></span>')}
@@ -51,8 +51,8 @@ const DESK = {
     ${standPhone("sp-desk", `<div class="pt land lyt">
       <div class="lp-pane tpad"><i class="tp-hint"></i></div><div class="lyt-div"><i></i></div>
       <div class="lp-pane ac">${front("web", "Safari")}<div class="ag f3">${tiles(SAFARI)}</div><h5>Pinned</h5>
-        <div class="ag f3">${tl("Split Screen", "square.split.2x1", "#30B0C7")}${tl("Do Not Disturb", "moon.fill", "#5E5CE6")}${tl("Screenshot", "camera.viewfinder", "#0A84FF")}</div></div></div>`)}
-  </div>`,
+        <div class="ag f3">${tl("Split Screen", "rectangle.split.2x1.fill", "#0A84FF")}${tl("Do Not Disturb", "moon.fill", "#5E5CE6")}${tl("Screenshot", "camera.viewfinder", "#0A84FF")}</div></div></div>`)}
+  </div></div>`,
   async run(s: Scene) {
     const grid = s.q(".ag.f3"), saf = s.m(".w-saf"), xc = s.m(".w-xc"), cur = s.m<SVGElement>(".mon-c .md-cursor");
     const scr = s.m(".mon-c .mon-screen"), W = () => scr.clientWidth, H = () => scr.clientHeight;
@@ -70,9 +70,16 @@ const DESK = {
     // click the Xcode window on the display: Actions follows
     await glide(0.8, 0.62); cur.classList.add("press"); await s.wait(110); cur.classList.remove("press");
     setFront("xcode");
-    await s.wait(1700);
+    await s.wait(900);
+    // move in on the phone so its buttons can be read
+    const cam = s.m(".cam");
+    cam.classList.add("close");
+    await s.wait(1300); settle(Array.from(grid.children));
+    await s.wait(1500);
     // Split Screen: the two front windows share the display
-    await s.tap(s.q('[data-b="Split Screen"]'), () => s.m(".mon-c .mbx").classList.add("split"));
+    await s.tap(s.q('[data-b="Split Screen"]'));
+    cam.classList.remove("close");
+    await s.wait(500); s.m(".mon-c .mbx").classList.add("split");
     await s.wait(2600);
     s.m(".mon-c .mbx").classList.remove("split");
     await glide(0.3, 0.42); cur.classList.add("press"); await s.wait(110); cur.classList.remove("press");
@@ -84,14 +91,14 @@ const DESK = {
 /* ---------- Studio: Final Cut Pro on a MacBook, its own buttons on the phone ---------- */
 const DUR = 0.82; // where the timeline ends, as a share of its width
 const STUDIO = {
-  key: "studio", title: "Studio", text: "Final Cut Pro in front, and the phone shows its buttons: Blade, Mark In, Snapping. More than 40 apps get their own.",
+  key: "studio", title: "Editing", text: "Final Cut Pro in front, and the phone shows its buttons: Blade, Mark In, Snapping. More than 70 apps get their own.",
   html: () => `<div class="scene uc uc-studio"><div class="uc-wall"></div><div class="sc-desk"></div>
     ${macbook("mb-studio", `<div class="mbx fcp">${menuBar("Final Cut Pro", ["File", "Edit", "Trim", "Mark", "Clip", "Modify", "View"])}
       <div class="fc-top"><div class="fc-lib">${"<i></i>".repeat(6)}</div><div class="fc-view"><div class="fc-frame"><i class="sun"></i><i class="sea"></i></div></div></div>
       <div class="fc-tl"><div class="fc-track v"><i style="left:2%;width:30%"></i><i class="b" style="left:32.4%;width:28%"></i><i style="left:60.8%;width:21%"></i></div>
         <div class="fc-track a"><i style="left:2%;width:80%"></i></div><span class="fc-cut"></span><span class="fc-in"></span><span class="fc-head"></span></div></div>`)}
     ${standPhone("sp-studio", `<div class="pt land acl"><div class="acl-a">${front("fcp", "Final Cut Pro")}<div class="ag f3">${tiles(FCP)}</div></div>
-      <div class="acl-b"><div class="ph5">Pinned</div><div class="ag f3">${tl("Do Not Disturb", "moon.fill", "#5E5CE6")}${tl("Keep Awake", "cup.and.saucer", "#A2845E")}${tl("Screenshot", "camera.viewfinder", "#0A84FF")}${tl("Night Shift", "sun.max", "#FF9F0A")}${tlApp("Music", "music")}${tl("Split Screen", "square.split.2x1", "#30B0C7")}</div></div></div>`)}
+      <div class="acl-b"><div class="ph5">Pinned</div><div class="ag f3">${tl("Do Not Disturb", "moon.fill", "#5E5CE6")}${tl("Keep Awake", "cup.and.saucer.fill", "#30B0C7")}${tl("Screenshot", "camera.viewfinder", "#0A84FF")}${tl("Night Shift", "sun.horizon.fill", "#FFD60A")}${tlApp("Music", "music")}${tl("Split Screen", "rectangle.split.2x1.fill", "#0A84FF")}</div></div></div>`)}
   </div>`,
   async run(s: Scene) {
     const head = s.m(".fc-head"), cut = s.m(".fc-cut"), mark = s.m(".fc-in"), frame = s.m(".fc-frame");
@@ -184,7 +191,7 @@ const SLIDES = [
   '<b class="sl-t big" style="width:64%"></b><i style="width:30%;margin:2cqh auto 0"></i>',
 ];
 const STAGE = {
-  key: "stage", title: "Stage", text: "Next and Back as big as your thumb, a timer, and a laser you steer with one finger.",
+  key: "stage", title: "Presenting", text: "Next and Back as big as your thumb, a timer, and a laser you steer with one finger.",
   html: () => `<div class="scene uc uc-show"><div class="uc-wall"></div><div class="uc-floor"></div>
     <div class="screen"><div class="scr-roll"></div><div class="scr-s"><div class="slide">${SLIDES[0]}</div><span class="slaser"></span><span class="sl-n">1</span></div></div>
     ${handPhone("hp-stage", `<div class="pt prs">
@@ -220,7 +227,32 @@ const STAGE = {
   },
 };
 
-const SCENES = [DESK, STUDIO, COUCH, STAGE];
+
+/* ---------- Night: StandBy on the nightstand, a clock beside Now Playing ---------- */
+const NIGHT = {
+  key: "night", title: "Night", text: "StandBy on the nightstand: a clock beside Now Playing or your calendar, in dim red when the room goes dark.",
+  html: () => `<div class="scene uc uc-night"><div class="uc-wall"></div><div class="nstand"></div><div class="lamp"><i class="shade"></i><i class="glow"></i><i class="stem"></i><i class="base"></i></div>
+    ${standPhone("sp-night", `<div class="pt land sby">
+      <div class="sb-pane clk"><div class="cd">Fri, 16 Oct <span class="chg">${glyph("bolt.fill")}82%</span></div><div class="dg"><b class="hh">10</b><b class="mm">09</b></div></div>
+      <div class="lyt-div"><i></i></div>
+      <div class="sb-pane np">${poster}<div class="npt"><b>Slow Light</b><span>Paper Rooms</span></div><div class="npc">${glyph("backward.fill")}${glyph("pause.fill")}${glyph("forward.fill")}</div></div>
+    </div>`, "dark")}
+  </div>`,
+  async run(s: Scene) {
+    const mm = s.q(".mm");
+    await s.wait(1600);
+    // a minute passes
+    mm.animate([{ opacity: 1 }, { opacity: 0 }, { opacity: 1 }], { duration: 600 }); setTimeout(() => { mm.textContent = "10"; }, 300);
+    await s.wait(2200);
+    // lights out: the clock and Now Playing turn dim red
+    s.mac.classList.add("dark");
+    await s.wait(900);
+    s.q(".sby").classList.add("red");
+    await s.wait(3600);
+  },
+};
+
+const SCENES = [DESK, STUDIO, COUCH, STAGE, NIGHT];
 
 export function initScenes() {
   const stage = document.getElementById("ucStage"), tabs = document.getElementById("ucTabs"), cap = document.getElementById("ucCap");

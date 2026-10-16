@@ -143,7 +143,7 @@ enum StepStatus: Equatable {
     case ready
     case checking
     case done
-    /// Something to do, shown in the caution colour.
+    /// Something to do, shown in the caution color.
     case needsAction
     /// Cannot tell; guidance shown.
     case unknown
@@ -175,7 +175,7 @@ struct SetupStepRow<Accessory: View>: View {
             }
             Spacer(minLength: 0)
         }
-        .padding(.vertical, 6)
+        .padding(.vertical, 4)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Step \(number), \(title), \(statusWord). \(detail)")
     }
@@ -277,36 +277,45 @@ struct SetupChecklistView: View {
     private var content: some View {
         TimelineView(.periodic(from: .now, by: 1)) { context in
             let now = context.date
-            ScrollView {
-                VStack(alignment: .leading, spacing: 22) {
+            // An inset grouped list, as Settings draws one: the summary, then one row per check
+            // with its state and at most one fix.
+            Form {
+                Section {
                     header
-                    VStack(alignment: .leading, spacing: 18) {
-                        localNetworkStep(now)
-                        Divider()
-                        connectedStep(now)
-                        Divider()
-                        accessibilityStep(now)
-                        Divider()
-                        testStep
-                    }
-                    .padding(18)
-                    .background(RoundedRectangle(cornerRadius: 22, style: .continuous).fill(palette.raisedColor))
-                    .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).strokeBorder(palette.lineColor, lineWidth: 1))
-                    footerButton
+                        .listRowBackground(Color.clear)
+                        .listRowInsets(EdgeInsets(top: 8, leading: 4, bottom: 4, trailing: 4))
                 }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 16)
-                .frame(maxWidth: 560)
-                .frame(maxWidth: .infinity)
+                Section {
+                    localNetworkStep(now)
+                    connectedStep(now)
+                    accessibilityStep(now)
+                    testStep
+                }
+                .listRowBackground(palette.raisedColor)
+                Section {
+                    footerButton
+                        .listRowBackground(Color.clear)
+                        .listRowInsets(EdgeInsets())
+                }
             }
+            .scrollContentBackground(.hidden)
+            .frame(maxWidth: 600)
+            .frame(maxWidth: .infinity)
         }
         .background(SurfaceBackground())
         .navigationTitle("Set Up")
         .navigationBarTitleDisplayMode(.inline)
+        .animation(.smooth, value: allDone)
     }
 
     private var header: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(spacing: 10) {
+            Image(systemName: allDone ? "checkmark.circle.fill" : "checklist")
+                .font(.system(size: 44, weight: .regular))
+                .symbolRenderingMode(.hierarchical)
+                .foregroundStyle(allDone ? palette.good : palette.inkColor)
+                .contentTransition(.symbolEffect(.replace))
+                .accessibilityHidden(true)
             Text(allDone ? "You're all set" : "Four quick checks")
                 .font(.title2.bold())
                 .foregroundStyle(palette.inkColor)
@@ -315,6 +324,8 @@ struct SetupChecklistView: View {
                 .foregroundStyle(palette.inkSoftColor)
                 .fixedSize(horizontal: false, vertical: true)
         }
+        .multilineTextAlignment(.center)
+        .frame(maxWidth: .infinity)
         .accessibilityElement(children: .combine)
     }
 

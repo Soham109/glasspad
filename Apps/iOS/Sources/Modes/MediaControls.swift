@@ -29,6 +29,8 @@ struct MarqueeText: View {
     private var power: PowerPolicy { PowerMonitor.shared.policy }
 
     private let gap: CGFloat = 44
+    /// Width of the fade at each edge while the text scrolls.
+    private let fade: CGFloat = 12
     private let speed: CGFloat = 32
     private let pause: TimeInterval = 2.4
 
@@ -46,14 +48,18 @@ struct MarqueeText: View {
                             .frame(width: geo.size.width, alignment: alignment == .leading ? .leading : .center)
                     } else {
                         TimelineView(.animation(minimumInterval: power.decorativeFrameInterval)) { context in
+                            let x = offset(at: context.date)
                             HStack(spacing: gap) {
                                 label.fixedSize()
                                 label.fixedSize()
                             }
-                            .offset(x: offset(at: context.date))
+                            .offset(x: x)
                             .frame(width: geo.size.width, alignment: .leading)
+                            // Both edges fade, as in Music, so no letter is ever cut in half. The
+                            // leading fade grows in as the text moves, so the first letter sits
+                            // sharp while it waits.
+                            .mask { edgeFade(width: geo.size.width, leading: min(fade, -x)) }
                         }
-                        .clipped()
                     }
                 }
             }
@@ -75,6 +81,18 @@ struct MarqueeText: View {
 
     private var label: some View {
         Text(text).font(font).foregroundStyle(color)
+    }
+
+    /// Clear to opaque over `leading` points, opaque, then opaque to clear over the last `fade`.
+    private func edgeFade(width: CGFloat, leading: CGFloat) -> some View {
+        let w = max(width, 1)
+        let lead = max(0, leading) / w, trail = fade / w
+        return LinearGradient(stops: [
+            .init(color: .clear, location: 0),
+            .init(color: .black, location: lead),
+            .init(color: .black, location: 1 - trail),
+            .init(color: .clear, location: 1),
+        ], startPoint: .leading, endPoint: .trailing)
     }
 
     private struct TaskKey: Equatable {

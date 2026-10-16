@@ -31,26 +31,30 @@ struct ActionLibrary: View {
 
     var body: some View {
         NavigationStack {
-            List {
-                if query.isEmpty { pinnedPreview }
-                if query.isEmpty { recordRow }
-                ForEach(groups) { group in
-                    Section(group.title) {
-                        if group.id == "apps" && query.isEmpty { allAppsLink }
-                        ForEach(group.items) { item in row(item) }
+            ScrollViewReader { proxy in
+                List {
+                    if query.isEmpty { Section { chips(proxy) }.listSectionSpacing(.compact) }
+                    if query.isEmpty { recordRow }
+                    ForEach(groups) { group in
+                        Section(group.title) {
+                            if group.id == "apps" && query.isEmpty { allAppsLink }
+                            ForEach(group.items) { item in row(item) }
+                        }
+                        .id(group.id)
+                        .listRowBackground(palette.raisedColor)
                     }
-                    .listRowBackground(palette.raisedColor)
+                    if groups.isEmpty {
+                        Text("Nothing matches \u{201C}\(query)\u{201D}.")
+                            .foregroundStyle(palette.inkSoftColor)
+                            .listRowBackground(Color.clear)
+                    }
                 }
-                if groups.isEmpty {
-                    Text("Nothing matches \u{201C}\(query)\u{201D}.")
-                        .foregroundStyle(palette.inkSoftColor)
-                        .listRowBackground(Color.clear)
-                }
+                .scrollContentBackground(.hidden)
+                .background(SurfaceBackground())
+                .contentMargins(.top, 4, for: .scrollContent)
             }
-            .scrollContentBackground(.hidden)
-            .background(SurfaceBackground())
             .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search")
-            .navigationTitle("Library")
+            .navigationTitle(folderName.map { "Add to \($0)" } ?? "Library")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
@@ -71,36 +75,37 @@ struct ActionLibrary: View {
 
     // MARK: Rows
 
-    /// What is pinned (or in the open folder) right now, small, so each tap shows where it
-    /// went. Tiles are faces only, in balanced rows.
-    @ViewBuilder private var pinnedPreview: some View {
-        let buttons = folder.map { id in PinnedDeck.pinned(in: layout).flattenedDeck.first { $0.id == id }?.children ?? [] }
-            ?? PinnedDeck.pinned(in: layout)
-        Section {
-            if buttons.isEmpty {
-                Text("Nothing yet. Tap something below to pin it.")
-                    .font(.subheadline)
-                    .foregroundStyle(palette.inkSoftColor)
-            } else {
-                TileGrid(preferred: 50) {
-                    ForEach(buttons) { b in
-                        ActionTile(title: b.title, face: b.face(icons: session.icons),
-                                   folder: b.action == .folder ? (b.children ?? []).prefix(4).map { $0.face(icons: session.icons) } : nil,
-                                   showsTitle: false) {}
-                            .allowsHitTesting(false)
-                            .accessibilityLabel(b.title)
-                            .transition(.scale.combined(with: .opacity))
+    /// The open folder's name, when items go into a folder.
+    private var folderName: String? {
+        folder.flatMap { id in PinnedDeck.pinned(in: layout).flattenedDeck.first { $0.id == id }?.title }
+    }
+
+    /// A row of chips under Search, one per section, that scroll the list to it.
+    private func chips(_ proxy: ScrollViewProxy) -> some View {
+        ScrollView(.horizontal) {
+            HStack(spacing: 8) {
+                ForEach(groups) { group in
+                    Button(group.chipTitle) {
+                        Haptics.shared.tap()
+                        withAnimation(.snappy) { proxy.scrollTo(group.id, anchor: .top) }
                     }
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(palette.inkColor)
+                    .padding(.horizontal, 14)
+                    .frame(minHeight: 34)
+                    .background(palette.raisedColor, in: Capsule())
+                    .overlay(Capsule().strokeBorder(palette.lineColor))
+                    .buttonStyle(.plain)
+                    .accessibilityHint("Scrolls to \(group.title)")
                 }
-                .padding(.vertical, 6)
-                .animation(.snappy, value: buttons.map(\.id))
             }
-        } header: {
-            Text(folder == nil ? "Pinned" : "In This Folder")
-        } footer: {
-            Text("Tap + to pin, tap the check to unpin.")
+            .padding(.horizontal, 16)
         }
-        .listRowBackground(palette.raisedColor)
+        .scrollIndicators(.hidden)
+        .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
+        .listRowBackground(Color.clear)
+        .listRowSeparator(.hidden)
+        .listSectionSpacing(.compact)
     }
 
     private var recordRow: some View {
@@ -331,6 +336,9 @@ struct LibraryGroup: Identifiable {
     let id: String
     let title: String
     let items: [LibraryItem]
+
+    /// The shorter name on its chip ("Mac" for Mac Controls).
+    var chipTitle: String { id == "sys.mac" ? "Mac" : title }
 }
 
 struct LibraryItem: Identifiable {

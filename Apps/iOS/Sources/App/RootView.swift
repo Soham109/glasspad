@@ -7,6 +7,7 @@ struct GlasspadApp: App {
     @Environment(\.scenePhase) private var scenePhase
 
     init() {
+        PhoneSettings.shared.moveHapticSwitches(into: TrackpadTuningStore.shared)
         #if DEBUG
         DebugLaunch.apply()
         #endif
@@ -302,7 +303,8 @@ private struct WarmNotice: View {
 ///   -GPOnboarding                       show onboarding again
 ///   -GPSettings / -GPMenu / -GPPairSheet open Settings, the mode menu or the pair sheet
 ///   -GPOrientation <automatic|portrait|landscape>  set the orientation choice (it is saved)
-///   -GPTheme / -GPThemeLater <paper|graphite|system>  set the theme at launch, or two seconds later
+///   -GPTheme / -GPThemeLater <paper|graphite|system|...>  set the theme at launch, or two seconds later
+///   -GPPhoto <image file>               use that image for the Photo theme and switch to it
 ///   -GPDemo <icon folder>               fill the screens with sample Mac data (no Mac needed)
 ///   -GPActionsPage <library|front|folder|clipboard|present|remote|displays>  open that Actions sheet or tool; -GPEdit starts editing
 ///   -GPFilm <trackpad|menu|actions|media>  play a scripted scene for the demo film (DemoScript.swift)
@@ -325,6 +327,11 @@ enum DebugLaunch {
             Task { @MainActor in
                 try? await Task.sleep(for: .seconds(2))
                 PhoneSettings.shared.theme = theme
+            }
+        }
+        if let path = value("-GPPhoto"), let data = FileManager.default.contents(atPath: path) {
+            Task { @MainActor in
+                if await PhotoBackdrop.shared.use(data, screen: PhotoBackdrop.screenSize) { PhoneSettings.shared.theme = .photo }
             }
         }
         if args.contains("-GPOnboarding") { PhoneSettings.shared.hasOnboarded = false }

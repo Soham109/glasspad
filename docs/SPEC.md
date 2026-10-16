@@ -263,7 +263,19 @@ As built (GlasspadKit):
   Media) and `frontmostApp` (as for Dock and Deck). `remoteSystem(id:action:)` runs one
   `DeckSystemAction` without a Deck button (Sleep Display, Do Not Disturb, volume keys); the
   Mac answers `deckResult` for `id` and refuses actions that need confirming. An older Mac
-  drops both, and the phone falls back to plain media and key messages.
+  drops both, and the phone falls back to plain media and key messages. On success the Mac
+  sends the new state of a switch as `message` ("Do Not Disturb is on"), as for Deck runs.
+  Layouts (Oct 2026, additive): after `modeSelected` (the pane `LayoutWirePlan` picks), a layout
+  of several panes sends `modesShown([GlasspadMode])`, every pane's mode. The Mac then pushes
+  `frontmostApp` while any of Dock, Deck or Remote shows and Dock list changes while Dock shows.
+  Modes it does not know are skipped. An older Mac drops it; a Dock pane still asks for its list
+  every 3 seconds.
+  Deck actions from a newer build (a new kind, or a Mac control this build does not know) decode
+  as `DeckAction.unsupported` with the raw JSON, written back unchanged, so saving the Deck never
+  loses them; lists of buttons and pages skip only an element that cannot be read at all. The
+  phone shows such a button as "Update Glasspad to use this"; the Mac refuses to run it, and
+  refuses a `deckSave` that adds or changes one. A `deckSave` with no `deckSaveResult` within
+  10 seconds (an older Mac drops what it cannot read) shows as not saved.
   Displays (Oct 2026, additive; types in `Displays/DisplayTypes.swift`): `displaysWatch(on:)`
   (phone -> Mac) starts or stops `displaysState(DisplaysState)` (Mac -> phone), sent at once and
   again on every change, read four times a second while watched; any Displays screen or layout
@@ -531,7 +543,7 @@ Each mode is a `ModeMessage` case pair handled by `GlasspadMacCore/Modes`.
 | Present | big next/previous buttons, timer, laser dot (move a highlight on the Mac) | arrow keys + transparent overlay window for the laser |
 | Remote | couch remote: touch surface (tap play or pause, swipe sideways to skip, up and down for volume), back 10 / play / forward 10, Search, Subtitles, Full Screen, Mute, Sleep Display and Do Not Disturb. Keys follow the player in front (`RemoteKeymap`: web players, Apple TV, QuickTime, IINA, VLC, Infuse, Spotify and Music). Hidden at first: a tool in the mode menu until Settings shows it | media commands and seeking through now playing, keystrokes, CoreAudio volume |
 | Displays | the Mac's displays drawn as in System Settings (true sizes and places, menu bar and camera housing on the main one) with every window in front to back order and its app icon, plus a window list. Tap brings a window forward, drag moves it (to another display keeping its share), touch and hold for Left, Right, Top and Bottom Half, Fill, Center, Split With, Move to a display, Full Screen, Minimize and Close (asks first). Tap a display for brightness, the "Looks like" resolutions, Night Shift, main display, mirroring and Arrange Displays. Hidden at first: a tool in the mode menu until Settings shows it | window server list for order and frames, Accessibility for names and moves, CoreGraphics display configuration with Keep or Revert, DisplayServices brightness |
-| StandBy (Clock, Now Playing, Calendar) | glanceable screens like iOS StandBy, hidden at first, used as layout panes (templates StandBy and Clock and Trackpad). Clock: Digital, Analog and Minimal faces (tap to change), 12 or 24 hour as the phone is set, date and charge level. Now Playing: cover, title, artist, back, play or pause, next (MediaStore). Calendar: the next three events from EventKit, asked for only after a tap. Always black, content shifts up to 3 pt each minute against burn in, night mode turns everything dim red (Off, At Night 22:00 to 07:00, Always), dims in Low Power Mode and when warm. Keeps the screen on only while visible and charging, or on battery when Stay On When Unplugged is on and Low Power Mode is off (rules in GlasspadKit `StandBy.swift`) | Now Playing reports `media` (now playing stream); Clock and Calendar report `trackpad` and need nothing from the Mac |
+| StandBy (Clock, Now Playing, Calendar) | glanceable screens like iOS StandBy, hidden at first, used as layout panes (templates StandBy and Clock and Trackpad). Clock: Digital, Analog and Minimal faces (tap to change), 12 or 24 hour as the phone is set, date and charge level. Now Playing: cover, title, artist, back, play or pause, next (MediaStore). Calendar: the next three events from EventKit, asked for only after a tap. Always black, content shifts up to 3 pt each minute against burn in, night mode turns everything dim red (Off, At Night 22:00 to 07:00, Always), dims in Low Power Mode and when warm. Keeps the screen on only while visible and charging, or on battery when Stay On When Unplugged is on and Low Power Mode is off, and never while the phone is warm (thermal state serious or worse, `PowerPolicy.isWarm`) (rules in GlasspadKit `StandBy.swift`) | Now Playing reports `media` (now playing stream); Clock and Calendar report `trackpad` and need nothing from the Mac |
 
 As built, UX pass (Oct 2026):
 - The mode once called Apps is called Dock again (SF Symbol `dock.rectangle`), and mirrors the
@@ -590,6 +602,17 @@ As built, UX pass (Oct 2026):
   As built (Oct 2026): also System (Paper or Graphite with the phone), Mono (pure white or black
   with the phone, no colour anywhere: accents, tiles and icons draw in the ink), Sand (warm light)
   and Midnight (deep blue dark). Settings shows a live miniature of each.
+  Themes (Oct 2026): 27 themes plus Photo, in groups on Settings > Theme. Classic: System, Paper,
+  Graphite, Mono, Pure Black (true black for OLED), High Contrast (text at 7:1 or more). Glass
+  (frosted cards over a soft backdrop of colour pools): Glass, Glass Dark, Clear, Aurora, Ocean,
+  Dusk, Rose, Mint, Lavender, Ember, Citrus, Smoke. Colour: Sand, Midnight, Forest, Plum, Slate,
+  Espresso, Solar, Frost, Dawn. Photo blurs a picked photo (PhotosPicker, no permission prompt)
+  into the backdrop and veils it just enough for text to read (`PhotoTone`). Every theme defines
+  every colour (GlasspadKit `ThemeCatalog`), including its own accent (app tint, Trackpad's mode
+  colour); a test checks text, secondary text, accent, button labels and status colours reach
+  WCAG AA on every surface. Mode accents and status colours are Apple's system colours, moved
+  toward the ink only as far as a theme needs for 3:1. Unknown saved themes fall back to System.
+  Remote and StandBy stay dark.
 
 ## 10. Mac app (Apps/Mac)
 

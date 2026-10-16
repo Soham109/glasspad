@@ -96,7 +96,9 @@ final class MacSession {
     @ObservationIgnored private let bridge = LinkBridge()
     @ObservationIgnored private var foreground = false
     @ObservationIgnored private var backgroundUsers = 0
-    @ObservationIgnored private var trackpadVisible = false
+    /// Trackpad surfaces on screen (a layout can show two).
+    @ObservationIgnored private var trackpads = ShownCount()
+    private var trackpadVisible: Bool { trackpads.isShown }
     /// Set only by an explicit move to the background (not at launch, before the first scene
     /// phase arrives).
     @ObservationIgnored private var backgrounded = false
@@ -105,7 +107,9 @@ final class MacSession {
     @ObservationIgnored private var stateWaiters: [UUID: CheckedContinuation<Bool, Never>] = [:]
     @ObservationIgnored private var laserOn = false
     @ObservationIgnored private var power = PowerPolicy()
-    @ObservationIgnored private var diagnosticsVisible = 0
+    @ObservationIgnored private var diagnostics = ShownCount()
+    /// The last Deck save, until the Mac confirms or refuses it.
+    @ObservationIgnored private var deckSaveWatch = ReplyWatch()
 
     private static let settingsKey = "lastMacSettings"
     private static let deckCacheKey = "deckButtonsCache"
@@ -153,10 +157,10 @@ final class MacSession {
         }
     }
 
-    /// The trackpad surface appeared or disappeared. Heartbeats only run while it is visible.
+    /// A trackpad surface appeared or disappeared. Heartbeats only run while one is visible.
     func setTrackpadVisible(_ visible: Bool) {
-        GPLog.log("trackpad visible: \(visible), client \(client == nil ? "nil" : "ok")")
-        trackpadVisible = visible
+        trackpads.set(visible)
+        GPLog.log("trackpad visible: \(visible) (\(trackpads.count) shown), client \(client == nil ? "nil" : "ok")")
         applyHeartbeats()
         applyHapticEngine()
     }
@@ -178,7 +182,7 @@ final class MacSession {
     /// A diagnostics screen (Connection, the setup checklist) appeared or disappeared. While one
     /// shows, the phone measures round trips, with heartbeats on so the numbers match the trackpad.
     func setDiagnosticsVisible(_ visible: Bool) {
-        diagnosticsVisible = max(0, diagnosticsVisible + (visible ? 1 : -1))
+        diagnostics.set(visible)
         applyHeartbeats()
     }
 
@@ -316,6 +320,7 @@ final class MacSession {
         if !modes.contains(.present), laserOn { laserOff() }
         let plan = LayoutWirePlan(modes: modes.map(\.wireMode))
         send(.modeSelected(plan.primary))
+        if let shown = plan.shown { send(.modesShown(shown)) }
         if plan.requestsMedia { send(.mediaRequest) }
     }
 
@@ -341,6 +346,23 @@ final class MacSession {
         deckLayout = layout
         cacheDeckLayout(layout)
         send(.deckSave(layout))
+        // An older Mac drops a Deck it cannot read without answering; never leave it looking saved.
+        let generation = deckSaveWatch.start()
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(10))
+            guard self.deckSaveWatch.timedOut(generation) else { return }
+            self.deckSaveError = self.isConnected
+                ? "Your Mac did not save the change. Update Glasspad on your Mac, then try again."
+                : "Not connected to your Mac, so the change was not saved."
+            Haptics.shared.play(.error)
+            self.send(.deckRequest)
+        }
+    }
+
+    /// A button from a newer Glasspad was tapped: it cannot run, so say why.
+    func deckNeedsUpdate() {
+        Haptics.shared.play(.error)
+        showDeckFailure(DeckAction.updateToUse)
     }
 
     func runDeck(_ id: UUID, confirmed: Bool = false) {
@@ -454,8 +476,8 @@ final class MacSession {
     private func applyHeartbeats() {
         guard let client else { return }
         client.heartbeatIdleTimeout = power.heartbeatIdleTimeout
-        client.measuresRoundTrip = diagnosticsVisible > 0
-        client.heartbeatsEnabled = (trackpadVisible || diagnosticsVisible > 0) && power.allowsHeartbeats
+        client.measuresRoundTrip = diagnostics.isShown
+        client.heartbeatsEnabled = (trackpadVisible || diagnostics.isShown) && power.allowsHeartbeats
     }
 
     // MARK: Receiving
@@ -550,6 +572,7 @@ final class MacSession {
             deckLayout = layout
             cacheDeckLayout(layout)
         case .deckSaveResult(let ok, let message):
+            deckSaveWatch.settle()
             if !ok {
                 deckSaveError = message ?? "Your Mac did not save the Deck."
                 Haptics.shared.play(.error)

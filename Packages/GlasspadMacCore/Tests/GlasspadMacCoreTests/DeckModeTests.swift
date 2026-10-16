@@ -180,7 +180,7 @@ import Testing
     @Test func cancelledSelectionAndMissingPermissionAreExplained() async throws {
         let (d, env) = try deck([])
         env.captureCreatesFile = false
-        #expect(await outcome(d, .screenshot(DeckScreenshot(area: .selection))).message == "Screenshot cancelled")
+        #expect(await outcome(d, .screenshot(DeckScreenshot(area: .selection))).message == "Screenshot canceled")
         env.runResult = (false, "")
         #expect(await outcome(d, .screenshot(DeckScreenshot(area: .fullScreen))).message?.contains("Screen") == true)
         env.frontWindow = nil
@@ -412,6 +412,50 @@ import Testing
         let fresh = DeckLayout(pages: [DeckPage(title: "Main", buttons: [DeckButton(title: "x", symbol: "x", action: .shellScript("id"))])])
         #expect(d.savePhoneEdit(fresh).isFailedSave)
         #expect(d.config.layout.pages[0].buttons.map(\.title) == ["Notes", "Sh"])
+    }
+
+    /// A button from a newer Glasspad (here a Mac control this build does not know) stays in
+    /// the file unchanged and says to update when run. The phone may keep it but never add or
+    /// change one, since this Mac cannot check what it does.
+    @Test func newerButtonsAreKeptButNeverAddedFromThePhone() async throws {
+        let lock = DeckButton(title: "Lock", symbol: "lock.fill", action: .system(.lockScreen))
+        let future = DeckButton(title: "Future", symbol: "sparkles", action: .system(.lockScreen))
+        let url = tempURL("deck.json")
+        try DeckConfig(buttons: [lock, future], pages: [DeckPage(title: "P", buttons: [lock, future])]).save(to: url)
+        let text = try String(contentsOf: url, encoding: .utf8)
+        // Make the second button's control one from a newer Mac, in the file on disk.
+        var json = try JSONSerialization.jsonObject(with: Data(text.utf8)) as! [String: Any]
+        func futurize(_ list: [[String: Any]]) -> [[String: Any]] {
+            list.map { b in
+                var b = b
+                if b["title"] as? String == "Future" { b["action"] = ["system": ["_0": "warpDrive"]] }
+                return b
+            }
+        }
+        json["buttons"] = futurize(json["buttons"] as! [[String: Any]])
+        json["pages"] = (json["pages"] as! [[String: Any]]).map { p in
+            var p = p
+            p["buttons"] = futurize(p["buttons"] as! [[String: Any]])
+            return p
+        }
+        try JSONSerialization.data(withJSONObject: json).write(to: url)
+        let d = DeckMode(env: FakeDeckEnvironment(), url: url)
+        #expect(d.config.layout.allButtons.map(\.title) == ["Lock", "Future"])
+        let kept = try #require(d.config.layout.allButtons.last)
+        #expect(!kept.action.isSupported)
+        #expect(await d.run(id: kept.id) == [.deckResult(id: kept.id, ok: false, message: DeckMode.updateToUse)])
+        let onDisk = try JSONSerialization.jsonObject(with: Data(contentsOf: url)) as! [String: Any]
+        #expect(((onDisk["buttons"] as? [[String: Any]])?.last?["action"] as? NSDictionary) == ["system": ["_0": "warpDrive"]])
+
+        // Reordered by the phone, the newer button stays.
+        let reordered = DeckLayout(pages: [DeckPage(title: "P", buttons: [kept, lock])])
+        #expect(d.savePhoneEdit(reordered) == .deckSaveResult(ok: true, message: nil))
+        // A newer button the Mac never had, or one changed, is refused with a reason.
+        var added = kept
+        added.id = UUID()
+        let refused = d.savePhoneEdit(DeckLayout(pages: [DeckPage(title: "P", buttons: [added])]))
+        #expect(refused == .deckSaveResult(ok: false, message: DeckEditError.newerThanMac.message))
+        #expect(d.config.layout.allButtons.map(\.title) == ["Future", "Lock"])
     }
 
     /// The phone's one-screen Actions moves loose pages into Pinned as folders. The Mac must

@@ -176,6 +176,95 @@ public enum DeckAction: Codable, Equatable, Sendable, Hashable {
     case setAudioOutput(name: String)
     /// A folder: tapping shows the button's `children`.
     case folder
+    /// An action from a newer build that this one cannot read. Kept exactly as it came, so
+    /// saving the Deck here does not lose it; it cannot run until Glasspad is updated.
+    case unsupported(UnsupportedDeckAction)
+}
+
+/// A Deck action this build does not know, as raw JSON (for example a Mac control added later).
+public struct UnsupportedDeckAction: Equatable, Sendable, Hashable {
+    public let raw: JSONValue
+    public init(raw: JSONValue) { self.raw = raw }
+}
+
+extension DeckAction {
+    /// The shape Swift synthesizes for the known cases (`{"openApp":{"bundleID":"..."}}`),
+    /// which every build reads and writes.
+    private enum Known: Codable {
+        case openApp(bundleID: String)
+        case openURL(String)
+        case runShortcut(name: String)
+        case keystroke(Keystroke)
+        case shellScript(String)
+        case openFile(path: String)
+        case runMacro(id: UUID)
+        case typeText(String)
+        case screenshot(DeckScreenshot)
+        case screenRecording
+        case system(DeckSystemAction)
+        case setAudioOutput(name: String)
+        case folder
+
+        var action: DeckAction {
+            switch self {
+            case .openApp(let id): .openApp(bundleID: id)
+            case .openURL(let s): .openURL(s)
+            case .runShortcut(let name): .runShortcut(name: name)
+            case .keystroke(let k): .keystroke(k)
+            case .shellScript(let s): .shellScript(s)
+            case .openFile(let path): .openFile(path: path)
+            case .runMacro(let id): .runMacro(id: id)
+            case .typeText(let s): .typeText(s)
+            case .screenshot(let shot): .screenshot(shot)
+            case .screenRecording: .screenRecording
+            case .system(let s): .system(s)
+            case .setAudioOutput(let name): .setAudioOutput(name: name)
+            case .folder: .folder
+            }
+        }
+
+        init?(_ action: DeckAction) {
+            switch action {
+            case .openApp(let id): self = .openApp(bundleID: id)
+            case .openURL(let s): self = .openURL(s)
+            case .runShortcut(let name): self = .runShortcut(name: name)
+            case .keystroke(let k): self = .keystroke(k)
+            case .shellScript(let s): self = .shellScript(s)
+            case .openFile(let path): self = .openFile(path: path)
+            case .runMacro(let id): self = .runMacro(id: id)
+            case .typeText(let s): self = .typeText(s)
+            case .screenshot(let shot): self = .screenshot(shot)
+            case .screenRecording: self = .screenRecording
+            case .system(let s): self = .system(s)
+            case .setAudioOutput(let name): self = .setAudioOutput(name: name)
+            case .folder: self = .folder
+            case .unsupported: return nil
+            }
+        }
+    }
+
+    public init(from decoder: Decoder) throws {
+        if let known = try? Known(from: decoder) {
+            self = known.action
+        } else {
+            // A newer action, or a known one with a newer value (a Mac control added later).
+            self = .unsupported(UnsupportedDeckAction(raw: try JSONValue(from: decoder)))
+        }
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        if let known = Known(self) {
+            try known.encode(to: encoder)
+        } else if case .unsupported(let u) = self {
+            try u.raw.encode(to: encoder)
+        }
+    }
+
+    /// False for an action from a newer build, which shows as "Update Glasspad to use this".
+    public var isSupported: Bool {
+        if case .unsupported = self { return false }
+        return true
+    }
 }
 
 /// One Deck button. `symbol` is an SF Symbol name.
@@ -206,6 +295,20 @@ public struct DeckButton: Codable, Equatable, Sendable, Hashable, Identifiable {
     public var needsConfirmation: Bool {
         if case .system(let s) = action { return s.needsConfirmation }
         return false
+    }
+
+    enum CodingKeys: String, CodingKey { case id, title, symbol, action, color, size, children }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(UUID.self, forKey: .id)
+        title = try c.decode(String.self, forKey: .title)
+        symbol = try c.decode(String.self, forKey: .symbol)
+        action = try c.decode(DeckAction.self, forKey: .action)
+        color = try c.decodeIfPresent(String.self, forKey: .color)
+        // A size added later reads as regular rather than losing the button.
+        size = (try? c.decodeIfPresent(DeckButtonSize.self, forKey: .size)) ?? nil
+        children = try c.decodeLenientArrayIfPresent(DeckButton.self, forKey: .children)
     }
 }
 
@@ -249,6 +352,11 @@ public enum ModeMessage: Codable, Equatable, Sendable {
     // General
     /// Phone -> Mac: the phone switched to this screen (e.g. hide the laser overlay on leaving Present).
     case modeSelected(GlasspadMode)
+    /// Phone -> Mac, right after `modeSelected`: every mode on screen when a layout shows
+    /// several panes, so the Mac pushes the frontmost app and Dock changes to the panes that
+    /// show them. Modes this build does not know are skipped. Added Oct 2026: an older Mac
+    /// drops it and follows `modeSelected` alone.
+    case modesShown([GlasspadMode])
 
     // Dock
     /// Phone -> Mac: send the Dock app list.

@@ -107,10 +107,6 @@
 
 /* Mac screen contents, in units of the display */
 
-.md-menubar { position: absolute; inset: 0 0 auto 0; height: 4.2cqh; background: rgba(250, 249, 247, 0.55); display: flex; align-items: center; gap: 2.2cqw; padding: 0 2cqw; z-index: 4; }
-.md-menubar i { height: 1.3cqh; width: 4cqw; border-radius: 1cqh; background: rgba(26, 26, 26, 0.45); }
-.md-menubar i:first-child { width: 1.6cqw; }
-.md-menubar i.r { margin-left: auto; width: 6cqw; background: rgba(26, 26, 26, 0.3); }
 .md-win {
   position: absolute; border-radius: 1.2cqw; background: #FBFBF9; overflow: hidden;
   box-shadow: 0 0.6cqw 2.4cqw -0.6cqw rgba(0, 0, 0, 0.35), 0 0 0 0.08cqw rgba(0, 0, 0, 0.08);
@@ -241,7 +237,7 @@
 .u-bar b { position: absolute; top: 50%; width: 30px; height: 20px; margin: -10px 0 0 -15px; border-radius: 10px; background: #fff; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25); }
 
 /* Mini Mac layers */
-.mm-layer .md-menubar { height: 6cqh; }
+
 .mm-layer .md-win .wb { height: 9cqh; }
 .mm-layer .md-win .wbody { inset: 9cqh 0 0 0; }
 .mm-type { padding: 5cqh 5cqw; font-size: 4.4cqh; line-height: 1.4; color: #1A1A1A; }
@@ -357,12 +353,6 @@
 
 /* Actions */
 
-.mm-layer .md-menubar { gap: 2.4cqw; }
-.fside { width: 28%; background: #ECEAE6; padding: 3cqh 2cqw; display: flex; flex-direction: column; gap: 2.4cqh; }
-.fside i { height: 1.8cqh; border-radius: 1cqh; background: rgba(26, 26, 26, 0.14); width: 80%; }
-.fold { height: 9cqh; border-radius: 0.8cqw; background: #6CB4F0; position: relative; }
-.fold::before { content: ""; position: absolute; left: 0; top: -1.2cqh; width: 40%; height: 2cqh; border-radius: 0.6cqw 0.6cqw 0 0; background: #6CB4F0; }
-.fold.new { animation: pop var(--snappy-ms) var(--ease-snappy) both; box-shadow: 0 0 0 0.5cqh rgba(10, 132, 255, 0.35); }
 .mm-layer .md-cursor { width: 3cqw; }
 
 /* Setup scene: Apps opens Music, then Actions follows the app in front */

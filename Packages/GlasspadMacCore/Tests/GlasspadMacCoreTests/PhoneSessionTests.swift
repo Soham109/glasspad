@@ -682,6 +682,7 @@ func isCase(_ m: ModeMessage, _ tag: String) -> Bool { m.tag == tag }
         func gaps(_ modes: [GlasspadMode]) async -> [String] {
             let plan = LayoutWirePlan(modes: modes)
             await s.send(.modeSelected(plan.primary))
+            if let shown = plan.shown { await s.send(.modesShown(shown)) }
             if plan.requestsMedia {
                 #expect(await s.send(.mediaRequest) { isCase($0, "mediaState") } != nil)
             }
@@ -714,11 +715,7 @@ func isCase(_ m: ModeMessage, _ tag: String) -> Bool { m.tag == tag }
         var pairGaps: [String] = []
         let all = GlasspadMode.allCases
         for (i, a) in all.enumerated() { for b in all[(i + 1)...] { pairGaps += await gaps([a, b]) } }
-        withKnownIssue("Present beside Dock, Actions or Remote takes the primary screen, so that pane gets no live updates") {
-            #expect(pairGaps.isEmpty, "\(pairGaps)")
-        }
-        #expect(pairGaps.allSatisfy { $0.hasPrefix("dock+present") || $0.hasPrefix("deck+present") || $0.contains("present+remote") },
-                "\(pairGaps)")
+        #expect(pairGaps.isEmpty, "\(pairGaps)")
     }
 
     // MARK: Echoes and newer or older builds

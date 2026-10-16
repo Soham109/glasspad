@@ -120,17 +120,15 @@ struct GeneralPane: View {
             }
 
             Section {
-                Toggle(isOn: Binding(get: { model.dock.hidden }, set: { model.actions.setDockHidden($0) })) {
+                Picker(selection: Binding(get: { MacDockHiding(model.dock) }, set: { model.actions.setDockHiding($0) })) {
+                    ForEach(MacDockHiding.allCases, id: \.self) { Text($0.title).tag($0) }
+                } label: {
                     RowLabel(title: "Hide Mac Dock", symbol: "dock.rectangle", color: .blue)
-                }
-                Toggle(isOn: Binding(get: { model.dock.hideWhileConnected },
-                                     set: { model.actions.setHideDockWhileConnected($0) })) {
-                    RowLabel(title: "Hide While iPhone Is Connected", symbol: "iphone", color: .blue)
                 }
             } header: {
                 Text("Mac Dock")
             } footer: {
-                Text("Your Dock settings come back as they were when you turn this off, your iPhone disconnects or Glasspad quits.")
+                Text(MacDockHiding.footer)
                     .foregroundStyle(.secondary)
             }
 

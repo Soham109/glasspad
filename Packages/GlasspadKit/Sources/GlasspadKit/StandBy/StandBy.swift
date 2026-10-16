@@ -73,12 +73,6 @@ public enum BurnInShift {
     }
 }
 
-/// How warm the phone is, as iOS reports it (`ProcessInfo.ThermalState`).
-public enum PhoneWarmth: Int, Comparable, Sendable {
-    case nominal, fair, serious, critical
-    public static func < (a: PhoneWarmth, b: PhoneWarmth) -> Bool { a.rawValue < b.rawValue }
-}
-
 /// Whether a StandBy screen may keep the phone awake, how bright it draws, and whether it
 /// ticks every second. These screens are meant to stay up for hours on a desk or a nightstand,
 /// so they are careful with the battery and the screen.
@@ -95,20 +89,21 @@ public struct StandByPower: Equatable, Sendable {
     ///   - charging: plugged in (charging or full).
     ///   - keepOnUnplugged: the person chose to keep the screen on without power too.
     ///   - lowPower: Low Power Mode is on.
-    ///   - warmth: the phone's thermal state.
-    public init(visible: Bool, charging: Bool, keepOnUnplugged: Bool, lowPower: Bool, warmth: PhoneWarmth) {
+    ///   - heat: the phone's thermal state, the same model the rest of the app uses.
+    public init(visible: Bool, charging: Bool, keepOnUnplugged: Bool, lowPower: Bool, heat: PowerPolicy.Heat) {
         // On power the screen stays on, like StandBy. On battery only when asked, never in
-        // Low Power Mode, and never when the phone is too hot (iOS would dim it anyway).
-        keepsScreenOn = visible && warmth < .critical && (charging || (keepOnUnplugged && !lowPower))
+        // Low Power Mode. Never once the phone is warm (`PowerPolicy.isWarm`): charging with
+        // the screen on keeps it warm, which is hard on the battery.
+        keepsScreenOn = visible && !PowerPolicy(heat: heat).isWarm && (charging || (keepOnUnplugged && !lowPower))
         var level = 1.0
         if lowPower { level = min(level, 0.75) }
-        switch warmth {
+        switch heat {
         case .nominal, .fair: break
         case .serious: level = min(level, 0.6)
         case .critical: level = min(level, 0.45)
         }
         brightness = level
-        ticksSeconds = !lowPower && warmth < .serious
+        ticksSeconds = !lowPower && heat < .serious
     }
 }
 

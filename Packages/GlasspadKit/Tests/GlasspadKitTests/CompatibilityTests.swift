@@ -14,7 +14,8 @@ import Testing
          .keystroke(Keystroke(key: .special(.f5), modifiers: [.function])), .shellScript("echo hi"),
          .openFile(path: "~/Downloads"), .runMacro(id: id), .typeText("héllo"),
          .screenshot(DeckScreenshot(area: .selection, sendToPhone: .clipboard, copyToMacClipboard: true)),
-         .screenRecording, .setAudioOutput(name: "AirPods Pro"), .folder]
+         .screenRecording, .setAudioOutput(name: "AirPods Pro"), .folder,
+         .unsupported(UnsupportedDeckAction(raw: .object(["hologram": .object(["depth": .number(3), "on": .bool(true)])])))]
             + DeckSystemAction.allCases.map(DeckAction.system)
     }
 
@@ -30,6 +31,7 @@ import Testing
                                 columns: 4, allowsShellCommands: false)
         let state = MacDockState(hidden: true, hideWhileConnected: false, isHiddenNow: true)
         var all: [ModeMessage] = GlasspadMode.allCases.map(ModeMessage.modeSelected)
+        all += [.modesShown([.present, .dock, .remote]), .modesShown([])]
         all += [.dockRequest, .dockList(apps: [app]), .dockOpen(bundleID: "com.apple.Notes"), .dockSync(iconKeys: ["k"]),
                 .dockOpenResult(bundleID: "x", ok: false, message: "Not running: x"), .dockCatalogRequest,
                 .dockCatalog(apps: [app]), .dockIconRequest(bundleIDs: ["a.b"]), .dockIcons(apps: [app]),
@@ -70,7 +72,7 @@ import Testing
     /// Fails to compile when a case is added, so this suite has to learn about it.
     static func covered(_ m: ModeMessage) -> String {
         switch m {
-        case .modeSelected, .dockRequest, .dockList, .dockOpen, .dockSync, .dockAppAction, .dockOpenResult,
+        case .modeSelected, .modesShown, .dockRequest, .dockList, .dockOpen, .dockSync, .dockAppAction, .dockOpenResult,
              .dockCatalogRequest, .dockCatalog, .dockIconRequest, .dockIcons, .frontmostApp, .macDockState, .macDockSet,
              .keysText, .keysKeystroke, .mediaRequest, .mediaState, .mediaCommand, .mediaSetVolume, .mediaSetBrightness,
              .mediaControl, .deckRequest, .deckButtons, .deckRun, .deckResult, .deckLayout, .deckSave, .deckSaveResult,
@@ -84,7 +86,7 @@ import Testing
 
     @Test func everyMessageAndPayloadRoundTripsOnTheWire() throws {
         let all = Self.everyMessage
-        #expect(Set(all.map(Self.covered)).count == 49)      // every case at least once
+        #expect(Set(all.map(Self.covered)).count == 50)      // every case at least once
         for m in all {
             let data = try ControlMessage.mode(m).jsonData()
             #expect(try ControlMessage.from(jsonData: data) == .mode(m), "\(m.tag)")
@@ -171,6 +173,9 @@ import Testing
         for j in unknown {
             #expect(throws: (any Error).self, "\(j)") { try JSONDecoder().decode(ModeMessage.self, from: Data(j.utf8)) }
         }
+        // A screen a newer phone names beside the others is skipped, not the whole list.
+        let panes = #"{"t":"modesShown","modes":["present","hologram","dock"]}"#
+        #expect(try JSONDecoder().decode(ModeMessage.self, from: Data(panes.utf8)) == .modesShown([.present, .dock]))
         // Older fields stay readable when a newer build adds more beside them.
         let extra = #"{"t":"deckResult","id":"\#(Self.id.uuidString)","ok":true,"message":null,"undo":true}"#
         #expect(try JSONDecoder().decode(ModeMessage.self, from: Data(extra.utf8)) == .deckResult(id: Self.id, ok: true, message: nil))
@@ -180,22 +185,61 @@ import Testing
         #expect(s.title == "Song" && s.repeatMode == .off)
     }
 
-    /// A Mac control added later (one this build does not know) inside a Deck layout makes the
-    /// whole layout unreadable, so an older phone shows no Deck at all rather than every button
-    /// but that one. Likewise a newer phone's `deckSave` is dropped by an older Mac with no
-    /// `deckSaveResult`. Recorded as a known issue until DeckButton decoding skips what it
-    /// cannot read.
-    @Test func oneUnknownMacControlLosesTheWholeDeck() throws {
+    /// A Mac control added later (one this build does not know) inside a Deck layout costs only
+    /// that button: it reads as `.unsupported`, every other button stays, and saving the layout
+    /// writes the newer button back exactly as it came.
+    @Test func oneUnknownMacControlKeepsTheWholeDeck() throws {
         let known = DeckButton(id: Self.id, title: "Lock", symbol: "lock.fill", action: .system(.lockScreen))
+        let newer = DeckButton(id: UUID(), title: "Future", symbol: "sparkles", action: .system(.lockScreen))
         var json = String(decoding: try JSONEncoder().encode(ModeMessage.deckLayout(
-            DeckLayout(pages: [DeckPage(title: "P", buttons: [known, known])]))), as: UTF8.self)
+            DeckLayout(pages: [DeckPage(title: "P", buttons: [known, newer])]))), as: UTF8.self)
         // The second button becomes one from a newer Mac.
         let range = try #require(json.range(of: "lockScreen", options: .backwards))
         json.replaceSubrange(range, with: "futureControl")
-        withKnownIssue("an unknown DeckSystemAction fails the whole deckLayout") {
-            let m = try JSONDecoder().decode(ModeMessage.self, from: Data(json.utf8))
-            guard case .deckLayout(let l) = m else { Issue.record("not a layout"); return }
-            #expect(l.allButtons.map(\.title) == ["Lock"])
+        let m = try JSONDecoder().decode(ModeMessage.self, from: Data(json.utf8))
+        guard case .deckLayout(let l) = m else { Issue.record("not a layout"); return }
+        #expect(l.allButtons.map(\.title) == ["Lock", "Future"])
+        #expect(l.allButtons[0].action == .system(.lockScreen))
+        #expect(!l.allButtons[1].action.isSupported)
+        #expect(!l.allButtons[1].needsConfirmation)
+        // Written back by this build, the newer button is unchanged.
+        let again = try JSONSerialization.jsonObject(with: JSONEncoder().encode(ModeMessage.deckSave(l))) as! [String: Any]
+        let original = try JSONSerialization.jsonObject(with: Data(json.utf8)) as! [String: Any]
+        #expect((again["layout"] as? NSDictionary) == (original["layout"] as? NSDictionary))
+    }
+
+    /// A whole new kind of action, one with newer fields, and a size added later all keep their
+    /// button; only what cannot be read at all (no id, a page without a title) is skipped.
+    @Test func newerDeckButtonsAndPagesKeepTheRestReadable() throws {
+        let id = Self.id.uuidString
+        let json = #"""
+        {"t":"deckLayout","layout":{"columns":4,"pages":[
+          {"id":"\#(id)","title":"Main","buttons":[
+            {"id":"\#(id)","title":"Hologram","symbol":"cube","action":{"hologram":{"depth":3,"tags":["a",true,null]}}},
+            {"id":"\#(id)","title":"Big","symbol":"star","size":"huge","action":{"openURL":{"_0":"https://apple.com"}}},
+            {"title":"Broken","symbol":"xmark","action":{"folder":{}}},
+            {"id":"\#(id)","title":"Folder","symbol":"folder","action":{"folder":{}},"children":[
+              {"id":"\#(id)","title":"Inner","symbol":"bolt","action":{"system":{"_0":"warpDrive"}}},
+              {"id":"\#(id)","title":"Lost"}
+            ]}
+          ]},
+          {"id":"\#(id)","buttons":[]}
+        ]}}
+        """#
+        guard case .deckLayout(let l) = try JSONDecoder().decode(ModeMessage.self, from: Data(json.utf8)) else {
+            Issue.record("not a layout"); return
         }
+        #expect(l.pages.count == 1 && l.columns == 4)
+        #expect(l.allButtons.map(\.title) == ["Hologram", "Big", "Folder", "Inner"])
+        #expect(l.allButtons.map(\.action.isSupported) == [false, true, true, false])
+        #expect(l.allButtons[1].size == nil && l.allButtons[1].action == .openURL("https://apple.com"))
+        let raw = try JSONSerialization.jsonObject(with: JSONEncoder().encode(l.allButtons[0].action)) as! NSDictionary
+        #expect(raw == ["hologram": ["depth": 3, "tags": ["a", true, NSNull()]]] as NSDictionary)
+        // The flat list an older phone reads skips only the unreadable button too.
+        let flat = #"{"t":"deckButtons","buttons":[{"id":"\#(id)","title":"A","symbol":"a","action":{"hologram":{}}},{"title":"B"}]}"#
+        guard case .deckButtons(let b) = try JSONDecoder().decode(ModeMessage.self, from: Data(flat.utf8)) else {
+            Issue.record("not buttons"); return
+        }
+        #expect(b.map(\.title) == ["A"])
     }
 }

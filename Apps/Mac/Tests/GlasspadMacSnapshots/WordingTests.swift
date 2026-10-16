@@ -61,8 +61,8 @@ final class WordingTests: XCTestCase {
         XCTAssertTrue(PairingCopy.instruction.contains("Pair a Mac"))
         XCTAssertEqual(PairingCopy.menuItem, "Pair Your iPhone…")
         XCTAssertTrue(PairingCopy.linkHelp.contains("Paste the Link Instead"))
-        XCTAssertEqual(PairingCopy.heading(.paired(phoneName: "X")), "Paired")
-        XCTAssertTrue(PairingCopy.detail(.paired(phoneName: "Soham's iPhone")).contains("Soham's iPhone"))
+        XCTAssertEqual(PairingCopy.heading(.paired(phoneName: "Soham's iPhone")), "Paired with Soham's iPhone")
+        XCTAssertEqual(PairingCopy.showText, "Show Code as Text")
         XCTAssertEqual(PairingCopy.heading(.expired), "Code Expired")
     }
 

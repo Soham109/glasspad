@@ -29,29 +29,29 @@ A small menu bar app on your Mac and an app on your iPhone, on the same Wi-Fi. F
 | **Keyboard** | Type or dictate. Modifier keys, shortcuts, arrows and F1 to F12. |
 | **Media** | What is playing in Spotify, Music or a browser: artwork, scrubbing, sound output, volume and screen brightness. |
 | **Dock** | Your Mac's Dock. Tap to open, hold to hide or quit, and hide the Mac's own Dock. |
-| **Actions** | Buttons that follow the app in front, for more than 40 apps. |
+| **Actions** | Buttons that follow the app in front, for more than 70 apps. |
 | **Pinned** | Your own buttons: Do Not Disturb, Night Shift, Keep Awake, Split Screen and window tiling, screenshots, apps, and websites with their real logos. Folders keep them tidy; the Library finds anything. |
 | **Macros** | Record steps on your Mac once, replay them with a tap. |
 | **Shortcuts** | Run any shortcut from the Shortcuts app on your Mac. |
 | **Remote** | A touch pad like the Siri Remote: tap to pause, swipe to skip 10 seconds, up or down for volume. The keys follow the player, and Search types on the Mac. |
 | **Present** | Next and Back, a timer, and a laser you steer with one finger. |
 | **Clipboard** | Text and images, both ways. |
-| **Displays** | Every display and its windows. Bring a window forward, move it to another display, set brightness. |
+| **Displays** | Every display and its windows. Move a window to another display or tile it, and set brightness, resolution and Night Shift. |
 | **Layouts** | Up to three modes on one screen. The divider rests on thirds and the middle; your layouts sit in the mode menu. |
-| **Themes** | Paper, Graphite, Mono, Sand and Midnight, or follow the system. |
+| **StandBy** | A clock beside Now Playing or your calendar while the iPhone charges, in dim red at night. |
+| **Themes** | 28 themes in four groups: Classic, Glass, Color, and Photo, which blurs a picture of yours behind everything. |
 | **Private** | Paired by QR code, encrypted, no account. Nothing leaves your Wi-Fi. |
 
 <p align="center">
-  <img src="docs/img/modes.png" alt="Four iPhones: the Mac's Dock, Present, Clipboard and the Library" width="820">
+  <img src="docs/img/modes.png" alt="Four iPhones: the Mac's Dock, Present, Clipboard and Displays" width="820">
 </p>
 
 <p align="center">
-  <img src="docs/img/layouts.png" alt="Two iPhones held sideways: a layout with Trackpad, Media and Actions, and Displays" width="820">
+  <img src="docs/img/layouts.png" alt="Two iPhones held sideways: the Media and Actions layout, and StandBy with a clock beside Now Playing" width="820">
 </p>
-<p align="center"><sub>Layouts and Displays are drawn while they are being finished. The other pictures are the app.</sub></p>
 
 <p align="center">
-  <img src="docs/img/themes.png" alt="Actions in four themes: Paper, Mono, Sand and Midnight" width="820">
+  <img src="docs/img/themes.png" alt="Four themes: Actions in Glass, Media in Aurora, Actions in Ocean and Dock in Midnight" width="820">
 </p>
 
 ## Install

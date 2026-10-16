@@ -34,6 +34,10 @@ public final class ModeRouter {
     private var lastMedia: MediaState?
     /// The phone's current screen; Dock updates are pushed only while it shows Dock or Deck.
     public private(set) var phoneMode: GlasspadMode?
+    /// Every mode on the phone's screen: `phoneMode`, plus the other panes of a layout
+    /// (`modesShown`). The frontmost app and Dock pushes go to any of them.
+    public private(set) var phoneModes: Set<GlasspadMode> = []
+    private var wantsFrontmost: Bool { !phoneModes.isDisjoint(with: [.dock, .deck, .remote]) }
     private var dockPushPending = false
     private var workspaceObservers: [NSObjectProtocol] = []
     /// A session ended; the Dock comes back unless a new one starts within this delay. Locking
@@ -96,10 +100,15 @@ public final class ModeRouter {
         switch message {
         case .modeSelected(let mode):
             phoneMode = mode
+            phoneModes = [mode]
             if mode != .present { present.setLaser(on: false) }
             if mode == .media || mode == .remote { startMediaUpdates() } else { stopMediaUpdates() }
             if mode == .macros { macros?.handle(.listMacros) }
             if mode == .dock || mode == .deck || mode == .remote { send(.frontmostApp(bundleID: dock.workspace.frontmostBundleID())) }
+        case .modesShown(let modes):
+            let before = wantsFrontmost
+            phoneModes = Set(modes).union(phoneMode.map { [$0] } ?? [])
+            if wantsFrontmost && !before { send(.frontmostApp(bundleID: dock.workspace.frontmostBundleID())) }
         case .dockRequest:
             sendDockList(dock.currentList())
             send(.macDockState(macDock.state))
@@ -180,7 +189,8 @@ public final class ModeRouter {
             Task { [weak self] in
                 guard let self else { return }
                 let outcome = await self.deck.perform(.system(action))
-                self.send(.deckResult(id: id, ok: outcome.ok, message: outcome.ok ? nil : outcome.message))
+                // On success the message is the new state of a switch ("Do Not Disturb is on"), as for Deck runs.
+                self.send(.deckResult(id: id, ok: outcome.ok, message: outcome.message))
             }
         case .displaysWatch(let on): displays?.watch(on)
         case .windowCommand(let id, let window, let command): displays?.handle(id: id, windowID: window, command: command)
@@ -232,6 +242,7 @@ public final class ModeRouter {
         displays?.sessionEnded()
         dock.resetSession()
         phoneMode = nil
+        phoneModes = []
         disconnectTask?.cancel()
         let grace = disconnectGrace
         disconnectTask = Task { [weak self] in
@@ -272,20 +283,20 @@ public final class ModeRouter {
     func workspaceChanged(activated bundleID: String?, name: String?, url: URL?) {
         if let bundleID {
             dock.noteActivated(DockMode.Entry(bundleID: bundleID, name: name ?? bundleID, url: url))
-            if phoneMode == .deck || phoneMode == .dock || phoneMode == .remote { send(.frontmostApp(bundleID: bundleID)) }
+            if wantsFrontmost { send(.frontmostApp(bundleID: bundleID)) }
         }
         scheduleDockPush()
     }
 
     /// Pushes a fresh Dock list (running dots, frontmost) shortly after a change, while Dock shows.
     private func scheduleDockPush() {
-        guard phoneMode == .dock, !dockPushPending else { return }
+        guard phoneModes.contains(.dock), !dockPushPending else { return }
         dockPushPending = true
         Task { [weak self] in
             try? await Task.sleep(for: .milliseconds(350))
             guard let self else { return }
             self.dockPushPending = false
-            if self.phoneMode == .dock { self.sendDockList(self.dock.currentList()) }
+            if self.phoneModes.contains(.dock) { self.sendDockList(self.dock.currentList()) }
         }
     }
 

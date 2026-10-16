@@ -65,9 +65,7 @@ struct RecordingIndicatorView: View {
             VStack(alignment: .leading, spacing: 1) {
                 Text("Recording Macro")
                     .font(.headline)
-                Text("Press ⌃⌥⌘. or click Stop")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                StopShortcutHint(after: "or click Stop")
             }
             Button("Stop") { macros.stopRecording(fromMacMenu: true) }
                 .controlSize(.regular)

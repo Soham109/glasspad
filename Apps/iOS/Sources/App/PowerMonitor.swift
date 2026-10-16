@@ -38,13 +38,17 @@ final class PowerMonitor {
 
     private static func read() -> PowerPolicy {
         let info = ProcessInfo.processInfo
-        let heat: PowerPolicy.Heat = switch info.thermalState {
+        return PowerPolicy(heat: heat(info.thermalState), lowPower: info.isLowPowerModeEnabled)
+    }
+
+    /// iOS's thermal state as the one heat model (StandBy reads it too).
+    nonisolated static func heat(_ state: ProcessInfo.ThermalState) -> PowerPolicy.Heat {
+        switch state {
         case .nominal: .nominal
         case .fair: .fair
         case .serious: .serious
         case .critical: .critical
         @unknown default: .serious
         }
-        return PowerPolicy(heat: heat, lowPower: info.isLowPowerModeEnabled)
     }
 }

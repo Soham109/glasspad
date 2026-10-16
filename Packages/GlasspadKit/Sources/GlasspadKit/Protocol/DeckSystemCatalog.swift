@@ -55,13 +55,13 @@ public extension DeckSystemAction {
         case .doNotDisturb: "Do Not Disturb"
         case .nightShift: "Night Shift"
         case .keepAwake: "Keep Awake"
-        case .notificationCenter: "Notifications"
+        case .notificationCenter: "Notification Center"
         case .windowLeft: "Left Half"
         case .windowRight: "Right Half"
         case .windowTop: "Top Half"
         case .windowBottom: "Bottom Half"
-        case .windowFill: "Fill Screen"
-        case .windowCenter: "Center Window"
+        case .windowFill: "Fill"
+        case .windowCenter: "Center"
         case .windowSplit: "Split Screen"
         case .windowNextDisplay: "Next Display"
         }
@@ -71,7 +71,7 @@ public extension DeckSystemAction {
     var symbol: String {
         switch self {
         case .lockScreen: "lock.fill"
-        case .sleepDisplay: "moon.fill"
+        case .sleepDisplay: "display"
         case .sleepMac: "powersleep"
         case .toggleDarkMode: "circle.lefthalf.filled"
         case .volumeUp: "speaker.plus.fill"
@@ -89,7 +89,7 @@ public extension DeckSystemAction {
         case .launchpad: "square.grid.3x3"
         case .emptyTrash: "trash.fill"
         case .ejectAll: "eject.fill"
-        case .doNotDisturb: "moon.circle.fill"
+        case .doNotDisturb: "moon.fill"
         case .nightShift: "sun.horizon.fill"
         case .keepAwake: "cup.and.saucer.fill"
         case .notificationCenter: "bell.badge.fill"
@@ -107,7 +107,9 @@ public extension DeckSystemAction {
     /// Tile colour as `#RRGGBB`.
     var color: String {
         switch group {
-        case .mac: self == .doNotDisturb || self == .sleepDisplay || self == .sleepMac ? "#5E5CE6" : "#30B0C7"
+        // Do Not Disturb in Focus indigo, Sleep Mac in the grey of the power controls; the
+        // rest, Sleep Display among them, in the Mac controls' teal.
+        case .mac: self == .doNotDisturb ? "#5E5CE6" : self == .sleepMac ? "#8E8E93" : "#30B0C7"
         case .windows: "#0A84FF"
         case .sound: self == .micMute ? "#FF375F" : "#FF9F0A"
         case .display: "#FFD60A"

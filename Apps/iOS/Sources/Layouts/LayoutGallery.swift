@@ -6,7 +6,6 @@ import SwiftUI
 struct LayoutGallery: View {
     @Environment(\.palette) private var palette
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.verticalSizeClass) private var verticalSize
     var store = LayoutStore.shared
     var router = AppRouter.shared
 
@@ -59,8 +58,6 @@ struct LayoutGallery: View {
         .onAppear(perform: dismissKeyboard)
     }
 
-    private var landscape: Bool { verticalSize == .compact }
-
     // MARK: Your layouts
 
     private func row(_ layout: ScreenLayout) -> some View {
@@ -70,9 +67,9 @@ struct LayoutGallery: View {
             router.show(layout: layout)
         } label: {
             HStack(spacing: 14) {
-                // The same small drawing as in the mode menu.
-                LayoutDiagram(layout: layout, landscape: landscape, showsSymbols: false, vivid: true)
-                    .frame(width: 58, height: landscape ? 28 : 40)
+                // The same icon as in the mode menu.
+                LayoutGlyph(layout: layout)
+                    .frame(width: 58, height: 36)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(layout.name)
                         .font(.body.weight(.medium))
@@ -143,11 +140,17 @@ private struct TemplateCard: View {
                     .frame(maxWidth: .infinity)
             }
             .frame(height: 84)
-            Text(template.name)
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(palette.inkColor)
-                .lineLimit(1)
-                .minimumScaleFactor(0.85)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(template.name)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(palette.inkColor)
+                // What is in it, unless the name already says so ("Trackpad and Dock").
+                Text(layout.paneSummary == template.name ? " " : layout.paneSummary)
+                    .font(.caption)
+                    .foregroundStyle(palette.inkSoftColor)
+            }
+            .lineLimit(1)
+            .minimumScaleFactor(0.85)
         }
         .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)

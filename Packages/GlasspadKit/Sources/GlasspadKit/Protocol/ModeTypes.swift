@@ -126,6 +126,17 @@ public struct DeckPage: Codable, Equatable, Sendable, Hashable, Identifiable {
         self.appBundleIDs = appBundleIDs
         self.buttons = buttons
     }
+
+    enum CodingKeys: String, CodingKey { case id, title, symbol, appBundleIDs, buttons }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(UUID.self, forKey: .id)
+        title = try c.decode(String.self, forKey: .title)
+        symbol = try c.decodeIfPresent(String.self, forKey: .symbol)
+        appBundleIDs = try c.decodeIfPresent([String].self, forKey: .appBundleIDs)
+        buttons = try c.decodeLenientArray(DeckButton.self, forKey: .buttons)
+    }
 }
 
 /// The whole Deck: pages, folders (buttons with children) and grid density.
@@ -140,6 +151,15 @@ public struct DeckLayout: Codable, Equatable, Sendable {
         self.pages = pages
         self.columns = columns
         self.allowsShellCommands = allowsShellCommands
+    }
+
+    enum CodingKeys: String, CodingKey { case pages, columns, allowsShellCommands }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        pages = try c.decodeLenientArray(DeckPage.self, forKey: .pages)
+        columns = try c.decodeIfPresent(Int.self, forKey: .columns)
+        allowsShellCommands = try c.decodeIfPresent(Bool.self, forKey: .allowsShellCommands)
     }
 
     /// Every button on every page, folders included, depth first.

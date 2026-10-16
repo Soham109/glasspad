@@ -84,7 +84,7 @@ struct ActionCategory: Identifiable {
         case .runShortcut: return items.first { $0.id == "shortcut" }
         case .runMacro: return items.first { $0.id == "macro" }
         case .folder: return items.first { $0.id == "folder" }
-        case .shellScript: return nil
+        case .shellScript, .unsupported: return nil
         }
     }
 }
@@ -156,8 +156,9 @@ struct DeckButtonEditor: View {
                     } label: {
                         HStack(spacing: 12) {
                             let t = ActionCategory.template(for: button.action)
-                            LibraryGlyph(symbol: t?.symbol ?? "terminal", color: Color(hexString: t?.color) ?? .gray)
-                            Text(t?.title ?? "Shell Script").foregroundStyle(palette.inkColor)
+                            let newer = !button.action.isSupported
+                            LibraryGlyph(symbol: t?.symbol ?? (newer ? DeckButton.newerSymbol : "terminal"), color: Color(hexString: t?.color) ?? .gray)
+                            Text(t?.title ?? (newer ? "Newer Action" : "Shell Script")).foregroundStyle(palette.inkColor)
                             Spacer()
                             Text("Change").foregroundStyle(palette.inkSoftColor)
                             Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(palette.inkSoftColor)
@@ -269,7 +270,7 @@ struct DeckButtonEditor: View {
                             .overlay { Circle().strokeBorder(palette.lineColor) }
                     }
                     .buttonStyle(.plain)
-                    .accessibilityLabel("Colour \(hex)")
+                    .accessibilityLabel("Color \(hex)")
                     .accessibilityAddTraits(selected ? .isSelected : [])
                 }
             }
@@ -332,13 +333,13 @@ private struct ActionOptions: View {
                 Text("Front Window").tag(DeckCaptureArea.frontWindow)
                 Text("Area You Drag").tag(DeckCaptureArea.selection)
             }
-            Picker("Also Send to iPhone", selection: Binding(get: { shot.sendToPhone }, set: { shot.sendToPhone = $0; action = .screenshot(shot) })) {
-                Text("No").tag(DeckImageDestination?.none)
-                Text("Photos").tag(DeckImageDestination?.some(.photos))
-                Text("Clipboard").tag(DeckImageDestination?.some(.clipboard))
+            Picker("Send to iPhone", selection: Binding(get: { shot.sendToPhone }, set: { shot.sendToPhone = $0; action = .screenshot(shot) })) {
+                Text("Off").tag(DeckImageDestination?.none)
+                Text("Save to Photos").tag(DeckImageDestination?.some(.photos))
+                Text("Copy to Clipboard").tag(DeckImageDestination?.some(.clipboard))
             }
-            Toggle("Copy on the Mac Too", isOn: Binding(get: { shot.copyToMacClipboard ?? false },
-                                                         set: { shot.copyToMacClipboard = $0; action = .screenshot(shot) }))
+            Toggle("Copy to Mac Clipboard", isOn: Binding(get: { shot.copyToMacClipboard ?? false },
+                                                          set: { shot.copyToMacClipboard = $0; action = .screenshot(shot) }))
             Text("Saved where your Mac saves screenshots, right away, without the screenshot toolbar.")
                 .font(.footnote).foregroundStyle(palette.inkSoftColor)
         case .setAudioOutput(let name):
@@ -380,6 +381,8 @@ private struct ActionOptions: View {
         case .shellScript:
             Text("Shell scripts are set up and allowed on the Mac only.")
                 .font(.footnote).foregroundStyle(palette.inkSoftColor)
+        case .unsupported:
+            Text(DeckAction.updateToUse).font(.footnote).foregroundStyle(palette.inkSoftColor)
         case .system(let s):
             if s.needsConfirmation {
                 Text("You will be asked to confirm each time.").font(.footnote).foregroundStyle(palette.inkSoftColor)
