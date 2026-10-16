@@ -177,6 +177,8 @@ struct StandByScreen<Content: View>: View {
     var settings = StandBySettings.shared
     var monitor = StandByMonitor.shared
     let content: (_ minute: Date, _ style: StandByStyle) -> Content
+    /// Room kept for the mode pill, on the edge it sits on, when this screen reaches that edge.
+    @State private var pillRoom = EdgeInsets()
 
     init(@ViewBuilder content: @escaping (_ minute: Date, _ style: StandByStyle) -> Content) {
         self.content = content
@@ -204,11 +206,26 @@ struct StandByScreen<Content: View>: View {
                 .opacity(level)
                 .animation(.easeInOut(duration: 1.2), value: night)
         }
+        .padding(pillRoom)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(StandByStyle.backgroundColor.ignoresSafeArea())
+        .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { pillRoom = Self.pillRoom(for: $0) }
         .environment(\.colorScheme, .dark)
         .onAppear { monitor.appeared() }
         .onDisappear { monitor.disappeared() }
+    }
+
+    /// The pill floats just inside the safe area at the top (or bottom) of the screen. A
+    /// screen that reaches that edge keeps the pill's height clear, so nothing sits under it.
+    private static func pillRoom(for frame: CGRect) -> EdgeInsets {
+        guard let window = UIApplication.shared.connectedScenes.compactMap({ $0 as? UIWindowScene })
+            .flatMap(\.windows).first(where: \.isKeyWindow) else { return EdgeInsets() }
+        let safe = window.safeAreaInsets
+        let room: CGFloat = 46
+        if PhoneSettings.shared.pillPosition == .bottom {
+            return EdgeInsets(top: 0, leading: 0, bottom: frame.maxY >= window.bounds.height - safe.bottom - 1 ? room : 0, trailing: 0)
+        }
+        return EdgeInsets(top: frame.minY <= safe.top + 1 ? room : 0, leading: 0, bottom: 0, trailing: 0)
     }
 }
 
