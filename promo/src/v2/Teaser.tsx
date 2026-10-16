@@ -50,7 +50,7 @@ const still = (from: number, to: number) => {
   return out;
 };
 const PAD: Seg[] = [...still(3.9, 8.4), { at: s(8.4), src: 7.983 }, { at: s(9.9), src: 10.683 }, ...still(11.6, 12.4)];
-const ACT: Seg[] = [{ at: s(12.2), src: 2.9 }, { at: s(13.0), src: 4.133 }]; // switch at 15.7
+const ACT: Seg[] = [{ at: s(12.2), src: 2.9 }, { at: s(13.0), src: 3.95 }]; // switch at 15.7
 const T_CLICK = TW("actions2", 2) + 0.06;
 const T_SWITCH = 15.7;
 
@@ -158,7 +158,7 @@ export const Teaser: React.FC = () => {
               {portrait ? (
                 <Phone short={l.ps} orient="portrait" island={false} screen={C.graphite}>
                   <PhoneClip clip="actions" segs={ACT} len={end + 30} w={scP.w} h={scP.h} />
-                  {F >= s(T_SWITCH) && F < s(T_SWITCH) + 50 ? <div style={{ position: "absolute", left: scP.w * 0.025, top: scP.h * 0.135, width: scP.w * 0.95, height: scP.h * 0.28, borderRadius: 26, boxShadow: `inset 0 0 0 4px ${C.accent}`, opacity: 1 - prog(F, s(T_SWITCH) + 20, 30) }} /> : null}
+                  {F >= s(T_SWITCH) && F < s(T_SWITCH) + 50 ? <div style={{ position: "absolute", left: scP.w * 0.025, top: scP.h * 0.14, width: scP.w * 0.95, height: scP.h * 0.29, borderRadius: 26, boxShadow: `inset 0 0 0 4px ${C.accent}`, opacity: 1 - prog(F, s(T_SWITCH) + 20, 30) }} /> : null}
                 </Phone>
               ) : (
                 <Phone short={l.ps} orient="landscape" island={false} screen={C.graphite}>
@@ -178,7 +178,7 @@ export const Teaser: React.FC = () => {
             const k = prog(F, s(T_CLICK) + 4, 30, E.inOut);
             if (k <= 0 || k >= 1) return null;
             const a = { x: g.x0 + ptr.x * g.k, y: g.y0 + ptr.y * g.k };
-            const b = { x: l.px - scP.w * 0.42, y: l.py - scP.h * 0.337 };
+            const b = { x: l.px - scP.w * 0.42, y: l.py - scP.h * 0.329 };
             const size = lerp(70, 44, k) * (1 + 0.3 * Math.sin(k * Math.PI));
             return <Img src={icon("com.apple.Safari")} style={{ position: "absolute", left: lerp(a.x, b.x, k) - size / 2, top: lerp(a.y, b.y, k) - Math.sin(k * Math.PI) * 200 - size / 2, width: size, height: size }} />;
           })()}

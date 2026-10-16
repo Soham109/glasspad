@@ -20,12 +20,13 @@ const CL = clips as any;
 
 // Recording placement, film seconds -> clip seconds.
 const MENU: Seg[] = [
-  { at: s(40.4), src: 3.647 }, // menu opens 40.62, Apps 42.57, Word in front 44.52
+  { at: s(40.4), src: 3.697 }, // menu opens 40.62, Dock 42.64
+  { at: s(43.2), src: 6.63 }, // (still Dock screen) Word in front 44.52
   { at: s(46.6), src: 8.6 },
 ];
 const ACTIONS: Seg[] = [
   { at: s(47.3), src: 2.8 },
-  { at: s(49.0), src: 3.533 }, // the Mac's front app becomes Safari at 52.3
+  { at: s(49.0), src: 3.35 }, // the Mac's front app becomes Safari at 52.3
 ];
 const MEDIA: Seg[] = [{ at: s(55.82), src: 2.753 }]; // scrub 58.5 to 59.42
 
@@ -154,7 +155,7 @@ export const Hand: React.FC = () => {
           </div>
           {/* the front-app section lights up when it changes on its own */}
           {F >= s(T_SWITCH) && F < s(T_SWITCH) + 50 ? (
-            <div style={{ position: "absolute", left: sc.w * 0.025, top: sc.h * 0.135, width: sc.w * 0.95, height: sc.h * 0.28, borderRadius: 22, boxShadow: `inset 0 0 0 3px ${C.accent}`, opacity: 1 - prog(F, s(T_SWITCH) + 20, 30) }} />
+            <div style={{ position: "absolute", left: sc.w * 0.025, top: sc.h * 0.14, width: sc.w * 0.95, height: sc.h * 0.29, borderRadius: 22, boxShadow: `inset 0 0 0 3px ${C.accent}`, opacity: 1 - prog(F, s(T_SWITCH) + 20, 30) }} />
           ) : null}
         </Phone>
       </div>
@@ -193,7 +194,7 @@ export const Hand: React.FC = () => {
       {/* Safari: Mac to phone */}
       {toPhone > 0 && toPhone < 1 ? (() => {
         const a = toFrame(l, ptr);
-        const b = phonePt(l, 0.08, 0.163);
+        const b = phonePt(l, 0.08, 0.171);
         const size = lerp(DOCK_ICON * g.k * 1.2, sc.w * 0.075, toPhone) * (1 + 0.3 * Math.sin(toPhone * Math.PI));
         return <Img src={icon("com.apple.Safari")} style={{ position: "absolute", left: lerp(a.x, b.x, toPhone) - size / 2, top: lerp(a.y, b.y, toPhone) - Math.sin(toPhone * Math.PI) * 200 - size / 2, width: size, height: size }} />;
       })() : null}

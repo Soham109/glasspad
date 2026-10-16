@@ -25,9 +25,9 @@
   "w": 1206,
   "h": 2622,
   "appVisible": 2.217,
-  "menuOpen": 3.867,
-  "appsShown": 5.817,
-  "wordFront": 7.767,
+  "menuOpen": 3.917,
+  "appsShown": 5.933,
+  "wordFront": 7.95,
   "pill": [
    0.5,
    0.1
@@ -37,19 +37,20 @@
    0.178
   ],
   "wordIcon": [
-   0.38,
-   0.603
-  ]
+   0.382,
+   0.531
+  ],
+  "recordedFrom": "ff194d4 (Dock)"
  },
  "actions": {
   "file": "v2/phone/actions-60.mp4",
   "w": 1206,
   "h": 2622,
   "appVisible": 2.217,
-  "switchToSafari": 6.833,
+  "switchToSafari": 6.65,
   "header": [
    0.5,
-   0.164
+   0.171
   ],
   "frontGrid": [
    0.03,
@@ -58,17 +59,18 @@
    0.405
   ],
   "screenshot": [
-   0.146,
-   0.529
+   0.145,
+   0.547
   ],
   "lock": [
    0.38,
-   0.529
+   0.547
   ],
   "darkMode": [
    0.6125,
-   0.529
-  ]
+   0.547
+  ],
+  "recordedFrom": "ff194d4"
  },
  "media": {
   "file": "v2/phone/media-60.mp4",
