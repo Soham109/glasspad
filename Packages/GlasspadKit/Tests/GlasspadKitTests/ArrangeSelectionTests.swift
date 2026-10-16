@@ -207,9 +207,9 @@ import Testing
 
     @Test func buttonTitlesSayWhatWillHappen() {
         #expect(WindowArrangement.leftAndRight.actionTitle == "Split")
-        #expect(WindowArrangement.topAndBottom.actionTitle == "Split Top & Bottom")
-        #expect(WindowArrangement.quarters.actionTitle == "Arrange in Quarters")
-        #expect(WindowArrangement.fullScreen.actionTitle == "Split in Full Screen")
+        #expect(WindowArrangement.topAndBottom.actionTitle == "Split")
+        #expect(WindowArrangement.quarters.actionTitle == "Arrange")
+        #expect(WindowArrangement.fullScreen.actionTitle == "Split")
         #expect(WindowArrangement.quarters.placeName(3) == "Bottom right quarter")
     }
 }
@@ -242,5 +242,37 @@ import Testing
         #expect(WindowArrangement.quarters.slots == [.topLeft, .topRight, .bottomLeft, .bottomRight])
         #expect(WindowArrangement.allCases.allSatisfy { $0.minimumWindows <= $0.slots.count && $0.minimumWindows >= 2 })
         #expect(WindowArrangement.quarters.minimumWindows == 3)
+    }
+
+    // MARK: Telling windows apart
+
+    @Test func anAppsOnlyWindowNeedsNoMoreThanItsName() {
+        let s = ArrangeSelectionTests.state()
+        #expect(s.distinction(of: s.windows[0]) == nil)
+        #expect(s.spokenName(of: s.windows[0]) == "Safari")
+    }
+
+    @Test func severalWindowsOfOneAppShowTheirTitlesAndDisplays() {
+        var s = ArrangeSelectionTests.state()
+        s.windows.append(MacWindow(id: 15, bundleID: "com.apple.Safari", appName: "Safari", title: "GitHub", frame: CGRect(x: 100, y: 100, width: 600, height: 500)))
+        #expect(s.distinction(of: s.windows[0]) == "Apple · Studio Display")
+        #expect(s.distinction(of: s.windows[4]) == "GitHub · Built-in")
+        #expect(s.spokenName(of: s.windows[4]) == "Safari, GitHub, Built-in")
+        // One display: no need to say which.
+        let one = DisplaysState(displays: [ArrangeSelectionTests.laptop], windows: s.windows)
+        #expect(one.distinction(of: s.windows[4]) == "GitHub")
+    }
+
+    @Test func emptyOrRepeatedTitlesFallBackToThePlaceFrontToBack() {
+        let w = { (id: UInt32, title: String?) in
+            MacWindow(id: id, bundleID: "com.google.Chrome", appName: "Google Chrome", title: title, frame: CGRect(x: 100, y: 100, width: 600, height: 500))
+        }
+        let s = DisplaysState(displays: [ArrangeSelectionTests.laptop], windows: [w(1, "New Tab"), w(2, "New Tab"), w(3, ""), w(4, "Docs"), w(5, "Google Chrome")])
+        #expect(s.windows.map { s.distinction(of: $0) } == ["Front window", "2nd window", "3rd window", "Docs", "5th window"])
+        #expect(DisplaysState.ordinal(11) == "11th" && DisplaysState.ordinal(22) == "22nd" && DisplaysState.ordinal(101) == "101st")
+    }
+
+    @Test func displaysHaveAShortName() {
+        #expect(ArrangeSelectionTests.laptop.shortName == "Built-in" && ArrangeSelectionTests.studio.shortName == "Studio Display")
     }
 }

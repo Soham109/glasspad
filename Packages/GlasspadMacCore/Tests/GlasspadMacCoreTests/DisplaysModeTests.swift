@@ -56,6 +56,8 @@ final class FakeDisplays: DisplaysBackend {
 
     func restorePermanent() { restored += 1 }
     func setBrightness(_ value: Double, display: UInt32) { brightness.append((display, value)) }
+    var highlighted: [CGRect] = []
+    func highlight(_ frame: CGRect) { highlighted.append(frame) }
 }
 
 @Suite @MainActor struct DisplaysModeTests {
@@ -70,6 +72,27 @@ final class FakeDisplays: DisplaysBackend {
     private func result(_ sent: [ModeMessage], _ id: UUID) -> (ok: Bool, message: String?)? {
         for case .displaysResult(let i, let ok, let message) in sent where i == id { return (ok, message) }
         return nil
+    }
+
+    @Test func aHighlightOutlinesTheWindowWithoutAnswerOrMoving() {
+        let (m, fake, sent) = mode()
+        #expect(m.state().highlightsWindows == true)
+        m.highlight(windowID: 101)
+        #expect(fake.highlighted == [CGRect(x: 1700, y: -300, width: 1000, height: 800)])
+        // A window that has closed: nothing. Never an answer, never a move.
+        m.highlight(windowID: 999)
+        #expect(fake.highlighted.count == 1)
+        #expect(sent().isEmpty && fake.operations.isEmpty)
+    }
+
+    @Test func theOutlineLandsOnTheWindowInAppKitCoordinates() {
+        // Quartz: top-left origin on the main display, y down. AppKit: bottom-left, y up.
+        let main = CGRect(x: 0, y: 0, width: 1512, height: 982)
+        #expect(WindowHighlight.appKitFrame(CGRect(x: 100, y: 100, width: 800, height: 600), mainHeight: main.height)
+                == CGRect(x: 100, y: 282, width: 800, height: 600))
+        // A display above the main one has negative Quartz y and lands above it in AppKit.
+        #expect(WindowHighlight.appKitFrame(CGRect(x: 1700, y: -300, width: 1000, height: 200), mainHeight: main.height)
+                == CGRect(x: 1700, y: 1082, width: 1000, height: 200))
     }
 
     @Test func watchingSendsOnlyChangesWithIconsFirstAndStopsWhenAsked() {

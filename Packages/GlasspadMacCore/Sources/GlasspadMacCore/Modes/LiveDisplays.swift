@@ -95,6 +95,13 @@ public final class LiveDisplays: DisplaysBackend {
         return choices
     }
 
+    private var highlighter: WindowHighlight?
+
+    public func highlight(_ frame: CGRect) {
+        if highlighter == nil { highlighter = WindowHighlight() }
+        highlighter?.show(around: frame)
+    }
+
     public func setBrightness(_ value: Double, display: UInt32) {
         Brightness.set(Float(value), display: display)
         displaysReadAt = .distantPast

@@ -120,6 +120,16 @@ final class DisplaysStore {
         session.send(.windowCommand(id: UUID(), windowID: window.id, command: command))
     }
 
+    /// Outlines the window on the Mac for a moment, so the person sees which one they picked.
+    /// Only a Mac that says it can; nothing moves and there is no answer.
+    func highlight(_ window: MacWindow) {
+        guard state?.highlightsWindows == true else { return }
+        #if DEBUG
+        if session.isDemo { return }
+        #endif
+        session.send(.windowHighlight(windowID: window.id))
+    }
+
     /// Arrange as chosen in its sheet: shown at once, then confirmed by name ("Safari and Notes,
     /// side by side on Studio Display.") or with the Mac's reason it could not.
     func arrange(_ selection: ArrangeSelection) {
@@ -243,7 +253,8 @@ struct SplitNotice: Equatable {
 
 #if DEBUG
 /// A sample Mac for simulator screenshots: a 14 inch MacBook Pro, a Studio Display beside it,
-/// and a third display above in `three`. Commands change it the way the Mac would.
+/// and a third display above in `three`; `many` adds a second Safari window and two Notes
+/// windows with the same title. Commands change it the way the Mac would.
 struct DisplaysDemo {
     var state: DisplaysState
     private var before: DisplaysState?
@@ -283,11 +294,16 @@ struct DisplaysDemo {
         case "three":
             displays.append(above)
             windows.append(w(17, "com.apple.Photos", "Photos", "Library", 100, -1000, 1400, 900))
+        case "many":
+            windows.insert(w(18, "com.apple.Safari", "Safari", "GitHub", 120, 120, 1100, 760), at: 2)
+            windows.append(w(19, "com.apple.Notes", "Notes", "Notes", 2900, -200, 700, 620))
+            windows.append(w(20, "com.apple.Notes", "Notes", "Notes", 3100, -100, 700, 620))
+            windows.removeAll { $0.id == 16 }
         default:
             break
         }
         state = DisplaysState(displays: displays, windows: windows, nightShift: false, canArrangeWindows: true, tileMargin: 8,
-                              arrangements: WindowArrangement.allCases.map(\.rawValue))
+                              arrangements: WindowArrangement.allCases.map(\.rawValue), highlightsWindows: true)
     }
 
     mutating func run(_ command: DisplayCommand) {

@@ -19,6 +19,9 @@ public protocol DisplaysBackend: AnyObject {
     /// Back to the last permanent setup (what was there before an unconfirmed change).
     func restorePermanent()
     func setBrightness(_ value: Double, display: UInt32)
+    /// Outlines this frame (global display coordinates) for a moment, over everything and
+    /// without taking clicks; nothing moves or comes forward.
+    func highlight(_ frame: CGRect)
 }
 
 /// One thing done to one window, with the frame already worked out.
@@ -109,7 +112,7 @@ public final class DisplaysMode {
         return DisplaysState(displays: backend.displays(), windows: backend.windows(), nightShift: nightShift(),
                              canArrangeWindows: backend.canArrangeWindows, tileMargin: Double(backend.tileMargin),
                              pending: pending.map { PendingDisplayChange(summary: $0.summary, secondsLeft: left ?? 0) },
-                             arrangements: WindowArrangement.allCases.map(\.rawValue))
+                             arrangements: WindowArrangement.allCases.map(\.rawValue), highlightsWindows: true)
     }
 
     /// Sends the state when it changed, with the icons of apps the phone has not seen first.
@@ -186,6 +189,13 @@ public final class DisplaysMode {
             return [(id, .arrange(arrangement, with: Array(ids.dropFirst()), visible: d.visibleFrame, gap: CGFloat(s.tileMargin),
                                   display: d.name))]
         }
+    }
+
+    /// The phone picked this window: outline it on the Mac so the person sees which one it is.
+    /// No answer, and nothing for a window that has closed.
+    public func highlight(windowID: UInt32) {
+        guard let w = backend.windows().first(where: { $0.id == windowID }) else { return }
+        backend.highlight(w.frame)
     }
 
     // MARK: Displays
