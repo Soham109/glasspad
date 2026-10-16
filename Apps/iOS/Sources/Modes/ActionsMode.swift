@@ -18,6 +18,7 @@ import GlasspadKit
 /// split up in Settings). Deck mode, for people who split, is this same screen.
 struct ActionsMode: View {
     @Environment(\.palette) private var palette
+    @Environment(\.modeTopClearance) private var topClearance
     @Bindable var settings = PhoneSettings.shared
     var session = MacSession.shared
     var router = AppRouter.shared
@@ -240,7 +241,7 @@ struct ActionsMode: View {
             VStack(alignment: .leading, spacing: 0) { content() }
                 .padding(.leading, leading)
                 .padding(.trailing, trailing)
-                .padding(.top, settings.pillPosition == .top ? (compact ? 48 : 64) : 16)
+                .padding(.top, topClearance ?? (settings.pillPosition == .top ? (compact ? 48 : 64) : 16))
                 .padding(.bottom, 24)
                 .animation(.snappy, value: editing)
                 .animation(.snappy, value: folderPath)

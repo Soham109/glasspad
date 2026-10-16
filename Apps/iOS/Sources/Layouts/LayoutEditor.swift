@@ -52,7 +52,7 @@ struct LayoutEditor: View {
                 }
                 .scrollDismissesKeyboard(.interactively)
             }
-            .background(palette.backgroundColor.ignoresSafeArea())
+            .background { SurfaceBackground() }
             .navigationTitle(isNew ? "New Layout" : "Edit Layout")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -165,7 +165,7 @@ struct LayoutEditor: View {
                         .frame(maxWidth: .infinity, minHeight: 44)
                 }
                 .glassButton()
-                .tint(Color(uiColor: .systemRed))
+                .tint(palette.bad)
                 .padding(.top, 8)
             }
         }

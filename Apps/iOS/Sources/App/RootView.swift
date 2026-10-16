@@ -29,6 +29,7 @@ struct GlasspadApp: App {
 
 struct RootView: View {
     @Environment(\.colorScheme) private var systemScheme
+    @Environment(\.verticalSizeClass) private var verticalSize
     var settings = PhoneSettings.shared
     var router = AppRouter.shared
     var session = MacSession.shared
@@ -95,7 +96,10 @@ struct RootView: View {
             PresenterCover()
                 .environment(\.palette, palette)
         }
-        .fullScreenCover(isPresented: $router.showRemote) { RemoteCover() }
+        .fullScreenCover(isPresented: $router.showRemote) {
+            RemoteCover()
+                .environment(\.palette, palette)
+        }
         .fullScreenCover(isPresented: $router.showDisplays) { DisplaysCover().environment(\.palette, palette) }
         .alert(router.pairingRequest.map { "Pair with \($0.macName)?" } ?? "Pair with this Mac?",
                isPresented: Binding(get: { router.pairingRequest != nil }, set: { if !$0 { router.pairingRequest = nil } }),
@@ -145,12 +149,22 @@ struct RootView: View {
                 WarmNotice()
             }
         }
-        .animation(.easeInOut(duration: 0.25), value: router.mode)
-        .animation(.easeInOut(duration: 0.25), value: router.layoutID)
+        // Every mode starts its content the same distance below the pill, so a switch is a
+        // calm cross-fade with nothing jumping.
+        .environment(\.modeTopClearance, topClearance)
+        .animation(.easeInOut(duration: 0.2), value: router.mode)
+        .animation(.easeInOut(duration: 0.2), value: router.layoutID)
         .animation(.easeInOut(duration: router.isDimmed ? 1.2 : 0.25), value: router.isDimmed)
         .persistentSystemOverlays(focus ? .hidden : .automatic)
         .defersSystemGestures(on: router.screenModes.contains(.trackpad) ? .all : [])
         .simultaneousGesture(TapGesture().onEnded { router.noteActivity() }, including: router.mode == .present ? .all : .subviews)
+    }
+
+    /// Room every mode keeps clear above its content for the pill: under it at the top, a
+    /// small margin when the pill sits at the bottom.
+    private var topClearance: CGFloat {
+        guard settings.pillPosition == .top else { return 16 }
+        return verticalSize == .compact ? 52 : 64
     }
 
     /// The first-run checklist waits for a new pairing and for nothing else to be on screen.

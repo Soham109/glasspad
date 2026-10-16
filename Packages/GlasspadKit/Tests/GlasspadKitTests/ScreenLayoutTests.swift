@@ -223,4 +223,13 @@ import Testing
         let couch = LayoutWirePlan(modes: [.remote, .trackpad, .media])
         #expect(couch.primary == .remote && !couch.requestsMedia)
     }
+
+    @Test func refreshesADockPaneOnlyWhenTheMacFollowsAnotherPane() {
+        #expect(LayoutWirePlan(modes: [.present, .dock]).refreshesDock)
+        #expect(LayoutWirePlan(modes: [.dock, .present]).refreshesDock)
+        #expect(!LayoutWirePlan(modes: [.dock]).refreshesDock)
+        #expect(!LayoutWirePlan(modes: [.dock, .media, .trackpad]).refreshesDock)
+        #expect(!LayoutWirePlan(modes: [.present, .trackpad]).refreshesDock)
+        #expect(!LayoutWirePlan(modes: []).refreshesDock)
+    }
 }

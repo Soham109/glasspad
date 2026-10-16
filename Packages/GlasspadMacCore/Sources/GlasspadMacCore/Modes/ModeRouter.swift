@@ -172,9 +172,9 @@ public final class ModeRouter {
         case .presentLaser(let on): present.setLaser(on: on)
         case .presentLaserPosition(let x, let y): present.moveLaser(x: x, y: y)
         case .remoteSystem(let id, let action):
-            // Only the one-tap controls; anything that needs confirming stays a Deck button.
+            // Only the one-tap controls; anything that needs confirming is pinned in Actions, which asks first.
             guard !action.needsConfirmation else {
-                send(.deckResult(id: id, ok: false, message: "Use a Deck button for that."))
+                send(.deckResult(id: id, ok: false, message: "Pin it in Actions to use it."))
                 return
             }
             Task { [weak self] in

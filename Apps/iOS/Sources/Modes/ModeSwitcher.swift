@@ -3,7 +3,8 @@ import GlasspadKit
 
 /// The small pill at the top centre. It shows the current mode, fades after 2 s, and comes
 /// back when the top edge is touched. Tap it for the mode menu, long press for Settings.
-/// When faded, a tiny dot stays in its place and shows the connection.
+/// The pill and the menu are one piece of glass: on iOS 26 the pill grows into the menu.
+/// A small dot shows the connection only when something is wrong.
 struct ModeSwitcher: View {
     @Environment(\.palette) private var palette
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -16,6 +17,7 @@ struct ModeSwitcher: View {
     @State private var visible = true
     @State private var expanded = false
     @State private var hideTask: Task<Void, Never>?
+    @Namespace private var glass
 
     var body: some View {
         GeometryReader { geo in
@@ -43,29 +45,24 @@ struct ModeSwitcher: View {
                 }
 
                 VStack(spacing: 10) {
-                    if bottom && expanded {
-                        menu
-                            .transition(reduceMotion ? .opacity : .opacity.combined(with: .scale(scale: 0.92, anchor: .bottom)))
-                    }
                     if bottom && showsHint { hint }
-                    if visible || expanded {
-                        pill
-                            .transition(reduceMotion ? .opacity : .opacity.combined(with: .scale(scale: 0.85, anchor: bottom ? .bottom : .top)))
-                    } else {
-                        ConnectionDot(state: session.state)
-                            // The one lit spot left on a dimmed screen; dim it too (OLED).
-                            .opacity(router.isDimmed ? 0.3 : 1)
-                            .padding(bottom ? .bottom : .top, 8)
-                            .transition(.opacity)
+                    Group {
+                        if expanded {
+                            menu.transition(transition(bottom: bottom, scale: 0.92))
+                        } else if visible {
+                            pill.transition(transition(bottom: bottom, scale: 0.85))
+                        } else if !session.isConnected {
+                            ConnectionDot(state: session.state)
+                                // The one lit spot left on a dimmed screen; dim it too (OLED).
+                                .opacity(router.isDimmed ? 0.3 : 1)
+                                .padding(bottom ? .bottom : .top, 8)
+                                .transition(.opacity)
+                        }
                     }
+                    .glassGroup(spacing: 12)
                     if !bottom && showsHint { hint }
-                    if !bottom && expanded {
-                        menu
-                            .transition(reduceMotion ? .opacity : .opacity.combined(with: .scale(scale: 0.92, anchor: .top)))
-                    }
                 }
                 .padding(bottom ? .bottom : .top, 6)
-                .glassGroup(spacing: 12)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: bottom ? .bottom : .top)
         }
@@ -74,6 +71,7 @@ struct ModeSwitcher: View {
         .dynamicTypeSize(...DynamicTypeSize.xxLarge)
         .animation(.spring(response: 0.38, dampingFraction: 0.82), value: visible)
         .animation(.spring(response: 0.38, dampingFraction: 0.82), value: expanded)
+        .animation(.easeInOut(duration: 0.2), value: session.isConnected)
         .onAppear {
             #if DEBUG
             if DebugLaunch.showMenuAtLaunch { expanded = true }
@@ -83,6 +81,13 @@ struct ModeSwitcher: View {
         .onChange(of: router.mode) { reveal() }
         .onChange(of: router.layoutID) { reveal() }
         .onChange(of: voiceOver) { reveal() }
+    }
+
+    /// On iOS 26 the glass itself morphs between pill and menu; before that they scale and fade.
+    private func transition(bottom: Bool, scale: CGFloat) -> AnyTransition {
+        if #available(iOS 26.0, *) { return .opacity }
+        if reduceMotion { return .opacity }
+        return .opacity.combined(with: .scale(scale: scale, anchor: bottom ? .bottom : .top))
     }
 
     // MARK: Pill
@@ -100,16 +105,20 @@ struct ModeSwitcher: View {
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(palette.inkColor)
                 .lineLimit(1)
-            ConnectionDot(state: session.state)
+            if !session.isConnected {
+                ConnectionDot(state: session.state)
+                    .transition(.opacity.combined(with: .scale(scale: 0.5)))
+            }
         }
         .padding(.horizontal, 16)
         .frame(minHeight: 40)
-        .glassCapsule(interactive: true)
+        .morphingGlass(Capsule(), id: "switcher", in: glass, interactive: true)
         .contentShape(Capsule())
         .onTapGesture {
             Haptics.shared.tap()
             settings.seenTips.insert(Self.hintID)
-            if expanded { close() } else { expanded = true; hideTask?.cancel() }
+            expanded = true
+            hideTask?.cancel()
         }
         .onLongPressGesture(minimumDuration: 0.45) {
             Haptics.shared.play(.click)
@@ -118,7 +127,8 @@ struct ModeSwitcher: View {
             ScreenAwake.update()
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(layout == nil ? "\(mode.title) mode, \(session.state.statusText)" : "\(title) layout, \(session.state.statusText)")
+        .accessibilityLabel(layout == nil ? "\(mode.title) mode" : "\(title) layout")
+        .accessibilityValue(session.isConnected ? "" : session.state.statusText)
         .accessibilityHint("Double tap to switch modes")
         .accessibilityAddTraits(.isButton)
         .accessibilityAction(named: "Settings") {
@@ -157,145 +167,154 @@ struct ModeSwitcher: View {
 
     private var locked: Bool { settings.orientation != .automatic }
 
+    /// Rows of at most five that fill evenly: five in one row, then two rows.
+    static func columns(for count: Int) -> Int {
+        count <= 5 ? max(1, count) : min(5, (count + 1) / 2)
+    }
+
     private var menu: some View {
         let modes = AppMode.visible
-        let columns = modes.count <= 5 ? max(1, modes.count) : 4
-        return VStack(spacing: 6) {
+        // Every mode that opens on top instead of replacing the screen, unless shown as a mode.
+        let tools = AppMode.allCases.filter { $0.isTool && !modes.contains($0) }
+        return VStack(spacing: 8) {
+            header
             if session.macNeedsAccessibility {
                 MacPermissionBanner(compact: true)
-                    .padding(.bottom, 4)
             }
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: columns), spacing: 6) {
-                ForEach(modes) { mode in
-                    let current = mode == router.mode && router.layoutID == nil
-                    Button {
-                        Haptics.shared.tap()
-                        router.show(mode)
-                        close()
-                    } label: {
-                        VStack(spacing: 6) {
-                            Image(systemName: mode.symbol)
-                                .font(.title3)
-                                .imageScale(.medium)
-                                .foregroundStyle(mode.accent(palette))
-                                .frame(height: 26)
-                            Text(mode.title)
-                                .font(.caption2.weight(.medium))
-                                .foregroundStyle(palette.inkColor)
-                                .lineLimit(1)
-                                .minimumScaleFactor(0.8)
-                        }
-                        .frame(maxWidth: .infinity, minHeight: 64)
-                        .background {
-                            if current {
-                                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                    .fill(mode.accent(palette).opacity(0.14))
-                            }
-                        }
-                        .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                    }
-                    .buttonStyle(TileStyle())
-                    .accessibilityLabel(mode.title)
-                    .accessibilityAddTraits(current ? .isSelected : [])
+            tileGrid(modes) { mode in
+                let current = mode == router.mode && router.layoutID == nil
+                Button {
+                    Haptics.shared.tap()
+                    router.show(mode)
+                    close()
+                } label: {
+                    MenuTile(title: mode.title, selected: current) { symbol(mode) }
                 }
+                .buttonStyle(TileStyle())
+                .accessibilityLabel(mode.title)
+                .accessibilityAddTraits(current ? .isSelected : [])
             }
             LayoutMenuRow(close: close)
-            Divider().padding(.horizontal, 8).padding(.vertical, 2)
-            let tools = [AppMode.clipboard, .present, .remote, .displays].filter { !modes.contains($0) }
             if !tools.isEmpty {
-                // Four tools do not fit in one row with their names: two rows of two.
-                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: tools.count == 4 ? 2 : tools.count),
-                          spacing: 6) {
-                    ForEach(tools) { tool in
-                        Button {
-                            Haptics.shared.tap()
-                            close()
-                            router.openTool(tool)
-                        } label: {
-                            utilityLabel(tool.title, symbol: tool.toolSymbol)
-                        }
-                        .buttonStyle(TileStyle())
-                        .accessibilityHint(tool.toolHint)
+                Divider().padding(.horizontal, 8)
+                tileGrid(tools, alignedTo: modes.count) { tool in
+                    Button {
+                        Haptics.shared.tap()
+                        close()
+                        router.openTool(tool)
+                    } label: {
+                        MenuTile(title: tool.title) { symbol(tool) }
                     }
+                    .buttonStyle(TileStyle())
+                    .accessibilityLabel(tool.title)
+                    .accessibilityHint(tool.toolHint)
                 }
-            }
-            if store.macs.count > 1 { macPicker }
-            HStack(spacing: 6) {
-                Button {
-                    Haptics.shared.tap()
-                    OrientationLock.toggle()
-                } label: {
-                    utilityLabel(locked ? "Rotation Locked" : "Lock Rotation",
-                                 symbol: locked ? "lock.rotation" : "rotate.right", on: locked)
-                }
-                .buttonStyle(TileStyle())
-                .accessibilityLabel("Lock rotation")
-                .accessibilityValue(locked ? settings.orientation.title : "Off")
-                .accessibilityHint(locked ? "Lets the screen turn with the phone again" : "Holds the screen the way it is now")
-
-                Button {
-                    close()
-                    router.showSettings = true
-                    ScreenAwake.update()
-                } label: {
-                    utilityLabel("Settings", symbol: "gearshape")
-                }
-                .buttonStyle(TileStyle())
             }
         }
-        .padding(10)
-        .frame(width: 340)
-        .glassPanel(cornerRadius: 28)
+        .padding(.horizontal, 12)
+        .padding(.top, 10)
+        .padding(.bottom, 12)
+        .frame(width: Self.contentWidth + 24)
+        .morphingGlass(RoundedRectangle(cornerRadius: 32, style: .continuous), id: "switcher", in: glass)
+        .accessibilityAction(.escape) { close() }
     }
 
-    /// The smaller buttons under the modes: a soft tile, so they read as buttons too.
-    private func utilityLabel(_ title: String, symbol: String, on: Bool = false) -> some View {
-        Label(title, systemImage: symbol)
-            .font(.subheadline.weight(.medium))
-            .foregroundStyle(palette.inkColor)
-            .lineLimit(1)
-            .minimumScaleFactor(0.8)
-            .contentTransition(.symbolEffect(.replace))
-            .padding(.horizontal, 8)
-            .frame(maxWidth: .infinity, minHeight: 44)
-            .background(palette.inkColor.opacity(on ? 0.16 : 0.06),
-                        in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-            .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+    private func symbol(_ mode: AppMode) -> some View {
+        Image(systemName: mode.symbol)
+            .font(.title3)
+            .imageScale(.medium)
+            .foregroundStyle(mode.accent(palette))
     }
 
-    /// Only with two or more paired Macs. Picking one connects to it; the choice is remembered.
-    private var macPicker: some View {
-        Menu {
-            ForEach(store.macs) { mac in
-                Button {
-                    Haptics.shared.tap()
-                    session.select(mac)
-                    close()
-                } label: {
-                    if mac.macID == store.selected?.macID {
-                        Label(mac.name, systemImage: "checkmark")
-                    } else {
-                        Text(mac.name)
-                    }
-                }
+    /// The menu's width inside its margins, and the gap between tiles.
+    static let contentWidth: CGFloat = 316
+    static let tileSpacing: CGFloat = 4
+
+    /// Tiles in even rows. A short row under a grid (`alignedTo` its count) keeps that grid's
+    /// columns and sits centred in them, so every symbol lines up with one above it.
+    @ViewBuilder
+    private func tileGrid<Tile: View>(_ items: [AppMode], alignedTo above: Int? = nil,
+                                      @ViewBuilder tile: @escaping (AppMode) -> Tile) -> some View {
+        let aboveColumns = above.map(Self.columns(for:)) ?? 0
+        if items.count < aboveColumns, (aboveColumns - items.count) % 2 == 0 {
+            let width = (Self.contentWidth - Self.tileSpacing * CGFloat(aboveColumns - 1)) / CGFloat(aboveColumns)
+            HStack(spacing: Self.tileSpacing) {
+                ForEach(items) { tile($0).frame(width: width) }
             }
-        } label: {
-            HStack(spacing: 8) {
-                Image(systemName: "laptopcomputer")
-                Text(store.selected?.name ?? "Choose a Mac")
-                    .lineLimit(1)
+            .frame(maxWidth: .infinity)
+        } else {
+            let columns = Self.columns(for: items.count)
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: Self.tileSpacing), count: columns),
+                      spacing: Self.tileSpacing) {
+                ForEach(items) { tile($0) }
+            }
+        }
+    }
+
+    /// Lock Rotation and Settings in the corners, the Mac in between.
+    private var header: some View {
+        HStack(spacing: 8) {
+            RoundIconButton(symbol: locked ? "lock.rotation" : "rotate.right", on: locked) {
+                Haptics.shared.tap()
+                OrientationLock.toggle()
+            }
+            .accessibilityLabel("Lock Rotation")
+            .accessibilityValue(locked ? settings.orientation.title : "Off")
+            .accessibilityHint(locked ? "Lets the screen turn with the phone again" : "Holds the screen the way it is now")
+            Spacer(minLength: 0)
+            macStatus
+            Spacer(minLength: 0)
+            RoundIconButton(symbol: "gearshape") {
+                close()
+                router.showSettings = true
+                ScreenAwake.update()
+            }
+            .accessibilityLabel("Settings")
+        }
+    }
+
+    /// The Mac's name, or what is wrong with the connection. With two or more paired Macs it is
+    /// a menu to switch between them; the choice is remembered.
+    @ViewBuilder private var macStatus: some View {
+        let choosing = store.macs.count > 1
+        let words = store.selected == nil ? "No Mac paired"
+            : session.isConnected ? (session.macName ?? "Mac") : session.state.statusText
+        let label = HStack(spacing: 6) {
+            if !session.isConnected { ConnectionDot(state: session.state) }
+            Text(words)
+                .lineLimit(1)
+                .truncationMode(.middle)
+            if choosing {
                 Image(systemName: "chevron.up.chevron.down")
                     .font(.caption2.weight(.semibold))
-                    .foregroundStyle(palette.inkSoftColor)
             }
-            .font(.subheadline.weight(.medium))
-            .foregroundStyle(palette.inkColor)
-            .frame(maxWidth: .infinity, minHeight: 44)
-            .background(palette.inkColor.opacity(0.06), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-            .contentShape(Rectangle())
         }
-        .accessibilityLabel("Mac")
-        .accessibilityValue(store.selected?.name ?? "None")
+        .font(.footnote.weight(.medium))
+        .foregroundStyle(palette.inkSoftColor)
+        .frame(minHeight: 44)
+        .contentShape(Rectangle())
+        if choosing {
+            Menu {
+                ForEach(store.macs) { mac in
+                    Button {
+                        Haptics.shared.tap()
+                        session.select(mac)
+                        close()
+                    } label: {
+                        if mac.macID == store.selected?.macID {
+                            Label(mac.name, systemImage: "checkmark")
+                        } else {
+                            Text(mac.name)
+                        }
+                    }
+                }
+            } label: { label }
+            .accessibilityLabel("Mac")
+            .accessibilityValue(words)
+        } else {
+            label
+                .accessibilityElement(children: .combine)
+        }
     }
 
     /// The pill's layout symbol follows the way the screen splits now.
@@ -325,14 +344,92 @@ struct ModeSwitcher: View {
     }
 }
 
-/// Green when connected, amber while looking or connecting, red on failure, grey when idle.
+/// One tile in the mode menu (modes, layouts and tools alike): a symbol over a short name,
+/// like a Control Center button. Only the current one is filled, in a neutral shade, so the
+/// colour stays with the symbols.
+struct MenuTile<Icon: View>: View {
+    @Environment(\.palette) private var palette
+    let title: String
+    var selected = false
+    var soft = false
+    let icon: Icon
+
+    init(title: String, selected: Bool = false, soft: Bool = false, @ViewBuilder icon: () -> Icon) {
+        self.title = title
+        self.selected = selected
+        self.soft = soft
+        self.icon = icon()
+    }
+
+    static var shape: RoundedRectangle { RoundedRectangle(cornerRadius: 16, style: .continuous) }
+
+    var body: some View {
+        VStack(spacing: 6) {
+            icon.frame(height: 28)
+            Text(title)
+                .font(.caption2.weight(.medium))
+                .foregroundStyle(soft ? palette.inkSoftColor : palette.inkColor)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+        }
+        .padding(.horizontal, 2)
+        .frame(maxWidth: .infinity, minHeight: 66)
+        .background {
+            if selected { Self.shape.fill(palette.inkColor.opacity(palette.isDark ? 0.16 : 0.08)) }
+        }
+        .contentShape(Self.shape)
+    }
+}
+
+/// A small round button for the menu's corners. `on` fills it with the ink, like a switched
+/// on Control Center button.
+private struct RoundIconButton: View {
+    @Environment(\.palette) private var palette
+    let symbol: String
+    var on = false
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: symbol)
+                .font(.body.weight(.medium))
+                .foregroundStyle(on ? palette.solidColor : palette.inkColor)
+                .contentTransition(.symbolEffect(.replace))
+                .frame(width: 36, height: 36)
+                .background(Circle().fill(on ? palette.inkColor : palette.inkColor.opacity(palette.isDark ? 0.14 : 0.07)))
+                .frame(width: 44, height: 44)
+                .contentShape(Circle())
+                .animation(.easeInOut(duration: 0.2), value: on)
+        }
+        .buttonStyle(TileStyle())
+    }
+}
+
+private extension View {
+    /// Glass that morphs into the other glass with the same `id` in its container on iOS 26
+    /// (the pill grows into the menu). Before that, the closest system material.
+    @ViewBuilder
+    func morphingGlass(_ shape: some Shape, id: String, in namespace: Namespace.ID, interactive: Bool = false) -> some View {
+        if #available(iOS 26.0, *) {
+            glassEffect(interactive ? .regular.interactive() : .regular, in: shape)
+                .glassEffectID(id, in: namespace)
+        } else {
+            background(.regularMaterial, in: shape)
+                .overlay(shape.stroke(.primary.opacity(0.08), lineWidth: 0.5))
+        }
+    }
+}
+
+/// The connection in one dot, in the palette's status colours (`Palette.linkColor`). It pulses
+/// while looking or connecting.
 struct ConnectionDot: View {
+    @Environment(\.palette) private var palette
     @Environment(\.colorSchemeContrast) private var contrast
     let state: LinkState
 
     var body: some View {
         Circle()
-            .fill(color)
+            .fill(palette.linkColor(state))
             .frame(width: 7, height: 7)
             .overlay {
                 if contrast == .increased { Circle().strokeBorder(.primary.opacity(0.6), lineWidth: 1) }
@@ -347,16 +444,6 @@ struct ConnectionDot: View {
         switch state {
         case .searching, .connecting: true
         default: false
-        }
-    }
-
-    private var color: Color {
-        switch state {
-        case .connected: Color(uiColor: .systemGreen)
-        case .searching, .connecting: Color(uiColor: .systemOrange)
-        case .failed where state.isReplaced: Color.gray
-        case .failed: Color(uiColor: .systemRed)
-        case .idle: Color.gray
         }
     }
 }
