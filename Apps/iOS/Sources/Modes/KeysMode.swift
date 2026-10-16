@@ -252,13 +252,14 @@ struct KeysMode: View {
                     VStack(spacing: 1) {
                         Text("fn").font(.body.weight(.medium))
                         Text("F1 to F12").font(.caption2)
-                            .foregroundStyle(showsFunctionRow ? Color.white.opacity(0.85) : palette.inkSoftColor)
+                            .foregroundStyle(showsFunctionRow ? palette.solidColor.opacity(0.8) : palette.inkSoftColor)
                     }
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .buttonStyle(KeyCapStyle(accent: showsFunctionRow ? palette.inkSoftColor : nil))
+        // On, it is filled with the ink and lettered in the surface colour, which reads in every theme.
+        .buttonStyle(KeyCapStyle(prominent: showsFunctionRow))
         .accessibilityLabel("Function keys")
         .accessibilityValue(showsFunctionRow ? "Shown" : "Hidden")
         .accessibilityHint("Shows F1 to F12, brightness and volume in place of the shortcuts.")

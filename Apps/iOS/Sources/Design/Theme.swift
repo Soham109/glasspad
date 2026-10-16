@@ -365,6 +365,8 @@ struct WindowAppearance: UIViewRepresentable {
     let style: UIUserInterfaceStyle
     /// Read where this view is made (the root view's body), so a theme change updates it.
     var theme: ThemeChoice = PhoneSettings.shared.theme
+    /// The Photo theme's photo, so picking a new one repaints the window.
+    var photo = 0
 
     func makeUIView(context: Context) -> Probe {
         let view = Probe()

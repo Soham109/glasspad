@@ -95,7 +95,8 @@ struct HapticsSettings: View {
         Form {
             Section {
                 HStack(spacing: 12) {
-                    Image(systemName: "speaker.wave.1").foregroundStyle(palette.inkSoftColor).accessibilityHidden(true)
+                    // A still iPhone to a buzzing one: a vibration scale, not a volume one.
+                    Image(systemName: "iphone.gen3").foregroundStyle(palette.inkSoftColor).accessibilityHidden(true)
                     Slider(value: $settings.hapticStrength, in: 0...1) { editing in
                         if !editing {
                             session.refreshHapticStrength()
@@ -104,7 +105,7 @@ struct HapticsSettings: View {
                     }
                     .accessibilityLabel("Strength")
                     .accessibilityValue(settings.hapticStrength.formatted(.percent.precision(.fractionLength(0))))
-                    Image(systemName: "speaker.wave.3").foregroundStyle(palette.inkSoftColor).accessibilityHidden(true)
+                    Image(systemName: "iphone.gen3.radiowaves.left.and.right").foregroundStyle(palette.inkSoftColor).accessibilityHidden(true)
                 }
             } header: {
                 Text("Strength")
@@ -219,7 +220,7 @@ extension AppMode {
     /// Modes with their own page in Settings.
     var hasSettings: Bool {
         switch self {
-        case .dock, .keys, .actions, .deck, .present, .clock, .nowPlaying, .calendar: true
+        case .dock, .actions, .deck, .present, .clock, .nowPlaying, .calendar: true
         default: false
         }
     }
@@ -236,13 +237,6 @@ struct ModeDetailSettings: View {
         Form {
             switch mode {
             case .dock: apps
-            case .keys:
-                Section {
-                    Toggle("Shortcut Row", isOn: $settings.keysShowsShortcuts)
-                } footer: {
-                    Text("Copy, Paste, Undo and more, in a row above the arrow keys.")
-                }
-                .listRowBackground(palette.raisedColor)
             case .actions, .deck: actions
             case .present:
                 Section {
@@ -271,7 +265,7 @@ struct ModeDetailSettings: View {
         } header: {
             Text("Icons")
         } footer: {
-            Text("Touch and hold an app in Dock to keep, hide or move it. Your Mac's Dock stays as it is.")
+            Text("Touch and hold an app in Dock to hide it or always show it. Your Mac's Dock stays as it is.")
         }
         .listRowBackground(palette.raisedColor)
         if !settings.dockArrangement.order.isEmpty || !settings.dockArrangement.hidden.isEmpty {

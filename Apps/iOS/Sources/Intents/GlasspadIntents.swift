@@ -79,7 +79,7 @@ struct SendClipboardToMacIntent: AppIntent {
 
 /// A Deck button as Shortcuts sees it. The list comes from the Mac and is cached on the phone.
 struct DeckButtonEntity: AppEntity {
-    static let typeDisplayRepresentation: TypeDisplayRepresentation = "Deck Button"
+    static let typeDisplayRepresentation: TypeDisplayRepresentation = "Glasspad Button"
     static let defaultQuery = DeckButtonQuery()
 
     let id: UUID
@@ -117,8 +117,8 @@ struct DeckButtonQuery: EntityQuery {
 }
 
 struct RunDeckButtonIntent: AppIntent {
-    static let title: LocalizedStringResource = "Run Deck Button"
-    static let description = IntentDescription("Runs one of your Glasspad Deck buttons on your Mac.")
+    static let title: LocalizedStringResource = "Run Glasspad Button"
+    static let description = IntentDescription("Runs one of your Glasspad buttons on your Mac.")
 
     @Parameter(title: "Button")
     var button: DeckButtonEntity
@@ -248,7 +248,7 @@ struct GlasspadShortcuts: AppShortcutsProvider {
                     phrases: ["Run a macro with \(.applicationName)", "Run \(\.$macro) with \(.applicationName)"],
                     shortTitle: "Run Macro", systemImageName: "wand.and.stars")
         AppShortcut(intent: RunDeckButtonIntent(),
-                    phrases: ["Run a Deck button with \(.applicationName)"],
-                    shortTitle: "Run Deck Button", systemImageName: "square.grid.2x2")
+                    phrases: ["Run a button with \(.applicationName)"],
+                    shortTitle: "Run Glasspad Button", systemImageName: "square.grid.2x2")
     }
 }

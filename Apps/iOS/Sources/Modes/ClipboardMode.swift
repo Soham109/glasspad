@@ -106,7 +106,7 @@ struct ClipboardMode: View {
                 Haptics.shared.tap()
                 session.pullClipboard()
             } label: {
-                Label("Get Clipboard", systemImage: "arrow.down.doc")
+                Label("Get from Mac", systemImage: "arrow.down.doc")
                     .padding(.horizontal, 4)
             }
             .glassButton(prominent: true, accent: accent)

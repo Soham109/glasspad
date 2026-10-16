@@ -258,20 +258,34 @@ private struct PairingSection: View {
 
 // MARK: - Dock
 
-/// Hide Mac Dock, a switch row with the same round icon as the rows around it.
+/// Hide Mac Dock, with the same three choices as Settings and the iPhone in a small menu, and
+/// the same round icon as the rows around it.
 private struct DockRow: View {
     @EnvironmentObject private var model: AppModel
 
     var body: some View {
-        PopoverRow(symbol: "dock.rectangle", title: "Hide Mac Dock", active: model.dock.hidden) {
-            Toggle("Hide Mac Dock", isOn: Binding(get: { model.dock.hidden }, set: { model.actions.setDockHidden($0) }))
-                .toggleStyle(.switch)
-                .controlSize(.mini)
+        let hiding = MacDockHiding(model.dock)
+        PopoverRow(symbol: "dock.rectangle", title: "Hide Mac Dock", active: hiding != .never) {
+            // The choice as plain text that opens a menu, so the row stays as light as its neighbours.
+            Menu {
+                Picker("Hide Mac Dock", selection: Binding(get: { hiding }, set: { model.actions.setDockHiding($0) })) {
+                    ForEach(MacDockHiding.allCases, id: \.self) { Text($0.title).tag($0) }
+                }
+                .pickerStyle(.inline)
                 .labelsHidden()
+            } label: {
+                Text(hiding.title)
+                    .font(.system(size: 13))
+            }
+            .menuStyle(.borderlessButton)
+            .foregroundStyle(.secondary)
+            .fixedSize()
+            .accessibilityLabel("Hide Mac Dock")
+            .accessibilityValue(hiding.title)
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 3)
-        .help("Your Dock settings come back as they were when you turn this off or quit.")
+        .help(MacDockHiding.footer)
     }
 }
 

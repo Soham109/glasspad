@@ -318,8 +318,11 @@ struct WelcomeView: View {
     private var footer: some View {
         HStack(spacing: 10) {
             if page == .pair {
-                Link(WelcomeCopy.getIPhoneApp, destination: WelcomeCopy.iPhoneAppURL)
-                    .font(.callout)
+                // Only while an iPhone still has to be found: once one is paired it has the app.
+                if !paired {
+                    Link(WelcomeCopy.getIPhoneApp, destination: WelcomeCopy.iPhoneAppURL)
+                        .font(.callout)
+                }
             } else if page != .hello {
                 Button(WelcomeCopy.back) { go(to: Page(rawValue: page.rawValue - 1)!) }
             }
@@ -349,6 +352,11 @@ struct WelcomeView: View {
         .padding(.horizontal, 24)
         .padding(.bottom, 20)
         .padding(.top, 8)
+    }
+
+    private var paired: Bool {
+        if case .paired = model.pairing { return true }
+        return false
     }
 
     /// Permissions already granted are not asked again.

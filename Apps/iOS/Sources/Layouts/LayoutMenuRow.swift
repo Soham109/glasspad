@@ -24,15 +24,15 @@ struct LayoutMenuRow: View {
             } else {
                 VStack(spacing: 2) {
                     header
-                    if store.layouts.count <= Self.columns * 2 {
-                        // In the modes' five columns: one row, or two.
+                    if store.layouts.count <= Self.columns {
+                        // In the modes' five columns, on one row.
                         LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: ModeSwitcher.tileSpacing), count: Self.columns),
                                   spacing: ModeSwitcher.tileSpacing) {
                             ForEach(store.layouts) { layout in tile(layout, width: nil) }
                         }
                     } else {
-                        // Many layouts scroll sideways; the last one showing is cut by the edge,
-                        // which says there are more.
+                        // More than fit on one row scroll sideways, so none sits alone on a second
+                        // row; the last one showing is cut by the edge, which says there are more.
                         ScrollView(.horizontal) {
                             HStack(spacing: ModeSwitcher.tileSpacing) {
                                 ForEach(store.layouts) { layout in tile(layout, width: Self.scrollingWidth) }

@@ -83,7 +83,7 @@ struct DockMode: View {
                 .font(.body.weight(.semibold))
                 .glassButton(prominent: true, accent: accent)
             } else {
-                optionsMenu
+                editButton
             }
         }
     }
@@ -95,46 +95,16 @@ struct DockMode: View {
         return running == 0 ? name : "\(name) · \(running) open"
     }
 
-    private var optionsMenu: some View {
-        Menu {
-            Button("Edit Dock", systemImage: "square.grid.3x3.square") {
-                editing = true
-            }
-            if !settings.dockArrangement.hidden.isEmpty {
-                Button("Hidden Apps", systemImage: "eye.slash") { showHidden = true }
-            }
-            Divider()
-            Picker(selection: macDockHiding) {
-                ForEach(MacDockHiding.allCases, id: \.self) { Text($0.title).tag($0) }
-            } label: {
-                Label("Hide Mac Dock", systemImage: "dock.rectangle")
-            }
-            .pickerStyle(.menu)
-            Divider()
-            Picker("Icon Size", selection: $settings.dockDensity) {
-                Text("Small").tag(DockDensity.compact)
-                Text("Medium").tag(DockDensity.regular)
-                Text("Large").tag(DockDensity.large)
-            }
-            Toggle("Show Names", isOn: $settings.dockShowsNames)
-        } label: {
-            Image(systemName: "ellipsis")
-                .font(.body.weight(.semibold))
-                .frame(width: 30, height: 30)
-                .contentShape(Circle())
-        }
-        .glassButton()
-        .buttonBorderShape(.circle)
-        .accessibilityLabel("Dock options")
-    }
-
-    private var macDockHiding: Binding<MacDockHiding> {
-        Binding {
-            MacDockHiding(session.macDockState)
-        } set: { choice in
+    /// Edit, as in Actions. Hidden apps are in edit mode; icon size, names and hiding the
+    /// Mac's Dock are in Settings > Dock, in one place.
+    private var editButton: some View {
+        Button("Edit") {
             Haptics.shared.tap()
-            session.setMacDock(choice.state)
+            editing = true
         }
+        .font(.body.weight(.medium))
+        .glassButton()
+        .foregroundStyle(palette.inkColor)
     }
 
     // MARK: Grid
@@ -190,10 +160,13 @@ struct DockMode: View {
         }
         Button("Show in Finder", systemImage: "folder") { act(.revealInFinder, app) }
         Divider()
-        let kept = settings.dockArrangement.isKept(app.bundleID)
-        Button(kept ? "Remove from Phone Dock" : "Keep in Phone Dock", systemImage: kept ? "pin.slash" : "pin") {
-            Haptics.shared.tap()
-            settings.dockArrangement.setKept(app, !kept)
+        // Shown with a check when on, like Options > Keep in Dock on the Mac.
+        Toggle(isOn: Binding(get: { settings.dockArrangement.isKept(app.bundleID) },
+                             set: { keep in
+                                 Haptics.shared.tap()
+                                 settings.dockArrangement.setKept(app, keep)
+                             })) {
+            Label("Always Show on iPhone", systemImage: "pin")
         }
         Button("Hide on iPhone", systemImage: "eye.slash.circle") { hide(app) }
         Button("Edit Dock", systemImage: "square.grid.3x3.square") { editing = true }
@@ -409,7 +382,7 @@ private struct DockTile: View {
         var parts: [String] = []
         if app.active { parts.append("Frontmost") } else if app.running { parts.append("Running") }
         if app.hidden == true { parts.append("Hidden") }
-        if kept { parts.append("Kept on iPhone") }
+        if kept { parts.append("Always shown on iPhone") }
         return parts.joined(separator: ", ")
     }
 }
@@ -480,7 +453,7 @@ private struct HiddenAppsSheet: View {
                             DockIcon(app: app, icon: session.icons.image(for: id), size: 40)
                             Text(app.name).foregroundStyle(palette.inkColor)
                             Spacer()
-                            Button("Show") {
+                            Button("Show on iPhone") {
                                 Haptics.shared.tap()
                                 settings.dockArrangement.unhide(id)
                             }

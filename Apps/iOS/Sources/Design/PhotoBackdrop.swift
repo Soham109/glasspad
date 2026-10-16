@@ -58,6 +58,7 @@ final class PhotoBackdrop: @unchecked Sendable {
         let version = (current?.version ?? 0) + 1
         let finished = Self.finish(blurred, version: version)
         lock.withLock { stored = finished }
+        await MainActor.run { PhoneSettings.shared.photoVersion = version }
         return true
     }
 

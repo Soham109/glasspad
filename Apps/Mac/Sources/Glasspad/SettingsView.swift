@@ -271,7 +271,7 @@ struct TrackpadPane: View {
                         }
                     } label: {
                         Text(g.displayName)
-                        Text(GestureCopy.inUse(model.capabilities.mode(for: g)))
+                        if let line = GestureCopy.inUse(model.capabilities.mode(for: g)) { Text(line) }
                     }
                 }
             } header: {

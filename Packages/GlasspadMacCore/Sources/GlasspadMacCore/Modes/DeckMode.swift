@@ -216,8 +216,8 @@ public enum DeckEditError: Error, Equatable, Sendable {
     public var message: String {
         switch self {
         case .shellFromPhone: "Shell script buttons can only be added on the Mac."
-        case .tooLarge: "That Deck is too large."
-        case .newerThanMac: "This Deck has a button your Mac does not know yet. Update Glasspad on your Mac, then try again."
+        case .tooLarge: "Too many buttons to save."
+        case .newerThanMac: "One of these buttons needs a newer Glasspad on your Mac. Update it, then try again."
         }
     }
 }
@@ -345,7 +345,7 @@ public final class DeckMode {
                 try update(cfg)
                 return .deckSaveResult(ok: true, message: nil)
             } catch {
-                return .deckSaveResult(ok: false, message: "Could not save the Deck on the Mac.")
+                return .deckSaveResult(ok: false, message: "Your Mac could not save your buttons.")
             }
         }
     }

@@ -106,10 +106,11 @@ enum GestureCopy {
         }
     }
 
-    /// The line under a gesture's name: what reaches the Mac now.
-    static func inUse(_ mode: SynthMode) -> String {
+    /// The line under a gesture's name: what reaches the Mac now. None while it goes as a
+    /// trackpad gesture, which the section's footer already says.
+    static func inUse(_ mode: SynthMode) -> String? {
         switch mode {
-        case .native: "Now sent as a trackpad gesture"
+        case .native: nil
         case .fallback: "Now sent as a keyboard shortcut"
         case .unavailable: "Not available on this Mac"
         }
