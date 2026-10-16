@@ -6,7 +6,7 @@
 //   3. the keyed foreground (scripts/v4/footage.py): hands, bezels and fingers over the screen
 // all inside one "lens" box, so a camera move (push in, drift) moves them together.
 import React from "react";
-import { AbsoluteFill, OffthreadVideo, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
+import { AbsoluteFill, OffthreadVideo, Sequence, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
 import { FPS } from "../core";
 import { quadToCss } from "./homography";
 
@@ -57,8 +57,10 @@ export const Footage: React.FC<{
   screens?: (ScreenSpec | null)[];
   lens?: Lens | ((f: number) => Lens);
   grade?: React.CSSProperties["filter"];
+  /** false: no plate, only the app and the keyed foreground (for a fully keyed clip). */
+  plate?: boolean;
   children?: React.ReactNode;
-}> = ({ track, from, rate = 1, screens = [], lens = {}, grade, children }) => {
+}> = ({ track, from, rate = 1, screens = [], lens = {}, grade, plate = true, children }) => {
   const f = useCurrentFrame();
   const { width, height } = useVideoConfig();
   const L = typeof lens === "function" ? lens(f) : lens;
@@ -76,9 +78,9 @@ export const Footage: React.FC<{
   // frame at time t; the corners use the same t.
   const [x0, y0, cw, ch] = track.crop;
   return (
-    <AbsoluteFill style={{ overflow: "hidden", background: "#000" }}>
+    <AbsoluteFill style={{ overflow: "hidden", background: plate ? "#000" : "transparent" }}>
       <div style={{ position: "absolute", left: 0, top: 0, width: track.w, height: track.h, transformOrigin: "0 0", transform: `translate(${ox}px, ${oy}px) scale(${k})`, filter: [grade, L.blur ? `blur(${L.blur / k}px)` : ""].filter(Boolean).join(" ") || undefined }}>
-        <OffthreadVideo src={staticFile(track.src)} startFrom={startFrom} playbackRate={rate} muted style={{ position: "absolute", left: 0, top: 0, width: track.w, height: track.h }} />
+        {plate ? <At start={startFrom}><OffthreadVideo src={staticFile(track.src)} startFrom={Math.max(0, startFrom)} playbackRate={rate} muted style={{ position: "absolute", left: 0, top: 0, width: track.w, height: track.h }} /></At> : null}
         {screens.map((sc, i) => {
           if (!sc) return null;
           const q = cornersAt(track, i, t);
@@ -99,12 +101,17 @@ export const Footage: React.FC<{
             </div>
           );
         })}
-        <OffthreadVideo src={staticFile(track.fg)} transparent startFrom={startFrom} playbackRate={rate} muted style={{ position: "absolute", left: x0, top: y0, width: cw, height: ch }} />
+        <At start={startFrom}><OffthreadVideo src={staticFile(track.fg)} transparent startFrom={Math.max(0, startFrom)} playbackRate={rate} muted style={{ position: "absolute", left: x0, top: y0, width: cw, height: ch }} /></At>
         {children}
       </div>
     </AbsoluteFill>
   );
 };
+
+/** A clip whose start lies before this Sequence began (from < 0) is delayed instead, so
+ *  `from` can be any clip time for the scene's frame 0. */
+const At: React.FC<{ start: number; children: React.ReactNode }> = ({ start, children }) =>
+  start >= 0 ? <>{children}</> : <Sequence from={-start} layout="none">{children}</Sequence>;
 
 /** Maps a point in the clip's source pixels to output pixels for a lens (to place overlays). */
 export const lensPoint = (track: Track, L: Lens, width: number, height: number, x: number, y: number) => {

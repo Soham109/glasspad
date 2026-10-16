@@ -10,7 +10,7 @@ let names = ["wifi", "battery.100percent", "switch.2", "magnifyingglass", "moon.
              "square.and.pencil", "lock.fill", "display.2", "doc.text", "photo", "rectangle.split.2x1.fill",
              "moon.circle.fill", "speaker.wave.2.fill", "arrow.clockwise", "square.on.square", "flag.fill",
              "paperclip", "line.3.horizontal.decrease", "film", "waveform", "music.note", "laptopcomputer",
-             "iphone", "lock.shield.fill", "person.crop.circle.fill", "xmark", "captions.bubble", "magnifyingglass.circle"]
+             "iphone", "lock.shield.fill", "cloud.fill", "lock.open.fill", "person.fill", "person.crop.circle.fill", "xmark", "captions.bubble", "magnifyingglass.circle"]
 for n in names {
   guard let base = NSImage(systemSymbolName: n, accessibilityDescription: nil) else { print("missing", n); continue }
   let cfg = NSImage.SymbolConfiguration(pointSize: 96, weight: .regular)

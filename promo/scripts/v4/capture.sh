@@ -26,7 +26,7 @@ mkdir -p "$OUT" "$CACHE"
 
 # Which ref each feature's shots are built from.
 APP_BASE=${GP_ALL_REF:-integrate}
-APP_LAYOUTS=${GP_ALL_REF:-feat/layouts}
+APP_LAYOUTS=${GP_ALL_REF:-integrate} # Layouts, Displays and StandBy are in integrate now
 FILM_REF=${GP_FILM_REF:-feat/film}
 
 # name | app | still or video seconds (v<seconds>) | wait before a still | launch arguments
@@ -38,18 +38,52 @@ pinned-mono|BASE|s|3|-GPFilm v4-pinned -GPOrientation landscape -GPTheme mono
 actions-mail|BASE|s|3.5|-GPFilm v4-actions -GPOrientation portrait -GPTheme paper
 actions-portrait|BASE|s|3|-GPFilm v4-pinned -GPOrientation portrait -GPTheme paper
 finalcut|BASE|s|3|-GPFilm v4-finalcut -GPOrientation portrait -GPTheme graphite
-present|BASE|s|4|-GPMode actions -GPActionsPage present -GPOrientation portrait -GPTheme graphite
-remote|BASE|s|4|-GPMode actions -GPActionsPage remote -GPMediaDemo movie -GPOrientation portrait -GPTheme graphite
-remote-search|BASE|s|4|-GPMode actions -GPActionsPage remote -GPMediaDemo movie -GPRemoteSearch -GPOrientation portrait -GPTheme graphite
-clipboard|BASE|s|4|-GPMode actions -GPActionsPage clipboard -GPOrientation portrait -GPTheme paper
+present|BASE|s|4|-GPMode actions -GPFilm v4-layout -GPActionsPage present -GPOrientation portrait -GPTheme graphite
+remote|BASE|s|4|-GPMode actions -GPFilm v4-layout -GPActionsPage remote -GPMediaDemo movie -GPOrientation portrait -GPTheme graphite
+remote-search|BASE|s|4|-GPMode actions -GPFilm v4-layout -GPActionsPage remote -GPMediaDemo movie -GPRemoteSearch -GPOrientation portrait -GPTheme graphite
+clipboard|BASE|s|4|-GPMode actions -GPFilm v4-layout -GPActionsPage clipboard -GPOrientation portrait -GPTheme paper
+clipboard-text|BASE|s|4|-GPMode actions -GPFilm v4-layout -GPActionsPage clipboard -GPOrientation portrait -GPTheme paper
 menu|BASE|v9|0|-GPMode trackpad -GPFilm menu -GPOrientation portrait -GPTheme graphite
 keys|BASE|s|4|-GPMode keys -GPOrientation landscape -GPTheme graphite
 media|BASE|s|4|-GPMode media -GPFilm media -GPOrientation portrait -GPTheme graphite
 dock|BASE|s|4|-GPMode dock -GPOrientation portrait -GPTheme graphite
-macros|BASE|s|4|-GPMode macros -GPOrientation portrait -GPTheme graphite
+macros|BASE|s|4|-GPMode actions -GPFilm v4-layout -GPActionsPage library -GPOrientation portrait -GPTheme graphite
 trackpad|BASE|v14|0|-GPMode trackpad -GPFilm trackpad -GPOrientation landscape -GPTheme graphite
 layout|LAYOUTS|s|4|-GPFilm v4-layout -GPLayout media-actions -GPLayoutSplit 0.5 -GPOrientation landscape -GPTheme graphite
 layout-drag|LAYOUTS|s|4|-GPFilm v4-layout -GPLayout media-actions -GPLayoutSplit 0.5 -GPLayoutDragDemo 0.62 -GPOrientation landscape -GPTheme graphite
+layout-drag-097|LAYOUTS|s|3.5|-GPFilm v4-layout -GPLayout media-actions -GPLayoutSplit 0.5 -GPLayoutDragDemo 0.97 -GPOrientation landscape -GPTheme graphite
+layout-drag-093|LAYOUTS|s|3.5|-GPFilm v4-layout -GPLayout media-actions -GPLayoutSplit 0.5 -GPLayoutDragDemo 0.93 -GPOrientation landscape -GPTheme graphite
+layout-drag-089|LAYOUTS|s|3.5|-GPFilm v4-layout -GPLayout media-actions -GPLayoutSplit 0.5 -GPLayoutDragDemo 0.89 -GPOrientation landscape -GPTheme graphite
+layout-drag-085|LAYOUTS|s|3.5|-GPFilm v4-layout -GPLayout media-actions -GPLayoutSplit 0.5 -GPLayoutDragDemo 0.85 -GPOrientation landscape -GPTheme graphite
+layout-drag-081|LAYOUTS|s|3.5|-GPFilm v4-layout -GPLayout media-actions -GPLayoutSplit 0.5 -GPLayoutDragDemo 0.81 -GPOrientation landscape -GPTheme graphite
+layout-drag-077|LAYOUTS|s|3.5|-GPFilm v4-layout -GPLayout media-actions -GPLayoutSplit 0.5 -GPLayoutDragDemo 0.77 -GPOrientation landscape -GPTheme graphite
+layout-drag-073|LAYOUTS|s|3.5|-GPFilm v4-layout -GPLayout media-actions -GPLayoutSplit 0.5 -GPLayoutDragDemo 0.73 -GPOrientation landscape -GPTheme graphite
+layout-drag-069|LAYOUTS|s|3.5|-GPFilm v4-layout -GPLayout media-actions -GPLayoutSplit 0.5 -GPLayoutDragDemo 0.69 -GPOrientation landscape -GPTheme graphite
+layout-drag-065|LAYOUTS|s|3.5|-GPFilm v4-layout -GPLayout media-actions -GPLayoutSplit 0.5 -GPLayoutDragDemo 0.65 -GPOrientation landscape -GPTheme graphite
+layout-drag-061|LAYOUTS|s|3.5|-GPFilm v4-layout -GPLayout media-actions -GPLayoutSplit 0.5 -GPLayoutDragDemo 0.61 -GPOrientation landscape -GPTheme graphite
+layout-drag-057|LAYOUTS|s|3.5|-GPFilm v4-layout -GPLayout media-actions -GPLayoutSplit 0.5 -GPLayoutDragDemo 0.57 -GPOrientation landscape -GPTheme graphite
+layout-drag-053|LAYOUTS|s|3.5|-GPFilm v4-layout -GPLayout media-actions -GPLayoutSplit 0.5 -GPLayoutDragDemo 0.53 -GPOrientation landscape -GPTheme graphite
+layout-drag-050|LAYOUTS|s|3.5|-GPFilm v4-layout -GPLayout media-actions -GPLayoutSplit 0.5 -GPLayoutDragDemo 0.5 -GPOrientation landscape -GPTheme graphite
+layout-fold|LAYOUTS|s|4|-GPFilm v4-layout -GPLayout media-actions -GPLayoutSplit 1.0 -GPOrientation landscape -GPTheme graphite
+layout-clock|LAYOUTS|s|4|-GPFilm v4-layout -GPLayoutPanes clock,actions -GPStandByTime 10:30 -GPOrientation landscape -GPTheme graphite
+layout-clock-drag-004|LAYOUTS|s|3.5|-GPFilm v4-layout -GPLayoutPanes clock,actions -GPStandByTime 10:30 -GPLayoutDragDemo 0.04 -GPOrientation landscape -GPTheme graphite
+layout-clock-drag-008|LAYOUTS|s|3.5|-GPFilm v4-layout -GPLayoutPanes clock,actions -GPStandByTime 10:30 -GPLayoutDragDemo 0.08 -GPOrientation landscape -GPTheme graphite
+layout-clock-drag-012|LAYOUTS|s|3.5|-GPFilm v4-layout -GPLayoutPanes clock,actions -GPStandByTime 10:30 -GPLayoutDragDemo 0.12 -GPOrientation landscape -GPTheme graphite
+layout-clock-drag-016|LAYOUTS|s|3.5|-GPFilm v4-layout -GPLayoutPanes clock,actions -GPStandByTime 10:30 -GPLayoutDragDemo 0.16 -GPOrientation landscape -GPTheme graphite
+layout-clock-drag-020|LAYOUTS|s|3.5|-GPFilm v4-layout -GPLayoutPanes clock,actions -GPStandByTime 10:30 -GPLayoutDragDemo 0.2 -GPOrientation landscape -GPTheme graphite
+layout-clock-drag-024|LAYOUTS|s|3.5|-GPFilm v4-layout -GPLayoutPanes clock,actions -GPStandByTime 10:30 -GPLayoutDragDemo 0.24 -GPOrientation landscape -GPTheme graphite
+layout-clock-drag-028|LAYOUTS|s|3.5|-GPFilm v4-layout -GPLayoutPanes clock,actions -GPStandByTime 10:30 -GPLayoutDragDemo 0.28 -GPOrientation landscape -GPTheme graphite
+layout-clock-drag-032|LAYOUTS|s|3.5|-GPFilm v4-layout -GPLayoutPanes clock,actions -GPStandByTime 10:30 -GPLayoutDragDemo 0.32 -GPOrientation landscape -GPTheme graphite
+layout-clock-drag-036|LAYOUTS|s|3.5|-GPFilm v4-layout -GPLayoutPanes clock,actions -GPStandByTime 10:30 -GPLayoutDragDemo 0.36 -GPOrientation landscape -GPTheme graphite
+layout-clock-drag-040|LAYOUTS|s|3.5|-GPFilm v4-layout -GPLayoutPanes clock,actions -GPStandByTime 10:30 -GPLayoutDragDemo 0.4 -GPOrientation landscape -GPTheme graphite
+layout-clock-drag-044|LAYOUTS|s|3.5|-GPFilm v4-layout -GPLayoutPanes clock,actions -GPStandByTime 10:30 -GPLayoutDragDemo 0.44 -GPOrientation landscape -GPTheme graphite
+layout-clock-drag-047|LAYOUTS|s|3.5|-GPFilm v4-layout -GPLayoutPanes clock,actions -GPStandByTime 10:30 -GPLayoutDragDemo 0.47 -GPOrientation landscape -GPTheme graphite
+layout-clock-drag-050|LAYOUTS|s|3.5|-GPFilm v4-layout -GPLayoutPanes clock,actions -GPStandByTime 10:30 -GPLayoutDragDemo 0.5 -GPOrientation landscape -GPTheme graphite
+displays|BASE|s|4|-GPMode actions -GPFilm v4-layout -GPActionsPage displays -GPDisplaysDemo two -GPOrientation portrait -GPTheme graphite
+displays-l|BASE|s|4|-GPMode actions -GPFilm v4-layout -GPActionsPage displays -GPDisplaysDemo two -GPOrientation landscape -GPTheme graphite
+displays-move|BASE|v9|0|-GPMode actions -GPFilm v4-displays -GPActionsPage displays -GPDisplaysDemo two -GPOrientation portrait -GPTheme graphite
+displays-arrange|BASE|s|4|-GPMode actions -GPFilm v4-layout -GPActionsPage displays -GPDisplaysDemo two -GPDisplaysArrange -GPOrientation portrait -GPTheme graphite
+standby|BASE|s|4|-GPFilm v4-layout -GPLayout standby -GPStandByTime 10:30 -GPOrientation landscape -GPTheme graphite
 layout-after|LAYOUTS|s|4|-GPFilm v4-layout -GPLayout media-actions -GPLayoutSplit 0.62 -GPOrientation landscape -GPTheme graphite
 EOF
 )
@@ -104,6 +138,8 @@ while IFS='|' read -r name app kind wait args <&3; do
     xcrun simctl install "$UDID" "$appdir" < /dev/null; installed=$appdir
   fi
   xcrun simctl terminate "$UDID" $BID 2>/dev/null < /dev/null || true
+  # The Clipboard shot needs something copied on the phone first.
+  case $name in clipboard-text) printf "%s" "Bring the prints for Mira, and the projector cable." | xcrun simctl pbcopy "$UDID";; clipboard) printf "" | xcrun simctl pbcopy "$UDID";; esac
   # shellcheck disable=SC2086
   if [ "${kind:0:1}" = v ]; then
     secs=${kind:1}

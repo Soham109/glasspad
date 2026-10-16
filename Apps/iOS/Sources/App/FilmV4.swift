@@ -12,6 +12,9 @@ import UIKit
 ///   -GPFilm v4-keynote    Actions with Keynote in front
 ///   -GPFilm v4-layout     the same Mac (Safari in front, the film's song playing), leaving the screen as it is,
 ///                         for a layout opened with -GPLayout
+///   -GPFilm v4-displays   as v4-layout; with -GPActionsPage displays -GPDisplaysDemo two, four seconds in,
+///                         Safari moves from the Studio Display to the MacBook's display (what a drag in
+///                         the map sends)
 ///
 /// Buttons are the Mac's own starter buttons for those apps (GlasspadMacros StarterDefinitions).
 @MainActor
@@ -23,14 +26,24 @@ enum FilmV4 {
         case "v4-pinned": front = "com.apple.Safari"
         case "v4-finalcut": front = "com.apple.FinalCut"
         case "v4-keynote": front = "com.apple.iWork.Keynote"
-        case "v4-layout": front = "com.apple.Safari"
+        case "v4-layout", "v4-displays": front = "com.apple.Safari"
         default: return false
         }
         PhoneSettings.shared.hasOnboarded = true
         PhoneSettings.shared.seenTips.formUnion(["actions.front", "actions.pinned"])
         MacSession.shared.applyDemo(data(iconFolder: iconFolder, front: front))
         song(elapsed: 41, iconFolder: iconFolder)
-        if scene != "v4-layout" { AppRouter.shared.show(.actions) }
+        if scene != "v4-layout" && scene != "v4-displays" { AppRouter.shared.show(.actions) }
+        if scene == "v4-displays" {
+            Task { @MainActor in
+                try? await Task.sleep(for: .seconds(4.0))
+                let store = DisplaysStore.shared
+                guard let state = store.state,
+                      let safari = state.windows.first(where: { $0.bundleID == "com.apple.Safari" }),
+                      let laptop = state.displays.first(where: \.isBuiltIn) else { return }
+                store.run(.move(display: laptop.id, origin: nil), on: safari)
+            }
+        }
         if scene == "v4-actions" {
             Task { @MainActor in
                 try? await Task.sleep(for: .seconds(4.5))
