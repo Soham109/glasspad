@@ -32,12 +32,16 @@ final class AppRouter {
     }
     /// Remote, full screen, opened as a tool (when it is not shown as a mode).
     var showRemote = false
+    /// Displays, full screen, opened as a tool.
+    var showDisplays = false
     /// A pairing link that arrived from outside the app (the Camera app, a web page, another
     /// app), waiting for the user to confirm it. Applying it unasked would let any link switch
     /// this iPhone to another Mac, or replace the key of the paired one.
     var pairingRequest: PairingPayload?
     /// The trackpad and Present screens dim after the idle delay; a touch wakes them.
-    private(set) var isDimmed = false
+    private(set) var isDimmed = false {
+        didSet { if isDimmed != oldValue { MacSession.shared.dimmedChanged() } }
+    }
     /// Last time anything touched a screen that dims. Not observed: it changes on every touch.
     @ObservationIgnored private var lastActivity = ProcessInfo.processInfo.systemUptime
     @ObservationIgnored private var dimTimer: Timer?
@@ -117,6 +121,7 @@ final class AppRouter {
         case .clipboard: showClipboard = true
         case .present: showPresenter = true
         case .remote: showRemote = true
+        case .displays: showDisplays = true
         default: break
         }
     }
@@ -159,11 +164,17 @@ final class AppRouter {
     func noteActivity() {
         lastActivity = ProcessInfo.processInfo.systemUptime
         if isDimmed { isDimmed = false }
+        if ScreenAwake.releasedForIdle { ScreenAwake.update() }
     }
 
+    /// Seconds since the last touch on a screen that dims.
+    var idleTime: TimeInterval { ProcessInfo.processInfo.systemUptime - lastActivity }
+
+    /// Starts the idle check if it is not running (a running one keeps its idle time).
     func startDimTimer() {
-        dimTimer?.invalidate()
-        noteActivity()
+        guard dimTimer == nil else { return }
+        lastActivity = ProcessInfo.processInfo.systemUptime
+        isDimmed = false
         let timer = Timer(timeInterval: 2, repeats: true) { _ in
             MainActor.assumeIsolated { AppRouter.shared.checkIdle() }
         }
@@ -183,6 +194,10 @@ final class AppRouter {
         let idle = ProcessInfo.processInfo.systemUptime - lastActivity
         let delay = PhoneSettings.shared.dimDelay
         if !isDimmed, delay > 0, idle >= delay { isDimmed = true }
+        // Left alone long enough: let the phone lock on its own Auto-Lock.
+        if UIApplication.shared.isIdleTimerDisabled, idle >= PowerMonitor.shared.policy.keepAwakeLimit {
+            ScreenAwake.update()
+        }
     }
 }
 
@@ -193,19 +208,36 @@ struct LayoutDraft: Identifiable {
     var id: UUID { layout.id }
 }
 
-/// Keeps the screen on only while a screen that needs it is visible and the app is active.
+/// Keeps the screen on only while a screen that needs it is visible, the app is active and a
+/// Mac is connected, and only until it has been left alone for `PowerPolicy.keepAwakeLimit`.
 @MainActor
 enum ScreenAwake {
     static var sceneActive = false
+    /// Held on except that nobody touched it for too long; the next touch holds it on again.
+    private(set) static var releasedForIdle = false
 
     static func update() {
         let router = AppRouter.shared
-        let wanted = sceneActive && PhoneSettings.shared.hasOnboarded && PhoneSettings.shared.keepScreenAwake && router.dims
-            && !router.showSettings && !router.showPairing && !router.showClipboard && !router.showSetup
-            && !router.showLayouts && router.layoutDraft == nil
+        let settings = PhoneSettings.shared
+        let policy = PowerMonitor.shared.policy
+        var inputs = KeepAwakeInputs(
+            sceneActive: sceneActive, enabled: settings.hasOnboarded && settings.keepScreenAwake,
+            screenNeedsIt: router.dims,
+            coveredBySheet: router.showSettings || router.showPairing || router.showClipboard || router.showSetup
+                || router.showLayouts || router.layoutDraft != nil,
+            connected: true, idle: 0)
+        // Dimming runs whenever the screen would be held on apart from the link and idle time,
+        // so a dimmed screen stays dimmed until a touch or until the phone locks.
+        let dims = policy.keepsScreenAwake(inputs)
+        if dims { router.startDimTimer() } else { router.stopDimTimer() }
+        inputs.connected = MacSession.shared.isConnected
+        inputs.idle = router.idleTime
+        // StandBy screens keep the screen on by their own rules (StandByMode.swift), without dimming.
+        let standBy = sceneActive && StandByMonitor.shared.power.keepsScreenOn && !inputs.coveredBySheet
+        let wanted = policy.keepsScreenAwake(inputs) || standBy
         if UIApplication.shared.isIdleTimerDisabled != wanted {
             UIApplication.shared.isIdleTimerDisabled = wanted
         }
-        if wanted { router.startDimTimer() } else { router.stopDimTimer() }
+        releasedForIdle = dims && inputs.connected && !wanted
     }
 }

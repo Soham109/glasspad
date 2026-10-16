@@ -901,7 +901,7 @@ struct PresenterCover: View {
 
     var body: some View {
         ZStack(alignment: .topLeading) {
-            palette.backgroundColor.ignoresSafeArea()
+            SurfaceBackground()
             PresentMode()
             Button {
                 MacSession.shared.laserOff()
@@ -932,7 +932,7 @@ struct ClipboardSheet: View {
     var body: some View {
         NavigationStack {
             ClipboardMode(embedded: true)
-                .background(palette.backgroundColor.ignoresSafeArea())
+                .background(SurfaceBackground())
                 .navigationTitle("Clipboard")
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {

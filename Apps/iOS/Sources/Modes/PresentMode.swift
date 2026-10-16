@@ -19,7 +19,7 @@ struct PresentMode: View {
             if verticalSize == .compact { landscape } else { portrait }
         }
         .overlay {
-            if !session.isConnected { ModeOfflineMessage(mode: .present).background(palette.backgroundColor) }
+            if !session.isConnected { ModeOfflineMessage(mode: .present).background(SurfaceBackground()) }
         }
         .onDisappear { session.laserOff() }
     }
@@ -82,7 +82,8 @@ struct PresentMode: View {
 
     private var timerBar: some View {
         HStack(spacing: 12) {
-            TimelineView(.periodic(from: .now, by: 1)) { context in
+            // Ticks only while the timer runs.
+            TimelineView(.periodic(from: .now, by: timer.isRunning ? 1 : 3600)) { context in
                 Text(MediaMode.clock(timer.elapsed(at: context.date)))
                     .font(.system(.largeTitle, design: .rounded).weight(.medium).monospacedDigit())
                     .foregroundStyle(timer.isRunning ? palette.inkColor : palette.inkSoftColor)
@@ -148,7 +149,7 @@ struct PresentMode: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .buttonStyle(KeyCapStyle(accent: accent, cornerRadius: 26))
+        .buttonStyle(KeyCapStyle(prominent: true, cornerRadius: 26))
         .accessibilityLabel("Next slide")
         .accessibilityHint("Starts the timer on the first press")
     }
@@ -172,7 +173,7 @@ private struct LaserPad: View {
                     .strokeBorder(palette.lineColor)
                 if let point {
                     Circle()
-                        .fill(Color.red)
+                        .fill(palette.monochrome ? palette.inkColor : palette.bad)
                         .frame(width: 18, height: 18)
                         .position(x: point.x * geo.size.width, y: point.y * geo.size.height)
                 } else {

@@ -87,7 +87,6 @@ final class PhoneSettings {
     static let dimDelayChoices: [TimeInterval] = [30, 60, 120, 300, 0]
     static let dotSizeRange: ClosedRange<Double> = 28...72
     static let dotOpacityRange: ClosedRange<Double> = 0.4...2.5
-    static let dockIconScaleRange: ClosedRange<Double> = 0.8...1.25
 
     // Look
     var theme: ThemeChoice { didSet { defaults.set(theme.rawValue, forKey: Key.theme) } }
@@ -116,7 +115,9 @@ final class PhoneSettings {
     /// nil = open the last used mode.
     var launchMode: AppMode? { didSet { defaults.set(launchMode?.rawValue ?? "", forKey: Key.launchMode) } }
     var dockDensity: DockDensity { didSet { defaults.set(dockDensity.rawValue, forKey: Key.dockDensity) } }
-    var dockIconScale: Double { didSet { defaults.set(dockIconScale, forKey: Key.dockIconScale) } }
+    /// Dock icons follow `dockDensity` alone. A fine tune slider used to sit under it; any
+    /// value it saved is ignored.
+    let dockIconScale: Double = 1
     var dockShowsNames: Bool { didSet { defaults.set(dockShowsNames, forKey: Key.dockShowsNames) } }
     var dockShowsRecent: Bool { didSet { defaults.set(dockShowsRecent, forKey: Key.dockShowsRecent) } }
     /// The phone's own Dock order, hidden apps and kept apps.
@@ -171,7 +172,7 @@ final class PhoneSettings {
         static let phoneName = "phoneName", lastMode = "lastMode", orientation = "orientation"
         static let dotStyle = "dotStyle", dotSize = "dotSize", dotOpacity = "dotOpacity"
         static let pillPosition = "pillPosition", hapticsOff = "hapticsOff", keepScreenAwake = "keepScreenAwake"
-        static let launchMode = "launchMode", dockDensity = "dockDensity", dockIconScale = "dockIconScale"
+        static let launchMode = "launchMode", dockDensity = "dockDensity"
         static let dockShowsNames = "dockShowsNames", dockShowsRecent = "dockShowsRecent"
         static let dockArrangement = "dockArrangement", keysShowsShortcuts = "keysShowsShortcuts"
         static let keysShowsFunctionRow = "keysShowsFunctionRow", setupComplete = "setupComplete"
@@ -201,7 +202,6 @@ final class PhoneSettings {
         keepScreenAwake = bool(Key.keepScreenAwake, true)
         launchMode = AppMode(rawValue: defaults.string(forKey: Key.launchMode) ?? "")
         dockDensity = DockDensity(rawValue: defaults.string(forKey: Key.dockDensity) ?? "") ?? .regular
-        dockIconScale = double(Key.dockIconScale, 1, Self.dockIconScaleRange)
         dockShowsNames = bool(Key.dockShowsNames, true)
         dockShowsRecent = bool(Key.dockShowsRecent, true)
         dockArrangement = defaults.data(forKey: Key.dockArrangement)
@@ -245,7 +245,6 @@ final class PhoneSettings {
         hapticStrength = 0.7
         hapticsOff = []
         dockDensity = .regular
-        dockIconScale = 1
         dockShowsNames = true
         dockShowsRecent = true
     }

@@ -52,7 +52,7 @@ struct FingerDotSettings: View {
             }
         }
         .scrollContentBackground(.hidden)
-        .background(palette.backgroundColor.ignoresSafeArea())
+        .background(SurfaceBackground())
         .navigationTitle("Finger Dots")
         .navigationBarTitleDisplayMode(.inline)
     }
@@ -102,36 +102,45 @@ struct PointerSettings: View {
     var body: some View {
         Form {
             TrackpadTuningSection(part: .motion)
-            if session.hasMacSettings {
-                let s = session.trackpadSettings
-                Section {
-                    LabeledContent("Tracking Speed", value: String(format: "%.1f of 3", s.trackingSpeed))
-                    LabeledContent("Natural Scrolling", value: s.naturalScrolling ? "On" : "Off")
-                    LabeledContent("Secondary Click", value: s.secondaryClick.title)
-                    LabeledContent("Swipe Between Spaces", value: s.swipeBetweenSpaces.title)
-                    LabeledContent("Mission Control", value: s.missionControl.title)
-                } header: {
-                    Text("From Your Mac")
-                } footer: {
-                    Text("Gestures follow your Mac's own trackpad settings. Change them in System Settings on the Mac and the phone follows.")
-                }
-                .listRowBackground(palette.raisedColor)
-            }
         }
         .scrollContentBackground(.hidden)
-        .background(palette.backgroundColor.ignoresSafeArea())
+        .background(SurfaceBackground())
         .navigationTitle("Pointer and Scrolling")
         .navigationBarTitleDisplayMode(.inline)
     }
 }
 
-/// Every haptic in one place: how strong the trackpad's are, and which kinds play at all.
-struct HapticKindsSettings: View {
+/// Every haptic in one place: overall strength, the trackpad's own, and which kinds play.
+struct HapticsSettings: View {
     @Environment(\.palette) private var palette
     @Bindable var settings = PhoneSettings.shared
+    var session = MacSession.shared
 
     var body: some View {
         Form {
+            Section {
+                HStack(spacing: 12) {
+                    Image(systemName: "speaker.wave.1").foregroundStyle(palette.inkSoftColor).accessibilityHidden(true)
+                    Slider(value: $settings.hapticStrength, in: 0...1) { editing in
+                        if !editing {
+                            session.refreshHapticStrength()
+                            Haptics.shared.play(.click)
+                        }
+                    }
+                    .accessibilityLabel("Strength")
+                    .accessibilityValue(settings.hapticStrength.formatted(.percent.precision(.fractionLength(0))))
+                    Image(systemName: "speaker.wave.3").foregroundStyle(palette.inkSoftColor).accessibilityHidden(true)
+                }
+            } header: {
+                Text("Strength")
+            } footer: {
+                if Haptics.shared.isSupported {
+                    Text("Also follows Click on your Mac, set to \(session.trackpadSettings.clickPressure.title).")
+                } else {
+                    Text("This iPhone has no Taptic Engine, so there is nothing to feel.")
+                }
+            }
+            .listRowBackground(palette.raisedColor)
             TrackpadTuningSection(part: .haptics)
             Section {
                 ForEach(HapticChannel.allCases) { channel in
@@ -145,14 +154,12 @@ struct HapticKindsSettings: View {
                 }
             } header: {
                 Text("Everywhere in Glasspad")
-            } footer: {
-                Text("Turn a kind off to silence it in every mode.")
             }
             .listRowBackground(palette.raisedColor)
         }
         .scrollContentBackground(.hidden)
-        .background(palette.backgroundColor.ignoresSafeArea())
-        .navigationTitle("Haptic Types")
+        .background(SurfaceBackground())
+        .navigationTitle("Haptics")
         .navigationBarTitleDisplayMode(.inline)
     }
 }
@@ -236,7 +243,7 @@ struct ModesSettings: View {
         }
         .environment(\.editMode, .constant(.active))
         .scrollContentBackground(.hidden)
-        .background(palette.backgroundColor.ignoresSafeArea())
+        .background(SurfaceBackground())
         .navigationTitle("Modes")
         .navigationBarTitleDisplayMode(.inline)
         .onChange(of: settings.modeList) {
@@ -251,7 +258,7 @@ extension AppMode {
     /// Modes with their own page in Settings.
     var hasSettings: Bool {
         switch self {
-        case .dock, .keys, .actions, .deck, .present: true
+        case .dock, .keys, .actions, .deck, .present, .clock, .nowPlaying, .calendar: true
         default: false
         }
     }
@@ -281,46 +288,44 @@ struct ModeDetailSettings: View {
                     Toggle("Start Timer on First Next", isOn: $settings.presentStartsTimer)
                 }
                 .listRowBackground(palette.raisedColor)
+            case .clock, .nowPlaying, .calendar: StandBySettingsSections()
             default: EmptyView()
             }
         }
         .scrollContentBackground(.hidden)
-        .background(palette.backgroundColor.ignoresSafeArea())
+        .background(SurfaceBackground())
         .navigationTitle(mode.title)
         .navigationBarTitleDisplayMode(.inline)
     }
 
     @ViewBuilder private var apps: some View {
-        Section("Icon Size") {
+        Section {
             Picker("Icon Size", selection: $settings.dockDensity) {
                 Text("Small").tag(DockDensity.compact)
                 Text("Medium").tag(DockDensity.regular)
                 Text("Large").tag(DockDensity.large)
             }
             .pickerStyle(.segmented)
-            HStack(spacing: 12) {
-                Image(systemName: "app").font(.footnote).foregroundStyle(palette.inkSoftColor).accessibilityHidden(true)
-                Slider(value: $settings.dockIconScale, in: PhoneSettings.dockIconScaleRange)
-                    .accessibilityLabel("Fine tune icon size")
-                Image(systemName: "app").font(.title3).foregroundStyle(palette.inkSoftColor).accessibilityHidden(true)
-            }
             Toggle("Show Names", isOn: $settings.dockShowsNames)
-        }
-        .listRowBackground(palette.raisedColor)
-        Section {
-            if !settings.dockArrangement.order.isEmpty {
-                Button("Use the Mac's Order") { settings.dockArrangement.order = [] }
-            }
-            if !settings.dockArrangement.hidden.isEmpty {
-                Button("Show \(settings.dockArrangement.hidden.count) Hidden Apps") { settings.dockArrangement.hidden = [] }
-            }
-            LabeledContent("Kept on iPhone", value: "\(settings.dockArrangement.kept.count)")
         } header: {
-            Text("Your Arrangement")
+            Text("Icons")
         } footer: {
-            Text("Long press an app in Dock to keep, hide or reorder it. This only changes the phone; your Mac's Dock stays as it is.")
+            Text("Touch and hold an app in Dock to keep, hide or move it. Your Mac's Dock stays as it is.")
         }
         .listRowBackground(palette.raisedColor)
+        if !settings.dockArrangement.order.isEmpty || !settings.dockArrangement.hidden.isEmpty {
+            Section {
+                if !settings.dockArrangement.order.isEmpty {
+                    Button("Use the Mac's Order") { settings.dockArrangement.order = [] }
+                }
+                if !settings.dockArrangement.hidden.isEmpty {
+                    Button("Show \(settings.dockArrangement.hidden.count) Hidden \(settings.dockArrangement.hidden.count == 1 ? "App" : "Apps")") {
+                        settings.dockArrangement.hidden = []
+                    }
+                }
+            }
+            .listRowBackground(palette.raisedColor)
+        }
         Section {
             Toggle("Hide Mac Dock", isOn: macDock(\.hidden))
             Toggle("Hide Mac Dock While Connected", isOn: macDock(\.hideWhileConnected))
@@ -328,7 +333,7 @@ struct ModeDetailSettings: View {
             Text("Your Mac's Dock")
         } footer: {
             Text(session.isConnected
-                 ? "Glasspad saves your Dock settings first and puts them back exactly when you turn this off, disconnect or quit Glasspad on the Mac."
+                 ? "Your Dock settings come back as they were when you turn this off, disconnect or quit Glasspad."
                  : "Connect to your Mac to change these.")
         }
         .disabled(!session.isConnected)

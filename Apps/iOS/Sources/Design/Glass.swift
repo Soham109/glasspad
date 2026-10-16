@@ -59,7 +59,7 @@ private struct GlassButtonStyle: ViewModifier {
         if prominent {
             styled(content)
                 .tint(accent ?? palette.inkColor)
-                .foregroundStyle(accent == nil ? palette.backgroundColor : Color.white)
+                .foregroundStyle(accent == nil ? palette.solidColor : Color.white)
         } else if let accent {
             styled(content).tint(accent)
         } else {
@@ -78,20 +78,35 @@ private struct GlassButtonStyle: ViewModifier {
 
 /// A flat key, like the system keyboard: a filled rounded rectangle with a hairline edge that
 /// darkens while pressed. Used for keys and big remote buttons, where glass capsules would
-/// stretch into ovals. `accent` fills the key and turns the label white (an armed modifier,
-/// the Next slide button).
+/// stretch into ovals. `accent` fills the key and turns the label white (an armed modifier).
+/// `prominent` fills it with the ink instead, the label taking the surface colour, like a
+/// primary button (the Next slide button).
 struct KeyCapStyle: ButtonStyle {
     @Environment(\.palette) private var palette
     @Environment(\.isEnabled) private var isEnabled
     var accent: Color? = nil
+    var prominent = false
     var cornerRadius: CGFloat = 12
 
     func makeBody(configuration: Configuration) -> some View {
         let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+        if prominent {
+            configuration.label
+                .foregroundStyle(palette.solidColor)
+                .background(shape.fill(palette.inkColor.opacity(configuration.isPressed ? 0.82 : 1)))
+                .contentShape(shape)
+                .opacity(isEnabled ? 1 : 0.4)
+                .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
+        } else {
+            keyCap(configuration, shape: shape)
+        }
+    }
+
+    private func keyCap(_ configuration: Configuration, shape: RoundedRectangle) -> some View {
         // Mono fills an armed key with the ink and puts the surface colour on it.
         let fill = accent.map { palette.tint($0) }
-        configuration.label
-            .foregroundStyle(accent == nil ? palette.inkColor : (palette.monochrome ? palette.backgroundColor : Color.white))
+        return configuration.label
+            .foregroundStyle(accent == nil ? palette.inkColor : (palette.monochrome ? palette.solidColor : Color.white))
             .background {
                 if let fill {
                     shape.fill(fill.opacity(configuration.isPressed ? 0.8 : 1))

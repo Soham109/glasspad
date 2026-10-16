@@ -99,6 +99,16 @@ extension ModeMessage {
             self = .presentLaserPosition(x: try f.value(Double.self, "x"), y: try f.value(Double.self, "y"))
         case "remoteSystem":
             self = .remoteSystem(id: try f.value(UUID.self, "id"), action: try f.value(DeckSystemAction.self, "action"))
+        case "displaysWatch": self = .displaysWatch(on: try f.value(Bool.self, "on"))
+        case "displaysState": self = .displaysState(try f.value(DisplaysState.self, "state"))
+        case "windowCommand":
+            self = .windowCommand(id: try f.value(UUID.self, "id"), windowID: try f.value(UInt32.self, "windowID"),
+                                  command: try f.value(WindowCommand.self, "command"))
+        case "displayCommand":
+            self = .displayCommand(id: try f.value(UUID.self, "id"), command: try f.value(DisplayCommand.self, "command"))
+        case "displaysResult":
+            self = .displaysResult(id: try f.value(UUID.self, "id"), ok: try f.value(Bool.self, "ok"),
+                                   message: try f.optional(String.self, "message"))
         case "macro": self = .macro(try f.value(MacroMessage.self, "macro", unlabeled: true))
         default:
             throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath,
@@ -161,6 +171,19 @@ extension ModeMessage {
         case .remoteSystem(let id, let action):
             try put(id, "id")
             try put(action, "action")
+        case .displaysWatch(let on): try put(on, "on")
+        case .displaysState(let state): try put(state, "state")
+        case .windowCommand(let id, let windowID, let command):
+            try put(id, "id")
+            try put(windowID, "windowID")
+            try put(command, "command")
+        case .displayCommand(let id, let command):
+            try put(id, "id")
+            try put(command, "command")
+        case .displaysResult(let id, let ok, let message):
+            try put(id, "id")
+            try put(ok, "ok")
+            try c.encodeIfPresent(message, forKey: AnyCodingKey("message"))
         case .macro(let m): try put(m, "macro")
         case .dockRequest, .mediaRequest, .deckRequest, .clipboardPull, .presentNext, .presentPrevious,
              .dockCatalogRequest, .deckCatalogRequest:
@@ -214,6 +237,11 @@ extension ModeMessage {
         case .presentLaser: "presentLaser"
         case .presentLaserPosition: "presentLaserPosition"
         case .remoteSystem: "remoteSystem"
+        case .displaysWatch: "displaysWatch"
+        case .displaysState: "displaysState"
+        case .windowCommand: "windowCommand"
+        case .displayCommand: "displayCommand"
+        case .displaysResult: "displaysResult"
         case .macro: "macro"
         }
     }

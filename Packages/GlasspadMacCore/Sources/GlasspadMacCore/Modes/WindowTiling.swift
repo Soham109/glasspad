@@ -17,6 +17,18 @@ public enum WindowPlacement: String, Sendable, CaseIterable {
         default: return nil
         }
     }
+
+    /// The same place in the Displays screen's terms.
+    public var tile: WindowTile {
+        switch self {
+        case .left: .leftHalf
+        case .right: .rightHalf
+        case .top: .topHalf
+        case .bottom: .bottomHalf
+        case .fill: .fill
+        case .center: .center
+        }
+    }
 }
 
 /// One display, in Quartz global coordinates (origin at the top-left of the main display, y
@@ -33,99 +45,49 @@ public struct TilingScreen: Equatable, Sendable {
     }
 }
 
-/// The frame math behind the window buttons. Pure, so it is tested without moving anything.
+/// The frame math behind the window buttons, in the terms they use. The math itself is
+/// `DisplayGeometry` (GlasspadKit), shared with the Displays screen on both sides.
 public enum WindowTiling {
     /// The gap macOS leaves around tiled windows when "Tiled windows have margins" is on.
-    public static let margin: CGFloat = 8
+    public static let margin: CGFloat = DisplayGeometry.tileMargin
 
     /// A Cocoa screen rectangle (origin bottom-left of the main display, y up) in Quartz
-    /// coordinates. `mainHeight` is the height of the main display (the one with the menu bar
-    /// at the origin).
+    /// coordinates. `mainHeight` is the height of the main display.
     public static func quartz(_ cocoa: CGRect, mainHeight: CGFloat) -> CGRect {
-        CGRect(x: cocoa.minX, y: mainHeight - cocoa.maxY, width: cocoa.width, height: cocoa.height)
+        DisplayGeometry.quartz(cocoa, mainHeight: mainHeight)
     }
 
-    /// The screen showing most of the window; the one under its centre when it is on none.
+    /// The screen showing most of the window; the one nearest its centre when it is on none.
     public static func screenIndex(for window: CGRect, in screens: [TilingScreen]) -> Int? {
-        guard !screens.isEmpty else { return nil }
-        let areas = screens.map { s -> CGFloat in
-            let i = s.frame.intersection(window)
-            return i.isNull ? 0 : i.width * i.height
-        }
-        if let best = areas.indices.max(by: { areas[$0] < areas[$1] }), areas[best] > 0 { return best }
-        let centre = CGPoint(x: window.midX, y: window.midY)
-        func distance(_ r: CGRect) -> CGFloat {
-            let dx = max(r.minX - centre.x, 0, centre.x - r.maxX), dy = max(r.minY - centre.y, 0, centre.y - r.maxY)
-            return dx * dx + dy * dy
-        }
-        return screens.indices.min { distance(screens[$0].frame) < distance(screens[$1].frame) }
+        DisplayGeometry.displayIndex(for: window, in: screens.map(\.frame))
     }
 
     /// Where the window goes within `visible` (the screen without menu bar and Dock), with
     /// `gap` points around it and between halves. Whole points, like macOS itself.
     public static func frame(_ placement: WindowPlacement, window: CGRect, in visible: CGRect, gap: CGFloat = 0) -> CGRect {
-        let area = visible.insetBy(dx: gap, dy: gap)
-        let halfW = (area.width - gap) / 2, halfH = (area.height - gap) / 2
-        let r: CGRect
-        switch placement {
-        case .left: r = CGRect(x: area.minX, y: area.minY, width: halfW, height: area.height)
-        case .right: r = CGRect(x: area.maxX - halfW, y: area.minY, width: halfW, height: area.height)
-        case .top: r = CGRect(x: area.minX, y: area.minY, width: area.width, height: halfH)
-        case .bottom: r = CGRect(x: area.minX, y: area.maxY - halfH, width: area.width, height: halfH)
-        case .fill: r = area
-        case .center:
-            let w = min(window.width, area.width), h = min(window.height, area.height)
-            r = CGRect(x: area.midX - w / 2, y: area.midY - h / 2, width: w, height: h)
-        }
-        return r.integral(keepingInside: visible)
+        DisplayGeometry.tile(placement.tile, window: window, in: visible, gap: gap)
     }
 
     /// The two halves for Split Screen: front window left, the next one right.
     public static func split(in visible: CGRect, gap: CGFloat = 0) -> (left: CGRect, right: CGRect) {
-        (frame(.left, window: .zero, in: visible, gap: gap), frame(.right, window: .zero, in: visible, gap: gap))
+        DisplayGeometry.split(in: visible, gap: gap)
     }
 
     /// The window moved from one screen's visible area to another's, keeping where it sits and
     /// how much of the screen it covers (a left half stays a left half).
     public static func moved(_ window: CGRect, from: CGRect, to: CGRect) -> CGRect {
-        guard from.width > 0, from.height > 0 else { return frame(.center, window: window, in: to) }
-        let sx = to.width / from.width, sy = to.height / from.height
-        var r = CGRect(x: to.minX + (window.minX - from.minX) * sx, y: to.minY + (window.minY - from.minY) * sy,
-                       width: window.width * sx, height: window.height * sy)
-        r.size.width = min(r.width, to.width)
-        r.size.height = min(r.height, to.height)
-        r.origin.x = min(max(r.minX, to.minX), to.maxX - r.width)
-        r.origin.y = min(max(r.minY, to.minY), to.maxY - r.height)
-        return r.integral(keepingInside: to)
+        DisplayGeometry.moved(window, from: from, to: to)
     }
 
     /// The screen after `index`, going left to right (then top to bottom), wrapping around.
     public static func nextScreenIndex(after index: Int, in screens: [TilingScreen]) -> Int? {
-        guard screens.count > 1, screens.indices.contains(index) else { return nil }
-        let order = screens.indices.sorted {
-            let a = screens[$0].frame, b = screens[$1].frame
-            return a.minX != b.minX ? a.minX < b.minX : a.minY < b.minY
-        }
-        guard let at = order.firstIndex(of: index) else { return nil }
-        return order[(at + 1) % order.count]
+        DisplayGeometry.nextDisplayIndex(after: index, in: screens.map(\.frame))
     }
 
     /// True when the window already sits at `target` (macOS rounds sizes to what an app allows).
     public static func isClose(_ a: CGRect, _ b: CGRect, tolerance: CGFloat = 2) -> Bool {
         abs(a.minX - b.minX) <= tolerance && abs(a.minY - b.minY) <= tolerance
             && abs(a.width - b.width) <= tolerance && abs(a.height - b.height) <= tolerance
-    }
-}
-
-private extension CGRect {
-    /// Rounded to whole points without spilling outside `bounds`.
-    func integral(keepingInside bounds: CGRect) -> CGRect {
-        var x = minX.rounded(), y = minY.rounded(), w = width.rounded(), h = height.rounded()
-        x = Swift.max(x, bounds.minX.rounded(.up))
-        y = Swift.max(y, bounds.minY.rounded(.up))
-        w = Swift.max(0, Swift.min(w, bounds.maxX.rounded(.down) - x))
-        h = Swift.max(0, Swift.min(h, bounds.maxY.rounded(.down) - y))
-        return CGRect(x: x, y: y, width: w, height: h)
     }
 }
 
@@ -297,7 +259,7 @@ enum WindowMover {
     }()
 
     /// The window server id of an Accessibility window (private, with a frame match as fallback).
-    private static func windowID(_ window: AXUIElement) -> CGWindowID? {
+    static func windowID(_ window: AXUIElement) -> CGWindowID? {
         guard let getWindow else { return nil }
         var id = CGWindowID(0)
         return getWindow(window, &id) == .success && id != 0 ? id : nil
@@ -306,7 +268,7 @@ enum WindowMover {
     /// Size, position, size again (a window crossing displays can be limited by the screen it
     /// starts on). "Enhanced user interface", which some apps turn on for assistive tools,
     /// animates every change and makes sizes land wrong, so it is off while moving.
-    private static func set(_ window: AXUIElement, app: AXUIElement, to target: CGRect) -> Bool {
+    static func set(_ window: AXUIElement, app: AXUIElement, to target: CGRect) -> Bool {
         let enhanced = AXUI.bool(app, "AXEnhancedUserInterface") == true
         if enhanced { AXUI.set(app, "AXEnhancedUserInterface", false) }
         defer { if enhanced { AXUI.set(app, "AXEnhancedUserInterface", true) } }

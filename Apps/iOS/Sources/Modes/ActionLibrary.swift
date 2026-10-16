@@ -48,7 +48,7 @@ struct ActionLibrary: View {
                 }
             }
             .scrollContentBackground(.hidden)
-            .background(palette.backgroundColor.ignoresSafeArea())
+            .background(SurfaceBackground())
             .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search")
             .navigationTitle("Library")
             .navigationBarTitleDisplayMode(.inline)
@@ -168,7 +168,7 @@ struct ActionLibrary: View {
             }
         }
         .scrollContentBackground(.hidden)
-        .background(palette.backgroundColor.ignoresSafeArea())
+        .background(SurfaceBackground())
         .searchable(text: $appQuery, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search Apps")
         .navigationTitle("All Apps")
         .navigationBarTitleDisplayMode(.inline)
@@ -436,7 +436,7 @@ struct FrontAppButtonsSheet: View {
             }
             .environment(\.editMode, .constant(.active))
             .scrollContentBackground(.hidden)
-            .background(palette.backgroundColor.ignoresSafeArea())
+            .background(SurfaceBackground())
             .navigationTitle(appName)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
