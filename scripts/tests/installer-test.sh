@@ -72,10 +72,14 @@ run_installer() {
   CODE=$?
 }
 pass() { PASS=$((PASS+1)); printf '  ok   %s: %s\n' "$CASE" "$1"; }
-bad()  { FAIL=$((FAIL+1)); printf '  FAIL %s: %s\n' "$CASE" "$1"; printf '%s\n' "$OUT" | sed 's/^/       | /' | tail -n 30; }
+bad()  { FAIL=$((FAIL+1)); printf '  FAIL %s: %s\n' "$CASE" "$1"; printf '%s\n' "$OUT" > "$ROOT/out.txt"; tail -n 30 "$ROOT/out.txt" | sed 's/^/       | /'; }
 expect_code() { if [ "$CODE" = "$1" ]; then pass "exit code $1"; else bad "exit code $CODE, wanted $1"; fi; }
-expect_out()  { if printf '%s' "$OUT" | grep -qF -- "$1"; then pass "says \"$1\""; else bad "missing \"$1\""; fi; }
-reject_out()  { if printf '%s' "$OUT" | grep -qF -- "$1"; then bad "should not say \"$1\""; else pass "does not say \"$1\""; fi; }
+# Output is searched in a file, never through a pipe: `printf | grep -q` lets grep quit at the
+# first match while printf is still writing, printf dies of SIGPIPE, and pipefail turns a found
+# line into a "missing" one (this made the suite fail about one run in seven).
+has_out() { printf '%s' "$OUT" > "$ROOT/out.txt"; grep -qF -- "$1" "$ROOT/out.txt"; }
+expect_out()  { if has_out "$1"; then pass "says \"$1\""; else bad "missing \"$1\""; fi; }
+reject_out()  { if has_out "$1"; then bad "should not say \"$1\""; else pass "does not say \"$1\""; fi; }
 expect_call() { if grep -qF -- "$1" "$STUB/calls"; then pass "ran \"$1\""; else bad "did not run \"$1\""; fi; }
 reject_call() { if grep -qF -- "$1" "$STUB/calls"; then bad "should not run \"$1\""; else pass "did not run \"$1\""; fi; }
 STATE_FILE() { printf '%s' "$HOME/Library/Application Support/Glasspad/phone-install.env"; }
@@ -103,7 +107,7 @@ expect_out "Glasspad is open on your iPhone"
 expect_out "Automatic renewal is on."
 expect_out "What is installed:"
 if [ -f "$HOME/Library/LaunchAgents/com.soham109.glasspad.refresh.plist" ] \
-   && plutil -extract ProgramArguments.1 raw "$HOME/Library/LaunchAgents/com.soham109.glasspad.refresh.plist" | grep -qF "$DEST/scripts/refresh-phone.sh"; then
+   && [ "$(plutil -extract ProgramArguments.1 raw "$HOME/Library/LaunchAgents/com.soham109.glasspad.refresh.plist")" = "$DEST/scripts/refresh-phone.sh" ]; then
   pass "renewal agent points at the clone"; else bad "renewal agent path"; fi
 # The saved state must read back exactly, spaces and all.
 # shellcheck disable=SC1090

@@ -1,5 +1,5 @@
 #!/bin/bash
 # Fake openssl x509 -subject: reads the first fake certificate on stdin.
-t="$(sed -n 's/^FAKE OU=//p' | head -n 1)"
+t="$(awk 'sub(/^FAKE OU=/, "") && t == "" {t = $0} END {print t}')"
 [ -n "$t" ] || exit 1
 echo "subject=UID=X, CN=Apple Development: someone, OU=$t, O=Someone, C=US"
