@@ -46,8 +46,9 @@ public enum StarterLibrary {
         Button(name: name, symbol: symbol, step: .keystroke(KeyCombo(char, mods)))
     }
 
-    /// A Mac control (a `DeckSystemAction` raw value), in that control's own colour.
-    static func control(_ name: String, _ symbol: String, _ id: String, _ color: String) -> Button {
+    /// A Mac control (a `DeckSystemAction` raw value), in that control's own colour, or the
+    /// profile's when nil.
+    static func control(_ name: String, _ symbol: String, _ id: String, _ color: String?) -> Button {
         Button(name: name, symbol: symbol, step: .macControl(id), color: color)
     }
 
@@ -59,9 +60,9 @@ public enum StarterLibrary {
     static let centerWindow = control("Center Window", "rectangle.center.inset.filled", "windowCenter", windowBlue)
     static let nextDisplay = control("Next Display", "display.2", "windowNextDisplay", windowBlue)
     static let doNotDisturb = control("Do Not Disturb", "moon.circle.fill", "doNotDisturb", "#5E5CE6")
-    static let playPause = control("Play or Pause", "playpause.fill", "playPause", "#FF375F")
-    static let nextTrack = control("Next Track", "forward.fill", "nextTrack", "#FF375F")
-    static let previousTrack = control("Previous Track", "backward.fill", "previousTrack", "#FF375F")
+    static let playPause = control("Play / Pause", "playpause.fill", "playPause", nil)
+    static let nextTrack = control("Next", "forward.fill", "nextTrack", nil)
+    static let previousTrack = control("Previous", "backward.fill", "previousTrack", nil)
 
     public static let macros: [Macro] = macros(from: definitions)
     public static let profiles: [ContextProfile] = profiles(from: definitions)
