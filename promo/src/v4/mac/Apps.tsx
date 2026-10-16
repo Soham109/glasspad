@@ -116,7 +116,7 @@ export const EditorApp: React.FC<{ x: number; y: number; w: number; h: number; t
   const tlTop = h * 0.56;
   const tlH = h - tlTop;
   const px = w * playhead;
-  const gap = cut * 10;
+  const gap = cut * 26;
   const clips = [[0.03, 0.27], [0.27, 0.64], [0.64, 0.9]];
   return (
     <Window x={x} y={y} w={w} h={h} dark bar={44} style={style} title="Field Notes  ·  Edit">
@@ -189,6 +189,13 @@ export const Slide: React.FC<{ w: number; h: number; n: number; t: number }> = (
         <div style={{ fontSize: h * 0.04, color: "rgba(245,245,247,0.55)", fontWeight: 600, letterSpacing: "0.02em" }}>AUTUMN REVIEW</div>
         <div style={{ fontSize: h * 0.13, fontWeight: 700, letterSpacing: "-0.035em", lineHeight: 1.0, marginTop: h * 0.02 }}>Field Notes</div>
         <div style={{ fontSize: h * 0.045, color: "rgba(245,245,247,0.7)", marginTop: h * 0.03 }}>What we learned on the coast</div>
+      </div>
+    );
+  if (n === 2)
+    return (
+      <div style={{ position: "absolute", inset: 0, width: w, height: h, background: "#0E0E10", fontFamily: SF, color: "#F5F5F7", display: "flex", flexDirection: "column", justifyContent: "center", padding: `0 ${w * 0.08}px` }}>
+        <div style={{ fontSize: h * 0.11, fontWeight: 700, letterSpacing: "-0.035em", lineHeight: 1.0 }}>Questions?</div>
+        <div style={{ fontSize: h * 0.045, color: "rgba(245,245,247,0.6)", marginTop: h * 0.03 }}>Field Notes, autumn review</div>
       </div>
     );
   return (

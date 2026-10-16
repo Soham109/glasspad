@@ -4,18 +4,18 @@
 //              CG desk: a click on Safari, and the phone's buttons re-lay themselves.
 //  2 Pinned    the phone, low and close; Split Screen snaps the windows; Do Not Disturb.
 import React from "react";
-import { AbsoluteFill, Freeze, Img, OffthreadVideo, Sequence, staticFile, useCurrentFrame } from "remotion";
+import { AbsoluteFill, Freeze, Img, OffthreadVideo, Sequence, useCurrentFrame } from "remotion";
 import { CameraMotionBlur } from "@remotion/motion-blur";
-import { C, E, FPS, SF, clamp01, keys, lerp, phone, prog, s, spr, sstep } from "../core";
+import { C, E, FPS, SF, clamp01, lerp, phone, prog, s, spr, sstep } from "../core";
 import { DeskSet, DESK } from "../set/Desk";
 import { camPath, project, Cam, CamKey } from "../set/Stage3D";
 import { Dock, MenuBar, Pointer, Wallpaper, Banner } from "../mac/Desktop";
 import { MailApp, SafariApp } from "../mac/Apps";
-import { EXT, MBP, extScreen } from "../devices/Mac";
+import { EXT, MBP } from "../devices/Mac";
 import { Footage, Track } from "../footage/Footage";
 import deskTrack from "../tracks/desk-topdown.json";
 import { Label, Sweep, Touch } from "../fx";
-import { lineAt, scene, word } from "../timeline";
+import { scene, word } from "../timeline";
 
 const T = (sec: number) => Math.round(sec * FPS);
 
@@ -42,7 +42,8 @@ const PhoneScreen: React.FC<{ t: number }> = ({ t }) => {
     );
   }
   if (t < PIN.from + 0.5) {
-    const startRec = REC_SWITCH - (T_CLICK + 0.18 - (T_CG_IN - 0.5));
+    // the phone answers as the lens arrives on it (the app's own switch, a beat after the click)
+    const startRec = REC_SWITCH - (T_CLICK + 0.5 - (T_CG_IN - 0.5));
     return (
       <Sequence from={T(T_CG_IN - 0.5)} layout="none">
         <OffthreadVideo src={phone("actions-switch.mp4")} startFrom={T(startRec)} muted style={{ width: 2622, height: 1206 }} />
@@ -78,7 +79,7 @@ const DisplayScreen: React.FC<{ t: number; wake: number }> = ({ t, wake }) => {
       <MenuBar w={EXT.w} app={safariFront ? "Safari" : "Mail"} focus={focus} menus={safariFront ? ["File", "Edit", "View", "History", "Bookmarks", "Window", "Help"] : ["File", "Edit", "View", "Mailbox", "Message", "Format", "Window", "Help"]} />
       <Dock w={EXT.w} h={EXT.h} running={["com.apple.finder", "com.apple.mail", "com.apple.Safari", "com.apple.Notes"]} />
       {bannerIn > 0 && bannerOut < 1 ? (
-        <Banner x={EXT.w - 344 - 14 + (1 - bannerIn) * 360 + bannerOut * 360} y={30 + 10} app="Messages" iconId="com.apple.MobileSMS" title="Ana Ruiz" body="Are we still on for Saturday?" style={{ opacity: 1 - bannerOut * 0.5 }} />
+        <Banner x={EXT.w - 344 - 14 + (1 - bannerIn) * 360 + bannerOut * 360} y={30 + 10} iconId="com.apple.MobileSMS" title="Ana Ruiz" body="Are we still on for Saturday?" style={{ opacity: 1 - bannerOut * 0.5 }} />
       ) : null}
       {t > T_CLICK - 1.3 && t < T_SPLIT - 0.4 ? <Pointer x={ptr.x} y={ptr.y} scale={1.25} press={press} opacity={pIn * (1 - prog(T(t), T(T_SPLIT - 0.8), 20, E.in))} /> : null}
     </div>
@@ -117,20 +118,19 @@ const BANNER = { x: 330, y: -770, z: DESK.display.z };
 const WIDE = { pos: { x: 260, y: -560, z: 2080 }, look: { x: 90, y: -330, z: 0 } };
 
 const KEYS: CamKey[] = [
-  // Open: inside the glass, the dot; then out along the phone's line of sight and up to the desk
+  // Open: inside the glass, the dot; then one long crane back and up to the whole desk
   { t: 0, pos: along(70), look: SC, fov: 30, aperture: 26, focus: 900 },
   { t: 1.25, pos: along(92), look: SC, fov: 30, aperture: 22 },
-  { t: 3.9, pos: along(620, -330, 80), look: { x: 380, y: -300, z: 80 }, fov: 32, aperture: 9, ease: E.inOut },
   { t: 6.62, pos: WIDE.pos, look: WIDE.look, fov: 34, aperture: 6, ease: E.glide },
-  // Actions (CG from T_CG_IN): the display and the phone in one frame, drifting; then in to the phone
-  { t: T_CG_IN - 0.45, pos: { x: -120, y: -500, z: 1700 }, look: { x: 180, y: -420, z: -40 }, fov: 33, aperture: 6, focus: 1700 },
-  { t: T_CLICK + 0.05, pos: { x: 40, y: -490, z: 1560 }, look: { x: 210, y: -420, z: -40 }, fov: 33, aperture: 6, focus: 1600, ease: E.linear },
-  { t: T_CLICK + 1.0, pos: { x: 520, y: -430, z: 1150 }, look: { x: 450, y: -260, z: 120 }, fov: 32, aperture: 8, ease: E.inOut },
-  { t: T_CLICK + 2.0, pos: along(330, -10, 20), look: SC, fov: 30, aperture: 12, ease: E.inOut },
-  { t: PIN.from, pos: along(300, 0, 40), look: SC, fov: 30, aperture: 12, ease: E.linear },
+  // Actions (CG from T_CG_IN): over the phone's shoulder, the display sharp behind it; the
+  // click lands on the display, then focus racks to the phone as its buttons change
+  { t: T_CG_IN - 0.45, pos: { x: 650, y: -70, z: 650 }, look: { x: 380, y: -240, z: 0 }, fov: 44, aperture: 9, focus: 1110 },
+  { t: T_CLICK + 0.05, pos: { x: 628, y: -70, z: 614 }, look: { x: 389, y: -238, z: 0 }, fov: 44, aperture: 9, focus: 1090, ease: E.linear },
+  { t: T_CLICK + 0.5, pos: { x: 618, y: -71, z: 598 }, look: { x: 405, y: -232, z: 10 }, fov: 43.5, aperture: 11, focus: 385, ease: E.inOut },
+  { t: T_CLICK + 1.6, pos: { x: 600, y: -75, z: 560 }, look: { x: 470, y: -200, z: 60 }, fov: 42, aperture: 11, focus: 360, ease: E.inOut },
+  { t: PIN.from, pos: along(300, 0, 40), look: SC, fov: 30, aperture: 12, focus: 300, ease: E.inOut },
   // Pinned: low and close on the phone, slowly orbiting
-  { t: PIN.from + 0.01, pos: along(250, 70, 70), look: { x: SC.x, y: SC.y - 6, z: SC.z }, fov: 30, aperture: 14 },
-  { t: T_SPLIT - 0.02, pos: along(215, 64, -10), look: { x: SC.x, y: SC.y - 6, z: SC.z }, fov: 30, aperture: 14, ease: E.linear },
+  { t: T_SPLIT - 0.02, pos: along(220, 64, -10), look: { x: SC.x, y: SC.y - 6, z: SC.z }, fov: 30, aperture: 14, ease: E.inOut },
   // whip to the display as Split Screen lands
   { t: T_SPLIT + 0.38, pos: { x: 260, y: -540, z: 950 }, look: DISP, fov: 34, aperture: 6, ease: E.inOut },
   // push toward the top right corner, where the banner comes in
@@ -219,7 +219,6 @@ const Wordmark: React.FC<{ t: number }> = ({ t }) => {
 };
 
 export const MORNING_LEN = Math.round(scene("pinned").to * FPS);
-void lineAt; void keys; void extScreen; void OPEN;
 
 /** Sound cues in film seconds (scripts/v4/mix.py reads them through cues.ts). */
 export const MORNING_CUES = {

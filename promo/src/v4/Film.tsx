@@ -2,7 +2,7 @@
 // is mixed offline (scripts/v4/mix.py) and muxed after the picture renders.
 import React from "react";
 import { AbsoluteFill, Sequence } from "remotion";
-import { C, FILM_LEN, FPS } from "./core";
+import { C, FILM_LEN } from "./core";
 import { Morning, MORNING_LEN } from "./scenes/Morning";
 import { Layouts, Edit, Present } from "./scenes/Work";
 import { Remote, Clipboard, Displays } from "./scenes/Home";
@@ -38,4 +38,3 @@ export const FilmV4: React.FC = () => (
   </AbsoluteFill>
 );
 export const FILM_V4_LEN = FILM_LEN;
-void FPS;

@@ -2,8 +2,7 @@
 import React from "react";
 import { AbsoluteFill, Img, Sequence, useCurrentFrame } from "remotion";
 import { C, E, FPS, SF, SFT, clamp01, lerp, phone, prog, spr, sstep } from "../core";
-import { Footage, Track, cornersAt, lensPoint } from "../footage/Footage";
-import { quadPoint } from "../footage/homography";
+import { Footage, Track } from "../footage/Footage";
 import focusTrack from "../tracks/focus-laptop.json";
 import editTrack from "../tracks/edit-suite.json";
 import handsTrack from "../tracks/hands-phone.json";
@@ -11,8 +10,8 @@ import { StudioPhone, phonePoint, PhonePose } from "../set/Studio";
 import { EditorApp, Slide } from "../mac/Apps";
 import { MenuBar, Wallpaper, Dock, Window } from "../mac/Desktop";
 import { MBP } from "../devices/Mac";
-import { Label, Touch, Sweep } from "../fx";
-import { scene, word, lineAt } from "../timeline";
+import { Label, Touch } from "../fx";
+import { scene, word } from "../timeline";
 
 const T = (sec: number) => Math.round(sec * FPS);
 const DESK_BG = "radial-gradient(70% 70% at 45% 40%, #3B2B20 0%, #241A13 60%, #120D0A 100%)";
@@ -139,7 +138,7 @@ const P_HANDS = P_PRESS - (HANDS_PRESS - HANDS_FROM); // cut to the hands
 const P_STAGE = P_PRESS + 1.25; // back to the stage
 const P_LASER = word("present", 9) - PR.from - 0.25; // "points"
 
-const Stage: React.FC<{ t: number; slide: number; laser: number; push: number; focusScreen: number }> = ({ t, slide, laser, push, focusScreen }) => {
+const Stage: React.FC<{ t: number; slide: number; slide2?: number; laser: number; push: number; focusScreen: number }> = ({ t, slide, slide2 = 0, laser, push, focusScreen }) => {
   const sw = 1240 * push, sh = sw * 0.5625;
   const sx = 960 - sw / 2, sy = 470 - sh / 2 - (push - 1) * 120;
   // the laser walks along the horizon of the coast photograph
@@ -155,9 +154,12 @@ const Stage: React.FC<{ t: number; slide: number; laser: number; push: number; f
           <div style={{ position: "absolute", inset: 0, opacity: slide }}>
             <Slide w={1920} h={1080} n={1} t={t} />
           </div>
-          {laser > 0 ? (
-            <div style={{ position: "absolute", left: lu * 1920 - 22, top: lv * 1080 - 22, width: 44, height: 44, borderRadius: 44, background: "radial-gradient(circle, #FFE9E6 0%, #FF3B30 35%, rgba(255,59,48,0.35) 60%, rgba(255,59,48,0) 72%)", opacity: clamp01(laser * 4) }} />
+          {laser > 0 && slide2 < 1 ? (
+            <div style={{ position: "absolute", left: lu * 1920 - 45, top: lv * 1080 - 45, width: 90, height: 90, borderRadius: 90, background: "radial-gradient(circle, #FFF1EE 0%, #FF453A 26%, rgba(255,69,58,0.45) 46%, rgba(255,69,58,0) 70%)", opacity: clamp01(laser * 4) * (1 - slide2), mixBlendMode: "screen" }} />
           ) : null}
+          <div style={{ position: "absolute", inset: 0, opacity: slide2 }}>
+            <Slide w={1920} h={1080} n={2} t={t} />
+          </div>
         </div>
       </div>
       {/* the stage edge and a lectern-less, empty stage: the presenter is the camera */}
@@ -177,14 +179,19 @@ export const Present: React.FC = () => {
   const t = f / FPS;
   const slide = t >= P_PRESS + 0.05 ? prog(f, T(P_PRESS + 0.05), 20, E.inOut) : 0;
   const laser = t >= P_LASER ? t - P_LASER : 0;
-  const push = t < P_HANDS ? lerp(1.0, 1.06, E.glide(clamp01(t / P_HANDS))) : lerp(1.06, 1.22, E.glide(clamp01((t - P_STAGE) / (PR.len - P_STAGE))));
+  // the last slide comes up on the bar before the scene ends, and the camera eases back into the hall
+  const P_LAST = PR.len - 2.5;
+  const slide2 = t >= P_LAST ? prog(f, T(P_LAST), 20, E.inOut) : 0;
+  const push = t < P_HANDS ? lerp(1.0, 1.06, E.glide(clamp01(t / P_HANDS)))
+    : t < P_LAST - 0.6 ? lerp(1.06, 1.22, E.glide(clamp01((t - P_STAGE) / (P_LAST - 0.6 - P_STAGE))))
+    : lerp(1.22, 0.96, E.inOut(clamp01((t - (P_LAST - 0.6)) / (PR.len - P_LAST + 0.6))));
   const inHands = t >= P_HANDS && t < P_STAGE;
   // the timer starts on the first Next, as the app does
   const running = t >= P_PRESS;
   const secs = running ? Math.floor(t - P_PRESS) : 0;
   return (
     <AbsoluteFill style={{ background: C.black }}>
-      {!inHands ? <Stage t={t} slide={slide} laser={laser} push={push} focusScreen={1} /> : null}
+      {!inHands ? <Stage t={t} slide={slide} slide2={slide2} laser={laser} push={push} focusScreen={1} /> : null}
       {inHands ? (
         <AbsoluteFill>
           {/* behind the hands: the stage, out of focus, its slide changing */}
@@ -220,13 +227,12 @@ const HandsWithApp: React.FC<{ from: number; t0: number; t: number; timer: numbe
   );
 };
 
-void lineAt; void cornersAt; void lensPoint; void quadPoint; void Sweep;
 
 /** Sound cues in film seconds (scripts/v4/mix.py reads them through cues.ts). */
 export const WORK_CUES = {
   tap: [LAY.from + L_DRAG0, ED.from + E_TAP - 0.08, PR.from + P_PRESS],
   drag: [[LAY.from + L_DRAG0, LAY.from + L_DRAG1]],
   blade: [ED.from + E_BACK + 0.05],
-  whoosh: [PR.from + P_PRESS + 0.05],
+  whoosh: [PR.from + P_PRESS + 0.05, PR.from + PR.len - 2.5],
   laser: [PR.from + P_LASER],
 };

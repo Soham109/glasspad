@@ -80,14 +80,13 @@ export const Window: React.FC<{ x: number; y: number; w: number; h: number; dark
 );
 
 /** A notification banner, top right, as macOS shows one. */
-export const Banner: React.FC<{ x: number; y: number; app: string; iconId: string; title: string; body: string; time?: string; style?: React.CSSProperties }> = ({ x, y, app, iconId, title, body, time = "now", style }) => (
+export const Banner: React.FC<{ x: number; y: number; iconId: string; title: string; body: string; time?: string; style?: React.CSSProperties }> = ({ x, y, iconId, title, body, time = "now", style }) => (
   <div style={{ position: "absolute", left: x, top: y, width: 344, borderRadius: 18, padding: "12px 14px", display: "flex", gap: 11, background: "rgba(246,246,248,0.86)", backdropFilter: "blur(24px)", boxShadow: "0 0 0 0.5px rgba(0,0,0,0.12), 0 12px 32px rgba(0,0,0,0.22)", fontFamily: SFT, color: "#1D1D1F", ...style }}>
     <Img src={icon(iconId)} style={{ width: 36, height: 36, flex: "none" }} />
     <div style={{ flex: 1, minWidth: 0 }}>
       <div style={{ display: "flex", fontSize: 13, fontWeight: 600 }}><span style={{ flex: 1 }}>{title}</span><span style={{ fontWeight: 400, color: "rgba(0,0,0,0.45)", fontSize: 12 }}>{time}</span></div>
       <div style={{ fontSize: 13, color: "rgba(0,0,0,0.75)", marginTop: 2, lineHeight: 1.3 }}>{body}</div>
     </div>
-    <div style={{ display: "none" }}>{app}</div>
   </div>
 );
 
