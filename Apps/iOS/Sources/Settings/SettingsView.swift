@@ -1,7 +1,8 @@
 import SwiftUI
 import GlasspadKit
 
-/// Phone settings, opened by long pressing the mode pill.
+/// Phone settings. The main page holds what people change; rare
+/// options live under Advanced.
 struct SettingsView: View {
     @Environment(\.palette) private var palette
     @Environment(\.dismiss) private var dismiss
@@ -16,17 +17,14 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             Form {
-                clickingNote
                 look
                 trackpad
-                feel
-                screen
                 modes
                 macs
-                about
+                more
             }
             .scrollContentBackground(.hidden)
-            .background(palette.backgroundColor.ignoresSafeArea())
+            .background(SurfaceBackground())
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -41,7 +39,14 @@ struct SettingsView: View {
             .sheet(isPresented: $showPair) { PairSheet().presentationDragIndicator(.visible) }
             #if DEBUG
             .navigationDestination(isPresented: Binding(get: { debugPage != nil }, set: { if !$0 { debugPage = nil } })) {
-                if debugPage == "setup" { SetupChecklistView(inSettings: true) } else { ConnectionHelpView() }
+                switch debugPage {
+                case "setup": SetupChecklistView(inSettings: true)
+                case "advanced": AdvancedSettings()
+                case "haptics": HapticsSettings()
+                case "pointer": PointerSettings()
+                case "dock": ModeDetailSettings(mode: .dock)
+                default: ConnectionHelpView()
+                }
             }
             .onAppear {
                 if let page = DebugLaunch.settingsPage {
@@ -57,7 +62,7 @@ struct SettingsView: View {
                     session.forget(mac)
                 }
             } message: { _ in
-                Text("This iPhone deletes its key for that Mac. To use it again, pair again. You can also revoke this phone from the Mac menu.")
+                Text("To use it again, you will need to pair again.")
             }
         }
         .tint(palette.inkColor)
@@ -65,37 +70,10 @@ struct SettingsView: View {
 
     // MARK: Sections
 
-    private var clickingNote: some View {
-        Section {
-            HStack(alignment: .top, spacing: 14) {
-                Image(systemName: "hand.tap")
-                    .font(.system(size: 22))
-                    .foregroundStyle(palette.inkColor)
-                    .frame(width: 30)
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Tap is click")
-                        .font(.headline)
-                    Text("An iPhone cannot feel how hard you press, so a tap always clicks. Hold one finger still for a moment to force click.")
-                        .font(.subheadline)
-                        .foregroundStyle(palette.inkSoftColor)
-                }
-            }
-            .padding(.vertical, 4)
-        }
-        .listRowBackground(palette.raisedColor)
-    }
-
     private var look: some View {
-        Section("Look") {
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 3), spacing: 14) {
-                ForEach(ThemeChoice.allCases) { choice in
-                    ThemeSwatch(choice: choice, selected: settings.theme == choice) {
-                        Haptics.shared.tap()
-                        withAnimation(.easeInOut(duration: 0.25)) { settings.theme = choice }
-                    }
-                }
-            }
-            .padding(.vertical, 8)
+        Section("Appearance") {
+            ThemePicker(selection: $settings.theme)
+                .listRowInsets(EdgeInsets(top: 14, leading: 14, bottom: 12, trailing: 14))
             NavigationLink {
                 FingerDotSettings()
             } label: {
@@ -105,66 +83,6 @@ struct SettingsView: View {
                     Label("Finger Dots", systemImage: "circle.dotted.circle")
                 }
             }
-            Picker(selection: $settings.pillPosition) {
-                ForEach(PillPosition.allCases) { Text($0.title).tag($0) }
-            } label: {
-                Label("Mode Pill", systemImage: "capsule")
-            }
-            Toggle(isOn: $settings.leftHanded) {
-                Label {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Left-Handed")
-                        Text("Puts the main buttons on the left in Keyboard and Present.")
-                            .font(.footnote).foregroundStyle(palette.inkSoftColor)
-                    }
-                } icon: {
-                    Image(systemName: "hand.raised")
-                }
-            }
-        }
-        .listRowBackground(palette.raisedColor)
-    }
-
-    private var feel: some View {
-        Section {
-            VStack(alignment: .leading, spacing: 10) {
-                HStack {
-                    Label("Haptic Strength", systemImage: "waveform")
-                    Spacer()
-                    Text(settings.hapticStrength < 0.01 ? "Off" : settings.hapticStrength.formatted(.percent.precision(.fractionLength(0))))
-                        .monospacedDigit()
-                        .foregroundStyle(palette.inkSoftColor)
-                }
-                HStack(spacing: 12) {
-                    Image(systemName: "speaker.wave.1").foregroundStyle(palette.inkSoftColor).accessibilityHidden(true)
-                    Slider(value: $settings.hapticStrength, in: 0...1) { editing in
-                        if !editing {
-                            session.refreshHapticStrength()
-                            Haptics.shared.play(.click)
-                        }
-                    }
-                    .accessibilityLabel("Haptic strength")
-                    Image(systemName: "speaker.wave.3").foregroundStyle(palette.inkSoftColor).accessibilityHidden(true)
-                }
-            }
-            .padding(.vertical, 4)
-            NavigationLink {
-                HapticKindsSettings()
-            } label: {
-                LabeledContent {
-                    Text(settings.hapticsOff.isEmpty ? "All On" : "\(HapticChannel.allCases.count - settings.hapticsOff.count) of \(HapticChannel.allCases.count)")
-                } label: {
-                    Label("Haptic Types", systemImage: "slider.horizontal.3")
-                }
-            }
-            if !Haptics.shared.isSupported {
-                Text("This device has no Taptic Engine, so there is nothing to feel.")
-                    .font(.footnote).foregroundStyle(palette.inkSoftColor)
-            }
-        } header: {
-            Text("Haptics")
-        } footer: {
-            Text("Firmness also follows Click on your Mac (\(session.trackpadSettings.clickPressure.title)).")
         }
         .listRowBackground(palette.raisedColor)
     }
@@ -183,52 +101,33 @@ struct SettingsView: View {
             } label: {
                 Label("Pointer and Scrolling", systemImage: "cursorarrow.motionlines")
             }
+            NavigationLink {
+                HapticsSettings()
+            } label: {
+                LabeledContent {
+                    Text(settings.hapticStrength < 0.01 ? "Off" : settings.hapticStrength.formatted(.percent.precision(.fractionLength(0))))
+                } label: {
+                    Label("Haptics", systemImage: "waveform")
+                }
+            }
         } header: {
             Text("Trackpad")
         } footer: {
-            Text("Held sideways, your iPhone is the shape of a Mac trackpad. You can also lock rotation from the mode menu.")
-        }
-        .listRowBackground(palette.raisedColor)
-    }
-
-    private var screen: some View {
-        Section {
-            Toggle(isOn: $settings.keepScreenAwake) {
-                Label("Keep Screen On", systemImage: "sun.max")
-            }
-            .onChange(of: settings.keepScreenAwake) { ScreenAwake.update() }
-            Picker(selection: $settings.dimDelay) {
-                ForEach(PhoneSettings.dimDelayChoices, id: \.self) { delay in
-                    Text(Self.durationText(delay)).tag(delay)
-                }
-            } label: {
-                Label("Dim After", systemImage: "moon")
-            }
-            .disabled(!settings.keepScreenAwake)
-        } header: {
-            Text("Screen")
-        } footer: {
-            Text("On the trackpad and in Present, the screen stays on and dims when you stop touching it. The next touch wakes it.")
+            Text("A tap is a click. To force click, rest one finger for a moment.")
         }
         .listRowBackground(palette.raisedColor)
     }
 
     private var modes: some View {
-        Section {
+        Section("Modes") {
             NavigationLink {
                 ModesSettings()
             } label: {
                 LabeledContent {
-                    Text("\(AppMode.visible.count) shown")
+                    Text("\(AppMode.visible.count) Shown")
                 } label: {
-                    Label("Modes", systemImage: "square.grid.2x2")
+                    Label("Show and Reorder", systemImage: "square.grid.2x2")
                 }
-            }
-            Picker(selection: $settings.launchMode) {
-                Text("Last Used").tag(AppMode?.none)
-                ForEach(AppMode.visible) { Text($0.title).tag(AppMode?.some($0)) }
-            } label: {
-                Label("Open In", systemImage: "arrow.forward.square")
             }
             ForEach(AppMode.visible.filter { $0.hasSettings }) { mode in
                 NavigationLink {
@@ -241,10 +140,6 @@ struct SettingsView: View {
                     }
                 }
             }
-        } header: {
-            Text("Modes")
-        } footer: {
-            Text("Choose which modes the pill shows, and in what order.")
         }
         .listRowBackground(palette.raisedColor)
     }
@@ -283,18 +178,16 @@ struct SettingsView: View {
                     ConnectionHelpView()
                 } label: {
                     LabeledContent {
-                        Text(session.macNeedsAccessibility ? "Needs permission" : session.state.isConnectedState ? "Connected" : "Help")
+                        Text(session.macNeedsAccessibility ? "Needs Permission" : session.state.isConnectedState ? "Connected" : "Not Connected")
                     } label: {
                         Label("Connection", systemImage: "antenna.radiowaves.left.and.right")
                     }
                 }
-                NavigationLink {
-                    SetupChecklistView(inSettings: true)
-                } label: {
-                    LabeledContent {
-                        Text(settings.setupComplete ? "Done" : "Not finished")
+                if !settings.setupComplete {
+                    NavigationLink {
+                        SetupChecklistView(inSettings: true)
                     } label: {
-                        Label("Setup Checklist", systemImage: "checklist")
+                        Label("Finish Setting Up", systemImage: "checklist")
                     }
                 }
             }
@@ -306,50 +199,29 @@ struct SettingsView: View {
             Button {
                 showPair = true
             } label: {
-                Label("Pair a Mac", systemImage: "qrcode.viewfinder")
+                Label(store.macs.isEmpty ? "Pair a Mac" : "Pair Another Mac", systemImage: "qrcode.viewfinder")
                     .foregroundStyle(palette.inkColor)
             }
-            HStack {
-                Label("This iPhone's Name", systemImage: "iphone")
-                    .lineLimit(1)
-                    .layoutPriority(1)
-                Spacer()
-                TextField("iPhone", text: $settings.phoneName)
-                    .multilineTextAlignment(.trailing)
-                    .frame(maxWidth: 160)
-                    .foregroundStyle(palette.inkSoftColor)
-                    .submitLabel(.done)
-                    .onSubmit { session.reconnect() }
-            }
         } header: {
-            Text("Macs")
+            Text(store.macs.count > 1 ? "Macs" : "Mac")
         } footer: {
-            Text(store.macs.isEmpty ? "No Mac paired yet." : "Swipe left on a Mac to forget it. Your Mac shows this iPhone by the name above.")
+            if store.macs.count > 1 { Text("Tap a Mac to use it. Swipe left to forget one.") }
         }
         .listRowBackground(palette.raisedColor)
     }
 
-    private var about: some View {
+    private var more: some View {
         Section {
-            LabeledContent("Version", value: Bundle.main.versionString)
-            Link(destination: URL(string: "https://github.com/Soham109/glasspad")!) {
-                HStack {
-                    Text("Source Code").foregroundStyle(palette.inkColor)
-                    Spacer()
-                    Image(systemName: "arrow.up.right").foregroundStyle(palette.inkSoftColor)
-                }
+            NavigationLink {
+                AdvancedSettings()
+            } label: {
+                Label("Advanced", systemImage: "gearshape.2")
             }
-            Button("Reset Look and Feel", role: .destructive) {
-                Haptics.shared.tap()
-                settings.resetLookAndFeel()
-                session.refreshHapticStrength()
+            NavigationLink {
+                AboutSettings()
+            } label: {
+                Label("About", systemImage: "info.circle")
             }
-            Text("Free and open source. Glasspad talks only to your paired Mac, encrypted with a key only the two of them have. No accounts, no servers, no tracking.")
-                .font(.footnote)
-                .foregroundStyle(palette.inkSoftColor)
-                .padding(.vertical, 2)
-        } header: {
-            Text("About")
         }
         .listRowBackground(palette.raisedColor)
     }
@@ -369,77 +241,263 @@ struct SettingsView: View {
     }
 }
 
-/// A live miniature of a theme: its surface, two tiles and a line of text, drawn in the
-/// theme's own colours. Themes that follow the iPhone show their light and dark halves.
+/// Rare options, kept off the main page: handedness, where the pill sits, which mode opens,
+/// the screen staying on, this iPhone's name, and putting the look back.
+struct AdvancedSettings: View {
+    @Environment(\.palette) private var palette
+    @Bindable var settings = PhoneSettings.shared
+    var session = MacSession.shared
+    @State private var confirmReset = false
+
+    var body: some View {
+        Form {
+            Section {
+                Toggle(isOn: $settings.leftHanded) {
+                    Label("Left-Handed", systemImage: "hand.raised")
+                }
+                Picker(selection: $settings.pillPosition) {
+                    ForEach(PillPosition.allCases) { Text($0.title).tag($0) }
+                } label: {
+                    Label("Mode Pill", systemImage: "capsule")
+                }
+                Picker(selection: $settings.launchMode) {
+                    Text("Last Used").tag(AppMode?.none)
+                    ForEach(AppMode.visible) { Text($0.title).tag(AppMode?.some($0)) }
+                } label: {
+                    Label("Open In", systemImage: "arrow.forward.square")
+                }
+            } footer: {
+                Text("Left-Handed moves the big buttons in Keyboard and Present to the left.")
+            }
+            .listRowBackground(palette.raisedColor)
+
+            Section {
+                Toggle(isOn: $settings.keepScreenAwake) {
+                    Label("Keep Screen On", systemImage: "sun.max")
+                }
+                .onChange(of: settings.keepScreenAwake) { ScreenAwake.update() }
+                if settings.keepScreenAwake {
+                    Picker(selection: $settings.dimDelay) {
+                        ForEach(PhoneSettings.dimDelayChoices, id: \.self) { delay in
+                            Text(SettingsView.durationText(delay)).tag(delay)
+                        }
+                    } label: {
+                        Label("Dim After", systemImage: "moon")
+                    }
+                }
+            } footer: {
+                Text("On the trackpad and in Present, the screen stays on and dims when you stop touching it.")
+            }
+            .listRowBackground(palette.raisedColor)
+
+            Section {
+                LabeledContent {
+                    TextField("iPhone", text: $settings.phoneName)
+                        .multilineTextAlignment(.trailing)
+                        .foregroundStyle(palette.inkSoftColor)
+                        .submitLabel(.done)
+                        .onSubmit { session.reconnect() }
+                } label: {
+                    Label("Name", systemImage: "iphone")
+                }
+            } footer: {
+                Text("Your Mac shows this iPhone by this name.")
+            }
+            .listRowBackground(palette.raisedColor)
+
+            Section {
+                if settings.setupComplete, PairingStore.shared.selected != nil {
+                    NavigationLink("Setup Checklist") { SetupChecklistView(inSettings: true) }
+                }
+                Button("Reset Appearance and Haptics", role: .destructive) { confirmReset = true }
+            }
+            .listRowBackground(palette.raisedColor)
+        }
+        .scrollContentBackground(.hidden)
+        .background(SurfaceBackground())
+        .navigationTitle("Advanced")
+        .navigationBarTitleDisplayMode(.inline)
+        .animation(.default, value: settings.keepScreenAwake)
+        .confirmationDialog("Reset appearance and haptics?", isPresented: $confirmReset, titleVisibility: .visible) {
+            Button("Reset", role: .destructive) {
+                Haptics.shared.tap()
+                ThemeTransition.run { settings.resetLookAndFeel() }
+                session.refreshHapticStrength()
+            }
+        } message: {
+            Text("Theme, finger dots, haptics and Dock icon size go back to how Glasspad ships.")
+        }
+    }
+}
+
+/// Version, source and the privacy promise.
+struct AboutSettings: View {
+    @Environment(\.palette) private var palette
+
+    var body: some View {
+        Form {
+            Section {
+                LabeledContent("Version", value: Bundle.main.versionString)
+                Link(destination: URL(string: "https://github.com/Soham109/glasspad")!) {
+                    LabeledContent {
+                        Image(systemName: "arrow.up.right").foregroundStyle(palette.inkSoftColor)
+                    } label: {
+                        Text("Source Code").foregroundStyle(palette.inkColor)
+                    }
+                }
+            } footer: {
+                Text("Glasspad is free and open source. It talks only to your paired Mac, encrypted with a key only the two of them share. No accounts, no servers, no tracking.")
+            }
+            .listRowBackground(palette.raisedColor)
+        }
+        .scrollContentBackground(.hidden)
+        .background(SurfaceBackground())
+        .navigationTitle("About")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+// MARK: - Theme picker
+
+/// Changes the theme with a quick cross fade of the whole window, so every screen, sheet and
+/// system control changes together instead of one piece at a time.
+enum ThemeTransition {
+    @MainActor static func run(_ change: @escaping () -> Void) {
+        let windows = UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .flatMap(\.windows)
+            .filter { !$0.isHidden && $0.bounds.width > 0 }
+        guard !UIAccessibility.isReduceMotionEnabled, let window = windows.first(where: \.isKeyWindow) ?? windows.first else {
+            change()
+            return
+        }
+        UIView.transition(with: window, duration: 0.35, options: [.transitionCrossDissolve, .allowUserInteraction]) {
+            change()
+        }
+    }
+}
+
+/// Every theme as a small live phone screen, four to a row.
+private struct ThemePicker: View {
+    @Binding var selection: ThemeChoice
+
+    var body: some View {
+        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 4), spacing: 14) {
+            ForEach(ThemeChoice.allCases) { choice in
+                ThemeSwatch(choice: choice, selected: selection == choice) {
+                    guard selection != choice else { return }
+                    Haptics.shared.tap()
+                    ThemeTransition.run { selection = choice }
+                }
+            }
+        }
+    }
+}
+
+/// One theme: a miniature screen in its own colours with its name under it. Themes that
+/// follow the iPhone show their light and dark halves side by side.
 private struct ThemeSwatch: View {
     @Environment(\.palette) private var palette
     let choice: ThemeChoice
     let selected: Bool
     let action: () -> Void
 
+    private let shape = RoundedRectangle(cornerRadius: 12, style: .continuous)
+
     var body: some View {
         Button(action: action) {
-            VStack(spacing: 8) {
+            VStack(spacing: 7) {
                 Group {
                     if choice.interfaceStyle == .unspecified {
                         HStack(spacing: 0) {
-                            ThemeMiniature(palette: choice.preview(dark: false))
-                            ThemeMiniature(palette: choice.preview(dark: true))
+                            ThemeMiniature(palette: choice.preview(dark: false), half: .leading)
+                            ThemeMiniature(palette: choice.preview(dark: true), half: .trailing)
                         }
                     } else {
-                        ThemeMiniature(palette: choice.preview(dark: choice.interfaceStyle == .dark))
+                        ThemeMiniature(palette: choice.preview(dark: choice.interfaceStyle == .dark), half: nil)
                     }
                 }
-                .frame(height: 74)
-                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                .overlay {
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .strokeBorder(palette.lineColor, lineWidth: 1)
-                }
+                .aspectRatio(0.72, contentMode: .fit)
+                .clipShape(shape)
+                .overlay { shape.strokeBorder(palette.lineColor, lineWidth: 1) }
                 .padding(3)
                 .overlay {
-                    RoundedRectangle(cornerRadius: 17, style: .continuous)
+                    RoundedRectangle(cornerRadius: 15, style: .continuous)
                         .strokeBorder(selected ? palette.inkColor : .clear, lineWidth: 2)
                 }
                 Text(choice.title)
                     .font(.caption.weight(selected ? .semibold : .regular))
                     .foregroundStyle(selected ? palette.inkColor : palette.inkSoftColor)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
             }
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("\(choice.title) theme")
-        .accessibilityAddTraits(selected ? .isSelected : [])
+        .accessibilityLabel(choice.title)
+        .accessibilityAddTraits(selected ? [.isButton, .isSelected] : .isButton)
     }
 }
 
-/// The theme drawn small: two tiles (one tinted, as colour shows in that theme) and two
-/// lines of text on the surface.
+/// A theme drawn small: the mode pill, four tiles (two tinted, as colour shows in that
+/// theme) and a line of text, on the theme's own surface. `half` draws only that side of the
+/// layout, so a light and a dark half join into one screen.
 private struct ThemeMiniature: View {
     let palette: Palette
+    let half: HorizontalAlignment?
 
     var body: some View {
-        ZStack {
-            Color(uiColor: palette.background)
-            VStack(alignment: .leading, spacing: 6) {
-                HStack(spacing: 5) {
-                    tile(palette.tint(Color(uiColor: .systemOrange)), "bolt.fill")
-                    tile(palette.tint(Color(uiColor: .systemBlue)), "safari.fill")
-                }
-                Capsule().fill(Color(uiColor: palette.ink)).frame(width: 30, height: 4)
-                Capsule().fill(Color(uiColor: palette.inkSoft)).frame(width: 20, height: 3)
-            }
+        GeometryReader { proxy in
+            let full = proxy.size.width * (half == nil ? 1 : 2)
+            screen(width: full)
+                .frame(width: full, height: proxy.size.height)
+                .offset(x: half == .trailing ? -proxy.size.width : 0)
+                .frame(width: proxy.size.width, height: proxy.size.height, alignment: .leading)
+                .clipped()
         }
         .environment(\.colorScheme, palette.colorScheme)
         .accessibilityHidden(true)
     }
 
-    private func tile(_ tint: Color, _ symbol: String) -> some View {
-        RoundedRectangle(cornerRadius: 6, style: .continuous)
+    private func screen(width: CGFloat) -> some View {
+        let tile = (width - 22) / 2
+        return ZStack(alignment: .top) {
+            surface
+            VStack(spacing: 6) {
+                Capsule()
+                    .fill(Color(uiColor: palette.raised))
+                    .overlay(Capsule().strokeBorder(Color(uiColor: palette.line), lineWidth: 0.5))
+                    .frame(width: width * 0.42, height: 9)
+                    .padding(.top, 7)
+                    .padding(.bottom, 3)
+                HStack(spacing: 6) {
+                    self.tile(palette.tint(Color(uiColor: .systemOrange)), "bolt.fill", side: tile)
+                    self.tile(palette.tint(Color(uiColor: .systemBlue)), "safari.fill", side: tile)
+                }
+                HStack(spacing: 6) {
+                    self.tile(Color(uiColor: palette.ink), "moon.fill", side: tile)
+                    self.tile(Color(uiColor: palette.ink), "speaker.wave.2.fill", side: tile)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder private var surface: some View {
+        if palette.glass {
+            Image(uiImage: (palette.isDark ? Backdrop.dark : Backdrop.light).image)
+                .resizable()
+                .scaledToFill()
+        } else {
+            Color(uiColor: palette.background)
+        }
+    }
+
+    private func tile(_ tint: Color, _ symbol: String, side: CGFloat) -> some View {
+        RoundedRectangle(cornerRadius: 5, style: .continuous)
             .fill(Color(uiColor: palette.raised))
-            .overlay(RoundedRectangle(cornerRadius: 6, style: .continuous).strokeBorder(Color(uiColor: palette.line)))
-            .overlay(Image(systemName: symbol).font(.system(size: 10, weight: .semibold)).foregroundStyle(tint))
-            .frame(width: 22, height: 22)
+            .overlay(RoundedRectangle(cornerRadius: 5, style: .continuous).strokeBorder(Color(uiColor: palette.line), lineWidth: 0.5))
+            .overlay(Image(systemName: symbol).font(.system(size: side * 0.36, weight: .semibold)).foregroundStyle(tint))
+            .frame(width: side, height: side * 0.86)
     }
 }
 

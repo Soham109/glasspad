@@ -80,7 +80,7 @@ struct KeysMode: View {
         .contentShape(Rectangle())
         .onTapGesture { focusToken += 1 }
         .overlay {
-            if !session.isConnected { ModeOfflineMessage(mode: .keys).background(palette.backgroundColor) }
+            if !session.isConnected { ModeOfflineMessage(mode: .keys).background(SurfaceBackground()) }
         }
         .onAppear {
             if showsFunctionRow { requestLevels() }

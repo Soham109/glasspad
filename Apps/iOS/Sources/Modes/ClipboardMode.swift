@@ -29,7 +29,7 @@ struct ClipboardMode: View {
         .onReceive(NotificationCenter.default.publisher(for: UIPasteboard.changedNotification)) { _ in refreshPasteboard() }
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in refreshPasteboard() }
         .overlay {
-            if !session.isConnected { ModeOfflineMessage(mode: .clipboard).background(palette.backgroundColor) }
+            if !session.isConnected { ModeOfflineMessage(mode: .clipboard).background(SurfaceBackground()) }
         }
     }
 
@@ -37,8 +37,8 @@ struct ClipboardMode: View {
 
     private var sendCard: some View {
         Card {
-            CardHeader(symbol: "iphone.and.arrow.forward", title: "To your Mac",
-                       detail: "Text or an image copied on this iPhone.")
+            CardHeader(symbol: "iphone.and.arrow.forward", title: "Send to Mac",
+                       detail: "Text or an image you copied on this iPhone.")
             HStack {
                 PasteButton(supportedContentTypes: [.image, .plainText, .url]) { providers in
                     Task { @MainActor in await send(providers) }
@@ -51,7 +51,7 @@ struct ClipboardMode: View {
                 if sending || isWaiting { ProgressView() }
             }
             if !pasteboardHasContent && session.clipboardPush == nil {
-                Text("Copy something on this iPhone first, then tap Paste.")
+                Text("Copy something on this iPhone first.")
                     .font(.footnote)
                     .foregroundStyle(palette.inkSoftColor)
             }
@@ -66,7 +66,7 @@ struct ClipboardMode: View {
                     .foregroundStyle(accent)
                     .transition(.opacity)
             case .refused(let reason)?:
-                ClipboardProblem(title: "Not sent", message: reason)
+                ClipboardProblem(title: "Not Sent", message: reason)
                     .transition(.opacity)
             case nil:
                 EmptyView()
@@ -99,13 +99,13 @@ struct ClipboardMode: View {
 
     private var pullCard: some View {
         Card {
-            CardHeader(symbol: "laptopcomputer.and.arrow.down", title: "From your Mac",
-                       detail: "Copies what is on the Mac clipboard to this iPhone.")
+            CardHeader(symbol: "laptopcomputer.and.arrow.down", title: "Get from Mac",
+                       detail: "Whatever is copied on your Mac, copied here too.")
             Button {
                 Haptics.shared.tap()
                 session.pullClipboard()
             } label: {
-                Label("Get Mac Clipboard", systemImage: "arrow.down.doc")
+                Label("Get Clipboard", systemImage: "arrow.down.doc")
                     .padding(.horizontal, 4)
             }
             .glassButton(prominent: true, accent: accent)
@@ -133,7 +133,7 @@ private struct PulledPreview: View {
             switch pulled.content {
             case .none:
                 if let problem = pulled.problem {
-                    ClipboardProblem(title: "Not copied", message: problem)
+                    ClipboardProblem(title: "Not Copied", message: problem)
                 } else {
                     Text("The Mac clipboard has no text or image.")
                         .font(.subheadline)
@@ -149,7 +149,7 @@ private struct PulledPreview: View {
                     .textSelection(.enabled)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(14)
-                    .background(palette.backgroundColor, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .background(palette.wellColor, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
                 copiedLine
             case .imagePNG(let data):
                 if let image = UIImage(data: data) {
@@ -211,7 +211,7 @@ private struct ClipboardProblem: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
         } icon: {
-            Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+            Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(palette.caution)
         }
         .accessibilityElement(children: .combine)
     }

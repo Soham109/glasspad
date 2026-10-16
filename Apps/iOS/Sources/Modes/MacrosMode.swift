@@ -110,7 +110,7 @@ struct MacroStatusBar: View {
                 }
                 .glassButton()
                 .controlSize(.large)
-                .tint(.red)
+                .tint(palette.bad)
                 .accessibilityHint("Records your keyboard and mouse on the Mac until you stop")
             }
         }
@@ -124,7 +124,7 @@ struct MacroStatusBar: View {
     private var recordingBar: some View {
         HStack(spacing: 12) {
             Image(systemName: "record.circle.fill")
-                .foregroundStyle(.red)
+                .foregroundStyle(palette.bad)
                 .symbolEffect(.pulse, options: .repeating)
             VStack(alignment: .leading, spacing: 2) {
                 Text("Recording on your Mac").font(.subheadline.weight(.semibold))
@@ -135,7 +135,7 @@ struct MacroStatusBar: View {
                 Haptics.shared.play(.click)
                 session.send(.macro(.recordStop))
             }
-            .glassButton(prominent: true, accent: .red)
+            .glassButton(prominent: true, accent: palette.bad)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
@@ -174,7 +174,7 @@ struct MacroStatusBar: View {
     private func resultBar(_ result: MacroResult) -> some View {
         HStack(alignment: .top, spacing: 12) {
             Image(systemName: result.symbol)
-                .foregroundStyle(result.outcome == .completed ? Color.green : (result.outcome == .failed ? .red : palette.inkSoftColor))
+                .foregroundStyle(result.outcome == .completed ? palette.good : (result.outcome == .failed ? palette.bad : palette.inkSoftColor))
                 .font(.title3)
             VStack(alignment: .leading, spacing: 2) {
                 Text(result.headline).font(.subheadline.weight(.semibold))
