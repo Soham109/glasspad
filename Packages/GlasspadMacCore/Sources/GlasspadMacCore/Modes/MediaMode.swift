@@ -28,6 +28,18 @@ public final class MediaMode {
     /// Called when what plays changed; the router then pushes a fresh state.
     public var onChange: () -> Void = {}
 
+    /// The Mac's own sound, brightness and now playing switches. Tests swap in fakes so they
+    /// never change the real volume or press play.
+    struct SystemControls {
+        var sendRemote: (MediaCommand) -> Bool = { MediaRemote.shared.send($0) }
+        var setVolume: (Float) -> Void = { AudioOutput.setVolume($0) }
+        var isMuted: () -> Bool? = { AudioOutput.isMuted() }
+        var setMuted: (Bool) -> Void = { AudioOutput.setMuted($0) }
+        var setBrightness: (Float) -> Void = { Brightness.set($0) }
+        var selectOutput: (String) -> Void = { _ = MediaOutputs.select(uid: $0) }
+    }
+    var system = SystemControls()
+
     private var active = false
     private var adapterSnapshot: NowPlayingSnapshot?
     private var adapterReportedNothingSince: Date?
@@ -116,14 +128,14 @@ public final class MediaMode {
             Task { await scripts.perform(player.commandScript(command), on: player) }
             return
         }
-        if remote.send(command) { return }
+        if system.sendRemote(command) { return }
         if let key = Self.mediaKey(for: command) { postMediaKey(key) }
     }
 
     public func control(_ control: MediaControl) {
         switch control {
         case .selectOutput(let id):
-            _ = MediaOutputs.select(uid: id)
+            system.selectOutput(id)
             outputsCache = nil
             changed()
             return
@@ -176,11 +188,11 @@ public final class MediaMode {
         Self.mediaKeyEvents(key).forEach { poster.post($0, tap: .cghidEventTap) }
     }
 
-    public func setVolume(_ v: Double) { AudioOutput.setVolume(Float(min(1, max(0, v)))) }
-    public func setBrightness(_ v: Double) { Brightness.set(Float(min(1, max(0, v)))) }
+    public func setVolume(_ v: Double) { system.setVolume(Float(min(1, max(0, v)))) }
+    public func setBrightness(_ v: Double) { system.setBrightness(Float(min(1, max(0, v)))) }
 
     private func toggleMute() {
-        if let muted = AudioOutput.isMuted() { AudioOutput.setMuted(!muted) }
+        if let muted = system.isMuted() { system.setMuted(!muted) }
     }
 
     // MARK: State
@@ -551,22 +563,23 @@ enum AudioOutput {
     }
 }
 
-/// Main display brightness through DisplayServices.framework (private, dlopen). Returns nil when
-/// the framework or display does not support it (external monitors usually do not).
+/// Display brightness through DisplayServices.framework (private, dlopen), the main display
+/// unless another is named. Returns nil when the framework or display does not support it
+/// (external monitors usually do not).
 enum Brightness {
     private typealias GetFn = @convention(c) (CGDirectDisplayID, UnsafeMutablePointer<Float>) -> Int32
     private typealias SetFn = @convention(c) (CGDirectDisplayID, Float) -> Int32
 
     private nonisolated(unsafe) static let handle = dlopen("/System/Library/PrivateFrameworks/DisplayServices.framework/DisplayServices", RTLD_LAZY)
 
-    static func get() -> Float? {
+    static func get(display: CGDirectDisplayID = CGMainDisplayID()) -> Float? {
         guard let h = handle, let sym = dlsym(h, "DisplayServicesGetBrightness") else { return nil }
         var v: Float = 0
-        return unsafeBitCast(sym, to: GetFn.self)(CGMainDisplayID(), &v) == 0 ? v : nil
+        return unsafeBitCast(sym, to: GetFn.self)(display, &v) == 0 ? v : nil
     }
 
-    static func set(_ v: Float) {
+    static func set(_ v: Float, display: CGDirectDisplayID = CGMainDisplayID()) {
         guard let h = handle, let sym = dlsym(h, "DisplayServicesSetBrightness") else { return }
-        _ = unsafeBitCast(sym, to: SetFn.self)(CGMainDisplayID(), v)
+        _ = unsafeBitCast(sym, to: SetFn.self)(display, v)
     }
 }

@@ -264,6 +264,29 @@ As built (GlasspadKit):
   `DeckSystemAction` without a Deck button (Sleep Display, Do Not Disturb, volume keys); the
   Mac answers `deckResult` for `id` and refuses actions that need confirming. An older Mac
   drops both, and the phone falls back to plain media and key messages.
+  Displays (Oct 2026, additive; types in `Displays/DisplayTypes.swift`): `displaysWatch(on:)`
+  (phone -> Mac) starts or stops `displaysState(DisplaysState)` (Mac -> phone), sent at once and
+  again on every change, read four times a second while watched; any Displays screen or layout
+  pane watches, so it does not depend on `modeSelected`. `DisplaysState`: `displays`
+  (`MacDisplay`: id, name, frame, visibleFrame, isMain, isBuiltIn, notchWidth, mirrorOf,
+  brightness, resolutions, resolutionID), `windows` (`MacWindow`, front to back: id, bundleID,
+  appName, title, frame), `nightShift`, `canArrangeWindows`, `tileMargin`, `pending`. Frames are
+  Quartz global points (origin top-left of the main display, y down), each `CGRect` as
+  `[[x, y], [width, height]]`. Window order and frames come from the window server's list and
+  names from the Accessibility API, so Screen Recording is never needed. The Mac sends
+  `dockIcons` for apps the phone has not had icons for just before the state that first lists
+  them. `windowCommand(id:windowID:command:)` (`raise`, `tile(WindowTile)`, `split(with:)`,
+  `move(display:origin:)`, `minimize`, `close`, `fullScreen`) and `displayCommand(id:command:)`
+  (`brightness`, `resolution`, `mirror`, `makeMain`, `arrange`, `keepChanges`, `revertChanges`)
+  are answered with `displaysResult(id:ok:message:)`. Frames for tiles, splits and moves come
+  from `DisplaysState.frames(for:window:)`, the same code on both sides, so the phone shows the
+  result before the Mac confirms. A new resolution or mirroring is applied for Glasspad's run
+  only and shows as `pending`; `keepChanges` makes it permanent, and without it the Mac restores
+  the permanent setup after 15 seconds by itself (`CGRestorePermanentDisplayConfiguration`), like
+  macOS's own "Keep these display settings?". Other display changes wait until then. Night Shift
+  uses `remoteSystem(.nightShift)`. An older Mac drops every Displays message; the phone says so
+  after four seconds without a state. Tests: `DisplayGeometryTests`, `WindowPlanTests`,
+  `DisplaysProtocolTests`, `DisplaysModeTests`, `ResolutionChoicesTests`.
 - `ControlMessage.macStatus(MacStatus)` (Oct 2026, additive), Mac -> phone, JSON
   `{"t":"macStatus","status":{"accessibilityTrusted":false,"automationMedia":"notDetermined","macName":"Soham's MacBook Pro"}}`.
   `MacStatus` (`Protocol/MacStatus.swift`): `accessibilityTrusted: Bool` (required; when false the
@@ -500,13 +523,15 @@ Each mode is a `ModeMessage` case pair handled by `GlasspadMacCore/Modes`.
 | Mode | Phone | Mac side |
 |---|---|---|
 | Trackpad | full-screen surface, finger dots | gesture engine + synth |
-| Dock | the Mac's Dock and nothing else: Dock apps + running apps in Dock order, running dots, long-press Quit / Hide / Show in Finder / Keep, phone-side order and hiding. Apps outside the Dock are pinned in Actions | read Dock prefs + NSWorkspace, icons as 256 px PNG keyed by bundle id + app modification date, sent once (`dockSync`), launch / activate / reopen (`AppLauncher`), hide the Mac Dock (`MacDockHider`) |
+| Dock | the Mac's Dock and nothing else: Dock apps + running apps in Dock order, running dots, long-press Quit / Hide / Show in Finder / Keep, phone-side order and hiding. Apps outside the Dock are pinned in Actions | read Dock prefs + NSWorkspace, icons as 384 px PNG (3x the largest icon the phone draws) keyed by bundle id + app modification date + size, sent once (`dockSync`), in messages of at most 1.5 MB of icons, launch / activate / reopen (`AppLauncher`), hide the Mac Dock (`MacDockHider`) |
 | Keys | text field that streams typed text; arrows, esc, tab, cmd shortcuts row; dictation works | CGEvent keyboard unicode strings |
 | Media | now playing title/artist/art, play/pause/next/prev, volume, brightness | MediaRemote (private, with fallback to media key events), volume via CoreAudio |
 | Actions (Deck) | one screen: the front app's best buttons (6 by default, up to 8 chosen and ordered per app) above Pinned (favourites of every kind, + opens a searchable Library whose Apps group lists every installed Mac app); folders, sizes, colours, edit on the phone. Sideways it splits: front app on the left half, Pinned on the right. Clipboard and Present are tools in the mode menu. Older Decks move into Pinned once, losslessly (`PinnedDeck.migrated`) | executes actions directly (screencapture, pmset, CoreAudio...), config v3 on the Mac, phone edits via `deckSave` (never shell) |
 | Clipboard | send phone clipboard to Mac, pull Mac clipboard to phone (text, images) | NSPasteboard |
 | Present | big next/previous buttons, timer, laser dot (move a highlight on the Mac) | arrow keys + transparent overlay window for the laser |
 | Remote | couch remote: touch surface (tap play or pause, swipe sideways to skip, up and down for volume), back 10 / play / forward 10, Search, Subtitles, Full Screen, Mute, Sleep Display and Do Not Disturb. Keys follow the player in front (`RemoteKeymap`: web players, Apple TV, QuickTime, IINA, VLC, Infuse, Spotify and Music). Hidden at first: a tool in the mode menu until Settings shows it | media commands and seeking through now playing, keystrokes, CoreAudio volume |
+| Displays | the Mac's displays drawn as in System Settings (true sizes and places, menu bar and camera housing on the main one) with every window in front to back order and its app icon, plus a window list. Tap brings a window forward, drag moves it (to another display keeping its share), touch and hold for Left, Right, Top and Bottom Half, Fill, Center, Split With, Move to a display, Full Screen, Minimize and Close (asks first). Tap a display for brightness, the "Looks like" resolutions, Night Shift, main display, mirroring and Arrange Displays. Hidden at first: a tool in the mode menu until Settings shows it | window server list for order and frames, Accessibility for names and moves, CoreGraphics display configuration with Keep or Revert, DisplayServices brightness |
+| StandBy (Clock, Now Playing, Calendar) | glanceable screens like iOS StandBy, hidden at first, used as layout panes (templates StandBy and Clock and Trackpad). Clock: Digital, Analog and Minimal faces (tap to change), 12 or 24 hour as the phone is set, date and charge level. Now Playing: cover, title, artist, back, play or pause, next (MediaStore). Calendar: the next three events from EventKit, asked for only after a tap. Always black, content shifts up to 3 pt each minute against burn in, night mode turns everything dim red (Off, At Night 22:00 to 07:00, Always), dims in Low Power Mode and when warm. Keeps the screen on only while visible and charging, or on battery when Stay On When Unplugged is on and Low Power Mode is off (rules in GlasspadKit `StandBy.swift`) | Now Playing reports `media` (now playing stream); Clock and Calendar report `trackpad` and need nothing from the Mac |
 
 As built, UX pass (Oct 2026):
 - The mode once called Apps is called Dock again (SF Symbol `dock.rectangle`), and mirrors the
@@ -514,11 +539,21 @@ As built, UX pass (Oct 2026):
   mode lists, launch mode and deep links (`glasspad://mode/dock`) keep working. Search over every
   installed app moved to Actions > + > Apps > All Apps on Your Mac.
 - A new Deck (no `deck.json` yet) starts with one Pinned page of six essentials
-  (`PinnedDeck.essentials()`: Screenshot, Lock Screen, Mute, Dark Mode, Mission Control, Show
-  Desktop); the other Mac controls are in the Library. Migration pins every macro only for a
+  (`PinnedDeck.essentials()`: Screenshot, Do Not Disturb, Split Screen, Lock Screen, Mute, Dark
+  Mode); the other Mac controls are in the Library. Migration pins every macro only for a
   layout from before Actions (it has the Mac page or no Pinned page). Existing Pinned pages are
   never trimmed on their own: over 12 tiles, Actions offers Tidy Up once, and edit mode has
   Reset to Defaults (`PinnedDeck.resetPinned`), both behind a confirmation.
+- Mac controls with no public API: Do Not Disturb presses the switch in Control Center (or the
+  Focus menu) through Accessibility, by its stable identifiers, and falls back to a shortcut the
+  user already has ("Toggle Do Not Disturb", "Do Not Disturb", "Toggle Focus"); Night Shift uses
+  CoreBrightness `CBBlueLightClient`; Keep Awake holds a display sleep power assertion; window
+  tiling sets the front window's frame with Accessibility inside the screen's visible frame (with
+  the 8 pt gap when "Tiled windows have margins" is on), falling back to the app's Window > Move &
+  Resize item. Switches send their new state as the `deckResult` message ("Do Not Disturb is on").
+- Starter buttons per app (`StarterLibrary`, version 2) can be keystrokes or Mac controls
+  (`MacroStep.macControl`). A Mac with older starters is upgraded once (`StarterSeeder.upgrade`):
+  untouched starters update, edited ones stay, deleted ones stay deleted, new apps get profiles.
 
 - Tile grids (Actions, Pinned, folders, the Library's Pinned preview, Dock) size themselves from
   the space they get, not the screen (`TileGridMetrics`, `BalancedRows` in GlasspadKit): tiles near

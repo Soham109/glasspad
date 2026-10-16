@@ -10,6 +10,7 @@ import GlasspadKit
 /// Actions (Library > Apps lists every installed app).
 struct DockMode: View {
     @Environment(\.palette) private var palette
+    @Environment(\.modeTopClearance) private var topClearance
     @Environment(\.verticalSizeClass) private var verticalSize
     @Bindable var settings = PhoneSettings.shared
     var session = MacSession.shared
@@ -44,7 +45,7 @@ struct DockMode: View {
                             if editing { editFooter }
                         }
                         .padding(.horizontal, margin)
-                        .padding(.top, settings.pillPosition == .top ? (compact ? 40 : 60) : 12)
+                        .padding(.top, topClearance ?? (settings.pillPosition == .top ? (compact ? 40 : 60) : 12))
                         .padding(.bottom, settings.pillPosition == .bottom ? 80 : 32)
                     }
                     .refreshable { session.requestDock() }
@@ -430,6 +431,8 @@ struct DockIcon: View {
                     .interpolation(.high)
                     .antialiased(true)
                     .aspectRatio(contentMode: .fit)
+                    // Mono has no colour anywhere, app icons included.
+                    .saturation(palette.monochrome ? 0 : 1)
             } else {
                 // macOS icons sit inside a rounded square at about 82% of the canvas.
                 RoundedRectangle(cornerRadius: size * 0.82 * 0.225, style: .continuous)
@@ -457,7 +460,7 @@ private struct DockIconPreview: View {
             Text(app.name).font(.headline).foregroundStyle(palette.inkColor)
         }
         .padding(20)
-        .background(palette.backgroundColor)
+        .background(palette.solidColor)
     }
 }
 
@@ -492,7 +495,7 @@ private struct HiddenAppsSheet: View {
                 .listRowBackground(palette.raisedColor)
             }
             .scrollContentBackground(.hidden)
-            .background(palette.backgroundColor)
+            .background(SurfaceBackground())
             .navigationTitle("Hidden Apps")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -560,6 +563,10 @@ final class IconCache {
             .flatMap { try? JSONDecoder().decode([String: String].self, from: $0) } ?? [:]
         // The 64 px cache from the first version is not used any more.
         if let old = base?.appendingPathComponent("DockIcons", isDirectory: true) { try? FileManager.default.removeItem(at: old) }
+        // Decoded icons are up to 1 MB each; under memory pressure drop them (they reload from disk).
+        NotificationCenter.default.addObserver(forName: UIApplication.didReceiveMemoryWarningNotification, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.memory.removeAll() }
+        }
     }
 
     /// Icon keys this phone has on disk (sent to the Mac in `dockSync`).

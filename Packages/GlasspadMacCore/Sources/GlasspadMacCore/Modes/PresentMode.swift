@@ -8,12 +8,20 @@ public final class PresentMode {
     private let keys: KeysMode
     private var overlay: LaserOverlay?
 
+    /// Tests only: false keeps the overlay window off the screen and records into `laserLog`.
+    var drawsOverlay = true
+    /// Tests only: every show (true), hide (false) and move, in order, while `drawsOverlay` is off.
+    private(set) var laserLog: [(visible: Bool, point: CGPoint?)] = []
+    private var laserStarted = false
+
     public init(keys: KeysMode) { self.keys = keys }
 
     public func next() { keys.press(KeyStroke(.right)) }
     public func previous() { keys.press(KeyStroke(.left)) }
 
     public func setLaser(on: Bool) {
+        if on { laserStarted = true }
+        guard drawsOverlay else { return laserLog.append((on, nil)) }
         if on {
             if overlay == nil { overlay = LaserOverlay() }
             overlay?.show()
@@ -24,8 +32,10 @@ public final class PresentMode {
 
     /// Normalized 0...1 across the main display, origin top left.
     public func moveLaser(x: Double, y: Double) {
-        if overlay == nil { setLaser(on: true) }
-        overlay?.move(to: Self.screenPoint(x: x, y: y, screen: NSScreen.screens.first?.frame ?? .zero))
+        if !laserStarted { setLaser(on: true) }
+        let point = Self.screenPoint(x: x, y: y, screen: NSScreen.screens.first?.frame ?? .zero)
+        guard drawsOverlay else { return laserLog.append((true, point)) }
+        overlay?.move(to: point)
     }
 
     /// Converts normalized top-left coordinates to AppKit (bottom-left origin) screen points.

@@ -21,11 +21,6 @@ enum ConnectionWords {
     @MainActor static var blockedNetwork: String { "\(MacSession.shared.macName ?? "Your Mac") was found, but this network does not let devices talk to each other. Guest, hotel and office Wi-Fi often do this, and so can a VPN on this iPhone or a firewall on the Mac. Try your home Wi-Fi, or turn the VPN off." }
 
     static let localNetworkOff = "iOS is blocking Glasspad from your Wi-Fi. In Settings, open Glasspad and turn on Local Network."
-
-    @MainActor static func roundTrip(_ stats: RoundTripStats) -> String {
-        guard let quality = LinkQuality(stats), let median = stats.medianMs else { return "Measuring" }
-        return median < 1 ? "\(quality.title), under 1 ms" : "\(quality.title), \(Int(median.rounded())) ms"
-    }
 }
 
 /// Settings > Connection: the current Mac, the link in words, and what to check when it will
@@ -41,12 +36,15 @@ struct ConnectionHelpView: View {
         TimelineView(.periodic(from: .now, by: 1)) { _ in
             Form {
                 macSection
-                phoneSection
-                checklistSection
+                // The checks only matter while it is not connected.
+                if !session.isConnected {
+                    phoneSection
+                    checklistSection
+                }
             }
         }
         .scrollContentBackground(.hidden)
-        .background(palette.backgroundColor.ignoresSafeArea())
+        .background(SurfaceBackground())
         .navigationTitle("Connection")
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
@@ -56,6 +54,7 @@ struct ConnectionHelpView: View {
         }
         .onDisappear {
             probe.stop()
+            network.stop()
             session.setDiagnosticsVisible(false)
         }
     }
@@ -80,21 +79,12 @@ struct ConnectionHelpView: View {
                 }
                 .accessibilityElement(children: .combine)
                 if session.isConnected {
-                    let stats = session.roundTrip
-                    VStack(alignment: .leading, spacing: 4) {
-                        LabeledContent("Round Trip", value: ConnectionWords.roundTrip(stats))
-                        if let quality = LinkQuality(stats) {
-                            Text(quality.detail).font(.footnote).foregroundStyle(palette.inkSoftColor)
-                        }
-                    }
-                    .accessibilityElement(children: .combine)
-                    if let path = session.linkPath {
+                    LabeledContent("Quality", value: LinkQuality(session.roundTrip)?.title ?? "Checking")
+                    if session.linkPath == .peerToPeer {
                         VStack(alignment: .leading, spacing: 4) {
-                            LabeledContent("Network", value: path.title)
-                            if path == .peerToPeer {
-                                Text("Used because the Mac was not found on a shared Wi-Fi. Expect small, regular hitches; joining the same Wi-Fi is smoother.")
-                                    .font(.footnote).foregroundStyle(palette.inkSoftColor)
-                            }
+                            LabeledContent("Network", value: LinkPath.peerToPeer.title)
+                            Text("Your Mac is not on this Wi-Fi, so the two talk directly. Joining the same Wi-Fi is smoother.")
+                                .font(.footnote).foregroundStyle(palette.inkSoftColor)
                         }
                         .accessibilityElement(children: .combine)
                     }
@@ -113,8 +103,6 @@ struct ConnectionHelpView: View {
                 Text(ConnectionWords.localNetworkOff)
             } else if session.macNeedsAccessibility {
                 Text(MacPermissionBanner.steps)
-            } else if session.isConnected {
-                Text("Round trip is the time for a message to reach your Mac and come back.")
             }
         }
         .listRowBackground(palette.raisedColor)
@@ -122,7 +110,7 @@ struct ConnectionHelpView: View {
 
     private var stateWords: String {
         switch session.state {
-        case .failed where session.isReplaced: "Another iPhone has it"
+        case .failed where session.isReplaced: "In use by another iPhone"
         case .failed: "Could not connect"
         default: session.state.statusText
         }
@@ -193,18 +181,18 @@ struct ConnectionHelpView: View {
         Section {
             HelpRow(symbol: "wifi", title: "Same Wi-Fi",
                     detail: "Your iPhone and Mac need to be on the same Wi-Fi network. Mobile data does not reach the Mac.")
-            HelpRow(symbol: "network", title: "Local Network permission",
+            HelpRow(symbol: "network", title: "Local Network Permission",
                     detail: "In Settings, open Glasspad and turn on Local Network. If it is off, Glasspad cannot see your Mac.")
-            HelpRow(symbol: "building.2", title: "Guest or office Wi-Fi",
+            HelpRow(symbol: "building.2", title: "Guest or Office Wi-Fi",
                     detail: "Hotel, school, office and guest networks often stop devices from seeing each other. Try another network.")
             VStack(alignment: .leading, spacing: 10) {
-                HelpRow(symbol: "moon.zzz", title: "Mac asleep",
+                HelpRow(symbol: "moon.zzz", title: "Mac Asleep",
                         detail: "A sleeping Mac cannot answer. Wake it, or turn on Wake for network access in the Mac's Battery or Energy settings.")
                 if store.selected?.wakeTarget?.lastIPv4 != nil, !session.isConnected {
                     LinkActions().frame(maxWidth: .infinity)
                 }
             }
-            HelpRow(symbol: "lock.shield", title: "VPN on this iPhone",
+            HelpRow(symbol: "lock.shield", title: "VPN on This iPhone",
                     detail: "Some VPNs send all traffic away, including to your Mac. Turn the VPN off, or allow local network access in its settings.")
             HelpRow(symbol: "menubar.rectangle", title: "Glasspad on the Mac",
                     detail: "The Glasspad icon should be in the Mac's menu bar. If not, open Glasspad from Applications.")
@@ -217,7 +205,7 @@ struct ConnectionHelpView: View {
                 }
             }
         } header: {
-            Text("If It Will Not Connect")
+            Text("If It Won't Connect")
         }
         .listRowBackground(palette.raisedColor)
     }
@@ -236,7 +224,7 @@ private struct CheckRow: View {
                 Text(value)
                 if let ok {
                     Image(systemName: ok ? "checkmark.circle.fill" : "exclamationmark.circle.fill")
-                        .foregroundStyle(Color(uiColor: ok ? .systemGreen : .systemOrange))
+                        .foregroundStyle(ok ? palette.good : palette.caution)
                         .accessibilityHidden(true)
                 }
             }

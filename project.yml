@@ -75,6 +75,7 @@ targets:
         NSLocalNetworkUsageDescription: Glasspad finds your paired Mac on this Wi-Fi network and sends your touches to it.
         NSBonjourServices: [_glasspad._tcp]
         NSCameraUsageDescription: Glasspad uses the camera only to scan the pairing code your Mac shows.
+        NSCalendarsFullAccessUsageDescription: Glasspad shows your next events on its Calendar screen. It only reads them and never changes them.
         NSPhotoLibraryAddUsageDescription: Glasspad saves screenshots that a Deck button takes on your Mac to Photos, only when you set the button up to.
         NSSupportsLiveActivities: true
         CFBundleURLTypes:

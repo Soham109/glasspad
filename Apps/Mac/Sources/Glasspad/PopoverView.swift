@@ -2,8 +2,9 @@ import GlasspadKit
 import GlasspadMacCore
 import SwiftUI
 
-/// The menu bar window: who is connected and how well, anything that needs fixing, pairing,
-/// two quick switches, then Settings and Quit. Diagnostics live in Settings > Advanced.
+/// The menu bar window, laid out like the system's own menu bar extras (Wi-Fi, Bluetooth):
+/// the name with an on switch, the iPhone as a device row, anything that needs fixing,
+/// pairing and the Dock switch, then plain Settings and Quit rows.
 struct PopoverView: View {
     @EnvironmentObject private var model: AppModel
 
@@ -11,10 +12,15 @@ struct PopoverView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            StatusHeader()
+            HeaderRow()
                 .padding(.horizontal, 14)
-                .padding(.top, 14)
-                .padding(.bottom, 12)
+                .padding(.top, 10)
+                .padding(.bottom, 8)
+
+            PopoverDivider()
+            StatusRow()
+                .padding(.horizontal, 6)
+                .padding(.vertical, 5)
 
             RecordingRow(macros: model.macros)
 
@@ -22,25 +28,25 @@ struct PopoverView: View {
                 PopoverDivider()
                 PermissionChecklist()
                     .padding(.horizontal, 14)
-                    .padding(.vertical, 10)
+                    .padding(.vertical, 8)
             }
 
             PopoverDivider()
             PairingSection()
                 .padding(.horizontal, 6)
-                .padding(.vertical, 6)
-
-            PopoverDivider()
-            QuickToggles()
-                .padding(.horizontal, 14)
-                .padding(.vertical, 9)
+                .padding(.top, 5)
+            DockRow()
+                .padding(.horizontal, 6)
+                .padding(.bottom, 5)
 
             PopoverDivider()
             FooterButtons()
                 .padding(.horizontal, 6)
-                .padding(.vertical, 6)
+                .padding(.vertical, 5)
         }
         .frame(width: Self.width)
+        .animation(.easeInOut(duration: 0.2), value: model.isPaused)
+        .animation(.easeInOut(duration: 0.2), value: model.missingPermissions.count)
         .onAppear { model.actions.refresh() }
     }
 }
@@ -51,30 +57,54 @@ private struct PopoverDivider: View {
     }
 }
 
-// MARK: - Status
+// MARK: - Header
 
-private struct StatusHeader: View {
+/// "Glasspad" in bold with the on switch, like the Wi-Fi menu. Off pauses Glasspad.
+private struct HeaderRow: View {
     @EnvironmentObject private var model: AppModel
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack {
+            Text("Glasspad")
+                .font(.system(size: 13, weight: .semibold))
+                .accessibilityAddTraits(.isHeader)
+            Spacer()
+            Toggle("Glasspad", isOn: Binding(get: { !model.isPaused }, set: { model.actions.setPaused(!$0) }))
+                .toggleStyle(.switch)
+                .controlSize(.small)
+                .labelsHidden()
+                .accessibilityLabel(model.isPaused ? "Resume Glasspad" : "Pause Glasspad")
+                .help(model.isPaused ? "Turn on to let your iPhone connect." : "Turn off to stop listening for your iPhone.")
+        }
+    }
+}
+
+// MARK: - Status
+
+/// The iPhone as a device row: a round icon, filled with the accent colour while connected,
+/// the name or state, one line under it, and the signal.
+private struct StatusRow: View {
+    @EnvironmentObject private var model: AppModel
+
+    var body: some View {
+        HStack(spacing: 10) {
             ZStack {
                 Circle()
                     .fill(model.isConnected ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.quaternary))
                 Image(systemName: symbol)
-                    .font(.system(size: 17, weight: .medium))
+                    .font(.system(size: 13, weight: .medium))
                     .foregroundStyle(model.isConnected ? AnyShapeStyle(.white) : AnyShapeStyle(.secondary))
                     .contentTransition(.symbolEffect(.replace))
             }
-            .frame(width: 36, height: 36)
+            .frame(width: 26, height: 26)
             .accessibilityHidden(true)
 
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 1) {
                 Text(title)
-                    .font(.headline)
+                    .font(.system(size: 13))
                     .lineLimit(1)
                 Text(model.statusDetail)
-                    .font(.subheadline)
+                    .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -85,10 +115,12 @@ private struct StatusHeader: View {
                     .accessibilityHidden(true)
             } else if model.link == .connecting || (model.link == .searching && !model.phones.isEmpty && !model.isPaused) {
                 ProgressView()
-                    .controlSize(.small)
+                    .controlSize(.mini)
                     .accessibilityHidden(true)
             }
         }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(title). \(model.statusDetail)")
     }
@@ -157,54 +189,45 @@ private struct PairingSection: View {
     }
 }
 
-// MARK: - Quick toggles
+// MARK: - Dock
 
-private struct QuickToggles: View {
+/// Hide Mac Dock, a switch row with the same round icon as the rows around it.
+private struct DockRow: View {
     @EnvironmentObject private var model: AppModel
 
     var body: some View {
-        VStack(spacing: 8) {
-            ToggleRow(title: "Hide Mac Dock", symbol: "dock.rectangle",
-                      isOn: Binding(get: { model.dock.hidden }, set: { model.actions.setDockHidden($0) }),
-                      help: "Glasspad saves your Dock settings first and puts them back when you turn this off or quit.")
-            ToggleRow(title: "Pause Glasspad", symbol: "pause.circle",
-                      isOn: Binding(get: { model.isPaused }, set: { model.actions.setPaused($0) }),
-                      help: "Stops listening for your iPhone until you turn this off.")
-        }
-    }
-}
-
-private struct ToggleRow: View {
-    let title: String
-    let symbol: String
-    @Binding var isOn: Bool
-    let help: String
-
-    var body: some View {
-        PopoverRow(symbol: symbol, title: title) {
-            Toggle(title, isOn: $isOn)
+        PopoverRow(symbol: "dock.rectangle", title: "Hide Mac Dock", active: model.dock.hidden) {
+            Toggle("Hide Mac Dock", isOn: Binding(get: { model.dock.hidden }, set: { model.actions.setDockHidden($0) }))
                 .toggleStyle(.switch)
                 .controlSize(.mini)
                 .labelsHidden()
         }
-        .help(help)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 3)
+        .help("Your Dock settings come back as they were when you turn this off or quit.")
     }
 }
 
-/// Symbol column, title, then anything trailing. Every row in the popover lines up on it.
+/// A round icon (accent filled while `active`), the title, then anything trailing. Every row
+/// in the popover lines up on it, as in the system's menu bar extras.
 private struct PopoverRow<Trailing: View>: View {
     let symbol: String
     let title: String
+    var active = false
     @ViewBuilder var trailing: () -> Trailing
 
     var body: some View {
-        HStack(spacing: 8) {
-            Image(systemName: symbol)
-                .font(.system(size: 13))
-                .foregroundStyle(.secondary)
-                .frame(width: 20)
-                .accessibilityHidden(true)
+        HStack(spacing: 10) {
+            ZStack {
+                Circle().fill(active ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.quaternary))
+                Image(systemName: symbol)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(active ? AnyShapeStyle(.white) : AnyShapeStyle(.primary))
+            }
+            .frame(width: 26, height: 26)
+            .accessibilityHidden(true)
             Text(title)
+                .font(.system(size: 13))
             Spacer(minLength: 8)
             trailing()
         }
@@ -212,8 +235,8 @@ private struct PopoverRow<Trailing: View>: View {
 }
 
 extension PopoverRow where Trailing == EmptyView {
-    init(symbol: String, title: String) {
-        self.init(symbol: symbol, title: title) { EmptyView() }
+    init(symbol: String, title: String, active: Bool = false) {
+        self.init(symbol: symbol, title: title, active: active) { EmptyView() }
     }
 }
 
@@ -225,9 +248,8 @@ private struct FooterButtons: View {
     var body: some View {
         VStack(spacing: 0) {
             SettingsLink {
-                PopoverRow(symbol: "gearshape", title: "Settings…") {
-                    Text("⌘,").foregroundStyle(.secondary)
-                }
+                Text("Glasspad Settings…")
+                    .font(.system(size: 13))
             }
             .buttonStyle(PopoverRowButtonStyle())
             .simultaneousGesture(TapGesture().onEnded { NSApp.activate() })
@@ -235,9 +257,8 @@ private struct FooterButtons: View {
             Button {
                 model.actions.quit()
             } label: {
-                PopoverRow(symbol: "power", title: "Quit Glasspad") {
-                    Text("⌘Q").foregroundStyle(.secondary)
-                }
+                Text("Quit Glasspad")
+                    .font(.system(size: 13))
             }
             .buttonStyle(PopoverRowButtonStyle())
             .keyboardShortcut("q")

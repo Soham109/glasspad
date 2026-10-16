@@ -27,7 +27,7 @@ const CAPTIONS: Record<Kind, string> = {
 const CHIP_FOR: Partial<Record<Kind, string>> = { move: "move", click: "click", right: "click", scroll: "scroll", pinch: "pinch", spaces: "spaces", mission: "mission" };
 
 export function initDemo() {
-  const section = document.getElementById("try")!;
+  const section = document.getElementById("trackpad")!;
   const surface = document.getElementById("surface") as HTMLDivElement;
   const dotsLayer = document.getElementById("dots") as HTMLDivElement;
   const trails = document.getElementById("trails") as unknown as SVGSVGElement;

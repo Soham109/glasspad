@@ -18,7 +18,9 @@ import XCTest
 /// Macro fixtures (the shipped starters) are seeded into a fresh folder under /tmp/gpmac.
 @MainActor
 final class SnapshotTests: XCTestCase {
-    static let out = URL(fileURLWithPath: "/tmp/gpmac", isDirectory: true)
+    /// GLASSPAD_SNAPSHOT_DIR moves the PNGs elsewhere, so parallel checkouts do not share them.
+    static let out = URL(fileURLWithPath: ProcessInfo.processInfo.environment["GLASSPAD_SNAPSHOT_DIR"] ?? "/tmp/gpmac",
+                         isDirectory: true)
 
     override func setUp() async throws {
         guard ProcessInfo.processInfo.environment["GLASSPAD_SNAPSHOTS"] == "1" else {

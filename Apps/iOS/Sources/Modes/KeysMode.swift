@@ -11,6 +11,7 @@ import GlasspadKit
 struct KeysMode: View {
     @Environment(\.palette) private var palette
     @Environment(\.verticalSizeClass) private var verticalSize
+    @Environment(\.modeTopClearance) private var topClearance
     @Bindable var settings = PhoneSettings.shared
     var session = MacSession.shared
     var media = MediaStore.shared
@@ -54,7 +55,7 @@ struct KeysMode: View {
                 .padding(.bottom, 6)
             } else {
                 VStack(spacing: 8) {
-                    Spacer(minLength: 64)
+                    Spacer(minLength: topClearance ?? 64)
                     echoArea
                     HStack(spacing: 6) { modifierKeys }
                         .frame(height: 50)
@@ -80,7 +81,7 @@ struct KeysMode: View {
         .contentShape(Rectangle())
         .onTapGesture { focusToken += 1 }
         .overlay {
-            if !session.isConnected { ModeOfflineMessage(mode: .keys).background(palette.backgroundColor) }
+            if !session.isConnected { ModeOfflineMessage(mode: .keys).background(SurfaceBackground()) }
         }
         .onAppear {
             if showsFunctionRow { requestLevels() }
@@ -250,7 +251,7 @@ struct KeysMode: View {
                 } else {
                     VStack(spacing: 1) {
                         Text("fn").font(.body.weight(.medium))
-                        Text("F1–F12").font(.caption2)
+                        Text("F1 to F12").font(.caption2)
                             .foregroundStyle(showsFunctionRow ? Color.white.opacity(0.85) : palette.inkSoftColor)
                     }
                 }
@@ -362,7 +363,7 @@ struct KeysMode: View {
     @ViewBuilder
     private func key(_ label: String, _ special: SpecialKey, _ name: String, symbol: Bool = false, repeats: Bool = false) -> some View {
         RepeatingKey(name: name, repeats: repeats, action: { isRepeat in press(special, isRepeat: isRepeat) }) {
-            if symbol { Image(systemName: label).font(.body.weight(.medium)) } else { Text(label).font(.callout) }
+            if symbol { Image(systemName: label).font(.body.weight(.medium)) } else { Text(label).font(.callout).lineLimit(1).minimumScaleFactor(0.6) }
         }
     }
 
@@ -396,6 +397,9 @@ private struct RepeatingKey<Label: View>: View {
 
     @State private var pressed = false
     @State private var repeatTask: Task<Void, Never>?
+    /// Resets when the touch ends in any way, including a cancel (a call, Control Center, the
+    /// app leaving), which `onEnded` never hears about. Otherwise a held key would repeat on.
+    @GestureState private var touching = false
 
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: 12, style: .continuous)
@@ -409,10 +413,12 @@ private struct RepeatingKey<Label: View>: View {
             .animation(.easeOut(duration: 0.12), value: pressed)
             .gesture(
                 DragGesture(minimumDistance: 0)
+                    .updating($touching) { _, touching, _ in touching = true }
                     .onChanged { _ in if !pressed { begin() } }
                     .onEnded { _ in end() },
                 including: isEnabled ? .all : .none
             )
+            .onChange(of: touching) { _, down in if !down { end() } }
             .onDisappear { end() }
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(name)

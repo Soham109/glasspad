@@ -192,7 +192,7 @@ struct DeckButtonEditor: View {
                 }
             }
             .scrollContentBackground(.hidden)
-            .background(palette.backgroundColor.ignoresSafeArea())
+            .background(SurfaceBackground())
             .navigationTitle(button.action == .folder ? (isNew ? "New Folder" : "Edit Folder") : (isNew ? "New Button" : "Edit Button"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -316,7 +316,7 @@ private struct ActionOptions: View {
             }
             // Names the button after the site while the user has not named it.
             .task(id: s) { await nameAfterSite(s) }
-            if !s.isEmpty, s != "https://", SiteInfo.webURL(s) == nil {
+            if !s.isEmpty, s != "https://", action.typedWebsite != nil, SiteInfo.webURL(s) == nil {
                 Text("Type a web address, like apple.com.").font(.footnote).foregroundStyle(palette.inkSoftColor)
             }
         case .openFile(let path):
@@ -359,7 +359,7 @@ private struct ActionOptions: View {
         case .runMacro(let id):
             let macros = session.allMacros ?? []
             if macros.isEmpty {
-                Text("No macros yet. Record one from Actions, + then Record New Macro.").foregroundStyle(palette.inkSoftColor)
+                Text("No macros yet. To record one, tap + in Actions, then Record New Macro.").foregroundStyle(palette.inkSoftColor)
             } else {
                 Picker("Macro", selection: Binding(get: { id }, set: { new in
                     action = .runMacro(id: new)
@@ -456,7 +456,7 @@ private struct KeystrokeEditor: View {
             Image(systemName: symbol)
                 .font(.body.weight(.semibold))
                 .frame(maxWidth: .infinity, minHeight: 36)
-                .foregroundStyle(on ? palette.backgroundColor : palette.inkColor)
+                .foregroundStyle(on ? palette.solidColor : palette.inkColor)
                 .background(on ? palette.inkColor : palette.raisedPressedColor, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
         }
         .buttonStyle(.plain)
@@ -510,7 +510,7 @@ struct ActionPicker: View {
             }
         }
         .scrollContentBackground(.hidden)
-        .background(palette.backgroundColor.ignoresSafeArea())
+        .background(SurfaceBackground())
         .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search actions")
         .navigationTitle("Choose an Action")
         .navigationBarTitleDisplayMode(.inline)
@@ -557,7 +557,7 @@ private struct AppPickerList: View {
             }
         }
         .scrollContentBackground(.hidden)
-        .background(palette.backgroundColor.ignoresSafeArea())
+        .background(SurfaceBackground())
         .searchable(text: $query, prompt: "Search apps")
         .navigationTitle("Choose an App")
         .navigationBarTitleDisplayMode(.inline)
@@ -617,7 +617,7 @@ struct SymbolPicker: View {
             }
             .padding(16)
         }
-        .background(palette.backgroundColor.ignoresSafeArea())
+        .background(SurfaceBackground())
         .searchable(text: $query, prompt: "Search symbols")
         .navigationTitle("Symbol")
         .navigationBarTitleDisplayMode(.inline)
@@ -663,7 +663,7 @@ struct DeckPagesSheet: View {
             }
             .environment(\.editMode, .constant(.active))
             .scrollContentBackground(.hidden)
-            .background(palette.backgroundColor.ignoresSafeArea())
+            .background(SurfaceBackground())
             .navigationTitle("Pages")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -724,16 +724,18 @@ private struct PageEditor: View {
             .listRowBackground(palette.raisedColor)
         }
         .scrollContentBackground(.hidden)
-        .background(palette.backgroundColor.ignoresSafeArea())
+        .background(SurfaceBackground())
         .navigationTitle(page.title)
     }
 }
 
 extension DeckAction {
     /// What the user typed for a Website button (not a System Settings page), even when it is
-    /// not a full link yet.
+    /// not a full link yet. Other kinds of links ("mailto:", "slack://") are kept as they are.
     var typedWebsite: String? {
         guard case .openURL(let s) = self, !s.hasPrefix(SettingsPanes.prefix) else { return nil }
+        if let scheme = URL(string: s)?.scheme?.lowercased(), scheme != "http", scheme != "https",
+           SiteInfo.webURL(s) == nil { return nil }
         return s
     }
 }

@@ -41,6 +41,8 @@
 	<array>
 		<string>_glasspad._tcp</string>
 	</array>
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>Glasspad shows your next events on its Calendar screen. It only reads them and never changes them.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Glasspad uses the camera only to scan the pairing code your Mac shows.</string>
 	<key>NSLocalNetworkUsageDescription</key>

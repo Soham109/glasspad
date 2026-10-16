@@ -29,6 +29,7 @@ struct GlasspadApp: App {
 
 struct RootView: View {
     @Environment(\.colorScheme) private var systemScheme
+    @Environment(\.verticalSizeClass) private var verticalSize
     var settings = PhoneSettings.shared
     var router = AppRouter.shared
     var session = MacSession.shared
@@ -83,11 +84,23 @@ struct RootView: View {
             ClipboardSheet()
                 .environment(\.palette, palette)
         }
+        .sheet(isPresented: $router.showLayouts, onDismiss: ScreenAwake.update) {
+            LayoutGallery()
+                .environment(\.palette, palette)
+        }
+        .sheet(item: $router.layoutDraft, onDismiss: ScreenAwake.update) { draft in
+            LayoutEditor(draft: draft)
+                .environment(\.palette, palette)
+        }
         .fullScreenCover(isPresented: $router.showPresenter) {
             PresenterCover()
                 .environment(\.palette, palette)
         }
-        .fullScreenCover(isPresented: $router.showRemote) { RemoteCover() }
+        .fullScreenCover(isPresented: $router.showRemote) {
+            RemoteCover()
+                .environment(\.palette, palette)
+        }
+        .fullScreenCover(isPresented: $router.showDisplays) { DisplaysCover().environment(\.palette, palette) }
         .alert(router.pairingRequest.map { "Pair with \($0.macName)?" } ?? "Pair with this Mac?",
                isPresented: Binding(get: { router.pairingRequest != nil }, set: { if !$0 { router.pairingRequest = nil } }),
                presenting: router.pairingRequest) { payload in
@@ -101,15 +114,25 @@ struct RootView: View {
     @ViewBuilder
     private func main(_ palette: Palette) -> some View {
         let focus = router.dims
+        let layout = router.layout
         ZStack {
-            modeContent
-                .id(router.mode)
+            if let layout {
+                GeometryReader { geo in
+                    LayoutScreen(layout: layout, safeArea: geo.safeAreaInsets)
+                }
+                .ignoresSafeArea(.keyboard)
+                .id(layout.id)
                 .transition(.opacity)
-            if router.mode == .trackpad && !filmActive {
+            } else {
+                ModeScreen(mode: router.mode)
+                    .id(router.mode)
+                    .transition(.opacity)
+            }
+            if layout == nil && router.mode == .trackpad && !filmActive {
                 TrackpadStatus()
                 TrackpadNotices()
             }
-            if router.mode == .present && router.isDimmed {
+            if layout == nil && router.mode == .present && router.isDimmed {
                 // Present dims too; the first touch only wakes it.
                 Color.black.opacity(0.6)
                     .ignoresSafeArea()
@@ -126,18 +149,29 @@ struct RootView: View {
                 WarmNotice()
             }
         }
-        .animation(.easeInOut(duration: 0.25), value: router.mode)
+        // Every mode starts its content the same distance below the pill, so a switch is a
+        // calm cross-fade with nothing jumping.
+        .environment(\.modeTopClearance, topClearance)
+        .animation(.easeInOut(duration: 0.2), value: router.mode)
+        .animation(.easeInOut(duration: 0.2), value: router.layoutID)
         .animation(.easeInOut(duration: router.isDimmed ? 1.2 : 0.25), value: router.isDimmed)
         .persistentSystemOverlays(focus ? .hidden : .automatic)
-        .defersSystemGestures(on: router.mode == .trackpad ? .all : [])
+        .defersSystemGestures(on: router.screenModes.contains(.trackpad) ? .all : [])
         .simultaneousGesture(TapGesture().onEnded { router.noteActivity() }, including: router.mode == .present ? .all : .subviews)
+    }
+
+    /// Room every mode keeps clear above its content for the pill: under it at the top, a
+    /// small margin when the pill sits at the bottom.
+    private var topClearance: CGFloat {
+        guard settings.pillPosition == .top else { return 16 }
+        return verticalSize == .compact ? 52 : 64
     }
 
     /// The first-run checklist waits for a new pairing and for nothing else to be on screen.
     private var canAutoShowSetup: Bool {
         SetupGuide.shared.pendingAutoShow && settings.hasOnboarded && !settings.setupComplete
             && !router.showPairing && !router.showSettings && !router.showSetup
-            && !router.showClipboard && !router.showPresenter && !router.showRemote && router.pairingRequest == nil
+            && !router.showClipboard && !router.showPresenter && !router.showRemote && !router.showDisplays && router.pairingRequest == nil
     }
 
     /// Debug film scenes (DemoScript.swift) hide the trackpad's connection status.
@@ -148,9 +182,14 @@ struct RootView: View {
         false
         #endif
     }
+}
 
-    @ViewBuilder private var modeContent: some View {
-        switch router.mode {
+/// One mode's screen, full size or inside a layout pane.
+struct ModeScreen: View {
+    let mode: AppMode
+
+    var body: some View {
+        switch mode {
         case .trackpad: TrackpadScreen()
         case .dock: DockMode()
         case .keys: KeysMode()
@@ -161,13 +200,17 @@ struct RootView: View {
         case .clipboard: ClipboardMode()
         case .present: PresentMode()
         case .remote: RemoteMode()
+        case .displays: DisplaysMode()
+        case .clock: ClockMode()
+        case .nowPlaying: NowPlayingMode()
+        case .calendar: CalendarMode()
         }
     }
 }
 
 /// Quiet status over the trackpad, only when it is not connected. Never takes touches,
 /// except the "Pair a Mac" button when nothing is paired.
-private struct TrackpadStatus: View {
+struct TrackpadStatus: View {
     @Environment(\.palette) private var palette
     var session = MacSession.shared
     var router = AppRouter.shared
@@ -221,23 +264,33 @@ extension TrackpadStatus {
     }
 }
 
-/// Shown while the phone is warm. Haptics and keep-awake traffic are paused meanwhile.
+/// Shown for a few seconds when the phone gets warm. Haptics and keep-awake traffic stay
+/// paused until it cools; the notice itself leaves, so it neither covers the screen nor keeps
+/// a glass layer drawing on a phone that is already warm.
 private struct WarmNotice: View {
     @Environment(\.palette) private var palette
+    @State private var shown = true
     var body: some View {
         VStack {
             Spacer()
-            Label("Your iPhone is warm. Haptics are paused until it cools down.", systemImage: "thermometer.medium")
-                .font(.footnote)
-                .foregroundStyle(palette.inkColor)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 10)
-                .glassCapsule()
-                .padding(.horizontal, 24)
-                .padding(.bottom, 20)
+            if shown {
+                Label("Your iPhone is warm. Haptics are paused until it cools down.", systemImage: "thermometer.medium")
+                    .font(.footnote)
+                    .foregroundStyle(palette.inkColor)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
+                    .glassCapsule()
+                    .padding(.horizontal, 24)
+                    .padding(.bottom, 20)
+                    .transition(.opacity)
+            }
         }
         .allowsHitTesting(false)
         .transition(.opacity)
+        .task {
+            try? await Task.sleep(for: .seconds(8))
+            withAnimation(.easeInOut(duration: 0.6)) { shown = false }
+        }
     }
 }
 
@@ -251,7 +304,7 @@ private struct WarmNotice: View {
 ///   -GPOrientation <automatic|portrait|landscape>  set the orientation choice (it is saved)
 ///   -GPTheme / -GPThemeLater <paper|graphite|system>  set the theme at launch, or two seconds later
 ///   -GPDemo <icon folder>               fill the screens with sample Mac data (no Mac needed)
-///   -GPActionsPage <library|front|folder|clipboard|present|remote>  open that Actions sheet or tool; -GPEdit starts editing
+///   -GPActionsPage <library|front|folder|clipboard|present|remote|displays>  open that Actions sheet or tool; -GPEdit starts editing
 ///   -GPFilm <trackpad|menu|actions|media>  play a scripted scene for the demo film (DemoScript.swift)
 ///   -GPSetup / -GPSetupTest / -GPSetupReset  open the setup checklist, start its trackpad test, or mark it unfinished
 ///   -GPSettingsPage <connection|setup>  open Settings on that page
@@ -289,6 +342,7 @@ enum DebugLaunch {
             if page == "clipboard" { AppRouter.shared.openTool(.clipboard) }
             if page == "present" { AppRouter.shared.openTool(.present) }
             if page == "remote" { AppRouter.shared.openTool(.remote) }
+            if page == "displays" { AppRouter.shared.openTool(.displays) }
         }
         if args.contains("-GPEdit") { demoEditing = true }
         if args.contains("-GPSetup") { AppRouter.shared.showSetup = true }
@@ -302,6 +356,32 @@ enum DebugLaunch {
         if let page = value("-GPSettingsPage") {
             settingsPage = page
             AppRouter.shared.showSettings = true
+        }
+        // Layouts: -GPLayout <template id> opens a layout made from that template (saved once),
+        // -GPLayoutSplit <0...1> sets its line, -GPLayouts opens the gallery, -GPLayoutEdit
+        // <template id> opens the editor on a new layout from that template.
+        if let id = value("-GPLayout"), let template = LayoutTemplate.builtIn.first(where: { $0.id == id }) {
+            PhoneSettings.shared.hasOnboarded = true
+            let store = LayoutStore.shared
+            var layout = store.layouts.first { $0.name == template.name } ?? template.makeLayout()
+            if let share = value("-GPLayoutSplit").flatMap(Double.init) { layout.split = share }
+            if let share = value("-GPLayoutInner").flatMap(Double.init) { layout.innerSplit = share }
+            if let d = value("-GPLayoutDirection").flatMap(SplitDirection.init(rawValue:)) { layout.direction = d }
+            store.save(layout)
+            AppRouter.shared.show(layout: layout)
+        }
+        // -GPLayoutPanes trackpad,media,actions: a throwaway layout with exactly those panes.
+        if let list = value("-GPLayoutPanes") {
+            PhoneSettings.shared.hasOnboarded = true
+            var layout = ScreenLayout(name: "Test", panes: list.split(separator: ",").map(String.init))
+            if let old = LayoutStore.shared.layouts.first(where: { $0.name == "Test" }) { layout.id = old.id }
+            if let d = value("-GPLayoutDirection").flatMap(SplitDirection.init(rawValue:)) { layout.direction = d }
+            LayoutStore.shared.save(layout)
+            AppRouter.shared.show(layout: layout)
+        }
+        if args.contains("-GPLayouts") { AppRouter.shared.showLayouts = true }
+        if let id = value("-GPLayoutEdit"), let template = LayoutTemplate.builtIn.first(where: { $0.id == id }) {
+            AppRouter.shared.layoutDraft = AppRouter.shared.newLayout(from: template)
         }
         if let scene = value("-GPFilm") { FilmDirector.shared.start(scene: scene, iconFolder: value("-GPDemo")) }
     }

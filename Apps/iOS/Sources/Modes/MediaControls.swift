@@ -1,8 +1,21 @@
 import GlasspadKit
 import SwiftUI
 
+/// Hands its content the time of each render, for values that change only when state does
+/// (a tap's confirm window ends with a redraw from `MediaStore`), so nothing ticks while the
+/// screen sits still. Shaped like `TimelineView` so the two swap freely.
+struct RenderTime<Content: View>: View {
+    private let content: (RenderTimeContext) -> Content
+    init(@ViewBuilder content: @escaping (RenderTimeContext) -> Content) { self.content = content }
+    var body: some View { content(RenderTimeContext(date: Date())) }
+}
+
+struct RenderTimeContext { let date: Date }
+
 /// One line of text that scrolls sideways when it does not fit (like Music's now playing),
-/// pausing at the start of each pass. Centred and still when it fits or with Reduce Motion.
+/// pausing at the start of each pass. It scrolls by a few times (`PowerPolicy.marqueePasses`)
+/// after the text changes or appears, then rests at its start, so a screen left open does not
+/// redraw forever. Centred and still when it fits or with Reduce Motion.
 struct MarqueeText: View {
     let text: String
     let font: Font
@@ -12,6 +25,8 @@ struct MarqueeText: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var textWidth: CGFloat = 0
     @State private var start = Date()
+    @State private var resting = false
+    private var power: PowerPolicy { PowerMonitor.shared.policy }
 
     private let gap: CGFloat = 44
     private let speed: CGFloat = 32
@@ -24,13 +39,13 @@ struct MarqueeText: View {
             .overlay {
                 GeometryReader { geo in
                     let fits = textWidth <= geo.size.width + 0.5
-                    if fits || reduceMotion {
+                    if fits || reduceMotion || resting || power.decorativeFrameInterval == nil {
                         label
                             .lineLimit(1)
                             .truncationMode(.tail)
                             .frame(width: geo.size.width, alignment: alignment == .leading ? .leading : .center)
                     } else {
-                        TimelineView(.animation) { context in
+                        TimelineView(.animation(minimumInterval: power.decorativeFrameInterval)) { context in
                             HStack(spacing: gap) {
                                 label.fixedSize()
                                 label.fixedSize()
@@ -46,13 +61,26 @@ struct MarqueeText: View {
                 label.fixedSize().hidden()
                     .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { textWidth = $0 }
             }
-            .onChange(of: text) { start = Date() }
+            .task(id: TaskKey(text: text, width: textWidth, passes: power.marqueePasses)) {
+                // Scroll by a few times, then rest at the start until the text changes.
+                start = Date()
+                resting = false
+                let cycle = pause + TimeInterval((textWidth + gap) / speed)
+                try? await Task.sleep(for: .seconds(cycle * Double(power.marqueePasses) + pause / 2))
+                if !Task.isCancelled { resting = true }
+            }
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(text)
     }
 
     private var label: some View {
         Text(text).font(font).foregroundStyle(color)
+    }
+
+    private struct TaskKey: Equatable {
+        let text: String
+        let width: CGFloat
+        let passes: Int
     }
 
     private func offset(at date: Date) -> CGFloat {

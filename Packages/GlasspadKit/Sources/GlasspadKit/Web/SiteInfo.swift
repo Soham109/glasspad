@@ -21,7 +21,11 @@ public enum SiteInfo {
         var s = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !s.isEmpty, !s.contains(" ") else { return nil }
         if !s.lowercased().hasPrefix("http://") && !s.lowercased().hasPrefix("https://") {
-            guard !s.contains(":") || s.contains("."), s.contains(".") else { return nil }
+            // A colon only after a host, for a port ("example.com:8080"). Anything else with a
+            // colon is another kind of link ("mailto:a@b.com", "slack://open").
+            let host = s.prefix { !"/?#".contains($0) }
+            if let colon = host.firstIndex(of: ":"), !(host[host.index(after: colon)...].first?.isNumber ?? false) { return nil }
+            guard s.contains(".") || s.lowercased().hasPrefix("localhost") else { return nil }
             s = "https://" + s
         }
         guard let url = URL(string: s), let scheme = url.scheme?.lowercased(), scheme == "http" || scheme == "https",

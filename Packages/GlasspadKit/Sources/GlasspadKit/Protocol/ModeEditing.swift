@@ -44,7 +44,7 @@ public struct DockGridMetrics: Equatable, Sendable {
     public static func fit(width: Double, density: DockDensity, scale: Double = 1, spacing: Double = 8) -> DockGridMetrics {
         let target = max(minimumIcon, density.preferredIcon * min(1.25, max(0.8, scale)))
         let cellTarget = target / iconShare
-        let w = max(width, minimumIcon)
+        let w = width.isFinite ? min(max(width, minimumIcon), 10_000) : minimumIcon
         var columns = max(1, Int(((w + spacing) / (cellTarget + spacing)).rounded(.down)))
         columns = max(columns, w >= 3 * (minimumIcon / iconShare) + 2 * spacing ? 3 : 1)
         var cell = (w - Double(columns - 1) * spacing) / Double(columns)
@@ -321,10 +321,11 @@ public struct ModeListLayout: Codable, Equatable, Sendable {
     public static let actions = "actions"
     /// Never hidden: the app is a trackpad first.
     public static let alwaysShown = "trackpad"
-    public static let defaultOrder = ["trackpad", "keys", "media", "dock", "actions", "deck", "macros", "clipboard", "present", "remote"]
-    /// Modes that start hidden, so the default pill stays at five. They still open from the
-    /// mode menu's tools until Settings turns them on.
-    public static let hiddenAtFirst: Set<String> = ["remote"]
+    public static let defaultOrder = ["trackpad", "keys", "media", "dock", "actions", "deck", "macros", "clipboard", "present", "remote",
+                                      "displays", "clock", "nowPlaying", "calendar"]
+    /// Modes that start hidden, so the default pill stays at five. Remote and Displays still open
+    /// from the mode menu's tools, the StandBy screens from layouts, until Settings turns them on.
+    public static let hiddenAtFirst: Set<String> = ["remote", "displays", "clock", "nowPlaying", "calendar"]
 
     public var order: [String]
     public var hidden: Set<String>
@@ -406,7 +407,7 @@ public struct DeckGridFit: Equatable, Sendable {
                 return DeckGridFit(columns: c, cellWidth: w, cellHeight: max(w, stretched), fits: true)
             }
         }
-        let c = max(minColumns, Int((width + spacing) / (fallbackCell + spacing)))
+        let c = Int(min(64, max(Double(minColumns), ((width + spacing) / (fallbackCell + spacing)).rounded(.down))))
         return DeckGridFit(columns: c, cellWidth: cell(c), cellHeight: cell(c), fits: false)
     }
 }

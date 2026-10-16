@@ -25,6 +25,8 @@ public final class ModeRouter {
             }
         }
     }
+    /// Displays mode. The app sets the live one; tests set one with a fake backend.
+    public var displays: DisplaysMode? { didSet { wireDisplays() } }
     public var send: (ModeMessage) -> Void = { _ in }
 
     private let deckEnvironment: LiveDeckEnvironment?
@@ -51,7 +53,11 @@ public final class ModeRouter {
         self.media = media
         let env = LiveDeckEnvironment(keys: keys, media: media)
         self.deckEnvironment = env
-        self.deck = DeckMode(env: env)
+        let deck = DeckMode(env: env)
+        self.deck = deck
+        MacControlRelay.shared.perform = { [weak deck] action in
+            await deck?.perform(.system(action)) ?? DeckMode.Outcome(ok: false, message: "Glasspad is shutting down.")
+        }
         self.clipboard = ClipboardMode()
         self.present = PresentMode(keys: keys)
         self.macDock = macDock
@@ -59,6 +65,15 @@ public final class ModeRouter {
         macDock.onChange = { [weak self] state in self?.send(.macDockState(state)) }
         media.onChange = { [weak self] in self?.pushMedia() }
         if observeWorkspace { startWorkspaceObservers() }
+        displays = DisplaysMode(backend: LiveDisplays())
+        wireDisplays()
+    }
+
+    /// Displays answers through `send` and sends icons from the Dock's cache.
+    private func wireDisplays() {
+        displays?.send = { [weak self] in self?.send($0) }
+        displays?.icons = { [weak self] ids in self?.dock.icons(for: ids) ?? [] }
+        displays?.nightShift = { NightShift.isOn() }
     }
 
     /// For tests: every part injected, nothing observed.
@@ -86,11 +101,11 @@ public final class ModeRouter {
             if mode == .macros { macros?.handle(.listMacros) }
             if mode == .dock || mode == .deck || mode == .remote { send(.frontmostApp(bundleID: dock.workspace.frontmostBundleID())) }
         case .dockRequest:
-            send(.dockList(apps: dock.currentList()))
+            sendDockList(dock.currentList())
             send(.macDockState(macDock.state))
         case .dockSync(let keys):
             dock.phoneHas(iconKeys: keys)
-            send(.dockList(apps: dock.currentList()))
+            sendDockList(dock.currentList())
             send(.macDockState(macDock.state))
         case .dockOpen(let id):
             dock.open(bundleID: id) { [weak self] outcome in
@@ -104,7 +119,8 @@ public final class ModeRouter {
             }
             scheduleDockPush()
         case .dockCatalogRequest: send(.dockCatalog(apps: dock.catalog()))
-        case .dockIconRequest(let ids): send(.dockIcons(apps: dock.icons(for: ids)))
+        case .dockIconRequest(let ids):
+            for batch in DockMode.iconBatches(dock.icons(for: ids)) { send(.dockIcons(apps: batch)) }
         case .macDockSet(let state): macDock.set(state)
         case .keysText(let text): keys.type(text)
         case .keysKeystroke(let k): keys.press(k)
@@ -156,9 +172,9 @@ public final class ModeRouter {
         case .presentLaser(let on): present.setLaser(on: on)
         case .presentLaserPosition(let x, let y): present.moveLaser(x: x, y: y)
         case .remoteSystem(let id, let action):
-            // Only the one-tap controls; anything that needs confirming stays a Deck button.
+            // Only the one-tap controls; anything that needs confirming is pinned in Actions, which asks first.
             guard !action.needsConfirmation else {
-                send(.deckResult(id: id, ok: false, message: "Use a Deck button for that."))
+                send(.deckResult(id: id, ok: false, message: "Pin it in Actions to use it."))
                 return
             }
             Task { [weak self] in
@@ -166,13 +182,25 @@ public final class ModeRouter {
                 let outcome = await self.deck.perform(.system(action))
                 self.send(.deckResult(id: id, ok: outcome.ok, message: outcome.ok ? nil : outcome.message))
             }
+        case .displaysWatch(let on): displays?.watch(on)
+        case .windowCommand(let id, let window, let command): displays?.handle(id: id, windowID: window, command: command)
+        case .displayCommand(let id, let command): displays?.handle(id: id, command: command)
         case .macro(let m): macros?.handle(m)
         // Mac -> phone messages: ignore if echoed back.
         case .dockList, .mediaState, .deckButtons, .deckResult, .clipboardContent, .dockOpenResult,
              .clipboardPushResult, .clipboardPullRefused, .dockCatalog,
-             .dockIcons, .frontmostApp, .macDockState, .deckLayout, .deckSaveResult, .deckCatalog, .deckImage:
+             .dockIcons, .frontmostApp, .macDockState, .deckLayout, .deckSaveResult, .deckCatalog, .deckImage,
+             .displaysState, .displaysResult:
             break
         }
+    }
+
+    /// The Dock list, with icons beyond one message's share following in their own messages,
+    /// so a first sync of a full Dock never becomes one huge message.
+    private func sendDockList(_ apps: [DockApp]) {
+        let (list, later) = DockMode.splitIcons(apps)
+        send(.dockList(apps: list))
+        for batch in DockMode.iconBatches(later) { send(.dockIcons(apps: batch)) }
     }
 
     private func sendDeck() {
@@ -201,6 +229,7 @@ public final class ModeRouter {
         present.setLaser(on: false)
         keys.restoreInputMethod()
         stopMediaUpdates()
+        displays?.sessionEnded()
         dock.resetSession()
         phoneMode = nil
         disconnectTask?.cancel()
@@ -256,7 +285,7 @@ public final class ModeRouter {
             try? await Task.sleep(for: .milliseconds(350))
             guard let self else { return }
             self.dockPushPending = false
-            if self.phoneMode == .dock { self.send(.dockList(apps: self.dock.currentList())) }
+            if self.phoneMode == .dock { self.sendDockList(self.dock.currentList()) }
         }
     }
 

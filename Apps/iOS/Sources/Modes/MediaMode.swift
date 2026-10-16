@@ -8,6 +8,8 @@ struct MediaMode: View {
     @Environment(\.palette) private var palette
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.verticalSizeClass) private var verticalSize
+    @Environment(\.inLayoutPane) private var inPane
+    @Environment(\.modeTopClearance) private var topClearance
     var session = MacSession.shared
     var store = MediaStore.shared
     private var accent: Color { AppMode.media.accent(palette) }
@@ -46,6 +48,55 @@ struct MediaMode: View {
     // MARK: Layout
 
     @ViewBuilder private var content: some View {
+        if inPane {
+            // A layout pane: as much of the player as its height allows, most used first.
+            GeometryReader { geo in
+                let h = geo.size.height
+                if verticalSize == .compact && h >= 300 {
+                    full
+                } else if verticalSize != .compact && h >= 640 {
+                    full
+                } else if geo.size.width >= Self.narrowest {
+                    paneLayout(height: h)
+                        .frame(width: geo.size.width, height: h)
+                } else {
+                    // Narrower than the transport: drawn at its narrowest and scaled to fit.
+                    let k = geo.size.width / Self.narrowest
+                    paneLayout(height: h / k)
+                        .frame(width: Self.narrowest, height: h / k)
+                        .scaleEffect(k, anchor: .topLeading)
+                }
+            }
+        } else {
+            full
+        }
+    }
+
+    /// Below this width the player no longer fits a pane.
+    private static let narrowest: CGFloat = 300
+
+    /// The player in a short pane: small artwork when there is room, the track, its progress,
+    /// the transport, then volume.
+    private func paneLayout(height h: CGFloat) -> some View {
+        VStack(spacing: 0) {
+            Spacer(minLength: topClearance ?? 52)
+            if h >= 470 {
+                artwork
+                    .frame(height: min(180, h * 0.3))
+                    .padding(.bottom, 16)
+            }
+            header
+            if h >= 280 { progress.padding(.top, 10) }
+            transport.padding(.top, 2)
+            if h >= 360 { volumeSlider.padding(.top, 6) }
+            Spacer(minLength: 8)
+        }
+        .padding(.horizontal, 24)
+        .frame(maxWidth: 480)
+        .frame(maxWidth: .infinity)
+    }
+
+    @ViewBuilder private var full: some View {
         if verticalSize == .compact {
             // Sideways: artwork on the left, everything you touch on the right.
             HStack(spacing: 32) {
@@ -63,12 +114,12 @@ struct MediaMode: View {
                 }
                 .frame(maxWidth: 440)
             }
-            .padding(.top, 48)
+            .padding(.top, topClearance ?? 48)
             .padding(.bottom, 16)
             .padding(.horizontal, 28)
         } else {
             VStack(spacing: 0) {
-                Spacer(minLength: 76)
+                Spacer(minLength: topClearance ?? 76)
                 artwork
                     .padding(.horizontal, 30)
                 header
@@ -96,7 +147,7 @@ struct MediaMode: View {
     // MARK: Artwork
 
     private var artwork: some View {
-        TimelineView(.periodic(from: .now, by: 0.5)) { context in
+        RenderTime { context in
             let playing = playback.isPlaying(at: context.date)
             // A square sized by its container; the cover fills it edge to edge.
             Color.clear
@@ -187,7 +238,9 @@ struct MediaMode: View {
 
     @ViewBuilder private var progress: some View {
         if playback.hasTrack, let duration = state.duration, duration > 0 {
-            TimelineView(.periodic(from: .now, by: 0.25)) { context in
+            // Ticks only while the song plays; paused, the bar and clock hold still.
+            let tick = playback.isPlaying(at: Date()) ? PowerMonitor.shared.policy.progressInterval : 3600
+            TimelineView(.periodic(from: .now, by: tick)) { context in
                 ScrubBar(duration: duration, position: playback.position(at: context.date) ?? 0,
                          enabled: state.canSeek ?? false) { store.seek(to: $0) }
             }
@@ -197,7 +250,7 @@ struct MediaMode: View {
     }
 
     private var transport: some View {
-        TimelineView(.periodic(from: .now, by: 0.5)) { context in
+        RenderTime { context in
             let playing = playback.isPlaying(at: context.date)
             HStack(spacing: 0) {
                 transportButton("backward.fill", "Previous track", size: 32) { store.previous() }
@@ -237,7 +290,7 @@ struct MediaMode: View {
 
     /// Shuffle, sound output, repeat. Shuffle and repeat show only when the player reports them.
     private var options: some View {
-        TimelineView(.periodic(from: .now, by: 0.5)) { context in
+        RenderTime { context in
             let now = context.date
             HStack {
                 if let shuffle = playback.shuffle(at: now), playback.hasTrack {
