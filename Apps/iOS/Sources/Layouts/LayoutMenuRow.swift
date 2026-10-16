@@ -57,9 +57,9 @@ struct LayoutMenuRow: View {
             close()
         } label: {
             MenuTile(title: layout.name, selected: current) {
-                // Drawn the way the screen splits now, in the modes' colours.
-                LayoutDiagram(layout: layout, landscape: landscape, showsSymbols: false, vivid: true)
-                    .frame(height: landscape ? 22 : 30)
+                // Its modes' symbols, in their colours, as the panes share the screen.
+                LayoutGlyph(layout: layout)
+                    .frame(width: 46, height: landscape ? 24 : 28)
             }
             .frame(width: width)
         }

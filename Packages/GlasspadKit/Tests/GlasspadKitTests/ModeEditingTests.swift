@@ -196,6 +196,20 @@ import Testing
         #expect(ModeListLayout().replacement(for: "dock", known: known) == "dock")
     }
 
+    @Test func aListSavedSplitShowsActionsWhereItsPartsWere() {
+        var split = ModeListLayout(splitActions: true)
+        split.move("deck", before: "trackpad")
+        let combined = split.actionsCombined
+        #expect(!combined.splitActions)
+        #expect(combined.visible(known: known) == ["actions", "trackpad", "keys", "media", "dock"])
+        #expect(combined.replacement(for: "macros", known: known) == "actions")
+        // Every part hidden: Actions stays hidden too.
+        let none = ModeListLayout(hidden: ["deck", "macros", "clipboard", "present"], splitActions: true).actionsCombined
+        #expect(!none.visible(known: known).contains("actions"))
+        // A list that was never split is left as it is.
+        #expect(ModeListLayout().actionsCombined == ModeListLayout())
+    }
+
     @Test func hidingAndReorderingButTrackpadStays() {
         var l = ModeListLayout(hidden: ModeListLayout.hiddenAtFirst.union(["media", "trackpad"]))
         l.move("actions", before: "keys")

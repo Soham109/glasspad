@@ -269,7 +269,7 @@ struct DeckButtonEditor: View {
                             .overlay { Circle().strokeBorder(palette.lineColor) }
                     }
                     .buttonStyle(.plain)
-                    .accessibilityLabel("Colour \(hex)")
+                    .accessibilityLabel("Color \(hex)")
                     .accessibilityAddTraits(selected ? .isSelected : [])
                 }
             }
@@ -332,13 +332,13 @@ private struct ActionOptions: View {
                 Text("Front Window").tag(DeckCaptureArea.frontWindow)
                 Text("Area You Drag").tag(DeckCaptureArea.selection)
             }
-            Picker("Also Send to iPhone", selection: Binding(get: { shot.sendToPhone }, set: { shot.sendToPhone = $0; action = .screenshot(shot) })) {
-                Text("No").tag(DeckImageDestination?.none)
-                Text("Photos").tag(DeckImageDestination?.some(.photos))
-                Text("Clipboard").tag(DeckImageDestination?.some(.clipboard))
+            Picker("Send to iPhone", selection: Binding(get: { shot.sendToPhone }, set: { shot.sendToPhone = $0; action = .screenshot(shot) })) {
+                Text("Off").tag(DeckImageDestination?.none)
+                Text("Save to Photos").tag(DeckImageDestination?.some(.photos))
+                Text("Copy to Clipboard").tag(DeckImageDestination?.some(.clipboard))
             }
-            Toggle("Copy on the Mac Too", isOn: Binding(get: { shot.copyToMacClipboard ?? false },
-                                                         set: { shot.copyToMacClipboard = $0; action = .screenshot(shot) }))
+            Toggle("Copy to Mac Clipboard", isOn: Binding(get: { shot.copyToMacClipboard ?? false },
+                                                          set: { shot.copyToMacClipboard = $0; action = .screenshot(shot) }))
             Text("Saved where your Mac saves screenshots, right away, without the screenshot toolbar.")
                 .font(.footnote).foregroundStyle(palette.inkSoftColor)
         case .setAudioOutput(let name):

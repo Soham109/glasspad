@@ -7,6 +7,7 @@ struct GlasspadApp: App {
     @Environment(\.scenePhase) private var scenePhase
 
     init() {
+        PhoneSettings.shared.moveHapticSwitches(into: TrackpadTuningStore.shared)
         #if DEBUG
         DebugLaunch.apply()
         #endif

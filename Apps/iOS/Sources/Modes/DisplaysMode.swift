@@ -112,8 +112,8 @@ struct DisplaysMode: View {
     private var subtitle: String {
         let name = session.macName ?? "Your Mac"
         guard session.isConnected, let s = store.state else { return name }
-        let windows = s.windows.count
-        return "\(name) · \(windows == 1 ? "1 window" : "\(windows) windows")"
+        let displays = s.displays.count, windows = s.windows.count
+        return "\(displays == 1 ? "1 Display" : "\(displays) Displays") · \(windows == 1 ? "1 Window" : "\(windows) Windows")"
     }
 
     // MARK: Content

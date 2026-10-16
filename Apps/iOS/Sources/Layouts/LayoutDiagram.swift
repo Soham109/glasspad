@@ -11,9 +11,6 @@ struct LayoutDiagram: View {
     var showsSymbols = true
     /// Pane titles under the symbols, for large drawings.
     var showsTitles = false
-    /// Panes filled with their full mode colour, so a small drawing reads as an icon among
-    /// the mode symbols (the mode menu).
-    var vivid = false
 
     /// The real screen's proportions (iPhone 18 Pro).
     static let aspect: CGFloat = 874.0 / 402.0
@@ -32,9 +29,7 @@ struct LayoutDiagram: View {
                 ForEach(arrangement.panes, id: \.index) { pane in
                     let mode = layout.mode(at: pane.index)
                     PaneTile(mode: mode, size: pane.rect.size, cornerRadius: max(2, corner - inset),
-                             showsSymbol: showsSymbols, showsTitle: showsTitles, vivid: vivid,
-                             // Mono has one colour: the panes after the first are a lighter ink.
-                             vividOpacity: palette.monochrome && pane.index > 0 ? 0.4 : 1)
+                             showsSymbol: showsSymbols, showsTitle: showsTitles)
                         .offset(x: pane.rect.minX + inset, y: pane.rect.minY + inset)
                 }
             }
@@ -54,19 +49,12 @@ struct PaneTile: View {
     var cornerRadius: CGFloat
     var showsSymbol = true
     var showsTitle = false
-    var vivid = false
-    var vividOpacity: Double = 1
 
     var body: some View {
         let accent = mode.accent(palette)
         let side = min(size.width, size.height)
         let shape = RoundedRectangle(cornerRadius: min(cornerRadius, side / 2), style: .continuous)
-        if vivid {
-            shape.fill(accent.opacity(vividOpacity))
-                .frame(width: size.width, height: size.height)
-        } else {
-            tinted(accent: accent, side: side, shape: shape)
-        }
+        tinted(accent: accent, side: side, shape: shape)
     }
 
     private func tinted(accent: Color, side: CGFloat, shape: RoundedRectangle) -> some View {
@@ -91,5 +79,42 @@ struct PaneTile: View {
             }
         }
         .frame(width: size.width, height: size.height)
+    }
+}
+
+/// A layout as an icon, for the mode menu and the list of layouts: its panes as they share a
+/// sideways screen, each tinted in its mode's colour and marked with the mode's symbol. Drawn
+/// sideways whatever way the phone is held, because side by side is the shape that leaves each
+/// symbol big enough to read at 28 points tall; the long-press preview shows both ways up.
+struct LayoutGlyph: View {
+    @Environment(\.palette) private var palette
+    let layout: ScreenLayout
+
+    var body: some View {
+        GeometryReader { geo in
+            let gap: CGFloat = 2
+            // A box wider than tall, so the arrangement is the sideways one.
+            let box = CGSize(width: max(geo.size.width, geo.size.height + 1), height: geo.size.height)
+            let arrangement = layout.arrangement(in: box, gap: gap)
+            ZStack(alignment: .topLeading) {
+                ForEach(arrangement.panes, id: \.index) { pane in
+                    let mode = layout.mode(at: pane.index)
+                    let accent = mode.accent(palette)
+                    let side = min(pane.rect.width, pane.rect.height)
+                    let shape = RoundedRectangle(cornerRadius: min(6, side * 0.3), style: .continuous)
+                    ZStack {
+                        shape.fill(accent.opacity(palette.isDark ? 0.26 : 0.15))
+                        Image(systemName: mode.symbol)
+                            .font(.system(size: min(16, max(8, side * 0.58)), weight: .semibold))
+                            .foregroundStyle(accent)
+                    }
+                    .frame(width: pane.rect.width, height: pane.rect.height)
+                    .offset(x: pane.rect.minX, y: pane.rect.minY)
+                }
+            }
+            .frame(width: box.width, height: box.height, alignment: .topLeading)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(layout.paneSummary)
     }
 }

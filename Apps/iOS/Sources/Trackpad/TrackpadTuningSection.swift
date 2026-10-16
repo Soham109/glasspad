@@ -27,7 +27,7 @@ struct TrackpadTuningSection: View {
                 .frame(height: 150)
                 .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
             Picker("Acceleration", selection: $store.tuning.acceleration) {
-                Text("Mac Curve").tag(PointerAcceleration.mac)
+                Text("Match Mac").tag(PointerAcceleration.mac)
                 Text("Linear").tag(PointerAcceleration.linear)
                 Text("Off").tag(PointerAcceleration.off)
             }

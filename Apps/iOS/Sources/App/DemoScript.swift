@@ -215,7 +215,7 @@ final class FilmDirector {
             b("Screenshot", "camera.viewfinder", .screenshot(DeckScreenshot(area: .fullScreen)), "#0A84FF"),
             b("Lock", "lock.fill", .system(.lockScreen), "#8E8E93"),
             b("Dark Mode", "circle.lefthalf.filled", .system(.toggleDarkMode), "#636366"),
-            b("Sleep Display", "moon.fill", .system(.sleepDisplay), "#5E5CE6"),
+            b("Sleep Display", "display", .system(.sleepDisplay), "#30B0C7"),
             b("Mute", "speaker.slash.fill", .system(.mute), "#FF9F0A"),
             b("Mission Control", "rectangle.3.group", .system(.missionControl), "#30B0C7"),
         ])

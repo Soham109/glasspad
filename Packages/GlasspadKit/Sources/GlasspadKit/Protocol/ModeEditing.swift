@@ -365,6 +365,25 @@ public struct ModeListLayout: Codable, Equatable, Sendable {
         }
     }
 
+    /// This list with Actions as one mode. Splitting it into Deck, Macros, Clipboard and
+    /// Present was a setting once; a list saved split shows Actions where those four were,
+    /// unless every one of them had been hidden.
+    public var actionsCombined: ModeListLayout {
+        guard splitActions else { return self }
+        var l = self
+        l.splitActions = false
+        let parts = Self.actionParts
+        let shownParts = parts.filter { !hidden.contains($0) }
+        if shownParts.isEmpty { l.hidden.insert(Self.actions) } else { l.hidden.remove(Self.actions) }
+        // Actions takes the place of the first of its parts.
+        if let first = order.firstIndex(where: { parts.contains($0) || $0 == Self.actions }) {
+            var o = order.filter { $0 != Self.actions }
+            o.insert(Self.actions, at: min(first, o.count))
+            l.order = o
+        }
+        return l
+    }
+
     /// The mode to open when `name` is not shown (for example Deck after Actions was merged).
     public func replacement(for name: String, known: [String]) -> String {
         let shown = visible(known: known)

@@ -3,8 +3,8 @@ import SwiftUI
 import UIKit
 
 /// Makes or changes a layout. The drawing is the editor: tap a pane to choose what it shows,
-/// drag the line to size it, drag the line off the edge to take a pane away. Upright and
-/// Sideways show how it turns with the phone.
+/// drag the line to size it, tap a pane's remove button (or drag the line off the edge) to take
+/// it away. The drawing is the way the phone is held now; Split is the one setting.
 struct LayoutEditor: View {
     @Environment(\.palette) private var palette
     @Environment(\.dismiss) private var dismiss
@@ -14,7 +14,6 @@ struct LayoutEditor: View {
     let isNew: Bool
 
     @State private var layout: ScreenLayout
-    @State private var previewLandscape: Bool
     @State private var confirmDelete = false
     @FocusState private var naming: Bool
 
@@ -25,7 +24,6 @@ struct LayoutEditor: View {
         if l.split <= 0 || l.split >= 1 { l.split = 0.5 }
         if l.innerSplit <= 0 || l.innerSplit >= 1 { l.innerSplit = 0.5 }
         _layout = State(initialValue: l)
-        _previewLandscape = State(initialValue: OrientationLock.current.isLandscape)
     }
 
     var body: some View {
@@ -72,10 +70,7 @@ struct LayoutEditor: View {
             }
         }
         .presentationDragIndicator(.visible)
-        .onAppear {
-            dismissKeyboard()
-            previewLandscape = verticalSize == .compact
-        }
+        .onAppear(perform: dismissKeyboard)
         .interactiveDismissDisabled(naming)
     }
 
@@ -97,16 +92,11 @@ struct LayoutEditor: View {
 
     private func canvasBlock(height: CGFloat) -> some View {
         VStack(spacing: 14) {
-            Picker("Preview", selection: $previewLandscape.animation(.spring(response: 0.4, dampingFraction: 0.85))) {
-                Label("Upright", systemImage: "iphone").tag(false)
-                Label("Sideways", systemImage: "iphone.landscape").tag(true)
-            }
-            .pickerStyle(.segmented)
-            .frame(maxWidth: 280)
-            EditorCanvas(layout: $layout, landscape: previewLandscape)
+            // Drawn the way the phone is held now; turn the phone to see the other way.
+            EditorCanvas(layout: $layout, landscape: verticalSize == .compact)
                 .frame(height: max(160, height))
                 .frame(maxWidth: .infinity)
-            Text("Tap a pane to change it. Drag the line to resize, double tap it to even out, or drag it off the edge to remove a pane.")
+            Text("Tap a pane to change it. Drag the line to resize, or double tap it to even out. To remove a pane, tap its minus button or drag the line off the edge.")
                 .font(.footnote)
                 .foregroundStyle(palette.inkSoftColor)
                 .multilineTextAlignment(.center)
@@ -140,7 +130,7 @@ struct LayoutEditor: View {
                         Haptics.shared.tap()
                         withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) { rotatePanes() }
                     } label: {
-                        actionLabel("Swap", symbol: "arrow.triangle.swap")
+                        actionLabel("Swap Panes", symbol: "arrow.triangle.swap")
                     }
                     .buttonStyle(TileStyle())
                     .accessibilityHint(layout.panes.count == 2 ? "Swaps the two panes" : "Moves each mode to the next pane")
@@ -301,6 +291,14 @@ private struct EditorCanvas: View {
         .menuOrder(.fixed)
         .accessibilityLabel("Pane \(index + 1), \(current.title)")
         .accessibilityHint("Choose what this pane shows")
+        .overlay(alignment: .topLeading) {
+            // The same minus as on tiles being edited, so removing a pane needs no hidden gesture.
+            if layout.panes.count > 1 {
+                RemoveBadge(label: "Remove \(current.title) pane") { layout.removePane(at: index) }
+                    .padding(12)
+                    .opacity(folding ? 0 : 1)
+            }
+        }
     }
 
     private func line(_ divider: ScreenLayout.DividerFrame, scale k: Double) -> some View {

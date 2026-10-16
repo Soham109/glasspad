@@ -78,7 +78,7 @@ struct SettingsView: View {
                 FingerDotSettings()
             } label: {
                 LabeledContent {
-                    Text(settings.showDots ? settings.dotStyle.title : "Off")
+                    Text(settings.showDots ? settings.dotSizeChoice.title : "Off")
                 } label: {
                     Label("Finger Dots", systemImage: "circle.dotted.circle")
                 }
@@ -241,7 +241,7 @@ struct SettingsView: View {
     }
 }
 
-/// Rare options, kept off the main page: handedness, where the pill sits, which mode opens,
+/// Rare options, kept off the main page: handedness, where the mode button sits, which mode opens,
 /// the screen staying on, this iPhone's name, and putting the look back.
 struct AdvancedSettings: View {
     @Environment(\.palette) private var palette
@@ -258,16 +258,16 @@ struct AdvancedSettings: View {
                 Picker(selection: $settings.pillPosition) {
                     ForEach(PillPosition.allCases) { Text($0.title).tag($0) }
                 } label: {
-                    Label("Mode Pill", systemImage: "capsule")
+                    Label("Mode Button", systemImage: "capsule")
                 }
                 Picker(selection: $settings.launchMode) {
                     Text("Last Used").tag(AppMode?.none)
                     ForEach(AppMode.visible) { Text($0.title).tag(AppMode?.some($0)) }
                 } label: {
-                    Label("Open In", systemImage: "arrow.forward.square")
+                    Label("Start In", systemImage: "arrow.forward.square")
                 }
             } footer: {
-                Text("Left-Handed moves the big buttons in Keyboard and Present to the left.")
+                Text("Start In is the mode Glasspad shows when you open it. Left-Handed moves the big buttons in Keyboard and Present to the left.")
             }
             .listRowBackground(palette.raisedColor)
 

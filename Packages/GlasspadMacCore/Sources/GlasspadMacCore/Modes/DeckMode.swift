@@ -65,9 +65,9 @@ public struct DeckConfig: Codable, Equatable, Sendable {
             b("Area Shot", "rectangle.dashed", .screenshot(DeckScreenshot(area: .selection)), "#0A84FF"),
             b("Record", "record.circle", .screenRecording, "#FF453A"),
             b("Lock", "lock.fill", .system(.lockScreen), "#8E8E93"),
-            b("Sleep Display", "moon.fill", .system(.sleepDisplay), "#5E5CE6"),
+            b("Sleep Display", "display", .system(.sleepDisplay), "#30B0C7"),
             b("Dark Mode", "circle.lefthalf.filled", .system(.toggleDarkMode), "#636366"),
-            b("Do Not Disturb", "moon.circle.fill", .system(.doNotDisturb), "#5E5CE6"),
+            b("Do Not Disturb", "moon.fill", .system(.doNotDisturb), "#5E5CE6"),
             b("Volume Down", "speaker.minus.fill", .system(.volumeDown), "#FF9F0A"),
             b("Volume Up", "speaker.plus.fill", .system(.volumeUp), "#FF9F0A"),
             b("Mute", "speaker.slash.fill", .system(.mute), "#FF9F0A"),
@@ -138,7 +138,7 @@ public struct DeckConfig: Codable, Equatable, Sendable {
         DeckButton(title: "Dark Mode", symbol: "circle.lefthalf.filled", action: .system(.toggleDarkMode), color: "#636366"),
         DeckButton(title: "Safari", symbol: "safari", action: .openApp(bundleID: "com.apple.Safari"), color: "#0A84FF"),
         DeckButton(title: "Downloads", symbol: "arrow.down.circle.fill", action: .openFile(path: "~/Downloads"), color: "#34C759"),
-        DeckButton(title: "Sleep Display", symbol: "moon.fill", action: .system(.sleepDisplay), color: "#5E5CE6"),
+        DeckButton(title: "Sleep Display", symbol: "display", action: .system(.sleepDisplay), color: "#30B0C7"),
     ]
 
     public static func defaultURL() -> URL {
@@ -453,7 +453,7 @@ public final class DeckMode {
         let r = await env.run(executable: "/usr/sbin/screencapture", arguments: args,
                               timeout: shot.area == .selection ? 120 : 20)
         guard env.fileExists(file) else {
-            if shot.area == .selection, r.ok { return .fail("Screenshot cancelled") }
+            if shot.area == .selection, r.ok { return .fail("Screenshot canceled") }
             return .fail(Self.screenRecordingHint)
         }
         if shot.copyToMacClipboard == true { _ = env.copyImageToClipboard(file) }

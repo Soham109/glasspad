@@ -12,12 +12,24 @@ enum DotStyle: String, CaseIterable, Identifiable, Sendable {
     case ring
 
     var id: String { rawValue }
+}
+
+/// How big the dot under each finger is: three sizes, as points across.
+enum DotSize: Double, CaseIterable, Identifiable, Sendable {
+    case small = 34, medium = 44, large = 56
+
+    var id: Double { rawValue }
     var title: String {
         switch self {
-        case .soft: "Soft"
-        case .solid: "Solid"
-        case .ring: "Ring"
+        case .small: "Small"
+        case .medium: "Medium"
+        case .large: "Large"
         }
+    }
+
+    /// The size closest to a stored diameter (older builds saved any value from a slider).
+    init(points: Double) {
+        self = Self.allCases.min { abs($0.rawValue - points) < abs($1.rawValue - points) } ?? .medium
     }
 }
 
@@ -86,16 +98,17 @@ final class PhoneSettings {
     /// Choices for how long the trackpad waits before dimming. 0 means never.
     static let dimDelayChoices: [TimeInterval] = [30, 60, 120, 300, 0]
     static let dotSizeRange: ClosedRange<Double> = 28...72
-    static let dotOpacityRange: ClosedRange<Double> = 0.4...2.5
 
     // Look
     var theme: ThemeChoice { didSet { defaults.set(theme.rawValue, forKey: Key.theme) } }
     var showDots: Bool { didSet { defaults.set(showDots, forKey: Key.showDots) } }
-    var dotStyle: DotStyle { didSet { defaults.set(dotStyle.rawValue, forKey: Key.dotStyle) } }
+    var dotSizeChoice: DotSize { didSet { defaults.set(dotSizeChoice.rawValue, forKey: Key.dotSize) } }
     /// Points across.
-    var dotSize: Double { didSet { defaults.set(dotSize, forKey: Key.dotSize) } }
-    /// Multiplies the theme's dot opacity (1 = as designed).
-    var dotOpacity: Double { didSet { defaults.set(dotOpacity, forKey: Key.dotOpacity) } }
+    var dotSize: Double { dotSizeChoice.rawValue }
+    /// The dot's look and opacity are the theme's own. Settings for them existed once; any
+    /// value they saved is ignored.
+    let dotStyle: DotStyle = .soft
+    let dotOpacity: Double = 1
     var pillPosition: PillPosition { didSet { defaults.set(pillPosition.rawValue, forKey: Key.pillPosition) } }
     var leftHanded: Bool { didSet { defaults.set(leftHanded, forKey: Key.leftHanded) } }
 
@@ -170,7 +183,7 @@ final class PhoneSettings {
         static let theme = "theme", hapticStrength = "hapticStrength", showDots = "showDots"
         static let leftHanded = "leftHanded", dimDelay = "dimDelay", hasOnboarded = "hasOnboarded"
         static let phoneName = "phoneName", lastMode = "lastMode", orientation = "orientation"
-        static let dotStyle = "dotStyle", dotSize = "dotSize", dotOpacity = "dotOpacity"
+        static let dotSize = "dotSize"
         static let pillPosition = "pillPosition", hapticsOff = "hapticsOff", keepScreenAwake = "keepScreenAwake"
         static let launchMode = "launchMode", dockDensity = "dockDensity"
         static let dockShowsNames = "dockShowsNames", dockShowsRecent = "dockShowsRecent"
@@ -191,9 +204,7 @@ final class PhoneSettings {
         theme = ThemeChoice(rawValue: defaults.string(forKey: Key.theme) ?? "") ?? .paper
         hapticStrength = double(Key.hapticStrength, 0.7, 0...1)
         showDots = bool(Key.showDots, true)
-        dotStyle = DotStyle(rawValue: defaults.string(forKey: Key.dotStyle) ?? "") ?? .soft
-        dotSize = double(Key.dotSize, 44, Self.dotSizeRange)
-        dotOpacity = double(Key.dotOpacity, 1, Self.dotOpacityRange)
+        dotSizeChoice = DotSize(points: double(Key.dotSize, DotSize.medium.rawValue, Self.dotSizeRange))
         pillPosition = PillPosition(rawValue: defaults.string(forKey: Key.pillPosition) ?? "") ?? .top
         leftHanded = defaults.bool(forKey: Key.leftHanded)
         hapticsOff = Set((defaults.stringArray(forKey: Key.hapticsOff) ?? []).compactMap(HapticChannel.init(rawValue:)))
@@ -215,8 +226,9 @@ final class PhoneSettings {
         frontAppPicks = defaults.data(forKey: Key.frontAppPicks)
             .flatMap { try? JSONDecoder().decode([String: [String]].self, from: $0) } ?? [:]
         pinnedMigratedMacs = Set(defaults.stringArray(forKey: Key.pinnedMigratedMacs) ?? [])
-        modeList = defaults.data(forKey: Key.modeList).flatMap { try? JSONDecoder().decode(ModeListLayout.self, from: $0) }
-            ?? ModeListLayout()
+        // Actions is always one mode now; a list saved split shows Actions in their place.
+        modeList = (defaults.data(forKey: Key.modeList).flatMap { try? JSONDecoder().decode(ModeListLayout.self, from: $0) }
+            ?? ModeListLayout()).actionsCombined
         seenTips = Set(defaults.stringArray(forKey: Key.seenTips) ?? [])
         hasOnboarded = defaults.bool(forKey: Key.hasOnboarded)
         phoneName = defaults.string(forKey: Key.phoneName) ?? "iPhone"
@@ -234,13 +246,27 @@ final class PhoneSettings {
         if on { hapticsOff.remove(channel) } else { hapticsOff.insert(channel) }
     }
 
+    /// Haptics that the trackpad's own strength sliders cover (each slider turns its kind off
+    /// at 0), so Settings has no separate switch for them.
+    static let slidersCoverHaptics: Set<HapticChannel> = [.click, .forceClick]
+
+    /// Clicks and Force Click once had a switch as well as a slider. A switch left off becomes
+    /// its slider at 0, so nothing starts buzzing that was silent.
+    func moveHapticSwitches(into store: TrackpadTuningStore) {
+        let off = hapticsOff.intersection(Self.slidersCoverHaptics)
+        guard !off.isEmpty else { return }
+        var t = store.tuning
+        if off.contains(.click) { t.clickHaptic = 0; t.dragLockHaptic = 0 }
+        if off.contains(.forceClick) { t.forceClickHaptic = 0 }
+        store.tuning = t
+        hapticsOff.subtract(off)
+    }
+
     /// Puts every look and feel setting back to how Glasspad ships.
     func resetLookAndFeel() {
         theme = .paper
         showDots = true
-        dotStyle = .soft
-        dotSize = 44
-        dotOpacity = 1
+        dotSizeChoice = .medium
         pillPosition = .top
         hapticStrength = 0.7
         hapticsOff = []

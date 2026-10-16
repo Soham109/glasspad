@@ -23,7 +23,7 @@ export function initDisplays() {
         <div class="dd small"><div class="ds">${thumb("notes", "Notes", "t3")}</div><small>MacBook Pro</small></div>
       </div>
       <div class="dpanel"><div class="af"><span class="af-i">${appIcon("xcode")}</span><div><b>Xcode</b><span>On Studio Display</span></div></div>
-        <div class="ag">${tl("Left Half", "rectangle.lefthalf.filled", "#0A84FF")}${tl("Right Half", "rectangle.righthalf.filled", "#0A84FF")}${tl("Fill Screen", "macwindow", "#0A84FF")}${tl("Next Display", "rectangle.on.rectangle", "#0A84FF")}</div>
+        <div class="ag">${tl("Left Half", "rectangle.lefthalf.filled", "#0A84FF")}${tl("Right Half", "rectangle.righthalf.filled", "#0A84FF")}${tl("Fill", "macwindow", "#0A84FF")}${tl("Next Display", "rectangle.on.rectangle", "#0A84FF")}</div>
         <div class="bri">${glyph("sun.max.fill")}<div class="bri-bar"><i style="width:82%"></i><b style="left:82%"></b></div></div></div>
     </div>`)}<div class="sp-stand"><i></i></div></div>
   </div>`;

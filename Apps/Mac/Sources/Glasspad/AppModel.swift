@@ -58,7 +58,8 @@ final class AppModel: ObservableObject {
         var openAutomationSettings: @MainActor () -> Void = {}
         var recheckPermissions: @MainActor () -> Void = {}
         var setDockHidden: @MainActor (Bool) -> Void = { _ in }
-        var setHideDockWhileConnected: @MainActor (Bool) -> Void = { _ in }
+        /// Never, While Connected or Always, as one change.
+        var setDockHiding: @MainActor (MacDockHiding) -> Void = { _ in }
         var setLaunchAtLogin: @MainActor (Bool) -> Void = { _ in }
         var setPaused: @MainActor (Bool) -> Void = { _ in }
         var setAllowShellButtons: @MainActor (Bool) -> Void = { _ in }
@@ -161,7 +162,7 @@ extension AppModel {
         }
         a.recheckPermissions = { controller.refreshAccessibility() }
         a.setDockHidden = { hider.setManual($0) }
-        a.setHideDockWhileConnected = { hider.setHideWhileConnected($0) }
+        a.setDockHiding = { hider.set($0.state) }
         a.setLaunchAtLogin = { on in
             login.set(on)
             ref.model?.launchAtLogin = login.isEnabled

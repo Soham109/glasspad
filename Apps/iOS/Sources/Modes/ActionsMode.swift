@@ -36,6 +36,8 @@ struct ActionsMode: View {
     /// is saved once, when the tile is dropped, not on every step.
     @State private var dragging: String?
     @State private var draft: TileDraft?
+    /// The one first-run tip showing on this visit, if any. Each tip shows once, never two at a time.
+    @State private var tip: String?
 
     // MARK: Data
 
@@ -142,6 +144,7 @@ struct ActionsMode: View {
             if session.deckCatalog == nil { session.send(.deckCatalogRequest) }
             askMissingIcons()
             saveMigrationIfNeeded()
+            chooseTip()
             #if DEBUG
             if DebugLaunch.demoEditing { editing = true }
             if DebugLaunch.demoActionsPage == "library" { showLibrary = true }
@@ -279,13 +282,15 @@ struct ActionsMode: View {
                 headerButton
             }
             .animation(.snappy, value: frontID)
-            Tip(id: "actions.front", text: "The best buttons for the app in front on your Mac. They change when you switch apps.")
-                .padding(.top, 10)
+            if tip == Self.frontTipID {
+                Tip(text: "Buttons for the app in front. They change when you switch apps.") { tip = nil }
+                    .padding(.top, 10)
+            }
             let items = frontItems
             if items.isEmpty {
                 frontEmpty.padding(.top, 14)
             } else {
-                TileGrid(preferred: TileGrid.preferred(scale: settings.deckTileScale)) {
+                TileGrid(preferred: TileGrid.preferred(scale: settings.deckTileScale), balanced: false) {
                     ForEach(items) { item in
                         frontTile(item).tileSpan(.regular)
                     }
@@ -359,7 +364,7 @@ struct ActionsMode: View {
             deckTile(button, page: linkedPageIndex ?? 0, section: .front)
         case .macro(let macro):
             reorderable(ActionTile(title: macro.name, face: TileFace(symbol: macro.symbol, tint: macro.tint),
-                                   showsTitle: settings.deckShowsTitles, badge: "wand.and.stars",
+                                   showsTitle: settings.deckShowsTitles,
                                    pending: session.macroPendingID == macro.id,
                                    progress: session.macroRunning?.macroID == macro.id ? session.macroRunning?.fraction : nil,
                                    editing: editing) {
@@ -442,12 +447,14 @@ struct ActionsMode: View {
             }
             .frame(minHeight: 36)
             if folderPath.isEmpty {
-                Tip(id: "actions.pinned", text: "Your favourites. Tap + to add anything; touch and hold one to change it.")
-                    .padding(.top, 8)
+                if tip == Self.pinnedTipID {
+                    Tip(text: "Your favorites. Tap + to add more. Touch and hold one to change it.") { tip = nil }
+                        .padding(.top, 8)
+                }
                 if showsTidy { tidyCard.padding(.top, 10) }
             }
             let buttons = pinnedButtons
-            TileGrid(preferred: TileGrid.preferred(scale: settings.deckTileScale)) {
+            TileGrid(preferred: TileGrid.preferred(scale: settings.deckTileScale), balanced: false) {
                 ForEach(buttons) { button in
                     deckTile(button, page: pinnedIndex ?? 0, section: .pinned)
                         .tileSpan(button.size)
@@ -472,6 +479,21 @@ struct ActionsMode: View {
                 .padding(.top, 8)
             }
         }
+    }
+
+    // MARK: Tips
+
+    private static let frontTipID = "actions.front"
+    private static let pinnedTipID = "actions.pinned"
+
+    /// Picks the first tip not seen yet and marks it seen, so it shows on this visit only. The
+    /// Pinned tip waits while the tidy-up card is asking something.
+    private func chooseTip() {
+        guard tip == nil else { return }
+        let next = [Self.frontTipID, Self.pinnedTipID].first { !settings.seenTips.contains($0) }
+        guard let next, !(next == Self.pinnedTipID && showsTidy) else { return }
+        tip = next
+        settings.seenTips.insert(next)
     }
 
     // MARK: Tidy up
@@ -820,7 +842,7 @@ private struct EndDragDelegate: DropDelegate {
 }
 
 /// The Home Screen style remove button on a tile in edit mode.
-private struct RemoveBadge: View {
+struct RemoveBadge: View {
     let label: String
     let action: () -> Void
 
@@ -843,37 +865,34 @@ private struct RemoveBadge: View {
     }
 }
 
-/// A one-line first-run explanation with a close button. Gone for good once closed.
+/// A one-line first-run explanation with a close button.
 private struct Tip: View {
     @Environment(\.palette) private var palette
-    var settings = PhoneSettings.shared
-    let id: String
     let text: String
+    let close: () -> Void
 
     var body: some View {
-        if !settings.seenTips.contains(id) {
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text(text)
-                    .font(.footnote)
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Text(text)
+                .font(.footnote)
+                .foregroundStyle(palette.inkSoftColor)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 4)
+            Button {
+                withAnimation(.snappy) { close() }
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.caption.weight(.semibold))
                     .foregroundStyle(palette.inkSoftColor)
-                    .fixedSize(horizontal: false, vertical: true)
-                Spacer(minLength: 4)
-                Button {
-                    withAnimation(.snappy) { _ = settings.seenTips.insert(id) }
-                } label: {
-                    Image(systemName: "xmark")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(palette.inkSoftColor)
-                        .frame(width: 44, height: 44)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                // A full-size target without pushing the text away.
-                .padding(-8)
-                .accessibilityLabel("Dismiss tip")
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
             }
-            .transition(.opacity)
+            .buttonStyle(.plain)
+            // A full-size target without pushing the text away.
+            .padding(-8)
+            .accessibilityLabel("Dismiss tip")
         }
+        .transition(.opacity)
     }
 }
 

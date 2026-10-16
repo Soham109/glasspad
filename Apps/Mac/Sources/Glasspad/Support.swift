@@ -342,3 +342,34 @@ struct PopoverRowButtonStyle: ButtonStyle {
         }
     }
 }
+
+/// "Press ⌃⌥⌘. …" with the stop-recording shortcut drawn as key caps, so its period reads as
+/// a key and not as the end of a sentence.
+struct StopShortcutHint: View {
+    /// Text after the keys, such as "or click Stop".
+    let after: String
+    var font: Font = .caption
+
+    static let keys = ["⌃", "⌥", "⌘", "."]
+
+    var body: some View {
+        HStack(spacing: 4) {
+            Text("Press")
+            HStack(spacing: 2) {
+                ForEach(Self.keys, id: \.self) { key in
+                    Text(key)
+                        .fontWeight(.medium)
+                        .frame(minWidth: 11)
+                        .padding(.horizontal, 3)
+                        .background(RoundedRectangle(cornerRadius: 4, style: .continuous).fill(.quaternary))
+                }
+            }
+            Text(after)
+        }
+        .font(font)
+        .foregroundStyle(.secondary)
+        .fixedSize()
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Press Control Option Command Period \(after)")
+    }
+}

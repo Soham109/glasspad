@@ -196,9 +196,9 @@ public enum MacControlName {
         "playPause": "Play or Pause", "nextTrack": "Next Track", "previousTrack": "Previous Track",
         "showDesktop": "Show Desktop", "missionControl": "Mission Control", "appExpose": "App Windows",
         "launchpad": "Apps", "emptyTrash": "Empty Trash", "ejectAll": "Eject All", "doNotDisturb": "Do Not Disturb",
-        "nightShift": "Night Shift", "keepAwake": "Keep Awake", "notificationCenter": "Notifications",
+        "nightShift": "Night Shift", "keepAwake": "Keep Awake", "notificationCenter": "Notification Center",
         "windowLeft": "Left Half", "windowRight": "Right Half", "windowTop": "Top Half", "windowBottom": "Bottom Half",
-        "windowFill": "Fill Screen", "windowCenter": "Center Window", "windowSplit": "Split Screen",
+        "windowFill": "Fill", "windowCenter": "Center", "windowSplit": "Split Screen",
         "windowNextDisplay": "Next Display",
     ]
 

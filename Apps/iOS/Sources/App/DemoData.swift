@@ -54,7 +54,7 @@ struct DemoData {
             b("Windows", "folder.fill", .folder, "#8E8E93").with(children: [
                 b("Left Half", "rectangle.lefthalf.filled", .system(.windowLeft), "#0A84FF"),
                 b("Right Half", "rectangle.righthalf.filled", .system(.windowRight), "#0A84FF"),
-                b("Fill Screen", "rectangle.inset.filled", .system(.windowFill), "#0A84FF"),
+                b("Fill", "rectangle.inset.filled", .system(.windowFill), "#0A84FF"),
                 b("Split Screen", "rectangle.split.2x1.fill", .system(.windowSplit), "#0A84FF"),
                 b("Next Display", "display.2", .system(.windowNextDisplay), "#0A84FF"),
             ]),

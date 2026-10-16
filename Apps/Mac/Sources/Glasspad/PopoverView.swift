@@ -152,8 +152,75 @@ private struct PermissionChecklist: View {
                 .foregroundStyle(.secondary)
                 .accessibilityAddTraits(.isHeader)
             ForEach(model.missingPermissions) { item in
-                PermissionRow(kind: item == .accessibility ? .accessibility : .media)
+                PopoverPermissionRow(kind: item == .accessibility ? .accessibility : .media)
             }
+        }
+    }
+}
+
+/// One permission, compact enough for the popover's width whatever its state: the name and
+/// badge on one line, the detail wrapping under it, and the button under that, so a long
+/// button title never pushes the popover wider than it is.
+private struct PopoverPermissionRow: View {
+    @EnvironmentObject private var model: AppModel
+    let kind: PermissionKind
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 10) {
+            SettingsIcon(symbol: kind == .accessibility ? "hand.raised.fill" : "music.note",
+                         color: kind == .accessibility ? .blue : .pink, size: 20)
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 6) {
+                    Text(kind == .accessibility ? PermissionCopy.accessibilityTitle : PermissionCopy.mediaTitle)
+                        .font(.system(size: 13, weight: .medium))
+                        .lineLimit(1)
+                    RequirementBadge(required: kind == .accessibility)
+                }
+                Text(detail)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                if let note {
+                    Text(note)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                button
+                    .controlSize(.small)
+                    .padding(.top, 4)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .accessibilityElement(children: .contain)
+    }
+
+    private var detail: String {
+        kind == .accessibility
+            ? PermissionCopy.accessibilityDetail
+            : PermissionCopy.mediaDetail(model.automation, denied: model.automationDenied)
+    }
+
+    private var note: String? {
+        guard kind == .media else { return nil }
+        if model.automation == .notDetermined && !model.accessibilityTrusted { return PermissionCopy.askAfterAccessibility }
+        return model.automationHint
+    }
+
+    @ViewBuilder private var button: some View {
+        if kind == .accessibility {
+            Button("Allow…") { model.actions.requestAccessibility() }
+                .accessibilityLabel("Allow Accessibility")
+                .accessibilityHint(PermissionCopy.accessibilityHint)
+        } else if model.automation == .denied {
+            Button("Open Settings…") { model.actions.openAutomationSettings() }
+                .accessibilityLabel("Allow Spotify and Music")
+                .accessibilityHint(PermissionCopy.mediaHint)
+        } else if model.automation == .notDetermined {
+            Button("Ask…") { model.actions.requestAutomation() }
+                // Asked in order: Accessibility first.
+                .disabled(!model.accessibilityTrusted)
+                .accessibilityLabel("Ask for Spotify and Music control")
         }
     }
 }
@@ -284,9 +351,7 @@ private struct RecordingRow: View {
                 VStack(alignment: .leading, spacing: 1) {
                     Text("Recording a Macro")
                         .font(.body.weight(.medium))
-                    Text("Press ⌃⌥⌘. to stop.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    StopShortcutHint(after: "to stop")
                 }
                 Spacer()
                 Button("Stop") { macros.stopRecording(fromMacMenu: true) }

@@ -24,6 +24,9 @@ struct TileGrid: Layout {
     /// How much short rows may grow their tiles. Kept small so neighbouring grids on one
     /// screen look like one size.
     var maxGrowth: Double = 1.15
+    /// Balanced, centred rows (6 tiles as 3 + 3). Off, every row fills the full column count
+    /// from the same left edge, so two grids on one screen line up column for column.
+    var balanced = true
 
     static func preferred(scale: Double) -> CGFloat { 80 * CGFloat(scale) }
 
@@ -37,7 +40,7 @@ struct TileGrid: Layout {
 
     func plan(width: CGFloat, spans: [DeckButtonSize]) -> Plan {
         let w = Double(max(0, width))
-        if spans.allSatisfy({ $0 == .regular }) {
+        if balanced, spans.allSatisfy({ $0 == .regular }) {
             let m = TileGridMetrics.fit(count: spans.count, width: w, preferred: Double(preferred), spacing: Double(spacing),
                                            maxGrowth: maxGrowth)
             let frames = spans.indices.map { i -> CGRect in
@@ -330,7 +333,6 @@ extension DeckButton {
     var badge: String? {
         switch action {
         case .folder: "folder.fill"
-        case .runMacro: "wand.and.stars"
         case .runShortcut: "square.stack.3d.up.fill"
         case .shellScript: "terminal.fill"
         default: nil

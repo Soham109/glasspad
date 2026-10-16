@@ -180,7 +180,7 @@ import Testing
     @Test func cancelledSelectionAndMissingPermissionAreExplained() async throws {
         let (d, env) = try deck([])
         env.captureCreatesFile = false
-        #expect(await outcome(d, .screenshot(DeckScreenshot(area: .selection))).message == "Screenshot cancelled")
+        #expect(await outcome(d, .screenshot(DeckScreenshot(area: .selection))).message == "Screenshot canceled")
         env.runResult = (false, "")
         #expect(await outcome(d, .screenshot(DeckScreenshot(area: .fullScreen))).message?.contains("Screen") == true)
         env.frontWindow = nil

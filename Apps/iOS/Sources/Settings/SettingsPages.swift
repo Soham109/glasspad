@@ -3,7 +3,7 @@ import GlasspadKit
 
 // The pages Settings links to: finger dots, haptic types, modes, and each mode's options.
 
-/// Size, opacity and look of the dot under each finger, with a live preview.
+/// The dot under each finger: on or off, and its size, with a live preview.
 struct FingerDotSettings: View {
     @Environment(\.palette) private var palette
     @Environment(\.colorScheme) private var scheme
@@ -28,50 +28,24 @@ struct FingerDotSettings: View {
                 .frame(height: 150)
                 .listRowInsets(EdgeInsets(top: 8, leading: 8, bottom: 8, trailing: 8))
                 .accessibilityLabel("Preview")
+                .animation(.snappy, value: settings.dotSizeChoice)
                 Toggle("Show Finger Dots", isOn: $settings.showDots)
-            }
-            .listRowBackground(palette.raisedColor)
-            if settings.showDots {
-                Section("Style") {
-                    Picker("Style", selection: $settings.dotStyle) {
-                        ForEach(DotStyle.allCases) { Text($0.title).tag($0) }
+                if settings.showDots {
+                    Picker("Size", selection: $settings.dotSizeChoice) {
+                        ForEach(DotSize.allCases) { Text($0.title).tag($0) }
                     }
                     .pickerStyle(.segmented)
-                    slider("Size", value: $settings.dotSize, range: PhoneSettings.dotSizeRange,
-                           text: "\(Int(settings.dotSize)) pt", low: "circle.fill", high: "circle.fill", lowScale: 0.6)
-                    slider("Opacity", value: $settings.dotOpacity, range: PhoneSettings.dotOpacityRange,
-                           text: settings.dotOpacity.formatted(.percent.precision(.fractionLength(0))),
-                           low: "circle.dotted", high: "circle.fill", lowScale: 1)
-                    Button("Use Defaults") {
-                        settings.dotStyle = .soft
-                        settings.dotSize = 44
-                        settings.dotOpacity = 1
-                    }
                 }
-                .listRowBackground(palette.raisedColor)
+            } footer: {
+                Text("A dot follows each finger on the trackpad, so you can see where you touch.")
             }
+            .listRowBackground(palette.raisedColor)
         }
         .scrollContentBackground(.hidden)
         .background(SurfaceBackground())
         .navigationTitle("Finger Dots")
         .navigationBarTitleDisplayMode(.inline)
-    }
-
-    private func slider(_ title: String, value: Binding<Double>, range: ClosedRange<Double>, text: String,
-                        low: String, high: String, lowScale: CGFloat) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text(title)
-                Spacer()
-                Text(text).monospacedDigit().foregroundStyle(palette.inkSoftColor)
-            }
-            HStack(spacing: 12) {
-                Image(systemName: low).scaleEffect(lowScale).foregroundStyle(palette.inkSoftColor).accessibilityHidden(true)
-                Slider(value: value, in: range).accessibilityLabel(title).accessibilityValue(text)
-                Image(systemName: high).foregroundStyle(palette.inkSoftColor).accessibilityHidden(true)
-            }
-        }
-        .padding(.vertical, 4)
+        .animation(.default, value: settings.showDots)
     }
 }
 
@@ -110,7 +84,8 @@ struct PointerSettings: View {
     }
 }
 
-/// Every haptic in one place: overall strength, the trackpad's own, and which kinds play.
+/// Every haptic in one place: overall strength, the trackpad's own per kind, and switches for
+/// the rest.
 struct HapticsSettings: View {
     @Environment(\.palette) private var palette
     @Bindable var settings = PhoneSettings.shared
@@ -143,7 +118,8 @@ struct HapticsSettings: View {
             .listRowBackground(palette.raisedColor)
             TrackpadTuningSection(part: .haptics)
             Section {
-                ForEach(HapticChannel.allCases) { channel in
+                // Clicks and Force Click are the sliders above: at 0 they are off.
+                ForEach(HapticChannel.allCases.filter { !PhoneSettings.slidersCoverHaptics.contains($0) }) { channel in
                     Toggle(isOn: Binding(get: { !settings.hapticsOff.contains(channel) },
                                          set: { on in
                                              settings.setHaptic(channel, on: on)
@@ -153,7 +129,7 @@ struct HapticsSettings: View {
                     }
                 }
             } header: {
-                Text("Everywhere in Glasspad")
+                Text("Elsewhere in Glasspad")
             }
             .listRowBackground(palette.raisedColor)
         }
@@ -176,20 +152,15 @@ extension HapticChannel {
     }
 }
 
-/// Show, hide and reorder modes; split Actions back into its four tools.
+/// Show, hide and reorder modes.
 struct ModesSettings: View {
     @Environment(\.palette) private var palette
     @Bindable var settings = PhoneSettings.shared
 
     private var listed: [AppMode] {
-        let split = settings.modeList.splitActions
         let names = settings.modeList.order.filter { AppMode(rawValue: $0) != nil }
             + AppMode.allCases.map(\.rawValue).filter { !settings.modeList.order.contains($0) }
-        return names.compactMap(AppMode.init(rawValue:)).filter { mode in
-            if mode == .actions { return !split }
-            if ModeListLayout.actionParts.contains(mode.rawValue) { return split }
-            return true
-        }
+        return names.compactMap(AppMode.init(rawValue:)).filter { !ModeListLayout.actionParts.contains($0.rawValue) }
     }
 
     var body: some View {
@@ -225,19 +196,9 @@ struct ModesSettings: View {
                     settings.modeList.order = names + rest
                 }
             } header: {
-                Text("Shown in the Mode Pill")
+                Text("In the Mode Menu")
             } footer: {
                 Text("Drag to reorder. Trackpad is always there.")
-            }
-            .listRowBackground(palette.raisedColor)
-            Section {
-                Toggle(isOn: $settings.modeList.splitActions) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Separate Deck, Macros, Clipboard and Present")
-                        Text("Shows them as four modes instead of one Actions mode. Nothing is lost either way.")
-                            .font(.footnote).foregroundStyle(palette.inkSoftColor)
-                    }
-                }
             }
             .listRowBackground(palette.raisedColor)
         }
@@ -327,14 +288,15 @@ struct ModeDetailSettings: View {
             .listRowBackground(palette.raisedColor)
         }
         Section {
-            Toggle("Hide Mac Dock", isOn: macDock(\.hidden))
-            Toggle("Hide Mac Dock While Connected", isOn: macDock(\.hideWhileConnected))
+            Picker("Hide Mac Dock", selection: macDockHiding) {
+                ForEach(MacDockHiding.allCases, id: \.self) { Text($0.title).tag($0) }
+            }
         } header: {
             Text("Your Mac's Dock")
         } footer: {
             Text(session.isConnected
-                 ? "Your Dock settings come back as they were when you turn this off, disconnect or quit Glasspad."
-                 : "Connect to your Mac to change these.")
+                 ? MacDockHiding.footer
+                 : "Connect to your Mac to change this.")
         }
         .disabled(!session.isConnected)
         .listRowBackground(palette.raisedColor)
@@ -361,13 +323,11 @@ struct ModeDetailSettings: View {
         .listRowBackground(palette.raisedColor)
     }
 
-    private func macDock(_ key: WritableKeyPath<MacDockState, Bool>) -> Binding<Bool> {
+    private var macDockHiding: Binding<MacDockHiding> {
         Binding {
-            session.macDockState?[keyPath: key] ?? false
-        } set: { on in
-            var s = session.macDockState ?? MacDockState(hidden: false, hideWhileConnected: false)
-            s[keyPath: key] = on
-            session.setMacDock(s)
+            MacDockHiding(session.macDockState)
+        } set: { choice in
+            session.setMacDock(choice.state)
         }
     }
 }

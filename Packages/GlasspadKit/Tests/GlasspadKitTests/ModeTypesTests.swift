@@ -8,6 +8,18 @@ import Testing
         #expect(try ControlMessage.from(jsonData: data) == .mode(m))
     }
 
+    @Test func oneDockChoiceMapsBothSwitches() {
+        #expect(MacDockHiding(nil) == .never)
+        #expect(MacDockHiding(MacDockState(hidden: false, hideWhileConnected: false)) == .never)
+        #expect(MacDockHiding(MacDockState(hidden: false, hideWhileConnected: true)) == .whileConnected)
+        // Both switches on (an older phone could save that) reads as Always, which it was.
+        #expect(MacDockHiding(MacDockState(hidden: true, hideWhileConnected: true)) == .always)
+        for choice in MacDockHiding.allCases {
+            #expect(MacDockHiding(choice.state) == choice)
+        }
+        #expect(MacDockHiding.always.state == MacDockState(hidden: true, hideWhileConnected: false))
+    }
+
     @Test func newDockAndDeckMessagesRoundTrip() throws {
         let id = UUID()
         let png = Data([0x89, 0x50, 0x4E, 0x47, 9])

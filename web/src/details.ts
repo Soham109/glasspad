@@ -36,7 +36,7 @@ const CARDS: Card[] = [
   {
     key: "folders", title: "Folders", text: "Group buttons in a folder, like these for tiling windows.",
     art: () => `<div class="mk-fold"><div class="fv closed">${tlIcon("Windows", `<span class="ficon">${["rectangle.lefthalf.filled", "rectangle.righthalf.filled", "macwindow", "square.split.2x1"].map(g => `<i>${glyph(g)}</i>`).join("")}</span>`)}${tl("Screenshot", "camera.viewfinder", "#0A84FF")}${tl("Lock Screen", "lock.fill", "#8E8E93")}</div>
-      <div class="fv open"><div class="fh">${glyph("chevron.left")}<b>Windows</b></div><div class="mk-row f4">${tl("Left Half", "rectangle.lefthalf.filled", "#0A84FF")}${tl("Right Half", "rectangle.righthalf.filled", "#0A84FF")}${tl("Fill Screen", "macwindow", "#0A84FF")}${tl("Split Screen", "square.split.2x1", "#0A84FF")}</div></div></div>`,
+      <div class="fv open"><div class="fh">${glyph("chevron.left")}<b>Windows</b></div><div class="mk-row f4">${tl("Left Half", "rectangle.lefthalf.filled", "#0A84FF")}${tl("Right Half", "rectangle.righthalf.filled", "#0A84FF")}${tl("Fill", "macwindow", "#0A84FF")}${tl("Split Screen", "square.split.2x1", "#0A84FF")}</div></div></div>`,
     async run(s) {
       await s.wait(700);
       await s.tap(s.q('.closed [data-b="Windows"]'), () => { s.q(".mk-fold").classList.add("in"); settle(Array.from(s.q(".open .mk-row").children), 40); });
@@ -63,7 +63,7 @@ const CARDS: Card[] = [
     art: () => `<div class="mk-lib"><div class="sf">${glyph("magnifyingglass")}<span class="q"></span><i class="caret"></i></div>
       <div class="rows"><div class="r" data-r="Night Shift"><span class="ic" style="--c:#FF9F0A">${glyph("sun.max")}</span>Night Shift<span class="add">${glyph("plus")}</span></div>
       <div class="r" data-r="Notes"><span class="ic" style="--c:#F2C94C">${glyph("doc.plaintext")}</span>Notes<span class="add">${glyph("plus")}</span></div>
-      <div class="r" data-r="Notifications"><span class="ic" style="--c:#FF3B30">${glyph("rectangle.on.rectangle")}</span>Notifications<span class="add">${glyph("plus")}</span></div></div></div>`,
+      <div class="r" data-r="Notification Center"><span class="ic" style="--c:#FF3B30">${glyph("rectangle.on.rectangle")}</span>Notification Center<span class="add">${glyph("plus")}</span></div></div></div>`,
     async run(s) {
       await s.wait(600);
       const q = s.q(".q"), word = "Night";

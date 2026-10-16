@@ -12,7 +12,9 @@ struct MacrosSettings: View {
 
     enum Page: Hashable { case macros, profiles }
 
-    init(page: Page = .macros) {
+    /// Opens on For Each App: what the iPhone shows for the app in front is what people come
+    /// here to change.
+    init(page: Page = .profiles) {
         _page = State(initialValue: page)
     }
 
@@ -32,8 +34,8 @@ private struct MacrosSettingsContent: View {
                 Divider()
             }
             Picker("Show", selection: $page) {
-                Text("All Macros").tag(MacrosSettings.Page.macros)
                 Text("For Each App").tag(MacrosSettings.Page.profiles)
+                Text("All Macros").tag(MacrosSettings.Page.macros)
             }
             .pickerStyle(.segmented)
             .labelsHidden()
@@ -76,7 +78,8 @@ struct RecordingBanner: View {
             VStack(alignment: .leading, spacing: 1) {
                 Text("Recording your keyboard and mouse")
                     .font(.headline)
-                Text("Press ⌃⌥⌘. or click Stop when you are done. Password fields are never recorded.")
+                StopShortcutHint(after: "or click Stop when you are done.", font: .callout)
+                Text("Password fields are never recorded.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
@@ -97,28 +100,32 @@ private struct MacroLibrary: View {
     @ObservedObject var macros: MacroCoordinator
     @State private var selection: UUID?
     @State private var confirmDelete: Macro?
+    /// The macros Glasspad ships fold away under one heading, closed at first.
+    @State private var showsStarters = false
+
+    private var own: [Macro] { macros.macros.filter { $0.origin != .starter } }
+    private var starters: [Macro] { macros.macros.filter { $0.origin == .starter } }
 
     var body: some View {
         HStack(spacing: 0) {
             VStack(spacing: 0) {
                 List(selection: $selection) {
-                    ForEach(macros.macros) { macro in
-                        MacroRow(macro: macro)
-                            .tag(macro.id)
-                            .contextMenu {
-                                Button("Run Now") { Task { await macros.run(macro.id) } }
-                                Divider()
-                                Button("Delete…", role: .destructive) { confirmDelete = macro }
-                            }
+                    Section("My Macros") {
+                        ForEach(own) { macro in row(macro) }
+                        if own.isEmpty {
+                            Text("Record one, or add one with +.")
+                                .font(.callout)
+                                .foregroundStyle(.secondary)
+                                .selectionDisabled()
+                        }
+                    }
+                    if !starters.isEmpty {
+                        Section("Starter Macros", isExpanded: $showsStarters) {
+                            ForEach(starters) { macro in row(macro) }
+                        }
                     }
                 }
                 .listStyle(.sidebar)
-                .overlay {
-                    if macros.macros.isEmpty {
-                        ContentUnavailableView("No Macros", systemImage: "wand.and.stars",
-                                               description: Text("Record one, or add one with +."))
-                    }
-                }
                 Divider()
                 HStack(spacing: 2) {
                     Menu {
@@ -164,19 +171,29 @@ private struct MacroLibrary: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .onChange(of: macros.lastRecordedID) { _, id in if let id { selection = id } }
-        .onAppear { if selection == nil { selection = macros.macros.first?.id } }
+        .onAppear { if selection == nil { selection = own.first?.id } }
         .confirmationDialog("Delete “\(confirmDelete?.name ?? "")”?", isPresented: Binding(
             get: { confirmDelete != nil }, set: { if !$0 { confirmDelete = nil } }
         ), presenting: confirmDelete) { macro in
             Button("Delete", role: .destructive) {
                 do {
                     try macros.delete(macro.id)
-                    if selection == macro.id { selection = macros.macros.first?.id }
+                    if selection == macro.id { selection = own.first?.id }
                 } catch {}
             }
         } message: { _ in
             Text("The macro is removed from every app set. This cannot be undone.")
         }
+    }
+
+    private func row(_ macro: Macro) -> some View {
+        MacroRow(macro: macro)
+            .tag(macro.id)
+            .contextMenu {
+                Button("Run Now") { Task { await macros.run(macro.id) } }
+                Divider()
+                Button("Delete…", role: .destructive) { confirmDelete = macro }
+            }
     }
 
     private func newMacro() {
@@ -202,6 +219,7 @@ private struct MacroRow: View {
             MacroIcon(symbol: macro.symbol, color: macro.color, size: 22)
             VStack(alignment: .leading, spacing: 0) {
                 Text(macro.name)
+                    .foregroundStyle(.primary)
                     .lineLimit(1)
                 Text(macro.steps.count == 1 ? "1 step" : "\(macro.steps.count) steps")
                     .font(.caption)
@@ -574,6 +592,7 @@ private struct ProfileLibrary: View {
                             MacroIcon(symbol: profile.symbol, color: "#8E8E93", size: 22)
                             VStack(alignment: .leading, spacing: 0) {
                                 Text(profile.name)
+                                    .foregroundStyle(.primary)
                                     .lineLimit(1)
                                 Text(summary(profile))
                                     .font(.caption)
