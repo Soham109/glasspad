@@ -14,7 +14,7 @@ struct KeysMode: View {
     @Bindable var settings = PhoneSettings.shared
     var session = MacSession.shared
     var media = MediaStore.shared
-    private let accent = AppMode.keys.accent(.paper)
+    private var accent: Color { AppMode.keys.accent(palette) }
 
     @State private var sticky = StickyModifiers()
     /// The modifiers a held, repeating key started with (repeats keep them).

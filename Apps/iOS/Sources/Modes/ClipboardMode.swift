@@ -9,7 +9,7 @@ struct ClipboardMode: View {
     var session = MacSession.shared
     /// Shown as a page inside Actions (no room needed for the mode pill).
     var embedded = false
-    private let accent = AppMode.clipboard.accent(.paper)
+    private var accent: Color { AppMode.clipboard.accent(palette) }
 
     /// Reading the pasted items (the Mac's answer is `session.clipboardPush`).
     @State private var sending = false

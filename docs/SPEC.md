@@ -520,6 +520,15 @@ As built, UX pass (Oct 2026):
   never trimmed on their own: over 12 tiles, Actions offers Tidy Up once, and edit mode has
   Reset to Defaults (`PinnedDeck.resetPinned`), both behind a confirmation.
 
+- Tile grids (Actions, Pinned, folders, the Library's Pinned preview, Dock) size themselves from
+  the space they get, not the screen (`TileGridMetrics`, `BalancedRows` in GlasspadKit): tiles near
+  the preferred size and never under 44 pt, rows that differ by at most one (7 is 4 + 3, 6 is
+  3 + 3), every row centred. Mac controls in the Library come from `DeckSystemCatalog`, grouped.
+- Website buttons show the site's own logo: the phone reads the page's icon links, then
+  `/apple-touch-icon.png` and `/favicon.ico`, keeps the largest, caches it by host, and falls back
+  to the site's first letter. It asks the site only (no favicon services). A new Website button is
+  named after the site.
+
 ## 9. iPhone app (Apps/iOS)
 
 - SwiftUI app shell; the trackpad surface is a UIKit `UIView` subclass for
@@ -543,6 +552,9 @@ As built, UX pass (Oct 2026):
 - Pairing: camera QR scan (`AVCaptureMetadataOutput`), Keychain storage.
 - Themes: Paper (#F2F1EE background, dots #1A1A1A at 14% opacity) and
   Graphite (#141414, dots white at 18%). Dots 44 pt, soft edge, fade on lift.
+  As built (Oct 2026): also System (Paper or Graphite with the phone), Mono (pure white or black
+  with the phone, no colour anywhere: accents, tiles and icons draw in the ink), Sand (warm light)
+  and Midnight (deep blue dark). Settings shows a live miniature of each.
 
 ## 10. Mac app (Apps/Mac)
 

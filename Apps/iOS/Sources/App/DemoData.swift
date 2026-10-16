@@ -49,6 +49,15 @@ struct DemoData {
         let pinned = DeckPage(id: DeckIDs.mine, title: "Pinned", symbol: "pin", buttons: PinnedDeck.essentials() + [
             b("Safari", "safari", .openApp(bundleID: "com.apple.Safari"), "#0A84FF"),
             b("Word", "doc.fill", .openApp(bundleID: "com.microsoft.Word"), "#0A84FF"),
+            b("GitHub", "globe", .openURL("https://github.com"), "#0A84FF"),
+            b("Wikipedia", "globe", .openURL("https://en.wikipedia.org"), "#0A84FF"),
+            b("Windows", "folder.fill", .folder, "#8E8E93").with(children: [
+                b("Left Half", "rectangle.lefthalf.filled", .system(.windowLeft), "#0A84FF"),
+                b("Right Half", "rectangle.righthalf.filled", .system(.windowRight), "#0A84FF"),
+                b("Fill Screen", "rectangle.inset.filled", .system(.windowFill), "#0A84FF"),
+                b("Split Screen", "rectangle.split.2x1.fill", .system(.windowSplit), "#0A84FF"),
+                b("Next Display", "display.2", .system(.windowNextDisplay), "#0A84FF"),
+            ]),
         ])
         layout = DeckLayout(pages: [pinned, safari])
         func m(_ n: String, _ s: String, _ c: String, _ steps: Int) -> MacroSummary {
@@ -58,6 +67,13 @@ struct DemoData {
                             m("Copy Link", "link", "#30D158", 2), m("Web Inspector", "hammer.fill", "#5E5CE6", 1)]
         macros = safariMacros + [m("Rename Files", "pencil", "#0A84FF", 9), m("Daily Standup", "person.3.fill", "#12A594", 6)]
         profile = ActiveProfileInfo(profileID: UUID(), name: "Safari", symbol: "safari", bundleID: "com.apple.Safari", macros: safariMacros)
+    }
+}
+private extension DeckButton {
+    func with(children: [DeckButton]) -> DeckButton {
+        var b = self
+        b.children = children
+        return b
     }
 }
 #endif

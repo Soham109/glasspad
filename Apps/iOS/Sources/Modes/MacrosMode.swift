@@ -6,7 +6,7 @@ import GlasspadKit
 struct MacrosMode: View {
     @Environment(\.palette) private var palette
     var session = MacSession.shared
-    private let accent = AppMode.macros.accent(.paper)
+    private var accent: Color { AppMode.macros.accent(palette) }
 
     @State private var showAll = false
 
@@ -85,7 +85,7 @@ struct MacroStatusBar: View {
     @Environment(\.palette) private var palette
     var session = MacSession.shared
     var showsRecord = true
-    private let accent = AppMode.macros.accent(.paper)
+    private var accent: Color { AppMode.macros.accent(palette) }
 
     var body: some View { bottomBar }
 

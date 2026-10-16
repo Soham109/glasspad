@@ -44,7 +44,9 @@ enum AppMode: String, CaseIterable, Identifiable, Sendable {
     /// One accent per mode. Trackpad stays neutral so the surface is just paper. The others
     /// are Apple's system colours, which already carry a light and a dark value each.
     func accent(_ palette: Palette) -> Color {
-        switch self {
+        // Mono has no colours at all: every accent is the ink.
+        if palette.monochrome { return palette.inkColor }
+        return switch self {
         case .trackpad: palette.inkColor
         case .dock: Color(uiColor: .systemBlue)
         case .actions, .deck: Color(uiColor: .systemOrange)

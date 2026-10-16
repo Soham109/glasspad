@@ -87,15 +87,15 @@ struct SettingsView: View {
 
     private var look: some View {
         Section("Look") {
-            HStack(spacing: 12) {
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 3), spacing: 14) {
                 ForEach(ThemeChoice.allCases) { choice in
                     ThemeSwatch(choice: choice, selected: settings.theme == choice) {
                         Haptics.shared.tap()
-                        settings.theme = choice
+                        withAnimation(.easeInOut(duration: 0.25)) { settings.theme = choice }
                     }
                 }
             }
-            .padding(.vertical, 6)
+            .padding(.vertical, 8)
             NavigationLink {
                 FingerDotSettings()
             } label: {
@@ -369,6 +369,8 @@ struct SettingsView: View {
     }
 }
 
+/// A live miniature of a theme: its surface, two tiles and a line of text, drawn in the
+/// theme's own colours. Themes that follow the iPhone show their light and dark halves.
 private struct ThemeSwatch: View {
     @Environment(\.palette) private var palette
     let choice: ThemeChoice
@@ -378,33 +380,66 @@ private struct ThemeSwatch: View {
     var body: some View {
         Button(action: action) {
             VStack(spacing: 8) {
-                ZStack {
-                    switch choice {
-                    case .paper: swatch(.paper)
-                    case .graphite: swatch(.graphite)
-                    case .system:
-                        HStack(spacing: 0) { swatch(.paper, corners: false); swatch(.graphite, corners: false) }
-                            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                Group {
+                    if choice.interfaceStyle == .unspecified {
+                        HStack(spacing: 0) {
+                            ThemeMiniature(palette: choice.preview(dark: false))
+                            ThemeMiniature(palette: choice.preview(dark: true))
+                        }
+                    } else {
+                        ThemeMiniature(palette: choice.preview(dark: choice.interfaceStyle == .dark))
                     }
                 }
-                .frame(height: 64)
+                .frame(height: 74)
+                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
                 .overlay {
                     RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .strokeBorder(selected ? palette.inkColor : palette.lineColor, lineWidth: selected ? 2 : 1)
+                        .strokeBorder(palette.lineColor, lineWidth: 1)
+                }
+                .padding(3)
+                .overlay {
+                    RoundedRectangle(cornerRadius: 17, style: .continuous)
+                        .strokeBorder(selected ? palette.inkColor : .clear, lineWidth: 2)
                 }
                 Text(choice.title)
                     .font(.caption.weight(selected ? .semibold : .regular))
                     .foregroundStyle(selected ? palette.inkColor : palette.inkSoftColor)
             }
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .accessibilityLabel("\(choice.title) theme")
         .accessibilityAddTraits(selected ? .isSelected : [])
     }
+}
 
-    private func swatch(_ p: Palette, corners: Bool = true) -> some View {
-        RoundedRectangle(cornerRadius: corners ? 14 : 0, style: .continuous)
-            .fill(Color(uiColor: p.background))
-            .overlay { SoftDot(color: p.dot.withAlphaComponent(p.isDark ? 0.4 : 0.3), size: 22) }
+/// The theme drawn small: two tiles (one tinted, as colour shows in that theme) and two
+/// lines of text on the surface.
+private struct ThemeMiniature: View {
+    let palette: Palette
+
+    var body: some View {
+        ZStack {
+            Color(uiColor: palette.background)
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 5) {
+                    tile(palette.tint(Color(uiColor: .systemOrange)), "bolt.fill")
+                    tile(palette.tint(Color(uiColor: .systemBlue)), "safari.fill")
+                }
+                Capsule().fill(Color(uiColor: palette.ink)).frame(width: 30, height: 4)
+                Capsule().fill(Color(uiColor: palette.inkSoft)).frame(width: 20, height: 3)
+            }
+        }
+        .environment(\.colorScheme, palette.colorScheme)
+        .accessibilityHidden(true)
+    }
+
+    private func tile(_ tint: Color, _ symbol: String) -> some View {
+        RoundedRectangle(cornerRadius: 6, style: .continuous)
+            .fill(Color(uiColor: palette.raised))
+            .overlay(RoundedRectangle(cornerRadius: 6, style: .continuous).strokeBorder(Color(uiColor: palette.line)))
+            .overlay(Image(systemName: symbol).font(.system(size: 10, weight: .semibold)).foregroundStyle(tint))
+            .frame(width: 22, height: 22)
     }
 }
 

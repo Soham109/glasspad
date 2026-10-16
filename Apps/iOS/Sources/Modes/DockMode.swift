@@ -1,3 +1,4 @@
+import ImageIO
 import Photos
 import SwiftUI
 import UniformTypeIdentifiers
@@ -12,7 +13,7 @@ struct DockMode: View {
     @Environment(\.verticalSizeClass) private var verticalSize
     @Bindable var settings = PhoneSettings.shared
     var session = MacSession.shared
-    private let accent = AppMode.dock.accent(.paper)
+    private var accent: Color { AppMode.dock.accent(palette) }
 
     @State private var editing = false
     @State private var dragging: String?
@@ -140,9 +141,8 @@ struct DockMode: View {
     // MARK: Grid
 
     private func grid(_ apps: [DockApp], metrics: DockGridMetrics, reorderable: Bool) -> some View {
-        let columns = Array(repeating: GridItem(.fixed(metrics.cellWidth), spacing: metrics.spacing, alignment: .top),
-                            count: metrics.columns)
-        return LazyVGrid(columns: columns, spacing: settings.dockShowsNames ? 18 : 14) {
+        BalancedRowsLayout(columns: metrics.columns, cellWidth: metrics.cellWidth, spacing: metrics.spacing,
+                           rowSpacing: settings.dockShowsNames ? 18 : 14) {
             ForEach(apps, id: \.bundleID) { app in
                 tile(app, metrics: metrics, reorderable: reorderable, shown: apps.map(\.bundleID))
             }
@@ -276,6 +276,49 @@ struct DockMode: View {
     private func hide(_ app: DockApp) {
         Haptics.shared.tap()
         settings.dockArrangement.hide(app.bundleID)
+    }
+}
+
+/// Cells of one width in balanced, centred rows (`BalancedRows`): 17 apps across 5 are
+/// 5 + 4 + 4 + 4, never a last row of two. Each row is as tall as its tallest cell.
+struct BalancedRowsLayout: Layout {
+    let columns: Int
+    let cellWidth: CGFloat
+    let spacing: CGFloat
+    let rowSpacing: CGFloat
+
+    private func rows(_ subviews: Subviews) -> [Range<Int>] {
+        var start = 0
+        return BalancedRows.counts(items: subviews.count, maxPerRow: columns).map { n in
+            defer { start += n }
+            return start..<(start + n)
+        }
+    }
+
+    private func heights(_ subviews: Subviews) -> [CGFloat] {
+        rows(subviews).map { r in
+            r.map { subviews[$0].sizeThatFits(ProposedViewSize(width: cellWidth, height: nil)).height }.max() ?? 0
+        }
+    }
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let h = heights(subviews)
+        let width = proposal.width ?? (CGFloat(columns) * cellWidth + CGFloat(columns - 1) * spacing)
+        return CGSize(width: width, height: h.reduce(0, +) + CGFloat(max(0, h.count - 1)) * rowSpacing)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let h = heights(subviews)
+        var y = bounds.minY
+        for (r, range) in rows(subviews).enumerated() {
+            let rowWidth = CGFloat(range.count) * cellWidth + CGFloat(range.count - 1) * spacing
+            var x = bounds.minX + ((bounds.width - rowWidth) / 2).rounded(.down)
+            for i in range {
+                subviews[i].place(at: CGPoint(x: x, y: y), proposal: ProposedViewSize(width: cellWidth, height: h[r]))
+                x += cellWidth + spacing
+            }
+            y += h[r] + rowSpacing
+        }
     }
 }
 
@@ -498,7 +541,8 @@ enum PhotoSaver {
 }
 
 /// Dock icons, kept in memory and in the Caches folder by icon key (bundle id + the app's
-/// modification date), so each icon crosses the network once. Icons arrive at 256 px.
+/// modification date), so each icon crosses the network once. Icons arrive at 256 px or more
+/// and are drawn from the full image, never stretched up from a small one.
 @MainActor
 final class IconCache {
     private var memory: [String: UIImage] = [:]
@@ -521,8 +565,26 @@ final class IconCache {
     /// Icon keys this phone has on disk (sent to the Mac in `dockSync`).
     var knownKeys: [String] { Array(Set(index.values)).sorted() }
 
+    /// Icons are decoded at most this many pixels on a side: sharp at 3x up to a 170 pt tile,
+    /// however large the Mac sends them, without holding 1024 px bitmaps for every app.
+    static let decodedPixels = 512
+
+    /// Decodes at full resolution up to `decodedPixels` (scaled down by ImageIO, never up),
+    /// at the screen's scale so a point of icon is a pixel of screen.
+    static func decode(_ data: Data) -> UIImage? {
+        guard let source = CGImageSourceCreateWithData(data as CFData, nil) else { return nil }
+        let options: [CFString: Any] = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceShouldCacheImmediately: true,
+            kCGImageSourceThumbnailMaxPixelSize: decodedPixels,
+        ]
+        guard let cg = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary) else { return nil }
+        return UIImage(cgImage: cg, scale: 3, orientation: .up)
+    }
+
     func store(_ png: Data, key: String, bundleID: String) {
-        guard let image = UIImage(data: png, scale: 3)?.preparingForDisplay() ?? UIImage(data: png, scale: 3) else { return }
+        guard let image = Self.decode(png) else { return }
         if let old = index[bundleID], old != key, let url = fileURL(old) {
             try? FileManager.default.removeItem(at: url)
             memory[old] = nil
@@ -537,7 +599,7 @@ final class IconCache {
         guard let key = index[bundleID] else { return nil }
         if let image = memory[key] { return image }
         guard let url = fileURL(key), let data = try? Data(contentsOf: url),
-              let image = UIImage(data: data, scale: 3)?.preparingForDisplay() else { return nil }
+              let image = Self.decode(data) else { return nil }
         memory[key] = image
         return image
     }
