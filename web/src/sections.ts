@@ -84,55 +84,6 @@ export function initScrollLinked() {
   update();
 }
 
-/* ---------- Per-app button sets (the starter sets that ship in GlasspadMacros) ---------- */
-const PROFILES: { name: string; buttons: [string, string][] }[] = [
-  { name: "Safari", buttons: [["New Tab", "⌘T"], ["Reopen Closed Tab", "⇧⌘T"], ["Show All Tabs", "⇧⌘\\"], ["Reload", "⌘R"], ["Reader", "⇧⌘R"], ["Address Bar", "⌘L"], ["Previous Tab", "⇧⌘["], ["Next Tab", "⇧⌘]"], ["Private Window", "⇧⌘N"], ["Downloads", "⌥⌘L"]] },
-  { name: "Finder", buttons: [["New Window", "⌘N"], ["New Folder", "⇧⌘N"], ["Go to Folder", "⇧⌘G"], ["Get Info", "⌘I"], ["Quick Look", "Space"], ["Hidden Files", "⇧⌘."], ["Downloads", "⌥⌘L"], ["Move to Trash", "⌘⌫"], ["Connect to Server", "⌘K"], ["AirDrop", "⇧⌘R"]] },
-  { name: "Xcode", buttons: [["Build", "⌘B"], ["Run", "⌘R"], ["Stop", "⌘."], ["Test", "⌘U"], ["Clean Build Folder", "⇧⌘K"], ["Open Quickly", "⇧⌘O"], ["Navigator", "⌘0"], ["Debug Area", "⇧⌘Y"], ["Find in Project", "⇧⌘F"], ["Comment Lines", "⌘/"]] },
-  { name: "Keynote", buttons: [["Play Slideshow", "⌥⌘P"], ["New Slide", "⇧⌘N"], ["Duplicate", "⌘D"], ["Group", "⌥⌘G"], ["Ungroup", "⌥⇧⌘G"], ["Inspector", "⌥⌘I"]] },
-  { name: "Music", buttons: [["Play / Pause", "Space"], ["Previous", "⌘←"], ["Next", "⌘→"], ["Volume Down", "⌘↓"], ["Volume Up", "⌘↑"], ["Current Song", "⌘L"]] },
-  { name: "Figma", buttons: [["Move", "V"], ["Frame", "F"], ["Rectangle", "R"], ["Text", "T"], ["Pen", "P"], ["Comment", "C"], ["Zoom to Fit", "⇧1"], ["Group", "⌘G"], ["Create Component", "⌥⌘K"], ["Hide UI", "⌘\\"]] },
-  { name: "VS Code", buttons: [["Command Palette", "⇧⌘P"], ["Quick Open", "⌘P"], ["Terminal", "⌃`"], ["Sidebar", "⌘B"], ["Find in Files", "⇧⌘F"], ["Format Document", "⇧⌥F"], ["Go to Line", "⌃G"], ["Toggle Comment", "⌘/"], ["Split Editor", "⌘\\"], ["Rename Symbol", "F2"]] },
-  { name: "Everywhere else", buttons: [["Spotlight", "⌘Space"], ["Screenshot Area", "⇧⌘4"], ["Screenshot Tools", "⇧⌘5"], ["Mission Control", "⌃↑"], ["Emoji and Symbols", "⌃⌘Space"], ["Force Quit", "⌥⌘⎋"], ["Lock Screen", "⌃⌘Q"]] },
-];
-export function initProfiles() {
-  const picker = document.getElementById("picker")!;
-  const grid = document.getElementById("buttons")!;
-  const head = document.getElementById("profileHead")!;
-  const front = document.getElementById("frontName")!;
-  const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;");
-  const tabs: HTMLButtonElement[] = [];
-  const select = (i: number, focus = false) => {
-    const p = PROFILES[i];
-    tabs.forEach((t, k) => { t.setAttribute("aria-selected", String(k === i)); t.tabIndex = k === i ? 0 : -1; });
-    if (focus) tabs[i].focus();
-    head.textContent = p.name;
-    front.textContent = p.name === "Everywhere else" ? "Any other app" : p.name;
-    if (!reduce) { front.classList.remove("swap"); void front.offsetWidth; front.classList.add("swap"); }
-    grid.innerHTML = p.buttons.map(([n, k], j) => `<div class="pbtn" style="--i:${j}"><span>${esc(n)}</span><kbd>${esc(k)}</kbd></div>`).join("");
-  };
-  PROFILES.forEach((p, i) => {
-    const b = document.createElement("button");
-    b.setAttribute("role", "tab"); b.textContent = p.name;
-    b.addEventListener("click", () => { stopAuto(); select(i); });
-    b.addEventListener("keydown", e => {
-      const d = e.key === "ArrowDown" || e.key === "ArrowRight" ? 1 : e.key === "ArrowUp" || e.key === "ArrowLeft" ? -1 : 0;
-      if (d) { e.preventDefault(); stopAuto(); select((i + d + PROFILES.length) % PROFILES.length, true); }
-    });
-    tabs.push(b); picker.appendChild(b);
-  });
-  select(0);
-
-  // While nobody touches it, the front app changes every few seconds, like switching apps on a Mac.
-  let auto = 0, idx = 0, visible = false;
-  const stopAuto = () => { clearInterval(auto); auto = -1; };
-  if (!reduce) {
-    new IntersectionObserver(([e]) => { visible = e.isIntersecting; }, { threshold: 0.4 }).observe(grid);
-    auto = window.setInterval(() => { if (auto === -1 || !visible || document.hidden) return; idx = (idx + 1) % 3; select(idx); }, 3200);
-    picker.addEventListener("pointerenter", () => stopAuto(), { once: true });
-  }
-}
-
 /* ---------- Recorded steps arrive one by one, tied to scroll ---------- */
 export function initSteps() {
   const items = Array.from(document.querySelectorAll<HTMLElement>("#steps li"));
@@ -178,17 +129,4 @@ export function initNet() {
     }
     if (visible && !document.hidden) requestAnimationFrame(tick); else running = false;
   }
-}
-
-/* ---------- Copy commands ---------- */
-export function initCopy() {
-  const btn = document.getElementById("copy");
-  const code = document.getElementById("cmds");
-  if (!btn || !code) return;
-  const label = btn.querySelector("span")!;
-  btn.addEventListener("click", async () => {
-    try { await navigator.clipboard.writeText(code.textContent!.trim()); } catch { return; }
-    btn.classList.add("done"); label.textContent = "Copied";
-    setTimeout(() => { btn.classList.remove("done"); label.textContent = "Copy"; }, 1800);
-  });
 }

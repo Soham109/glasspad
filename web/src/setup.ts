@@ -1,5 +1,6 @@
 import { lerp, minJerk, reducedMotion, nextFrame, sleep } from "./spring";
 import { appIcon } from "./apps";
+import { glyph, PINNED } from "./glyphs";
 
 /* Buttons the Actions mode shows for the app in front (from the starter sets). */
 const g = (d: string) => `<svg viewBox="0 0 24 24">${d}</svg>`;
@@ -48,10 +49,11 @@ export function initSetup() {
   const setNew = (e: number) => { winNew.style.opacity = String(Math.min(1, e * 1.6)); winNew.style.transform = `scale(${lerp(0.62, 1, e)})`; };
   const slot = (k: string) => document.querySelector<HTMLElement>(`#scDock [data-app="${k}"]`)!;
 
+  $("saPinned").innerHTML = PINNED.map(([n, gl, c]) => `<div class="sa-b" style="--c:${c}">${glyph(gl)}<span>${n}</span></div>`).join("");
   const showFront = (k: string, animate = true) => {
     const f = FRONT[k];
     saHead.innerHTML = `${appIcon(k)}<b>${f.name}</b>`;
-    saGrid.innerHTML = f.buttons.map(([n, d, c], i) => `<div class="sa-b" style="--c:${c};--i:${i}">${g(d)}<span>${n}</span></div>`).join("");
+    saGrid.innerHTML = f.buttons.slice(0, 6).map(([n, d, c], i) => `<div class="sa-b" style="--c:${c};--i:${i}">${g(d)}<span>${n}</span></div>`).join("");
     if (animate && !reduce) {
       // Swap in place: nothing ever disappears, it only dips and settles.
       saHead.animate([{ opacity: 0.35, transform: "translateY(4%)" }, { opacity: 1, transform: "none" }], { duration: 420, easing: "cubic-bezier(.2,.8,.2,1)" });
@@ -115,8 +117,8 @@ export function initSetup() {
         await wait(t, 650);
       }
     },
-    async t => { // Apps mode opens an app on the Mac
-      setPill("Apps", "#0A84FF"); pill.classList.add("on"); await wait(t, 500);
+    async t => { // Dock mode opens an app on the Mac
+      setPill("Dock", "#0A84FF"); pill.classList.add("on"); await wait(t, 500);
       pDock.classList.add("on"); await wait(t, 300); pill.classList.remove("on"); await wait(t, 400);
       const tile = pDock.querySelector<HTMLElement>('[data-app="music"]')!;
       const tr = tile.querySelector(".app") as HTMLElement;

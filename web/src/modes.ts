@@ -1,5 +1,6 @@
 import { clamp, lerp, minJerk, reducedMotion, nextFrame, sleep } from "./spring";
 import { APPS, appIcon } from "./apps";
+import { GLYPH, PINNED as PINNED_ESSENTIALS } from "./glyphs";
 
 /* Recreations of the iPhone app's own screens (Apps/iOS/Sources/Modes), drawn in iPhone points. */
 
@@ -56,9 +57,8 @@ const menubar = (extra = "") => `<div class="md-menubar"><i></i>${extra}<i></i><
 const docLines = '<div class="md-doc"><i class="h"></i><i></i><i style="width:88%"></i><i style="width:94%"></i><i class="p"></i><i></i><i style="width:76%"></i><i style="width:90%"></i><i class="h"></i><i></i><i style="width:82%"></i><i class="p p2"></i><i></i><i style="width:70%"></i></div>';
 const win = (cls: string, body: string, front = true, style = "") => `<div class="md-win ${front ? "front" : ""} ${cls}" style="${style}"><div class="wb"><i></i><i></i><i></i></div><div class="wbody">${body}</div></div>`;
 
-/* The Mac's Dock, in Dock order, as the Apps mode shows it. */
+/* The Mac's Dock, in Dock order, as the Dock mode shows it. */
 const DOCK: [string, boolean][] = [["finder", true], ["web", true], ["mail", true], ["msg", false], ["cal", false], ["notes", false], ["rem", false], ["music", true], ["photos", false], ["xcode", true], ["term", false], ["store", false], ["set", false]];
-const RECENT = ["prev", "text", "maps"];
 const MAC_DOCK = ["finder", "web", "mail", "notes", "music", "xcode", "term"];
 
 /* Buttons for the app in front (the app's own shortcuts), and the Pinned grid. */
@@ -67,9 +67,9 @@ const FRONT: Record<string, { app: string; name: string; buttons: Btn[] }> = {
   web: { app: "web", name: "Safari", buttons: [["New Tab", G2.plusSq, "#0A84FF"], ["Reopen Tab", G.undo, "#0A84FF"], ["Reader", G.reader, "#30B0C7"], ["Private", G2.hand, "#8E8E93"], ["Close Other Tabs", G2.xbox, "#FF3B30"], ["Pin Tab", G2.pin, "#FF9500"], ["Copy Link", G.link, "#34C759"], ["Web Inspector", G.hammer, "#5E5CE6"]] },
   finder: { app: "finder", name: "Finder", buttons: [["New Window", G.window, "#0A84FF"], ["New Folder", G2.folderPlus, "#0A84FF"], ["Go to Folder", G2.goto, "#34C759"], ["Get Info", G2.info, "#8E8E93"], ["Quick Look", G2.eye, "#5E5CE6"], ["Hidden Files", G2.eyeSlash, "#8E8E93"], ["Downloads", G.down, "#34C759"], ["AirDrop", G.wave, "#0A84FF"]] },
 };
-const PINNED: (Btn | string)[] = ["web", "notes", ["Downloads", G.down, "#34C759"], ["Lock Screen", G.lock, "#8E8E93"], ["Dark Mode", G2.half, "#636366"], ["Work", G2.folder, "#0A84FF"], ["Daily Standup", G2.users, "#30B0C7"], ["Rename Files", G2.rename, "#0A84FF"], ["Sleep Display", G.moon, "#5E5CE6"], ["Screenshot", G.camera, "#0A84FF"]];
+const PINNED: Btn[] = PINNED_ESSENTIALS.map(([n, g, c]) => [n, GLYPH[g], c]);
 const actTile = ([n, g, c]: Btn, i = 0) => `<div class="u-at" data-b="${n}" style="--c:${c};--i:${i}">${ic(g)}<span>${n}</span></div>`;
-const pinTile = (p: Btn | string, i: number) => typeof p === "string" ? `<div class="u-at" style="--i:${i}">${tile(p)}<span>${APPS[p][0]}</span></div>` : actTile(p, i);
+const pinTile = (p: Btn, i: number) => actTile(p, i);
 
 interface Mode {
   key: string; title: string; icon: string; accent: string; text: string; land?: boolean;
@@ -222,14 +222,11 @@ const MODES: Mode[] = [
     },
   },
   {
-    key: "apps", title: "Apps", icon: "i-dock", accent: "#0A84FF",
-    text: "Your Mac's Dock on the phone, with full-size icons, dots for what is running, recent apps and search. Tap to open or switch. Touch and hold for Quit, Hide or Keep. You can even hide the Mac's own Dock.",
+    key: "dock", title: "Dock", icon: "i-dock", accent: "#0A84FF",
+    text: "Your Mac's Dock on the phone, in Dock order, with full-size icons and dots for what is running. Tap to open or switch. Touch and hold for Quit, Hide or Keep. You can even hide the Mac's own Dock.",
     phone: () => `<div class="pt"><span class="status-dot"></span><div class="u-apps">
-      <div class="hd"><b>Apps</b><span class="sub">Your Mac · <span class="n">5</span> open</span><span class="more">${ic(G2.more)}</span></div>
-      <div class="search">${ic(G2.search)}Search apps on your Mac</div>
+      <div class="hd"><b>Dock</b><span class="sub">Your Mac · <span class="n">5</span> open</span><span class="more">${ic(G2.more)}</span></div>
       <div class="grid">${DOCK.map(([k, r]) => `<div class="at" data-app="${k}">${tile(k)}<i class="run ${r ? "on" : ""} ${k === "web" ? "act" : ""}"></i><span>${APPS[k][0]}</span></div>`).join("")}</div>
-      <div class="rh">Recent</div>
-      <div class="grid recent">${RECENT.map(k => `<div class="at" data-app="${k}">${tile(k)}<i class="run"></i><span>${APPS[k][0]}</span></div>`).join("")}</div>
       <div class="ctx"><span>${ic(G2.hide)}Hide</span><span>${ic(G2.keep)}Keep in Phone Dock</span><span class="q">${ic(G2.quit)}Quit</span></div>
       <div class="dim"></div></div></div>`,
     mac: () => `${win("w-a", docLines, true, "left:8%;top:10%;width:54%;height:58%")}<div class="md-win w-new mm-notes" data-for="notes"><div class="wb"><i></i><i></i><i></i></div><div class="note"><i></i><i></i><i style="width:80%"></i><i style="width:90%"></i><i style="width:60%"></i></div></div>${menubar()}<div class="md-dock">${MAC_DOCK.map(k => `<div class="app-slot" data-app="${k}">${tile(k)}<i class="md-run ${DOCK.find(d => d[0] === k)?.[1] ? "on" : ""}"></i></div>`).join("")}</div>`,
@@ -269,7 +266,7 @@ const MODES: Mode[] = [
   },
   {
     key: "actions", title: "Actions", icon: "i-actions", accent: "#FF9500",
-    text: "The best buttons for whatever app is in front on your Mac. Switch apps and they switch too. Below them, your Pinned grid: tap + to add Mac controls, apps, macros, Shortcuts, or record a new macro. Clipboard and Present live in the mode menu as quick tools.",
+    text: "Buttons for the app in front on your Mac, and Pinned: six everyday Mac controls to start. Tap + to add any other app, more Mac controls, macros or Shortcuts. Turn the phone sideways and the two sit side by side.",
     phone: () => `<div class="pt"><span class="status-dot"></span><div class="u-act">
       <div class="fh"><span class="fi">${tile("web")}</span><b>Safari</b><span class="edit">Edit</span></div>
       <p class="hint">The best buttons for the app in front on your Mac. They change when you switch apps.</p>

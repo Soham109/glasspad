@@ -15,6 +15,8 @@ export const APPS: Record<string, [name: string, glyph: string]> = {
   set: ["System Settings", '<circle cx="12" cy="12" r="3"/><path d="M12 4.5v2.2M12 17.3v2.2M4.5 12h2.2M17.3 12h2.2M6.7 6.7l1.6 1.6M15.7 15.7l1.6 1.6M17.3 6.7l-1.6 1.6M8.3 15.7l-1.6 1.6"/>'],
   prev: ["Preview", '<circle cx="11" cy="11" r="5"/><path d="m15 15 4 4"/>'],
   text: ["TextEdit", '<path d="M7 6h10M7 10h10M7 14h10M7 18h6"/>'],
+  figma: ["Figma", '<rect x="8" y="3.5" width="4" height="5" rx="2"/><rect x="12" y="3.5" width="4" height="5" rx="2"/><rect x="8" y="8.5" width="4" height="5" rx="2"/><circle cx="14" cy="11" r="2"/><path d="M8 15.5a2 2 0 0 0 4 0v-2h-2a2 2 0 0 0-2 2Z"/>'],
+  keynote: ["Keynote", '<rect x="5" y="5" width="14" height="9" rx="1.5"/><path d="M12 14v5M9 19h6"/>'],
   maps: ["Maps", '<path d="M5 7l4.5-2 5 2 4.5-2v12l-4.5 2-5-2L5 19Z"/><path d="M9.5 5v12M14.5 7v12"/>'],
 };
 export const appIcon = (k: string, cls = "") => `<span class="app a-${k} ${cls}"><svg viewBox="0 0 24 24">${APPS[k][1]}</svg></span>`;

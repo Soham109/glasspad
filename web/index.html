@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Glasspad: your iPhone as a Mac trackpad</title>
-<meta name="description" content="Glasspad turns your iPhone into a wireless Mac trackpad with haptics, plus a keyboard, media remote, app launcher and buttons that follow the app in front. Free, private and open source.">
+<meta name="description" content="Glasspad turns your iPhone into a wireless Mac trackpad with haptics, plus a keyboard, media remote, your Mac's Dock and buttons that follow the app in front. Free, private and open source.">
 <meta name="theme-color" content="#F2F1EE">
 <script>document.documentElement.classList.add("js")</script>
 <link rel="icon" href="/icon.svg" type="image/svg+xml">
@@ -53,7 +53,7 @@
     <a href="#try">Try it</a>
     <a href="#modes">Modes</a>
     <a href="#privacy">Privacy</a>
-    <a href="#get">Get it</a>
+    <a href="#get">Install</a>
   </nav>
   <a class="nav-gh" href="https://github.com/Soham109/glasspad" aria-label="Glasspad on GitHub">
     <svg width="18" height="18" aria-hidden="true"><use href="#i-github"/></svg>
@@ -65,7 +65,7 @@
   <a href="#try">Try it</a>
   <a href="#modes">Modes</a>
   <a href="#privacy">Privacy</a>
-  <a href="#get">Get it</a>
+  <a href="#get">Install</a>
   <a href="https://github.com/Soham109/glasspad">GitHub</a>
 </nav>
 
@@ -83,7 +83,7 @@
   </div>
   <h1 class="hero-title">Glasspad</h1>
   <p class="hero-line">Your iPhone, as a Mac trackpad.</p>
-  <p class="hero-sub">Wireless, with a tap you can feel on every click. Plus a keyboard, a media remote, your Mac's apps, and buttons that follow the app in front. Free, private and open source.</p>
+  <p class="hero-sub">Wireless, with clicks you can feel. Plus a keyboard, a media remote, your Mac's Dock, and buttons that follow the app in front. Free, private and open source.</p>
   <div class="hero-actions">
     <a class="btn btn-ink" href="https://github.com/Soham109/glasspad">
       <svg width="18" height="18" aria-hidden="true"><use href="#i-github"/></svg>
@@ -91,7 +91,7 @@
     </a>
     <a class="btn btn-quiet" href="#try">Try the trackpad</a>
   </div>
-  <p class="hero-note">Version 0.1.0, not yet released. Installs with one command, for macOS 14 and iOS 18 or later.</p>
+  <p class="hero-note">Version 0.1.0, for macOS 14 and iOS 18 or later.</p>
 </section>
 
 <!-- How it works: the full setup -->
@@ -99,9 +99,8 @@
   <div class="wrap">
     <div class="section-head center">
       <h2 id="how-title" class="reveal">Lay it by your Mac. Touch the glass.</h2>
-      <p class="lede reveal">Your iPhone becomes a trackpad for the Mac in front of you. The pointer moves with your finger, and a small tap you can feel tells you a click landed.</p>
     </div>
-    <div class="scene" id="scene" role="img" aria-label="An iPhone lying in front of a MacBook Pro. Finger dots on the phone move the Mac pointer, scroll a window, swipe between Spaces, open an app from Apps, then show the buttons for the app in front in Actions.">
+    <div class="scene" id="scene" role="img" aria-label="An iPhone lying in front of a MacBook Pro. Finger dots on the phone move the Mac pointer, scroll a window, swipe between Spaces, open an app from Dock, then show Actions: the buttons for the app in front beside Pinned.">
       <div class="sc-desk"></div>
       <div class="mbp">
         <div class="mbp-lid"><div class="mbp-glass"></div>
@@ -128,7 +127,7 @@
       <div class="sc-phone">
         <div class="iphone " data-orient="landscape" data-finish="light" >
   <i class="ip-btn l action"></i><i class="ip-btn l up"></i><i class="ip-btn l down"></i><i class="ip-btn r side"></i><i class="ip-btn r cam"></i>
-  <div class="ip-body"><div class="ip-bezel"></div><div class="ip-screen"><div class="sp-surface" id="spSurface"></div><div class="sp-dock" id="spDock"><div class="tile" data-app="finder"><span class="app a-finder"><svg viewBox="0 0 24 24"><path d="M12 4v16M8 9v2M16 9v2M8.5 15.5c2 1.3 5 1.3 7 0"/></svg></span><span>Finder</span></div><div class="tile" data-app="web"><span class="app a-web"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7.5"/><path d="m15 9-4.2 1.8L9 15l4.2-1.8Z"/></svg></span><span>Safari</span></div><div class="tile" data-app="notes"><span class="app a-notes"><svg viewBox="0 0 24 24"><path d="M7 8h10M7 12h10M7 16h6"/></svg></span><span>Notes</span></div><div class="tile" data-app="music"><span class="app a-music"><svg viewBox="0 0 24 24"><path d="M10 17V6.5l8-1.8V15"/><circle cx="8" cy="17" r="2"/><circle cx="16" cy="15" r="2"/></svg></span><span>Music</span></div><div class="tile" data-app="photos"><span class="app a-photos"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="2.2"/><path d="M12 5v3M12 16v3M5 12h3M16 12h3M7 7l2 2M15 15l2 2M17 7l-2 2M9 15l-2 2"/></svg></span><span>Photos</span></div><div class="tile" data-app="term"><span class="app a-term"><svg viewBox="0 0 24 24"><path d="m7 9 3 3-3 3M12.5 15H17"/></svg></span><span>Terminal</span></div></div><div class="sp-act" id="spAct"><div class="sa-head" id="saHead"></div><div class="sa-grid" id="saGrid"></div></div><div class="sp-pill" id="spPill"><i></i><span>Apps</span></div></div><div class="ip-island"></div></div>
+  <div class="ip-body"><div class="ip-bezel"></div><div class="ip-screen"><div class="sp-surface" id="spSurface"></div><div class="sp-dock" id="spDock"><div class="tile" data-app="finder"><span class="app a-finder"><svg viewBox="0 0 24 24"><path d="M12 4v16M8 9v2M16 9v2M8.5 15.5c2 1.3 5 1.3 7 0"/></svg></span><span>Finder</span></div><div class="tile" data-app="web"><span class="app a-web"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7.5"/><path d="m15 9-4.2 1.8L9 15l4.2-1.8Z"/></svg></span><span>Safari</span></div><div class="tile" data-app="notes"><span class="app a-notes"><svg viewBox="0 0 24 24"><path d="M7 8h10M7 12h10M7 16h6"/></svg></span><span>Notes</span></div><div class="tile" data-app="music"><span class="app a-music"><svg viewBox="0 0 24 24"><path d="M10 17V6.5l8-1.8V15"/><circle cx="8" cy="17" r="2"/><circle cx="16" cy="15" r="2"/></svg></span><span>Music</span></div><div class="tile" data-app="photos"><span class="app a-photos"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="2.2"/><path d="M12 5v3M12 16v3M5 12h3M16 12h3M7 7l2 2M15 15l2 2M17 7l-2 2M9 15l-2 2"/></svg></span><span>Photos</span></div><div class="tile" data-app="term"><span class="app a-term"><svg viewBox="0 0 24 24"><path d="m7 9 3 3-3 3M12.5 15H17"/></svg></span><span>Terminal</span></div></div><div class="sp-act" id="spAct"><div class="sa-col"><div class="sa-head" id="saHead"></div><div class="sa-grid" id="saGrid"></div></div><div class="sa-col"><div class="sa-head"><b>Pinned</b></div><div class="sa-grid" id="saPinned"></div></div></div><div class="sp-pill" id="spPill"><i></i><span>Dock</span></div></div><div class="ip-island"></div></div>
 </div>
       </div>
     </div>
@@ -137,8 +136,8 @@
       <li><button data-step="1"><span class="hs-bar"><i></i></span><b>Click</b><span class="t">Tap to click. The phone answers with a small tap you can feel.</span></button></li>
       <li><button data-step="2"><span class="hs-bar"><i></i></span><b>Scroll</b><span class="t">Two fingers scroll, with the same glide as your trackpad.</span></button></li>
       <li><button data-step="3"><span class="hs-bar"><i></i></span><b>Spaces</b><span class="t">Three fingers slide between desktops, following your hand.</span></button></li>
-      <li><button data-step="4"><span class="hs-bar"><i></i></span><b>Apps</b><span class="t">Switch to Apps and tap one to open it on the Mac.</span></button></li>
-      <li><button data-step="5"><span class="hs-bar"><i></i></span><b>Actions</b><span class="t">The buttons follow the app in front. Switch apps and they switch too.</span></button></li>
+      <li><button data-step="4"><span class="hs-bar"><i></i></span><b>Dock</b><span class="t">Switch to Dock and tap an app to open it on the Mac.</span></button></li>
+      <li><button data-step="5"><span class="hs-bar"><i></i></span><b>Actions</b><span class="t">Buttons for the app in front, with Pinned beside them.</span></button></li>
     </ol>
     <p class="how-caption" id="howCaption" aria-live="polite"><b>Move</b><span>One finger moves the pointer.</span></p>
   </div>
@@ -203,10 +202,10 @@
   <div class="wrap split">
     <div class="split-text">
       <h2 id="settings-title" class="reveal">It follows your Mac's own trackpad settings.</h2>
-      <p class="lede reveal">Glasspad reads your trackpad settings from macOS while it runs, so you never set anything up twice. Change one in System Settings and the phone follows.</p>
+      <p class="lede reveal">Change a trackpad setting in System Settings and the phone follows.</p>
       <p class="small reveal">Tracking speed, natural scrolling, tap to click, secondary click, three finger drag, Look Up, swipe between pages and Spaces, Mission Control, App Exposé, Launchpad, Show Desktop and click firmness all come from your Mac.</p>
       <p class="small reveal">One difference: a phone screen cannot be pressed down, so a tap always clicks, even if tap to click is off on your Mac.</p>
-      <p class="small reveal">Want it to feel different from your Mac? The phone has its own pointer speed, acceleration, scroll speed and momentum, haptics you can turn on per kind, and three looks: Paper, Graphite, or System to follow your iPhone.</p>
+      <p class="small reveal">Prefer it different? The phone has its own speed, scrolling and haptics, and three looks: Paper, Graphite or System.</p>
     </div>
     <div class="sync" id="sync">
       <div class="pane mac-pane">
@@ -237,7 +236,7 @@
   <div class="wrap">
     <div class="section-head">
       <h2 id="modes-title" class="reveal">More than a trackpad.</h2>
-      <p class="lede reveal">Touch the pill at the top of the screen to open the mode menu. Five modes live there, plus two quick tools: Clipboard, to copy between phone and Mac, and Present, a slide remote with a timer and a laser dot. Every mode works upright or sideways.</p>
+      <p class="lede reveal">Touch the pill at the top to switch modes. Two quick tools live there too: Clipboard, to copy between phone and Mac, and Present, a slide remote with a timer and a laser dot.</p>
     </div>
   </div>
   <div class="modes-scroll" id="modesScroll">
@@ -261,36 +260,59 @@
       </div>
     </div>
   </div>
-  <div class="wrap modes-real">
-    <p class="small reveal">The real thing, straight from the iPhone app: the mode menu, Apps, Keyboard, Actions, editing Pinned, the Library, the Clipboard tool and Settings.</p>
-    <!--shot:modes-light.png|The Glasspad iPhone app: the mode menu, Apps, Keyboard, Actions, editing Pinned, the Library, the Clipboard tool and Settings-->
-  </div>
 </section>
 
-<!-- Actions: per-app sets and macros -->
-<section class="macros" id="macros" aria-labelledby="macros-title">
+<!-- Actions: buttons for the app in front, beside Pinned -->
+<section class="ax" id="actions" aria-labelledby="ax-title">
   <div class="wrap">
-    <div class="section-head">
-      <h2 id="macros-title" class="reveal">Buttons that follow the app in front.</h2>
-      <p class="lede reveal">Switch apps on your Mac and the top of Actions switches with it. Glasspad ships sets for ten popular apps plus one for everywhere else, each built from that app's own shortcuts. Edit any of them. The things you always want sit below, in Pinned.</p>
+    <div class="section-head center">
+      <h2 id="ax-title" class="reveal">Buttons that follow the app in front.</h2>
+      <p class="lede reveal">Switch apps on your Mac and Actions switches with it. Your Pinned essentials stay beside them.</p>
     </div>
 
-    <div class="profiles">
-      <div class="profile-picker" role="tablist" aria-label="Front app on your Mac" id="picker"></div>
-      <div class="profile-stage">
-        <div class="front-app" aria-hidden="true"><span class="front-label">In front on your Mac</span><span class="front-name" id="frontName">Safari</span></div>
-        <div class="iphone " data-orient="portrait" data-finish="light" >
+    <div class="ax-stage" id="axStage">
+      <div class="ax-mac" aria-hidden="true">
+        <div class="axm-lid"><div class="axm-screen">
+          <div class="axm-bar"><i class="ap"></i><b id="axMacApp">Safari</b><i></i><i></i><i></i><i class="r"></i></div>
+          <div class="axw" id="axWin"></div>
+          <div class="axm-dock" id="axDock"></div>
+        </div></div>
+        <div class="axm-base"></div>
+      </div>
+      <div class="ax-phone" aria-hidden="true">
+        <div class="iphone" data-orient="landscape" data-finish="light" id="axPhone">
           <i class="ip-btn l action"></i><i class="ip-btn l up"></i><i class="ip-btn l down"></i><i class="ip-btn r side"></i><i class="ip-btn r cam"></i>
-          <div class="ip-body"><div class="ip-bezel"></div><div class="ip-screen"><div class="profile-head" id="profileHead">Safari</div><div class="buttons" id="buttons" role="tabpanel" aria-live="polite"></div></div><div class="ip-island"></div></div>
+          <div class="ip-body"><div class="ip-bezel"></div><div class="ip-screen">
+            <div class="pt land ax-pt" id="axPt">
+              <div class="ax-pill"><svg viewBox="0 0 24 24"><path d="M13.5 3 6 13.5h5.5L10.5 21 18 10.5h-5.5Z"/></svg>Actions<i></i></div>
+              <div class="ax-cols">
+                <div class="ax-col">
+                  <div class="ax-h" id="axHead"></div>
+                  <p class="ax-tip">The best buttons for the app in front on your Mac. They change when you switch apps.</p>
+                  <div class="ax-grid" id="axFront"></div>
+                </div>
+                <div class="ax-col">
+                  <div class="ax-h"><b>Pinned</b><span class="ax-more"><i></i><i></i><i></i></span></div>
+                  <p class="ax-tip">Your favourites. Tap + to add anything; touch and hold one to change it.</p>
+                  <div class="ax-grid" id="axPinned"></div>
+                </div>
+              </div>
+            </div>
+          </div><div class="ip-island"></div></div>
         </div>
       </div>
     </div>
 
+    <div class="ax-switch-wrap">
+      <div class="ax-switch" id="axSwitch" role="tablist" aria-label="App in front on your Mac"><span class="ax-ind" id="axInd" aria-hidden="true"></span></div>
+    </div>
+    <p class="sr-only" id="axLive" aria-live="polite"></p>
+
     <div class="record split">
       <div class="split-text">
         <h3 class="h3 reveal">Record it once. Replay it with a tap.</h3>
-        <p class="reveal">In Actions, tap + and choose Record New Macro. Do the steps on your Mac as usual. Glasspad turns them into a short list you can read and edit, and pins the macro for you: typing becomes text, shortcuts become keystrokes, pauses become waits.</p>
-        <p class="reveal">The same + Library holds Mac controls like Lock Screen, Sleep Display and Dark Mode, any app, your Apple Shortcuts, and every macro you have made.</p>
+        <p class="reveal">In Actions, tap + and choose Record New Macro, then do the steps on your Mac. Typing becomes text, shortcuts become keystrokes and pauses become waits, in a list you can edit.</p>
+        <p class="reveal">The same + adds any other app, Mac controls and your Apple Shortcuts.</p>
         <p class="small reveal">Scripts never run unless you turn them on for that macro. Passwords typed into secure fields are never recorded.</p>
       </div>
       <ol class="steps-list" id="steps" aria-label="An example recorded macro">
@@ -368,50 +390,159 @@
   </div>
 </section>
 
-<!-- Get it -->
+<!-- Install -->
 <section class="get" id="get" aria-labelledby="get-title">
   <div class="wrap">
     <div class="section-head">
-      <h2 id="get-title" class="reveal">One command. Free.</h2>
-      <p class="lede reveal">Glasspad is not on the App Store, because real Mission Control and Spaces swipes need things Apple does not allow there. Instead, one command builds it on your Mac and puts it on your iPhone. You need a Mac with Xcode (free from the App Store), an iPhone on iOS 18 or newer, a cable for the first install, and a free Apple ID.</p>
+      <h2 id="get-title" class="reveal">Install it with one command.</h2>
+      <p class="lede reveal">Glasspad is free, but not on the App Store: real Spaces and Mission Control swipes need things Apple does not allow there. A script builds it on your Mac and puts it on your iPhone.</p>
     </div>
 
-    <div class="code reveal">
-      <button class="copy" id="copy" aria-label="Copy command">
-        <svg width="16" height="16" class="ic-copy" aria-hidden="true"><use href="#i-copy"/></svg>
-        <svg width="16" height="16" class="ic-check" aria-hidden="true"><use href="#i-check"/></svg>
-        <span>Copy</span>
-      </button>
-<pre id="cmds"><code>curl -fsSL https://raw.githubusercontent.com/Soham109/glasspad/main/install.sh | bash</code></pre>
-    </div>
-    <p class="small reveal">Paste it into Terminal. It walks you through each step, does everything it can by itself, and waits whenever Apple needs you to click or tap. Safe to run again: finished steps are skipped.</p>
+    <div class="ig">
+      <div class="ig-row">
+        <h3 class="ig-label">You need</h3>
+        <ul class="req">
+          <li><b>Xcode 26 or later</b><span>Free from the Mac App Store. A large download.</span></li>
+          <li><b>macOS 14 or later</b><span>For the Glasspad Mac app.</span></li>
+          <li><b>iOS 18 or later</b><span>On your iPhone.</span></li>
+          <li><b>A free Apple ID</b><span>To sign the iPhone app.</span></li>
+          <li><b>A USB cable</b><span>For the first install only.</span></li>
+          <li><b>One Wi-Fi</b><span>Mac and iPhone on the same network.</span></li>
+        </ul>
+      </div>
 
-    <ol class="numbered">
-      <li class="reveal"><span class="num">1</span><div><h3>Sets up the Mac</h3><p>Checks Xcode, fetches the build tools and the source, then installs the menu bar app. You allow Accessibility once, so it can move the pointer.</p></div></li>
-      <li class="reveal"><span class="num">2</span><div><h3>Installs on your iPhone</h3><p>Sign in with your Apple ID in Xcode, plug in your phone, and turn on Developer Mode when asked. The script builds and installs the app.</p></div></li>
-      <li class="reveal"><span class="num">3</span><div><h3>Keeps it installed</h3><p>A free Apple ID makes iPhone apps stop opening after 7 days. Your Mac renews Glasspad over Wi-Fi before that, by itself.</p></div></li>
-    </ol>
-    <p class="small note">Then pair: click Glasspad in the Mac's menu bar, choose Pair new iPhone, and scan the code with the phone.</p>
-    <!--shot:menubar.png|The Glasspad menu in the Mac menu bar-->
+      <div class="ig-row">
+        <h3 class="ig-label">Run</h3>
+        <div>
+          <div class="term">
+            <div class="term-bar"><span class="tl" aria-hidden="true"><i></i><i></i><i></i></span><span class="term-title">Terminal</span>
+              <button class="copy" type="button" data-copy="curl -fsSL https://raw.githubusercontent.com/Soham109/glasspad/main/install.sh | bash" aria-label="Copy the install command">
+                <svg width="15" height="15" class="ic-copy" aria-hidden="true"><use href="#i-copy"/></svg>
+                <svg width="15" height="15" class="ic-check" aria-hidden="true"><use href="#i-check"/></svg>
+                <span>Copy</span>
+              </button>
+            </div>
+            <pre class="term-body"><code><span class="pr" aria-hidden="true">~ % </span>curl -fsSL https://<wbr>raw.githubusercontent.com/<wbr>Soham109/<wbr>glasspad/<wbr>main/<wbr>install.sh&nbsp;|&nbsp;bash</code></pre>
+          </div>
+          <p class="ig-note">Paste it into Terminal and press Return. It waits at each step until it sees you have done it, and it is safe to run again: finished steps are skipped.</p>
+        </div>
+      </div>
+
+      <div class="ig-row">
+        <h3 class="ig-label">What happens</h3>
+        <ol class="st-list">
+          <li class="st">
+            <span class="st-n">1</span>
+            <div class="st-b">
+              <h4>Xcode <em class="who you">You</em></h4>
+              <p>If Xcode is missing, the App Store opens on it. Then enter your Mac password once, to accept Xcode's license and finish its first-launch setup.</p>
+            </div>
+          </li>
+          <li class="st">
+            <span class="st-n">2</span>
+            <div class="st-b">
+              <h4>Build tools <em class="who">Automatic</em></h4>
+              <p>Downloads XcodeGen into <code class="pth">~/Library/Application Support/Glasspad</code></p>
+            </div>
+          </li>
+          <li class="st">
+            <span class="st-n">3</span>
+            <div class="st-b">
+              <h4>Source <em class="who">Automatic</em></h4>
+              <p>Downloads Glasspad to <code class="pth">~/Projects/glasspad</code></p>
+            </div>
+          </li>
+          <li class="st">
+            <span class="st-n">4</span>
+            <div class="st-b">
+              <h4>Apple account <em class="who you">You</em></h4>
+              <p>Sign in with your Apple ID: <span class="path">Xcode<i><span class="sr-only">&gt;</span></i>Settings<i><span class="sr-only">&gt;</span></i>Apple Accounts<i><span class="sr-only">&gt;</span></i>+</span></p>
+              <div class="figs"><div class="fig" data-fig="xcAccounts" style="--w:44;--h:19"></div></div>
+              <p>Xcode then opens the Glasspad project. Pick your name as the team: <span class="path">Glasspad<i><span class="sr-only">&gt;</span></i>Glasspad iOS<i><span class="sr-only">&gt;</span></i>Signing &amp; Capabilities<i><span class="sr-only">&gt;</span></i>Team</span></p>
+              <div class="figs"><div class="fig" data-fig="xcSigning" style="--w:56;--h:19"></div></div>
+            </div>
+          </li>
+          <li class="st">
+            <span class="st-n">5</span>
+            <div class="st-b">
+              <h4>Mac app <em class="who you">You</em></h4>
+              <p>Glasspad goes into Applications and starts in the menu bar. Switch it on in the page that opens: <span class="path">System Settings<i><span class="sr-only">&gt;</span></i>Privacy &amp; Security<i><span class="sr-only">&gt;</span></i>Accessibility</span></p>
+              <div class="figs"><div class="fig" data-fig="macAccess" style="--w:46;--h:19"></div></div>
+            </div>
+          </li>
+          <li class="st">
+            <span class="st-n">6</span>
+            <div class="st-b">
+              <h4>iPhone <em class="who you">You</em></h4>
+              <p>Plug it in, unlock it and tap Trust.</p>
+              <div class="figs"><div class="fig ph" data-fig="ipTrust" style="--w:21;--h:25"></div></div>
+              <p>Turn on Developer Mode. The phone restarts; unlock it, tap Turn On and enter your passcode. <span class="path">Settings<i><span class="sr-only">&gt;</span></i>Privacy &amp; Security<i><span class="sr-only">&gt;</span></i>Developer Mode</span></p>
+              <div class="figs"><div class="fig ph" data-fig="ipDevPage" style="--w:21;--h:25"></div><div class="fig ph" data-fig="ipDevAlert" style="--w:21;--h:25"></div></div>
+              <p>The script builds and installs the app. Trust it once: <span class="path">Settings<i><span class="sr-only">&gt;</span></i>General<i><span class="sr-only">&gt;</span></i>VPN &amp; Device Management<i><span class="sr-only">&gt;</span></i>your Apple ID<i><span class="sr-only">&gt;</span></i>Trust</span></p>
+              <div class="figs"><div class="fig ph" data-fig="ipVpn" style="--w:21;--h:25"></div><div class="fig ph" data-fig="ipVpnTrust" style="--w:21;--h:25"></div></div>
+            </div>
+          </li>
+          <li class="st">
+            <span class="st-n">7</span>
+            <div class="st-b">
+              <h4>Automatic renewal <em class="who">Automatic</em></h4>
+              <p>With a free Apple ID, apps you install yourself stop opening after 7 days. Your Mac checks every hour and reinstalls Glasspad over Wi-Fi once the install is 5 days old, as long as the Mac is on and the iPhone is on the same Wi-Fi at some point. It notifies you if it can't.</p>
+            </div>
+          </li>
+          <li class="st">
+            <span class="st-n">8</span>
+            <div class="st-b">
+              <h4>Pair <em class="who you">You</em></h4>
+              <p>Click the Glasspad icon in the menu bar and choose Pair Your iPhone. Scan the code with the Glasspad app or the iPhone Camera, then allow Local Network when the iPhone asks.</p>
+              <div class="figs"><div class="fig" data-fig="macPair" style="--w:34;--h:25"></div><div class="fig ph" data-fig="ipLocal" style="--w:21;--h:25"></div></div>
+              <p class="st-aside">The first time it shows song info, your Mac asks to let Glasspad control Spotify or Music.</p>
+            </div>
+          </li>
+        </ol>
+      </div>
+
+      <div class="ig-row">
+        <h3 class="ig-label">If something is off</h3>
+        <div class="faq">
+          <details><summary>The pointer does not move</summary><p>Switch Glasspad off and on again in <span class="path">System Settings<i><span class="sr-only">&gt;</span></i>Privacy &amp; Security<i><span class="sr-only">&gt;</span></i>Accessibility</span> Reinstalls can reset it.</p></details>
+          <details><summary>The iPhone cannot find the Mac</summary><p>Put both on the same Wi-Fi and check Local Network is allowed: <span class="path">Settings<i><span class="sr-only">&gt;</span></i>Privacy &amp; Security<i><span class="sr-only">&gt;</span></i>Local Network<i><span class="sr-only">&gt;</span></i>Glasspad</span></p></details>
+          <details><summary>The app will not open after a week</summary><p>The Mac was off or away, so it could not renew. Run the command again.</p></details>
+          <details><summary>Developer Mode is missing</summary><p>Plug the iPhone in and run the command once. The setting appears after that.</p></details>
+        </div>
+      </div>
+
+      <div class="ig-row">
+        <h3 class="ig-label">Uninstall</h3>
+        <div>
+          <ol class="un">
+            <li>Drag Glasspad from Applications to the Trash.</li>
+            <li>Delete the app on your iPhone.</li>
+            <li>Turn off automatic renewal:</li>
+          </ol>
+          <div class="cmd-sm">
+            <code>~/Projects/glasspad/<wbr>scripts/<wbr>setup-autorefresh.sh --remove</code>
+            <button class="copy" type="button" data-copy="~/Projects/glasspad/scripts/setup-autorefresh.sh --remove" aria-label="Copy the uninstall command">
+              <svg width="15" height="15" class="ic-copy" aria-hidden="true"><use href="#i-copy"/></svg>
+              <svg width="15" height="15" class="ic-check" aria-hidden="true"><use href="#i-check"/></svg>
+              <span>Copy</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </section>
 
 </main>
 
-<footer class="foot dark">
-  <div class="wrap foot-inner">
-    <div class="foot-brand">
-      <img src="/icon-graphite.svg" width="40" height="40" alt="">
-      <p>Glasspad is open source under the MIT license.<br>Read it, change it, fork it.</p>
-    </div>
-    <nav class="foot-links" aria-label="Project links">
-      <a href="https://github.com/Soham109/glasspad">GitHub</a>
-      <a href="https://github.com/Soham109/glasspad/blob/main/CONTRIBUTING.md">Contributing</a>
-      <a href="https://github.com/Soham109/glasspad/blob/main/SECURITY.md">Security</a>
-      <a href="https://github.com/Soham109/glasspad/blob/main/LICENSE">License</a>
-    </nav>
-    <p class="foot-copy">Copyright 2026 Soham Aggarwal. Not affiliated with Apple. iPhone, Mac and Xcode are trademarks of Apple Inc.</p>
-  </div>
+<footer class="foot">
+  <nav class="foot-links wrap" aria-label="Project links">
+    <a href="https://github.com/Soham109/glasspad">GitHub</a>
+    <a href="#get">Install</a>
+    <a href="https://github.com/Soham109/glasspad/blob/main/LICENSE">MIT licence</a>
+    <a class="foot-by" href="https://sohamaggarwal.com">Made by Soham Aggarwal</a>
+  </nav>
+  <div class="foot-mark" aria-hidden="true"><span id="footMark">Glasspad</span></div>
 </footer>
 
 <script type="module" src="/src/main.ts"></script>

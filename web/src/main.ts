@@ -1,12 +1,15 @@
 import "./style.css";
 import "./device.css";
 import "./redo.css";
+import "./v3.css";
 import { initSetup } from "./setup";
 import { initModes } from "./modes";
 import { initHero } from "./hero";
 import { initDemo } from "./demo";
 import { initSettings } from "./settings";
-import { initReveals, initNav, initScrollLinked, initProfiles, initSteps, initNet, initCopy } from "./sections";
+import { initReveals, initNav, initScrollLinked, initSteps, initNet } from "./sections";
+import { initActions } from "./actions";
+import { initInstall } from "./install";
 
 requestAnimationFrame(() => document.querySelector(".hero")?.classList.add("in"));
 initNav();
@@ -15,9 +18,9 @@ initSettings();
 initSetup();
 initDemo();
 initModes();
-initProfiles();
+initActions();
 initSteps();
 initNet();
-initCopy();
+initInstall();
 initReveals();
 initScrollLinked();

@@ -158,12 +158,14 @@ struct CoalescerTests {
 
         let m = try #require(CGEvent(mouseEventSource: nil, mouseType: .rightMouseDown,
                                      mouseCursorPosition: CGPoint(x: 12, y: 34), mouseButton: .right))
+        m.flags = []   // a nil-source event copies the keys held on this Mac right now
         m.setIntegerValueField(.mouseEventClickState, value: 2)
         let rm = try #require(RecordedEvent(cgEvent: m, type: .rightMouseDown))
         #expect(rm.kind == .mouseDown(.right, CGPoint(x: 12, y: 34), clickCount: 2, modifiers: []))
 
         let s = try #require(CGEvent(scrollWheelEvent2Source: nil, units: .pixel, wheelCount: 2,
                                      wheel1: -7, wheel2: 3, wheel3: 0))
+        s.flags = []
         let rs = try #require(RecordedEvent(cgEvent: s, type: .scrollWheel))
         #expect(rs.kind == .scroll(dx: 3, dy: -7))
 
