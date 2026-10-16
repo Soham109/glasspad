@@ -57,3 +57,10 @@ export const MUSIC = [
   { at: 33, fromBar: 60, toBar: 74 }, // the build and the second lift
   { at: 47, fromBar: 96, toBar: 99, stop: true }, // the last bars and the hard stop
 ];
+
+/** A scene title's in and out (0 to 1 each): it rises as the voice line starts and leaves after. */
+export function titleAt(id: SceneId, t: number, hold = 2.5) {
+  const a = voSec(id) - 0.15;
+  const ease = (x: number) => 1 - Math.pow(1 - Math.min(1, Math.max(0, x)), 3);
+  return { p: ease((t - a) / 0.6), q: ease((t - a - 0.6 - hold) / 0.45) };
+}

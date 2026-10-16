@@ -1,11 +1,11 @@
 import React from "react";
 import { useCurrentFrame } from "remotion";
-import { BlurX, Caption, Cursor, Dock, dockBounce, Finger, Haptic, MacBook, macDisplay, MenuBar, Phone, phoneGeom, Ring, Stand, Doc, Glyph } from "../parts";
+import { BlurX, Title, Cursor, Dock, dockBounce, Finger, Haptic, MacBook, macDisplay, MenuBar, Phone, phoneGeom, Ring, Stand, Doc, Glyph } from "../parts";
 import { AppSwitcher, Banner, FcpWin, MailWin, MenuMoon, MusicWin, NotesWin, SafariWin, SitePage, XcodeWin } from "../mac";
 import { ActionsLand, ModeMenu, Pill, menuTileAt } from "../screens";
 import { ModesPhone, LayoutsPhone, modesEvents, layoutsEvents, LT, COUCH_REMOTE } from "./DeskPhone";
 import { clamp, E, INOUT, K, KP, lerp, OUT, SP, TAP, TAPS } from "../kit";
-import { barSec, sceneSec, word } from "../timeline";
+import { barSec, sceneSec, titleAt, word } from "../timeline";
 
 /* Scenes 1 to 6 share one desk: a MacBook on the left, the iPhone on a stand on the right.
    Open, Trackpad, Actions, Pinned, then the phone stands up for the modes, and lies back down
@@ -39,13 +39,13 @@ export const T = {
   swipe: [S.trackpad + 3.38, S.trackpad + 3.98] as const,
   pill: S.trackpad + 5.05, menuTap: S.trackpad + 5.75,
   reopen: S.actions + 1.05,
-  sw1: S.actions + 1.75, xcFront: S.actions + 2.25,
-  run: S.actions + 3.35,
-  sw2: S.actions + 4.55, fcFront: S.actions + 5.05,
-  blade: S.actions + 6.3,
-  split: S.pinned + word("pinned", "controls") - 0.2,
-  dnd: S.pinned + 2.75,
-  site: S.pinned + 4.25,
+  sw1: S.actions + 2.0, xcFront: S.actions + 2.5,
+  run: S.actions + 3.45,
+  sw2: S.actions + 4.6, fcFront: S.actions + 5.1,
+  blade: S.actions + 6.0,
+  split: S.pinned + 0.58,
+  dnd: S.pinned + 2.18,
+  site: S.pinned + 4.08,
   stand: S.modes - 0.95,
 };
 /* From Actions on, the camera rests and the phone moves: forward for Actions and Pinned, upright
@@ -68,10 +68,21 @@ export function pose(t: number): Pose {
   return { cx: pick("cx"), cy: pick("cy"), sc: pick("sc"), turn: pick("turn") };
 }
 
+const PH_L = { cx: 1255, cy: 754, s: 1.67 }, PH_R = { cx: 1335, cy: 754, s: 1.67 }, MAC = { cx: 520, cy: 487, s: 1.6 };
+const A0 = sceneSec("actions"), B0 = sceneSec("pinned");
+const SHOTS: [number, { cx: number; cy: number; s: number }][] = [
+  [A0 + 0.8, PH_L], [A0 + 1.25, PH_L], [A0 + 1.75, MAC], [A0 + 2.6, MAC], [A0 + 3.05, PH_L], [A0 + 3.6, PH_L], [A0 + 4.05, MAC],
+  [A0 + 5.15, MAC], [A0 + 5.6, PH_L], [A0 + 6.15, PH_L], [A0 + 6.6, MAC], [A0 + 7.55, MAC], [B0 + 0.05, PH_R],
+  [B0 + 0.7, PH_R], [B0 + 1.15, MAC], [B0 + 1.6, MAC], [B0 + 2.05, PH_R], [B0 + 2.33, PH_R], [B0 + 2.78, MAC], [B0 + 3.4, MAC],
+  [B0 + 3.85, PH_R], [B0 + 4.25, PH_R], [B0 + 4.7, MAC], [B0 + 5.25, MAC],
+];
+/** The pans between phone and Mac: their start times, for the whoosh cues. */
+const PANS = SHOTS.filter(([, v], i) => i > 0 && SHOTS[i - 1][1] !== v).map(([at]) => at - 0.45);
+
 export const DESK_CUES = () => ({
   tap: [T.openTap, T.clickTap, T.reopen, T.run, T.blade, T.split, T.dnd, T.site, T.menuTap, T.pill],
   haptic: [T.clickTap],
-  whoosh: [T.zoom0 + 0.2, T.swipe[0] + 0.25, T.stand + 0.3],
+  whoosh: [T.zoom0 + 0.2, T.swipe[0] + 0.25, T.stand + 0.3, ...PANS.map(p => p + 0.2)],
   drag: [[T.scroll[0], T.scroll[1]], [T.swipe[0], T.swipe[1]]] as [number, number][],
   click: [T.sw1 + 0.3, T.sw2 + 0.3],
   land: [T.split + 0.08],
@@ -97,6 +108,9 @@ function camera(t: number): { cx: number; cy: number; s: number } {
   const k: [number, number, number, number][] = [
     [T.zoom1, 970, 530, 1], [S.trackpad + 0.2, 970, 530, 1], [S.trackpad + 3.2, 1040, 545, 1.1], [S.trackpad + 4.6, 1040, 545, 1.1],
     [S.actions - 1.0, 1040, 545, 1.1], [S.actions + 0.3, CAM2.cx, CAM2.cy, CAM2.s],
+    // Actions and Pinned: in close on the phone for each tap, across to the Mac for each result
+    ...SHOTS.map(([at, v]) => [at, v.cx, v.cy, v.s] as [number, number, number, number]),
+    [S.modes + 0.2, 1015, 577, 1.3], [S.layouts - 0.3, 1015, 577, 1.3], [S.layouts + 0.45, CAM2.cx, CAM2.cy, CAM2.s],
   ];
   const pick = (j: number) => K(t, k.map(r => [r[0], r[j]] as [number, number]));
   return { cx: pick(1), cy: pick(2), s: pick(3) };
@@ -137,22 +151,22 @@ const MacScreen: React.FC<{ t: number }> = ({ t }) => {
   // Space 2: front app changes
   const front = t < T.xcFront ? "web" : t < T.fcFront ? "xcode" : "fcp";
   const appName = t < T.openTap + 0.3 ? "Finder" : front === "web" ? "Safari" : front === "xcode" ? "Xcode" : "Final Cut Pro";
-  const siteOpen = E(t, T.site + 0.15, 0.6);
+  const siteOpen = E(t, T.site + 0.6, 0.6);
   const menuApp = siteOpen > 0.5 ? "Safari" : appName;
   // Reopen Closed Tab, Run, Blade
-  const tabs = 2 + E(t, T.reopen + 0.08, 0.45);
-  const running = t > T.run + 0.62 ? 1 : 0;
-  const status = t < T.run + 0.05 ? "Build Succeeded" : t < T.run + 0.62 ? "Building Glasspad" : "Running Glasspad on My Mac";
-  const cut = E(t, T.blade + 0.06, 0.5);
+  const tabs = 2 + E(t, T.reopen + 0.5, 0.45);
+  const running = t > T.run + 1.0 ? 1 : 0;
+  const status = t < T.run + 0.45 ? "Build Succeeded" : t < T.run + 1.0 ? "Building Glasspad" : "Running Glasspad on My Mac";
+  const cut = E(t, T.blade + 0.55, 0.5);
   // Split Screen: Final Cut Pro and Xcode share the display
-  const split = SP(t, T.split + 0.05, 0.5, 0.72);
+  const split = SP(t, T.split + 0.6, 0.5, 0.72);
   // Do Not Disturb: the moon; a banner is held back
-  const moon = SP(t, T.dnd + 0.08, 0.4, 0.62);
-  const banX = 1 - E(t, T.dnd + 0.02, 0.45);
-  const banO = clamp(E(t, T.dnd + 0.02, 0.2) - E(t, T.dnd + 0.22, 0.35));
-  const banBlur = 14 * E(t, T.dnd + 0.22, 0.35);
+  const moon = SP(t, T.dnd + 0.65, 0.4, 0.62);
+  const banX = 1 - E(t, T.dnd + 0.55, 0.45);
+  const banO = clamp(E(t, T.dnd + 0.55, 0.2) - E(t, T.dnd + 0.8, 0.35));
+  const banBlur = 14 * E(t, T.dnd + 0.8, 0.35);
   // app switcher
-  const sw = (t0: number) => E(t, t0, 0.16) * (1 - E(t, t0 + 0.5, 0.14));
+  const sw = (t0: number) => E(t, t0, 0.25) * (1 - E(t, t0 + 0.5, 0.2));
   const swP = Math.max(sw(T.sw1), sw(T.sw2));
   const sel = t < T.sw2 - 0.1 ? K(t, [[T.sw1 + 0.18, 0], [T.sw1 + 0.36, 1]], OUT) : K(t, [[T.sw2 + 0.18, 1], [T.sw2 + 0.36, 2]], OUT);
   const z = (k: string) => (k === front ? 5 : k === "web" ? 3 : k === "xcode" ? 4 : 2);
@@ -175,9 +189,9 @@ const MacScreen: React.FC<{ t: number }> = ({ t }) => {
         <XcodeWin box={split > 0 ? lerpBox(W_XC, HALF_R, split) : W_XC} front={front === "xcode"} z={z("xcode")} status={status} running={running} o={front === "xcode" ? E(t, T.xcFront, 0.3) : 1} s={front === "xcode" ? lerp(0.99, 1, E(t, T.xcFront, 0.3)) : 1} />
         <SafariWin box={W_SAF2} front={front === "web"} z={z("web")} tabs={tabs} active={tabs > 2.5 ? 2 : 0} />
         <SafariWin box={{ x: 21, y: 8, w: 58, h: 72 }} front z={9} o={clamp(siteOpen * 3)} s={lerp(0.3, 1, siteOpen)} url="glasspad.sohamaggarwal.com" page={<SitePage />} tabs={1} />
-        {me.notes > 0 ? <NotesWin box={{ x: 6, y: 9, w: 52, h: 64 }} front={me.notesZ > 11} z={me.notesZ} o={clamp(me.notes * 3)} s={lerp(0.6, 1, me.notes)} text={me.typed} more={me.pasted} caret={me.caret} /> : null}
-        {me.music > 0 ? <MusicWin box={{ x: 40, y: 34, w: 52, h: 38 }} front={me.musicFront} z={11} o={clamp(me.music * 3)} s={lerp(0.6, 1, me.music)} prog={me.prog} origin="40% 140%" /> : null}
-        {me.mail > 0 ? <MailWin box={{ x: 28, y: 14, w: 56, h: 62 }} front={me.mailFront} z={me.mailFront ? 13 : 9} o={clamp(me.mail * 3)} s={lerp(0.6, 1, me.mail)} origin="20% 130%" /> : null}
+        {me.notes > 0 ? <NotesWin box={{ x: 20, y: 9, w: 52, h: 64 }} front={me.notesZ > 11} z={me.notesZ} o={clamp(me.notes * 3)} s={lerp(0.6, 1, me.notes)} text={me.typed} more={me.pasted} caret={me.caret} /> : null}
+        {me.music > 0 ? <MusicWin box={{ x: 44, y: 34, w: 50, h: 38 }} front={me.musicFront} z={11} o={clamp(me.music * 3)} s={lerp(0.6, 1, me.music)} prog={me.prog} origin="40% 140%" /> : null}
+        {me.mail > 0 ? <MailWin box={{ x: 32, y: 14, w: 56, h: 62 }} front={me.mailFront} z={me.mailFront ? 13 : 9} o={clamp(me.mail * 3)} s={lerp(0.6, 1, me.mail)} origin="20% 130%" /> : null}
       </div>
       </BlurX>
       <MenuBar app={me.app ?? menuApp} extra={<MenuMoon p={moon} />} />
@@ -278,19 +292,12 @@ export const Desk: React.FC = () => {
   const standY = P.cy + visH / 2 - 1.6 * sU;
   const hap = clamp((t - T.clickTap) / 0.55);
   const headP = E(t, T.head0, 0.7) * (1 - E(t, T.head1, 0.35));
-  const capT = (id: string, a: number, b: number, color: string, text: string) => ({ id, a, b, color, text });
-  const caps = [
-    capT("trackpad", S.trackpad + 0.15, S.actions - 0.5, "#1A1A1A", "Trackpad"),
-    capT("actions", S.actions + 0.15, S.pinned - 0.3, "#0A84FF", "Actions"),
-    capT("pinned", S.pinned + 0.15, S.modes - 1.0, "#5E5CE6", "Pinned"),
-  ];
-  const modeCap = modesEvents(t).caption;
-  const lay = layoutsEvents(t);
   const portrait = <ModesPhone t={t} />;
   const landscape = t < S.layouts - 0.2 ? <DeskPhone t={t} /> : <LayoutsPhone t={t} />;
   const mix = K(t, [[S.modes - 0.55, 1], [S.modes - 0.4, 0], [S.layouts + 0.1, 0], [S.layouts + 0.25, 1]], (u) => u);
   return (
     <div className="fm" style={{ background: "#E9E7E2" }}>
+      <BlurX id="mb-cam" px={(camera(t).cx - camera(t - 1 / 60).cx) * cam.s}>
       <div className="fm-world" style={{ transform: `translate(960px, 540px) scale(${cam.s}) translate(${-cam.cx}px, ${-cam.cy}px)` }}>
         <div style={{ position: "absolute", left: -2000, right: -2000, top: DESK_Y, height: 3000, background: "#DEDBD5" }} />
         <MacBook x={LID.x} y={LID.y} lid={LID.w}><MacScreen t={t} /></MacBook>
@@ -304,10 +311,9 @@ export const Desk: React.FC = () => {
           return <div key={t0} style={{ position: "absolute", inset: 0, opacity: 0.55 }}><Haptic x={P.cx - visW / 2} y={P.cy - visH / 2} w={visW} h={visH} p={p} /></div>;
         })}
       </div>
+      </BlurX>
       <div className="fm-head" style={{ top: 78, fontSize: 58, opacity: clamp(headP * 1.2), transform: `translateY(${(1 - OUT(clamp(headP))) * 16}px)` }}>A control surface for your Mac.</div>
-      {caps.map(c => <Caption key={c.id} text={c.text} color={c.color} p={E(t, c.a, 0.6)} q={E(t, c.b, 0.35)} />)}
-      {modeCap ? <Caption text={modeCap.text} color={modeCap.color} p={modeCap.p} q={modeCap.q} /> : null}
-      {lay.caption ? <Caption text="Layouts" color="#0A84FF" p={lay.caption.p} q={lay.caption.q} /> : null}
+      {(["trackpad", "layouts"] as const).map(id => { const a = titleAt(id, t); return <Title key={id} text={{ trackpad: "Trackpad", layouts: "Layouts" }[id]} p={a.p} q={a.q} />; })}
       {t > LT.grow[0] ? <Grow t={t} /> : null}
     </div>
   );

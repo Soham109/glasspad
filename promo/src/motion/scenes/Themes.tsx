@@ -1,10 +1,10 @@
 import React from "react";
 import { useCurrentFrame } from "remotion";
-import { Caption, CSS, Phone } from "../parts";
+import { Title, CSS, Phone } from "../parts";
 import { ActionsLand } from "../screens";
 import { THEMES, Theme } from "../site/themes";
 import { clamp, E, INOUT, lerp, OUT } from "../kit";
-import { BEAT, sceneSec } from "../timeline";
+import { BEAT, sceneSec, titleAt } from "../timeline";
 
 /* Scene 11: one Actions screen in six of the 28 themes (ThemeCatalog.swift), one every two beats,
    each wiping in from the middle of the screen. Film seconds. */
@@ -49,7 +49,7 @@ export const Themes: React.FC = () => {
             <span style={{ fontSize: 22, color: "rgba(242,241,238,0.5)", marginLeft: 14 }}>{th.group}</span>
           </div>) : null)}
       </div>
-      <Caption text="Themes" color="#FF9F0A" dark p={E(t, T0 + 0.1, 0.6)} q={E(t, P0 - 0.4, 0.3)} />
+      <Title text="Themes" dark {...titleAt("themes", t)} />
     </div>
   );
 };

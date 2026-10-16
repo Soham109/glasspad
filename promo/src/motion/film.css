@@ -160,3 +160,43 @@
 .fm-line { position: absolute; left: 0; right: 0; text-align: center; font-family: var(--display); font-weight: 600; letter-spacing: -0.025em; color: #1A1A1A; }
 .fm-small { position: absolute; left: 0; right: 0; text-align: center; font-size: 22px; color: rgba(26, 26, 26, 0.56); }
 .fm-mono .bt { --c: var(--ink) !important; }
+.fm .bt-c svg { stroke-width: 2.3; }
+/* Scene titles: large type that rises out of a mask on the voice line, once a scene */
+.fm-title { position: absolute; left: 92px; top: 40px; overflow: hidden; padding: 0 8px 14px 4px; font-family: var(--display); font-size: 68px; font-weight: 600; letter-spacing: -0.035em; line-height: 1.08; white-space: nowrap; }
+.fm-title span { display: block; }
+
+/* Present, upright and full screen (PresentMode.swift) */
+.fm-prs { color: #1A1A1A; }
+.fm-prs .tb { position: absolute; left: 16px; right: 16px; top: 64px; height: 48px; display: flex; align-items: center; gap: 12px; }
+.fm-prs .tb b { flex: 1; font-size: 34px; font-weight: 500; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; }
+.fm-prs .tb span { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; background: rgba(255, 255, 255, 0.75); box-shadow: 0 0 0 1px rgba(26, 26, 26, 0.08); }
+.fm-prs svg { fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+.fm-prs svg .f { fill: currentColor; stroke: none; }
+.fm-prs .tb svg { width: 18px; height: 18px; }
+.fm-prs .pad { position: absolute; border-radius: 26px; background: #FBFAF8; box-shadow: 0 0 0 1px rgba(26, 26, 26, 0.08); }
+.fm-prs .pad .hint { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; }
+.fm-prs .pad .hint svg { width: 30px; height: 30px; color: #FF453A; }
+.fm-prs .pad .hint span { font-size: 15px; color: rgba(26, 26, 26, 0.55); }
+.fm-prs .pad .dot { position: absolute; width: 18px; height: 18px; border-radius: 50%; background: #FF3B30; }
+.fm-prs .key { position: absolute; border-radius: 26px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; }
+.fm-prs .key b { font-size: 17px; font-weight: 600; }
+.fm-prs .key.back { background: #FBFAF8; box-shadow: 0 0 0 1px rgba(26, 26, 26, 0.08), 0 2px 6px -3px rgba(26, 26, 26, 0.15); }
+.fm-prs .key.back svg { width: 30px; height: 30px; }
+.fm-prs .key.next { background: #1A1A1A; color: #fff; }
+.fm-prs .key.next svg { width: 44px; height: 44px; }
+
+/* The talk on the stage screen */
+.fm-slide { position: absolute; inset: 0; background: #FBFBF9; color: #1A1A1A; }
+.fm-slide.s0 .tx { position: absolute; left: 8cqw; top: 31cqh; width: 44cqw; }
+.fm-slide.s0 b { display: block; font-family: var(--display); font-size: 9.5cqh; font-weight: 700; letter-spacing: -0.035em; line-height: 1.04; }
+.fm-slide.s0 span { display: block; margin-top: 3cqh; font-size: 4.2cqh; color: rgba(26, 26, 26, 0.6); }
+.fm-slide.s0 .ph { position: absolute; right: 7cqw; top: 16cqh; width: 38cqw; height: 68cqh; border-radius: 2cqh; overflow: hidden; background: linear-gradient(#F0B98D, #E58E73 55%, #3E5C7E 56%, #2C4766); }
+.fm-slide.s0 .ph .sun { position: absolute; left: 34%; top: 36%; width: 30%; aspect-ratio: 1; border-radius: 50%; background: #FBE3A6; }
+.fm-slide.s0 .ph .sea { position: absolute; left: 0; right: 0; top: 56%; bottom: 0; background: linear-gradient(#3E5C7E, #2C4766); }
+.fm-slide.s1 .map { position: absolute; inset: 0; width: 100%; height: 100%; }
+.fm-slide.s1 .h { position: absolute; left: 7cqw; top: 8cqh; z-index: 1; font-family: var(--display); font-size: 7.5cqh; font-weight: 700; letter-spacing: -0.03em; }
+.fm-slide .pin { position: absolute; z-index: 1; }
+.fm-slide .pin i { display: block; width: 3cqh; height: 3cqh; border-radius: 50%; background: #1A1A1A; box-shadow: 0 0 0 1cqh rgba(26, 26, 26, 0.12); }
+.fm-slide .pin span { position: absolute; left: 50%; top: 4.6cqh; transform: translateX(-50%); font-size: 3.4cqh; font-weight: 600; white-space: nowrap; }
+.fm-slide.s2 { display: grid; place-items: center; }
+.fm-slide.s2 b { font-family: var(--display); font-size: 13cqh; font-weight: 700; letter-spacing: -0.04em; }

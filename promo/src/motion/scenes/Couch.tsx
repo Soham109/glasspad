@@ -1,29 +1,30 @@
 import React from "react";
 import { useCurrentFrame } from "remotion";
-import { Caption, Finger, Glyph, Phone, Poster, Ring } from "../parts";
+import { Title, Finger, Glyph, Phone, Poster, Ring } from "../parts";
 import { clamp, E, INOUT, K, lerp, OUT, SP, TAP } from "../kit";
-import { sceneSec, word } from "../timeline";
+import { sceneSec, word, titleAt } from "../timeline";
 
-/* Scenes 7 and 8: the couch (Remote) and the stage (Present). The TV across the room becomes the
-   stage screen; the phone in hand stays where it is and changes layout. Film seconds. */
+/* Scenes 7 and 8: the couch (Remote) and the stage (Present). The phone in hand stays where it
+   is; a touch on it opens the lit stage around the dot, and the phone is now in Present
+   (PresentMode.swift): timer, laser pad, Back and Next. Film seconds. */
 
-const R0 = sceneSec("remote"), P0 = sceneSec("present"), D0 = sceneSec("displays");
+const R0 = sceneSec("remote"), P0 = sceneSec("present");
 export const CT = {
   room: R0 + 0.05,
   skip: [R0 + 1.05, R0 + 1.45] as const,
   vol: [R0 + 2.45, R0 + 3.05] as const,
   search: R0 + 3.85, type0: R0 + 4.55, type1: R0 + 5.85, ret: R0 + 6.2,
-  morph: [P0 - 0.9, P0 + 0.15] as const,
-  next1: P0 + 0.75,
-  hold: P0 + word("present", "time") + 0.1, laser: [P0 + word("present", "time") + 0.35, P0 + word("present", "you") + 0.45] as const,
-  next2: P0 + 4.05,
+  dot: P0 - 0.85, wipe: [P0 - 0.68, P0 - 0.02] as const,
+  next1: P0 + 0.62,
+  hold: P0 + word("present", "time") - 0.35, laser: [P0 + word("present", "time") - 0.15, P0 + word("present", "you") + 0.55] as const,
+  next2: P0 + 4.15,
 };
 export const COUCH_CUES = () => ({
-  tap: [CT.search, CT.ret, CT.next1, CT.next2],
+  tap: [CT.search, CT.ret, CT.dot, CT.next1, CT.next2],
   swipe: [[CT.skip[0], CT.skip[1]], [CT.vol[0], CT.vol[1]]] as [number, number][],
   key: Array.from({ length: 11 }, (_, i) => CT.type0 + i * (CT.type1 - CT.type0) / 11),
   skip: [CT.skip[1]],
-  whoosh: [CT.morph[0] + 0.3],
+  whoosh: [CT.wipe[0] + 0.1],
   drag: [[CT.laser[0], CT.laser[1]]] as [number, number][],
 });
 
@@ -40,7 +41,7 @@ const RG: Record<string, string> = {
 };
 const RI: React.FC<{ g: string; style?: React.CSSProperties }> = ({ g, style }) => <svg viewBox="0 0 24 24" style={style} dangerouslySetInnerHTML={{ __html: RG[g] }} />;
 
-const SPLIT6 = Math.round((874 - 12) * 0.6), SPLIT5 = Math.round((874 - 12) * 0.5);
+const SPLIT6 = Math.round((874 - 12) * 0.6);
 const QUERY = "quiet coast";
 
 /* ---------- the phone ---------- */
@@ -101,75 +102,113 @@ const KB: React.FC<{ t: number; p: number; ch: string }> = ({ t, p, ch }) => {
     </div>
   );
 };
-const PresentTop: React.FC<{ t: number }> = ({ t }) => {
+/* ---------- Present, full screen and upright (PresentMode.swift) ---------- */
+/* The laser pad: 16 pt margins, 16:10, under the timer bar. */
+const PAD = { x: 16, y: 126, w: 370, h: 231 };
+/* The route on the map slide, in fractions of the slide: Harbour, Lighthouse, Cliffs. */
+const STOPS: [number, number][] = [[0.24, 0.72], [0.52, 0.44], [0.8, 0.58]];
+/** The laser along the route, 0 to 1, resting a moment at each stop. */
+function laserAt(u: number): [number, number] {
+  const seg = [[0, 0.08], [0.42, 0.55], [0.92, 1]]; // where it rests
+  if (u <= seg[0][1]) return STOPS[0];
+  if (u < seg[1][0]) { const k = INOUT((u - seg[0][1]) / (seg[1][0] - seg[0][1])); return [lerp(STOPS[0][0], STOPS[1][0], k), lerp(STOPS[0][1], STOPS[1][1], k) - Math.sin(k * Math.PI) * 0.06]; }
+  if (u <= seg[1][1]) return STOPS[1];
+  if (u < seg[2][0]) { const k = INOUT((u - seg[1][1]) / (seg[2][0] - seg[1][1])); return [lerp(STOPS[1][0], STOPS[2][0], k), lerp(STOPS[1][1], STOPS[2][1], k) - Math.sin(k * Math.PI) * 0.05]; }
+  return STOPS[2];
+}
+const PresentPhone: React.FC<{ t: number }> = ({ t }) => {
   const secs = 41 + Math.max(0, Math.floor(t - P0));
   const n1 = TAP(t, CT.next1), n2 = TAP(t, CT.next2);
-  const hold = E(t, CT.hold - 0.1, 0.2) * (1 - E(t, CT.laser[1], 0.2));
+  const u = E(t, CT.laser[0], CT.laser[1] - CT.laser[0], (x) => x);
+  const holdO = E(t, CT.hold - 0.15, 0.15) * (1 - E(t, CT.laser[1], 0.2));
+  const [lx, ly] = laserAt(u);
+  const px = PAD.x + lx * PAD.w, py = PAD.y + ly * PAD.h;
+  // the dot that opened the stage lifts off the pad
+  const first = 1 - E(t, CT.wipe[1] - 0.1, 0.25);
+  const fx = PAD.x + PAD.w / 2, fy = PAD.y + PAD.h / 2;
+  const NEXT = { x: 132, y: 371, w: 254, h: 487 };
   return (
-    <div style={{ position: "absolute", inset: 0 }}>
-      <div className="ptime on">{`0:${String(secs).padStart(2, "0")}`}</div>
-      <span className="pr"><Glyph n="arrow.counterclockwise" /></span>
-      <span className="pgo on"><RI g="pause" /></span>
-      <div className="plaser" style={{ background: hold > 0.01 ? `rgba(255,59,48,${0.06 * hold})` : undefined }}><Glyph n="dot.radiowaves" /><span>Touch and hold to point</span></div>
-      <div className="pback"><Glyph n="chevron.left" /><b>Back</b></div>
-      <div className="pnext" style={{ transform: `scale(${Math.min(n1.press, n2.press)})` }}><Glyph n="chevron.right" /><b>Next</b></div>
+    <div className="fm-prs" style={{ position: "absolute", inset: 0, background: "#F2F1EE" }}>
+      <div className="tb"><b>{`0:${String(secs).padStart(2, "0")}`}</b><span><Glyph n="arrow.counterclockwise" /></span><span><RI g="pause" /></span></div>
+      <div className="pad" style={{ left: PAD.x, top: PAD.y, width: PAD.w, height: PAD.h }}>
+        {holdO > 0.02 ? <i className="dot" style={{ left: lx * PAD.w - 9, top: ly * PAD.h - 9, opacity: holdO }} /> : (
+          <div className="hint"><Glyph n="dot.radiowaves" /><span>Touch and hold to point</span></div>)}
+      </div>
+      <div className="key back" style={{ left: 16, top: NEXT.y, width: 104, height: NEXT.h }}><Glyph n="chevron.left" /><b>Back</b></div>
+      <div className="key next" style={{ left: NEXT.x, top: NEXT.y, width: NEXT.w, height: NEXT.h, transform: `scale(${Math.min(n1.press, n2.press)})` }}><Glyph n="chevron.right" /><b>Next</b></div>
+      <Finger x={fx} y={fy} o={first} />
+      <Finger x={NEXT.x + NEXT.w / 2} y={NEXT.y + NEXT.h / 2} o={n1.o} s={n1.s} /><Ring x={NEXT.x + NEXT.w / 2} y={NEXT.y + NEXT.h / 2} p={n1.ring} />
+      <Finger x={NEXT.x + NEXT.w / 2} y={NEXT.y + NEXT.h / 2} o={n2.o} s={n2.s} /><Ring x={NEXT.x + NEXT.w / 2} y={NEXT.y + NEXT.h / 2} p={n2.ring} />
+      <Finger x={px} y={py} o={holdO} />
     </div>
   );
 };
-/** The laser's path across the slide (fractions of the slide), and the finger's on the pad. */
-const laserAt = (u: number): [number, number] => [lerp(0.3, 0.74, u) + 0.03 * Math.sin(u * Math.PI * 2), 0.62 - 0.22 * u + 0.06 * Math.sin(u * Math.PI)];
 
-const CouchPhone: React.FC<{ t: number; present: number }> = ({ t, present }) => {
+const CouchPhone: React.FC<{ t: number }> = ({ t }) => {
   const swipeX = E(t, CT.skip[0], CT.skip[1] - CT.skip[0], INOUT), swO = E(t, CT.skip[0] - 0.12, 0.12) * (1 - E(t, CT.skip[1], 0.18));
   const volY = E(t, CT.vol[0], CT.vol[1] - CT.vol[0], INOUT), vO = E(t, CT.vol[0] - 0.12, 0.12) * (1 - E(t, CT.vol[1], 0.18));
   const sTap = TAP(t, CT.search), rTap = TAP(t, CT.ret);
-  const n1 = TAP(t, CT.next1), n2 = TAP(t, CT.next2);
-  const laserU = E(t, CT.laser[0], CT.laser[1] - CT.laser[0], INOUT);
-  const holdO = E(t, CT.hold - 0.15, 0.15) * (1 - E(t, CT.laser[1], 0.2));
-  const red = E(t, CT.hold + 0.1, 0.25);
-  const ly = laserAt(laserU)[1];
-  const split = Math.round(lerp(SPLIT6, SPLIT5, present));
+  const dTap = TAP(t, CT.dot);
   return (
     <div className="pt lyp" style={{ position: "absolute", inset: 0, transform: "none", background: "#2B2B2D" }}>
-      <div className={`lpt top ${present > 0.5 ? "prs" : "rmt"}`} style={{ height: split, background: present > 0.5 ? "#F2F1EE" : "#141414" }}>
-        {present < 0.5 ? <RemoteTop t={t} /> : <PresentTop t={t} />}
-      </div>
-      <div className="lpt-div" style={{ top: split }}><i style={{ background: present > 0.5 ? undefined : "rgba(255,255,255,0.22)" }} /></div>
-      <div className="lpt bot" style={{ top: split + 12, background: present > 0.5 ? "#F2F1EE" : "#1E1E1E" }} />
-      {present < 0.5 ? <KBFor t={t} /> : null}
-      {/* touches */}
-      {present < 0.5 ? <>
-        <Finger x={lerp(120, 290, swipeX)} y={250} o={swO} dark />
-        <Finger x={300} y={lerp(320, 170, volY)} o={vO} dark />
-        <Finger x={56} y={434 + 31} o={sTap.o} s={sTap.s} dark /><Ring x={56} y={465} p={sTap.ring} dark />
-        <Finger x={355} y={874 - 300 + 12 + 3 * 54 + 21} o={rTap.o} s={rTap.s} dark /><Ring x={355} y={874 - 300 + 12 + 3 * 54 + 21} p={rTap.ring} dark />
-      </> : <>
-        <Finger x={280} y={335} o={n1.o} s={n1.s} /><Ring x={280} y={335} p={n1.ring} />
-        <Finger x={280} y={335} o={n2.o} s={n2.s} /><Ring x={280} y={335} p={n2.ring} />
-        <Finger x={lerp(120, 280, laserU)} y={189 + (ly - 0.5) * 120} o={holdO}
-          color={`rgba(${Math.round(lerp(26, 255, red))},${Math.round(lerp(26, 45, red))},${Math.round(lerp(26, 32, red))},${lerp(0.42, 0.9, red)})`}
-          glow={red > 0 ? `0 0 ${18 * red}px ${6 * red}px rgba(255,45,32,${0.35 * red})` : undefined} />
-      </>}
+      <div className="lpt top rmt" style={{ height: SPLIT6, background: "#141414" }}><RemoteTop t={t} /></div>
+      <div className="lpt-div" style={{ top: SPLIT6 }}><i style={{ background: "rgba(255,255,255,0.22)" }} /></div>
+      <div className="lpt bot" style={{ top: SPLIT6 + 12, background: "#1E1E1E" }} />
+      <KBFor t={t} />
+      <Finger x={lerp(120, 290, swipeX)} y={250} o={swO} dark />
+      <Finger x={300} y={lerp(320, 170, volY)} o={vO} dark />
+      <Finger x={56} y={434 + 31} o={sTap.o} s={sTap.s} dark /><Ring x={56} y={465} p={sTap.ring} dark />
+      <Finger x={355} y={874 - 300 + 12 + 3 * 54 + 21} o={rTap.o} s={rTap.s} dark /><Ring x={355} y={874 - 300 + 12 + 3 * 54 + 21} p={rTap.ring} dark />
+      <Finger x={PAD.x + PAD.w / 2} y={PAD.y + PAD.h / 2} o={E(t, CT.dot - 0.15, 0.15)} dark />
+      <Ring x={PAD.x + PAD.w / 2} y={PAD.y + PAD.h / 2} p={dTap.ring} dark />
     </div>
   );
 };
 
-/* ---------- the room ---------- */
-const SLIDES = [
-  <><b className="sl-t" style={{ width: "46%" }} /><div className="sl-two"><span /><span /></div></>,
-  <><b className="sl-t" style={{ width: "58%" }} /><i style={{ width: "44%" }} /><i style={{ width: "36%" }} /><div className="sl-ch"><i style={{ height: "38%" }} /><i style={{ height: "56%" }} /><i style={{ height: "48%" }} /><i style={{ height: "74%" }} /><i style={{ height: "90%" }} /></div></>,
-  <><b className="sl-t big" style={{ width: "64%" }} /><i style={{ width: "30%", margin: "2cqh auto 0" }} /></>,
-];
+/* ---------- the stage screen's slides: a short talk about a coast walk ---------- */
+const Slide: React.FC<{ k: number; laser: [number, number] | null }> = ({ k, laser }) => {
+  if (k === 0) return (
+    <div className="fm-slide s0">
+      <div className="tx"><b>The coast path</b><span>A weekend walk in three stops</span></div>
+      <div className="ph"><i className="sun" /><i className="sea" /></div>
+    </div>
+  );
+  if (k === 2) return <div className="fm-slide s2"><b>Questions?</b></div>;
+  const near = (i: number) => (laser ? clamp(1 - Math.hypot(laser[0] - STOPS[i][0], laser[1] - STOPS[i][1]) / 0.06) : 0);
+  const names = ["Harbour", "Lighthouse", "Cliffs"];
+  return (
+    <div className="fm-slide s1">
+      <b className="h">Three stops</b>
+      <svg viewBox="0 0 160 90" preserveAspectRatio="none" className="map">
+        <rect width="160" height="90" fill="#F3EEE3" />
+        <path d="M0 0H160V34C140 40 128 30 112 36C96 42 88 26 72 30C56 34 50 48 34 46C20 44 10 56 0 52Z" fill="#CFE0EE" />
+        <path d={`M${STOPS[0][0] * 160} ${STOPS[0][1] * 90} Q 60 44 ${STOPS[1][0] * 160} ${STOPS[1][1] * 90} T ${STOPS[2][0] * 160} ${STOPS[2][1] * 90}`} fill="none" stroke="#1A1A1A" strokeOpacity="0.45" strokeWidth="0.7" strokeDasharray="2 1.6" vectorEffect="non-scaling-stroke" />
+      </svg>
+      {STOPS.map(([x, y], i) => (
+        <div key={i} className="pin" style={{ left: `${x * 100}%`, top: `${y * 100}%`, transform: `translate(-50%, -50%) scale(${1 + 0.35 * near(i)})` }}>
+          <i /><span>{names[i]}</span>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+/* ---------- the two rooms ---------- */
+const PH = { cx: 1545, cy: 556, w: 468, tilt: -5 };
+/** Screen position of a point on the phone (its points), for the wipe's centre. */
+function onPhone(x: number, y: number): [number, number] {
+  const inset = 0.0365 * PH.w, k = (PH.w - 2 * inset) / 402, h = PH.w * 150 / 71.9;
+  const ox = -PH.w / 2 + inset + x * k, oy = -h / 2 + inset + y * k;
+  const a = (PH.tilt * Math.PI) / 180;
+  return [PH.cx + ox * Math.cos(a) - oy * Math.sin(a), PH.cy + ox * Math.sin(a) + oy * Math.cos(a)];
+}
 
 export const Couch: React.FC = () => {
   const t = useCurrentFrame() / 60;
-  const m = E(t, CT.morph[0], CT.morph[1] - CT.morph[0], INOUT); // couch to stage
   const roomIn = E(t, CT.room, 0.6);
-  // TV rect (couch) to screen rect (stage), in px of the 1920 frame
-  const tv = { x: 230, y: 106, w: 960 }, sc = { x: 134, y: 50 + 21, w: 1114 };
-  const r = { x: lerp(tv.x, sc.x, m), y: lerp(tv.y, sc.y, m), w: lerp(tv.w, sc.w, m) };
-  const h = r.w * 9 / 16;
-  // TV state
+  const wipe = E(t, CT.wipe[0], CT.wipe[1] - CT.wipe[0], INOUT);
+  const [wx, wy] = onPhone(PAD.x + PAD.w / 2, PAD.y + PAD.h / 2);
+  // TV
   const seek = E(t, CT.skip[1], 0.25) * (1 - E(t, CT.skip[1] + 1.0, 0.3));
   const bar = E(t, CT.skip[1] - 0.05, 0.2) * (1 - E(t, CT.skip[1] + 1.5, 0.3));
   const pos = 0.31 + 0.04 * E(t, CT.skip[1] + 0.05, 0.5);
@@ -178,60 +217,64 @@ export const Couch: React.FC = () => {
   const searchP = E(t, CT.search + 0.15, 0.45);
   const n = Math.floor(clamp((t - CT.type0) / (CT.type1 - CT.type0)) * QUERY.length + 0.0001);
   const results = (i: number) => E(t, CT.ret + 0.1 + i * 0.07, 0.45);
+  // stage
   const slide = t < CT.next1 + 0.05 ? 0 : t < CT.next2 + 0.05 ? 1 : 2;
   const slideIn = t < CT.next2 + 0.05 ? E(t, CT.next1 + 0.05, 0.5) : E(t, CT.next2 + 0.05, 0.5);
-  const laserU = E(t, CT.laser[0], CT.laser[1] - CT.laser[0], INOUT);
-  const [lx, ly] = laserAt(laserU);
+  const u = E(t, CT.laser[0], CT.laser[1] - CT.laser[0], (x) => x);
+  const laser = laserAt(u);
   const laserO = E(t, CT.laser[0] - 0.1, 0.2) * (1 - E(t, CT.laser[1], 0.2));
-  // phone in hand: couch pose to stage pose
-  const ph = { cx: lerp(1545, 1560, m), cy: lerp(556, 568, m), w: lerp(468, 452, m), tilt: lerp(-5, -4, m) };
-  const pf = clamp((m - 0.3) / 0.35);
-  // colours
-  const wall = m < 1 ? `rgb(${[43, 41, 37].map((v, i) => Math.round(lerp(v, [218, 214, 207][i], m))).join(",")})` : "#DAD6CF";
-  const floor = `rgb(${[35, 33, 30].map((v, i) => Math.round(lerp(v, [201, 195, 185][i], m))).join(",")})`;
+  const SC = { x: 134, y: 156, w: 1060 }, sh = SC.w * 9 / 16;
+  const push = lerp(1, 1.025, E(t, P0, 5, INOUT));
   return (
-    <div className="fm" style={{ background: wall }}>
-      <div className="fm-world" style={{ opacity: roomIn, transform: `scale(${lerp(1, 1.02, E(t, P0, 4, INOUT))})`, transformOrigin: "50% 50%" }}>
-        <div className="uc-wall" style={{ background: m < 0.99 ? `radial-gradient(60% 70% at 38% 30%, rgba(58,55,47,${1 - m}), transparent 70%)` : undefined }} />
-        <div className="uc-floor" style={{ top: lerp(40, 43, m) * 19.2, background: floor }} />
-        <div className="console" style={{ opacity: 1 - m }} />
-        <div className="sofa" style={{ opacity: 1 - m, transform: `translateY(${m * 120}px)` }}><i /></div>
-        {/* the stage roller appears as the TV becomes the screen */}
-        <div style={{ position: "absolute", left: r.x - 19, top: r.y - 21, width: r.w + 38, height: 21, borderRadius: 12, background: "linear-gradient(#5A5752, #3C3A36)", opacity: m }} />
-        <div style={{ position: "absolute", left: r.x, top: r.y, width: r.w }}>
-          <div className="tv-b" style={{ padding: lerp(8.6, 0, m), borderRadius: lerp(11.5, 0, m), background: m < 1 ? "#0A0A0A" : "transparent", boxShadow: `0 0 0 ${2.3 * (1 - m)}px #3A3A3A, 0 0 ${154 * (1 - m)}px -19px rgba(232,197,71,${0.18 * (1 - m)}), 0 27px 58px -31px rgba(20,20,20,${0.4 * m})` }}>
-            <div className="tv-s" style={{ height: h - 2 * lerp(8.6, 0, m), aspectRatio: "auto" }}>
-              {/* the film */}
-              <div className="tv-film" style={{ opacity: 1 - searchP }}><Poster style={{ position: "absolute", inset: 0 }} /></div>
-              <div className="tv-seek" style={{ opacity: seek, transform: `scale(${lerp(0.8, 1, OUT(seek))})` }}><RI g="fwd10" /></div>
-              <div className="tv-bar" style={{ opacity: bar * (1 - searchP) }}><i style={{ width: `${pos * 100}%` }} /></div>
-              <div className="tv-vol" style={{ opacity: volO }}><i style={{ height: `${vol}%` }} /></div>
-              {/* the search page */}
-              {searchP > 0.001 ? (
-                <div style={{ position: "absolute", inset: 0, background: "#141414", opacity: searchP * (1 - clamp(m * 2.5)) }}>
-                  <div className="fm-tvsearch"><Glyph n="magnifyingglass" /><span>{QUERY.slice(0, n)}</span><i className="fm-caret" /></div>
-                  <div className="fm-tvrow">{[0, 1, 2, 3].map(i => (
-                    <span key={i} style={{ opacity: results(i), transform: `translateY(${(1 - OUT(results(i))) * 3}cqh)` }}><Poster alt={i % 2 === 1} style={{ position: "absolute", inset: 0 }} /></span>
-                  ))}</div>
-                </div>
-              ) : null}
-              {/* the slides */}
-              {m > 0.001 ? (
-                <div className="scr-s" style={{ position: "absolute", inset: 0, opacity: m, boxShadow: "none" }}>
-                  {slideIn < 1 && slide > 0 ? <div className="slide" style={{ opacity: 1 - clamp(slideIn * 1.8) }}>{SLIDES[slide - 1]}</div> : null}
-                  <div className="slide" style={slide > 0 && slideIn < 1 ? { opacity: clamp(slideIn * 1.6 - 0.2), transform: `translateX(${(1 - OUT(slideIn)) * 5}%)` } : undefined}>{SLIDES[slide]}</div>
-                  <span className="slaser" style={{ left: `${lx * 100}%`, top: `${ly * 100}%`, opacity: laserO }} />
-                  <span className="sl-n">{slide + 1}</span>
-                </div>
-              ) : null}
+    <div className="fm" style={{ background: "#2B2925" }}>
+      {/* the couch */}
+      {wipe < 1 ? (
+        <div className="fm-world" style={{ opacity: roomIn }}>
+          <div className="uc-wall" style={{ background: "radial-gradient(60% 70% at 38% 30%, #3A372F, #2B2925 70%)" }} />
+          <div className="uc-floor" style={{ top: 40 * 19.2, background: "#23211E" }} />
+          <div className="console" />
+          <div className="sofa"><i /></div>
+          <div style={{ position: "absolute", left: 230, top: 106, width: 960 }}>
+            <div className="tv-b" style={{ padding: 8.6, borderRadius: 11.5 }}>
+              <div className="tv-s">
+                <div className="tv-film" style={{ opacity: 1 - searchP }}><Poster style={{ position: "absolute", inset: 0 }} /></div>
+                <div className="tv-seek" style={{ opacity: seek, transform: `scale(${lerp(0.8, 1, OUT(seek))})` }}><RI g="fwd10" /></div>
+                <div className="tv-bar" style={{ opacity: bar * (1 - searchP) }}><i style={{ width: `${pos * 100}%` }} /></div>
+                <div className="tv-vol" style={{ opacity: volO }}><i style={{ height: `${vol}%` }} /></div>
+                {searchP > 0.001 ? (
+                  <div style={{ position: "absolute", inset: 0, background: "#141414", opacity: searchP }}>
+                    <div className="fm-tvsearch"><Glyph n="magnifyingglass" /><span>{QUERY.slice(0, n)}</span><i className="fm-caret" /></div>
+                    <div className="fm-tvrow">{[0, 1, 2, 3].map(i => (
+                      <span key={i} style={{ opacity: results(i), transform: `translateY(${(1 - OUT(results(i))) * 3}cqh)` }}><Poster alt={i % 2 === 1} style={{ position: "absolute", inset: 0 }} /></span>
+                    ))}</div>
+                  </div>
+                ) : null}
+              </div>
             </div>
           </div>
+          <Phone cx={PH.cx} cy={PH.cy} w={PH.w} finish="dark" shadow="hand" tilt={PH.tilt} port={<CouchPhone t={t} />} />
         </div>
-        {pf < 1 ? <Phone cx={ph.cx} cy={ph.cy} w={ph.w} finish="dark" shadow="hand" tilt={ph.tilt} port={<CouchPhone t={t} present={0} />} /> : null}
-        {pf > 0 ? <Phone cx={ph.cx} cy={ph.cy} w={ph.w} finish="light" shadow="hand" tilt={ph.tilt} port={<CouchPhone t={t} present={1} />} style={{ opacity: pf }} /> : null}
-      </div>
-      <Caption text="Remote" color="#BF5AF2" dark p={E(t, R0 + 0.3, 0.6)} q={E(t, CT.morph[0], 0.3)} />
-      <Caption text="Present" color="#FF453A" p={E(t, P0 + 0.1, 0.6)} q={E(t, D0 - 0.4, 0.3)} />
+      ) : null}
+      {/* the stage, opening from the dot */}
+      {wipe > 0 ? (
+        <div className="fm-world" style={{ background: "#DAD6CF", clipPath: wipe < 1 ? `circle(${lerp(0, 2300, wipe)}px at ${wx}px ${wy}px)` : undefined }}>
+          <div style={{ position: "absolute", inset: 0, transform: `scale(${push})`, transformOrigin: "40% 45%" }}>
+            <div className="uc-floor" style={{ top: 860, background: "#C9C3B9" }} />
+            <div style={{ position: "absolute", left: SC.x - 19, top: SC.y - 21, width: SC.w + 38, height: 21, borderRadius: 12, background: "linear-gradient(#5A5752, #3C3A36)" }} />
+            <div className="scr-s" style={{ position: "absolute", left: SC.x, top: SC.y, width: SC.w, height: sh, aspectRatio: "auto" }}>
+              {slideIn < 1 && slide > 0 ? <div style={{ position: "absolute", inset: 0, opacity: 1 - clamp(slideIn * 1.8) }}><Slide k={slide - 1} laser={null} /></div> : null}
+              <div style={{ position: "absolute", inset: 0, ...(slide > 0 && slideIn < 1 ? { opacity: clamp(slideIn * 1.6 - 0.2), transform: `translateX(${(1 - OUT(slideIn)) * 5}%)` } : {}) }}>
+                <Slide k={slide} laser={laserO > 0.5 ? laser : null} />
+              </div>
+              <span className="slaser" style={{ left: `${laser[0] * 100}%`, top: `${laser[1] * 100}%`, opacity: laserO }} />
+              <span className="sl-n">{slide + 1}</span>
+            </div>
+          </div>
+          <Phone cx={PH.cx} cy={PH.cy} w={PH.w} finish="light" shadow="hand" tilt={PH.tilt} port={<PresentPhone t={t} />} />
+        </div>
+      ) : null}
+      <Title text="Remote" dark {...titleAt("remote", t)} />
+      <Title text="Present" {...titleAt("present", t)} />
     </div>
   );
 };

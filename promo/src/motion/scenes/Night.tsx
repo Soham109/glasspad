@@ -1,8 +1,8 @@
 import React from "react";
 import { useCurrentFrame } from "remotion";
-import { AppIcon, Caption, Doc, Finger, Glyph, MacBook, MenuBar, Monitor, Phone, Poster, Ring, Stand, Win } from "../parts";
+import { AppIcon, Title, Doc, Finger, Glyph, MacBook, MenuBar, Monitor, Phone, Poster, Ring, Stand, Win } from "../parts";
 import { clamp, E, INOUT, K, lerp, OUT, SP, TAP } from "../kit";
-import { sceneSec, word } from "../timeline";
+import { sceneSec, word, titleAt } from "../timeline";
 
 /* Scenes 9 and 10: Displays on the desk (DisplaysMode.swift, sideways), then the same phone on a
    nightstand in StandBy. The phone stays put while the room changes around it. Film seconds. */
@@ -136,7 +136,7 @@ export const Night: React.FC = () => {
   const sU = ph.w / 21;
   return (
     <div className="fm" style={{ background: bg }}>
-      <div className="fm-world" style={{ opacity: inO, transform: `scale(${lerp(lerp(1.0, 1.06, E(t, D0 - 0.4, 3.0, INOUT)), 1, n)})`, transformOrigin: "56% 48%" }}>
+      <div className="fm-world" style={{ opacity: inO, transform: `scale(${lerp(lerp(1.0, 1.14, E(t, D0 - 0.4, 2.2, INOUT)), 1, n)})`, transformOrigin: "88% 50%" }}>
         {/* the desk */}
         <div style={{ opacity: 1 - clamp(n * 2), position: "absolute", inset: 0 }}>
           <div style={{ position: "absolute", left: 0, right: 0, top: 37 * CQ + OY, bottom: 0, background: "#DEDBD5" }} />
@@ -173,8 +173,8 @@ export const Night: React.FC = () => {
           </>} />
       </div>
       <div style={{ position: "absolute", inset: 0, background: "#141414", opacity: exit }} />
-      <Caption text="Displays" color="#63E6E2" p={E(t, D0 + 0.2, 0.6)} q={E(t, NT.night[0], 0.3)} />
-      <Caption text="StandBy" color="#FF453A" dark p={E(t, N0 + 0.1, 0.6)} q={E(t, T0 - 0.6, 0.3)} />
+      <Title text="Displays" {...titleAt("displays", t)} />
+      <Title text="StandBy" dark {...titleAt("standby", t)} />
     </div>
   );
 };

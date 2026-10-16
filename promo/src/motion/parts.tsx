@@ -310,11 +310,22 @@ export const Caption: React.FC<{ text: string; color: string; p: number; q?: num
 /** A horizontal motion blur for fast sideways moves: `px` is the distance moved this frame,
     in screen pixels; half of it becomes the blur, so slow moves stay sharp. */
 export const BlurX: React.FC<{ id: string; px: number; children: React.ReactNode; style?: CSS }> = ({ id, px, children, style }) => {
-  const sd = Math.min(14, Math.max(0, Math.abs(px) * 0.45 - 0.6));
+  const sd = Math.min(10, Math.max(0, Math.abs(px) * 0.3 - 0.6));
   return (
     <div style={{ position: "absolute", inset: 0, filter: sd > 0.05 ? `url(#${id})` : undefined, ...style }}>
       {sd > 0.05 ? <svg width="0" height="0" style={{ position: "absolute" }}><filter id={id} x="-10%" y="0" width="120%" height="100%"><feGaussianBlur stdDeviation={`${sd} 0`} /></filter></svg> : null}
       {children}
+    </div>
+  );
+};
+
+/** A scene title: rises out of a mask on its voice line, then lifts away. p and q run 0 to 1. */
+export const Title: React.FC<{ text: string; p: number; q?: number; dark?: boolean; style?: CSS }> = ({ text, p, q = 0, dark, style }) => {
+  if (p <= 0.001 || q >= 0.999) return null;
+  const a = OUT(clamp(p)), b = clamp(q);
+  return (
+    <div className="fm-title" style={{ color: dark ? "#F2F1EE" : "#1A1A1A", ...style }}>
+      <span style={{ transform: `translateY(${(1 - a) * 105 - b * 18}%)`, opacity: 1 - b }}>{text}</span>
     </div>
   );
 };

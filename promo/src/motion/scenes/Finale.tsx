@@ -1,8 +1,8 @@
 import React from "react";
 import { useCurrentFrame } from "remotion";
-import { Caption, Glyph, MacBook, macDisplay, MenuBar, Mark, Phone } from "../parts";
+import { Title, Glyph, MacBook, macDisplay, MenuBar, Mark, Phone } from "../parts";
 import { clamp, E, INOUT, lerp, OUT, SP } from "../kit";
-import { sceneSec, word, FILM_SEC } from "../timeline";
+import { sceneSec, word, FILM_SEC, titleAt } from "../timeline";
 
 /* Scenes 12 and 13. Pairing as the Mac's menu bar popover and the iPhone's camera draw it
    (web/src/pairing.ts); the code's dots gather into a check; the two devices and one line inside
@@ -189,7 +189,7 @@ export const Finale: React.FC = () => {
       ) : null}
       {/* the Wi-Fi dot before the fold */}
       {t <= FT.fold[0] ? <div style={{ position: "absolute", left: DOT.x - 13, top: DOT.y - 13, width: 26, height: 26, borderRadius: "50%", background: "#F2F1EE", opacity: E(t, FT.wifi, 0.3) * inP }} /> : null}
-      <Caption text="Private" color="#63E6BE" dark p={E(t, P0 + 0.15, 0.6)} q={E(t, FT.fold[0], 0.3)} />
+      <Title text="Private" dark {...titleAt("private", t)} />
     </div>
   );
 };
