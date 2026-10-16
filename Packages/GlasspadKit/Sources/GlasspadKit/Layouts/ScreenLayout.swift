@@ -20,9 +20,9 @@ public enum SplitDirection: String, Codable, Sendable, CaseIterable {
 
 /// A screen made of one to three panes, each showing one of the phone's modes.
 ///
-/// Two panes share the screen along the main split. A third pane splits the second one the
-/// other way, so the first pane keeps a whole side (a trackpad on the left, Media over Actions
-/// on the right). Modes are stored by name (`AppMode.rawValue` on the phone) so the model
+/// Two panes share the screen along the main split. A third pane splits the second one, so
+/// the first pane keeps a whole side (a trackpad on the left, Media over Actions on the right;
+/// upright, three rows). Modes are stored by name (`AppMode.rawValue` on the phone) so the model
 /// stays independent of the app, and a mode a newer build added survives an older one.
 public struct ScreenLayout: Codable, Identifiable, Equatable, Hashable, Sendable {
     public static let maxPanes = 3
@@ -128,8 +128,12 @@ public struct ScreenLayout: Codable, Identifiable, Equatable, Hashable, Sendable
             if panes.count == 2 {
                 frames.append(PaneFrame(index: 1, rect: rest))
             } else {
-                let (second, third, innerLine) = Self.cut(rest, share: innerSplit, across: !across, gap: gap)
-                dividers.append(DividerFrame(level: .inner, rect: innerLine, sideBySide: !across, span: rest, share: innerSplit))
+                // The two smaller panes split their side whichever way leaves them a usable
+                // shape: side by side only when that side is much wider than tall (a strip
+                // along the bottom), otherwise one above the other.
+                let innerAcross = rest.width > rest.height * 1.6
+                let (second, third, innerLine) = Self.cut(rest, share: innerSplit, across: innerAcross, gap: gap)
+                dividers.append(DividerFrame(level: .inner, rect: innerLine, sideBySide: innerAcross, span: rest, share: innerSplit))
                 if let second { frames.append(PaneFrame(index: 1, rect: second)) }
                 if let third { frames.append(PaneFrame(index: 2, rect: third)) }
             }

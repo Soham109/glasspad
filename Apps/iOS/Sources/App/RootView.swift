@@ -83,6 +83,14 @@ struct RootView: View {
             ClipboardSheet()
                 .environment(\.palette, palette)
         }
+        .sheet(isPresented: $router.showLayouts, onDismiss: ScreenAwake.update) {
+            LayoutGallery()
+                .environment(\.palette, palette)
+        }
+        .sheet(item: $router.layoutDraft, onDismiss: ScreenAwake.update) { draft in
+            LayoutEditor(draft: draft)
+                .environment(\.palette, palette)
+        }
         .fullScreenCover(isPresented: $router.showPresenter) {
             PresenterCover()
                 .environment(\.palette, palette)
@@ -100,15 +108,25 @@ struct RootView: View {
     @ViewBuilder
     private func main(_ palette: Palette) -> some View {
         let focus = router.dims
+        let layout = router.layout
         ZStack {
-            modeContent
-                .id(router.mode)
+            if let layout {
+                GeometryReader { geo in
+                    LayoutScreen(layout: layout, safeArea: geo.safeAreaInsets)
+                }
+                .ignoresSafeArea(.keyboard)
+                .id(layout.id)
                 .transition(.opacity)
-            if router.mode == .trackpad && !filmActive {
+            } else {
+                ModeScreen(mode: router.mode)
+                    .id(router.mode)
+                    .transition(.opacity)
+            }
+            if layout == nil && router.mode == .trackpad && !filmActive {
                 TrackpadStatus()
                 TrackpadNotices()
             }
-            if router.mode == .present && router.isDimmed {
+            if layout == nil && router.mode == .present && router.isDimmed {
                 // Present dims too; the first touch only wakes it.
                 Color.black.opacity(0.6)
                     .ignoresSafeArea()
@@ -126,9 +144,10 @@ struct RootView: View {
             }
         }
         .animation(.easeInOut(duration: 0.25), value: router.mode)
+        .animation(.easeInOut(duration: 0.25), value: router.layoutID)
         .animation(.easeInOut(duration: router.isDimmed ? 1.2 : 0.25), value: router.isDimmed)
         .persistentSystemOverlays(focus ? .hidden : .automatic)
-        .defersSystemGestures(on: router.mode == .trackpad ? .all : [])
+        .defersSystemGestures(on: router.screenModes.contains(.trackpad) ? .all : [])
         .simultaneousGesture(TapGesture().onEnded { router.noteActivity() }, including: router.mode == .present ? .all : .subviews)
     }
 
@@ -147,9 +166,14 @@ struct RootView: View {
         false
         #endif
     }
+}
 
-    @ViewBuilder private var modeContent: some View {
-        switch router.mode {
+/// One mode's screen, full size or inside a layout pane.
+struct ModeScreen: View {
+    let mode: AppMode
+
+    var body: some View {
+        switch mode {
         case .trackpad: TrackpadScreen()
         case .dock: DockMode()
         case .keys: KeysMode()
@@ -165,7 +189,7 @@ struct RootView: View {
 
 /// Quiet status over the trackpad, only when it is not connected. Never takes touches,
 /// except the "Pair a Mac" button when nothing is paired.
-private struct TrackpadStatus: View {
+struct TrackpadStatus: View {
     @Environment(\.palette) private var palette
     var session = MacSession.shared
     var router = AppRouter.shared
@@ -299,6 +323,23 @@ enum DebugLaunch {
         if let page = value("-GPSettingsPage") {
             settingsPage = page
             AppRouter.shared.showSettings = true
+        }
+        // Layouts: -GPLayout <template id> opens a layout made from that template (saved once),
+        // -GPLayoutSplit <0...1> sets its line, -GPLayouts opens the gallery, -GPLayoutEdit
+        // <template id> opens the editor on a new layout from that template.
+        if let id = value("-GPLayout"), let template = LayoutTemplate.builtIn.first(where: { $0.id == id }) {
+            PhoneSettings.shared.hasOnboarded = true
+            let store = LayoutStore.shared
+            var layout = store.layouts.first { $0.name == template.name } ?? template.makeLayout()
+            if let share = value("-GPLayoutSplit").flatMap(Double.init) { layout.split = share }
+            if let share = value("-GPLayoutInner").flatMap(Double.init) { layout.innerSplit = share }
+            if let d = value("-GPLayoutDirection").flatMap(SplitDirection.init(rawValue:)) { layout.direction = d }
+            store.save(layout)
+            AppRouter.shared.show(layout: layout)
+        }
+        if args.contains("-GPLayouts") { AppRouter.shared.showLayouts = true }
+        if let id = value("-GPLayoutEdit"), let template = LayoutTemplate.builtIn.first(where: { $0.id == id }) {
+            AppRouter.shared.layoutDraft = AppRouter.shared.newLayout(from: template)
         }
         if let scene = value("-GPFilm") { FilmDirector.shared.start(scene: scene, iconFolder: value("-GPDemo")) }
     }

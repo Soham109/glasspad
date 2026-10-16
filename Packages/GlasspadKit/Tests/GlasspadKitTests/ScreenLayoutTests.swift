@@ -107,6 +107,14 @@ import Testing
         #expect(a.panes[1].rect == CGRect(x: 410, y: 0, width: 400, height: 200))
         #expect(a.panes[2].rect == CGRect(x: 410, y: 210, width: 400, height: 200))
         #expect(a.dividers.map(\.sideBySide) == [true, false])
+        // Upright: three rows, never two narrow columns.
+        let tall = l.arrangement(in: CGSize(width: 400, height: 830), gap: 10)
+        #expect(tall.dividers.map(\.sideBySide) == [false, false])
+        #expect(tall.panes.allSatisfy { $0.rect.width == 400 })
+        // Stacked while sideways: a wide strip along the bottom splits side by side.
+        var stacked = l
+        stacked.direction = .stacked
+        #expect(stacked.arrangement(in: CGSize(width: 874, height: 402), gap: 10).dividers.map(\.sideBySide) == [false, true])
     }
 
     @Test func foldedPanesLeaveTheirLineAtTheEdge() {

@@ -29,7 +29,7 @@ public struct LayoutTemplate: Identifiable, Equatable, Sendable {
     /// app hides any template whose modes this build does not have.
     public static let builtIn: [LayoutTemplate] = [
         LayoutTemplate(id: "trackpad-actions", name: "Trackpad and Actions", panes: ["trackpad", "actions"], split: 0.6),
-        LayoutTemplate(id: "trackpad-keys", name: "Trackpad and Keyboard", panes: ["trackpad", "keys"], direction: .stacked, split: 0.5),
+        LayoutTemplate(id: "trackpad-keys", name: "Trackpad and Keyboard", panes: ["trackpad", "keys"], split: 0.5),
         LayoutTemplate(id: "trackpad-media", name: "Trackpad and Media", panes: ["trackpad", "media"], split: 0.6),
         LayoutTemplate(id: "trackpad-dock", name: "Trackpad and Dock", panes: ["trackpad", "dock"], split: 0.6),
         LayoutTemplate(id: "media-actions", name: "Media and Actions", panes: ["media", "actions"]),
