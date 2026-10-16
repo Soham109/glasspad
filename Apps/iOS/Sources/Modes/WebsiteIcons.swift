@@ -16,11 +16,14 @@ final class WebsiteIcons {
     private(set) var images: [String: UIImage] = [:]
     @ObservationIgnored private var loading: [String: Task<UIImage?, Never>] = [:]
     @ObservationIgnored private var titles: [String: String] = [:]
+    /// Sites that did not answer at all (offline, a typo, a timeout): asked again after a
+    /// minute, never marked as having no logo.
+    @ObservationIgnored private var unreachable: [String: Date] = [:]
     @ObservationIgnored private let folder: URL?
     @ObservationIgnored private let session: URLSession
 
     /// Logos are stored at most this many pixels on a side: sharp at 3x for any tile size.
-    static let storedPixels: CGFloat = 256
+    nonisolated static let storedPixels: CGFloat = 256
     private static let retryAfter: TimeInterval = 7 * 24 * 3600
     private static let pageLimit = 400_000
 
@@ -60,12 +63,18 @@ final class WebsiteIcons {
             return disk
         }
         if let task = loading[key] { return await task.value }
-        guard !recentlyMissing(key) else { return nil }
+        guard !recentlyMissing(key), (unreachable[key].map { Date() > $0 } ?? true) else { return nil }
+        // A moment's wait, so an address being typed is not fetched at every letter (the
+        // caller's task is cancelled when the link changes).
+        try? await Task.sleep(for: .milliseconds(400))
+        guard !Task.isCancelled else { return nil }
+        if let image = images[key] { return image }
+        if let task = loading[key] { return await task.value }
         let task = Task { await self.fetch(url, key: key) }
         loading[key] = task
         let image = await task.value
         loading[key] = nil
-        if let image { images[key] = image } else { markMissing(key) }
+        if let image { images[key] = image }
         return image
     }
 
@@ -89,16 +98,25 @@ final class WebsiteIcons {
         let candidates = SiteInfo.iconCandidates(html: loaded?.html ?? "", page: loaded?.finalURL ?? target)
         // The best few, fetched together; the largest real image wins.
         let session = self.session
-        let images = await withTaskGroup(of: CGImage?.self) { group in
+        let results = await withTaskGroup(of: (answered: Bool, image: CGImage?).self) { group in
             for c in candidates.prefix(5) { group.addTask { await Self.download(c.url, session: session) } }
-            var all: [CGImage] = []
-            for await image in group { if let image { all.append(image) } }
+            var all: [(answered: Bool, image: CGImage?)] = []
+            for await result in group { all.append(result) }
             return all
         }
+        let images = results.compactMap(\.image)
         guard let best = images.max(by: { min($0.width, $0.height) < min($1.width, $1.height) }),
-              min(best.width, best.height) >= 16 else { return nil }
-        let image = UIImage(cgImage: best)
-        let stored = Self.downscaled(image)
+              min(best.width, best.height) >= 16 else {
+            // Only a site that answered is known to have no logo; one that could not be
+            // reached is asked again later.
+            if loaded != nil || results.contains(where: \.answered) {
+                markMissing(key)
+            } else {
+                unreachable[key] = Date().addingTimeInterval(60)
+            }
+            return nil
+        }
+        let stored = UIImage(cgImage: best)
         if let png = stored.pngData(), let file = file(key) { try? png.write(to: file, options: .atomic) }
         return stored
     }
@@ -120,27 +138,28 @@ final class WebsiteIcons {
         return (html, http.url ?? url)
     }
 
-    /// Downloads an image and decodes its largest frame (an `.ico` holds several sizes).
-    private nonisolated static func download(_ url: URL, session: URLSession) async -> CGImage? {
-        guard let (data, response) = try? await session.data(from: url),
-              let http = response as? HTTPURLResponse, http.statusCode == 200, data.count < 3_000_000,
-              let source = CGImageSourceCreateWithData(data as CFData, nil) else { return nil }
-        var best: CGImage?
-        for i in 0..<CGImageSourceGetCount(source) {
-            guard let image = CGImageSourceCreateImageAtIndex(source, i, nil) else { continue }
-            if best == nil || image.width > best!.width { best = image }
+    /// Downloads an image and decodes its largest frame (an `.ico` holds several sizes),
+    /// scaled down to `storedPixels` while decoding, so a huge logo never becomes a huge bitmap.
+    /// `answered` says whether the site replied at all.
+    private nonisolated static func download(_ url: URL, session: URLSession) async -> (answered: Bool, image: CGImage?) {
+        guard let (data, response) = try? await session.data(from: url) else { return (false, nil) }
+        guard let http = response as? HTTPURLResponse, http.statusCode == 200, data.count < 3_000_000,
+              let source = CGImageSourceCreateWithData(data as CFData, nil) else { return (true, nil) }
+        // Pick the frame by its size alone, and decode only that one.
+        var best: (index: Int, side: Int)?
+        for i in 0..<min(CGImageSourceGetCount(source), 32) {
+            guard let props = CGImageSourceCopyPropertiesAtIndex(source, i, nil) as? [CFString: Any],
+                  let w = props[kCGImagePropertyPixelWidth] as? Int, let h = props[kCGImagePropertyPixelHeight] as? Int else { continue }
+            if best == nil || min(w, h) > best!.side { best = (i, min(w, h)) }
         }
-        return best
-    }
-
-    private static func downscaled(_ image: UIImage) -> UIImage {
-        let side = max(image.size.width, image.size.height)
-        guard side > storedPixels else { return image }
-        let scale = storedPixels / side
-        let size = CGSize(width: (image.size.width * scale).rounded(), height: (image.size.height * scale).rounded())
-        let format = UIGraphicsImageRendererFormat()
-        format.scale = 1
-        return UIGraphicsImageRenderer(size: size, format: format).image { _ in image.draw(in: CGRect(origin: .zero, size: size)) }
+        guard let best else { return (true, nil) }
+        let options: [CFString: Any] = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceShouldCacheImmediately: true,
+            kCGImageSourceThumbnailMaxPixelSize: Int(storedPixels),
+        ]
+        return (true, CGImageSourceCreateThumbnailAtIndex(source, best.index, options as CFDictionary))
     }
 
     // MARK: Disk
