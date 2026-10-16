@@ -1,0 +1,43 @@
+/* ---------- Learn pages: the guide's parts, an answer first, a table, a Learn footer ---------- */
+.lp-hero h1 { font-size: clamp(40px, 5.6vw, 68px); letter-spacing: -0.04em; line-height: 1.04; max-width: 16ch; text-wrap: balance; }
+.lp-answer { margin-top: 24px; max-width: 40em; font-size: clamp(18px, 1.6vw, 20px); line-height: 1.55; color: var(--ink-2); text-wrap: pretty; }
+.lp .btn { text-decoration: none; }
+.lp .btn-ink { color: var(--paper); }
+.lp-cta { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 32px; }
+.lp-also { margin-top: clamp(24px, 3vw, 36px); font-size: 16px; color: var(--ink-2); }
+.g-row + .g-row { margin-top: clamp(40px, 5vw, 64px); }
+.lp-gap { margin-top: clamp(40px, 5vw, 64px); }
+.lp-picks .g-card { grid-template-columns: 1fr; align-items: start; padding: 28px; }
+
+/* Side by side */
+.lp-table { max-width: 980px; font-size: 16px; line-height: 1.5; }
+.lp-tr { display: grid; grid-template-columns: minmax(0, 180px) minmax(0, 1fr) minmax(0, 1fr); gap: 0 32px; padding: 16px 0; border-top: 1px solid var(--line); }
+.lp-tr > span { color: var(--ink-2); }
+.lp-th { border-top: 0; padding-top: 0; }
+.lp-th > span, .lp-tr > .lp-k { color: var(--ink); font-weight: 600; }
+
+.lp-sources p { color: var(--ink-2); max-width: 40em; margin-bottom: 12px; }
+.lp-need { max-width: 46em; color: var(--ink-2); }
+
+/* Footer: the Learn list, then the project links */
+.lp-foot { padding: 0; background: var(--paper); color: var(--ink); border-top: 1px solid var(--line); margin-top: clamp(64px, 8vw, 112px); }
+.lp-learn { padding-top: 40px; }
+.lp-learn h2 { font-size: 15px; font-weight: 600; letter-spacing: -0.01em; margin-bottom: 14px; }
+.lp-learn ul { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px 28px; font-size: 15px; }
+.lp-learn a, .lp-foot .foot-links a { color: var(--ink-2); text-decoration: none; transition: color 200ms; }
+.lp-learn a:hover, .lp-learn a[aria-current="page"], .lp-foot .foot-links a:hover { color: var(--ink); }
+.lp-foot .foot-links { display: flex; flex-wrap: wrap; gap: 8px 28px; margin-top: 8px; padding-top: 28px; padding-bottom: 40px; font-size: 15px; }
+.lp-foot .foot-by { margin-left: auto; }
+
+@media (max-width: 760px) {
+  .lp-learn ul { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .lp-tr { grid-template-columns: 1fr 1fr; gap: 6px 20px; }
+  .lp-tr > .lp-k { grid-column: 1 / -1; }
+  .lp-th > span:first-child { display: none; }
+}
+@media (max-width: 600px) {
+  .lp-learn ul { grid-template-columns: 1fr; }
+  .lp-foot .foot-by { margin-left: 0; }
+  .lp-tr > span[data-l]::before { content: attr(data-l); display: block; font-size: 13px; font-weight: 600; color: var(--ink-3); }
+  .lp-th { display: none; }
+}
