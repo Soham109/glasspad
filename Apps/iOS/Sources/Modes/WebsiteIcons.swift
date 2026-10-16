@@ -207,16 +207,15 @@ struct WebsiteLogo: View {
         let shape = RoundedRectangle(cornerRadius: size * 0.24, style: .continuous)
         Group {
             if let image = icons.image(for: link) {
-                Image(uiImage: image)
+                Image(uiImage: palette.appIcon(image))
                     .resizable()
                     .interpolation(.high)
                     .aspectRatio(contentMode: .fill)
                     .frame(width: size, height: size)
                     // Small or transparent logos sit on white, like a Home Screen web clip.
-                    .background(Color.white)
+                    .background(palette.iconBacking)
                     .clipShape(shape)
                     .overlay(shape.strokeBorder(palette.lineColor, lineWidth: 0.5))
-                    .saturation(palette.monochrome ? 0 : 1)
                     .transition(.opacity)
             } else {
                 shape.fill(palette.tint(tint).opacity(palette.isDark ? 0.28 : 0.16))

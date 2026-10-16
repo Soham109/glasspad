@@ -97,11 +97,13 @@ A layout shows one to three modes on one screen. The model is in GlasspadKit (`L
 
 ## Themes
 
-`ThemeCatalog` in GlasspadKit holds every theme as plain data: 27 themes plus Photo, in four groups.
+`ThemeCatalog` in GlasspadKit holds every theme as plain data: 38 themes plus Photo, in six groups.
 
 - **Classic:** System, Paper, Graphite, Mono, Pure Black, High Contrast.
 - **Glass:** Glass, Glass Dark, Clear, Aurora, Ocean, Dusk, Rose, Mint, Lavender, Ember, Citrus, Smoke.
 - **Color:** Sand, Midnight, Forest, Plum, Slate, Espresso, Solar, Frost, Dawn.
+- **Grain:** Grain, Grain Dark, Risograph, Film. `ThemeGrain` makes a still noise tile from a fixed seed; the phone draws it once at the screen's pixel density as a repeating pattern color (`Design/Grain.swift`), so it costs nothing after the first draw. The contrast tests check text on the grain at its darkest and lightest.
+- **Tinted:** Mono Blue, Mono Green, Mono Rose, Mono Amber, Mono Violet, Mono Slate and Custom Tint (any color the person picks). `ThemeTint` builds every color from one hue; mode and tile colors move onto it keeping their brightness, and app icons and website logos are recolored along the hue's ramp, once per icon and look (`Design/IconTint.swift`, through `Palette.appIcon`). Tests sweep every hue and strength.
 - **Photo:** a picked photo, blurred and veiled (`PhotoTone`) so text reads on it.
 
 Each theme defines every color, its own accent included. `ThemeContrastTests` checks text, accents, button labels and status colors against WCAG AA (the web's accessibility contrast standard) on every surface. Views read colors only through `Palette` (`Apps/iOS/Sources/Design/Theme.swift`). Remote and StandBy stay dark.

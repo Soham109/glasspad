@@ -454,7 +454,7 @@ private struct WindowList: View {
             HStack(spacing: 12) {
                 Group {
                     if let icon {
-                        Image(uiImage: icon).resizable().interpolation(.high)
+                        Image(uiImage: palette.appIcon(icon)).resizable().interpolation(.high)
                     } else {
                         Image(systemName: "macwindow").font(.title3).foregroundStyle(palette.inkSoftColor)
                     }
@@ -604,7 +604,7 @@ private struct WindowChip: View {
         let side = min(min(size.width, size.height) * 0.5, 44)
         if side >= 9 {
             if let icon {
-                Image(uiImage: icon)
+                Image(uiImage: palette.appIcon(icon))
                     .resizable()
                     .interpolation(.high)
                     .frame(width: side, height: side)
@@ -626,7 +626,7 @@ private struct WindowPreview: View {
     var body: some View {
         HStack(spacing: 12) {
             if let icon {
-                Image(uiImage: icon).resizable().interpolation(.high).frame(width: 44, height: 44)
+                Image(uiImage: palette.appIcon(icon)).resizable().interpolation(.high).frame(width: 44, height: 44)
             } else {
                 Image(systemName: "macwindow").font(.title).foregroundStyle(palette.inkSoftColor).frame(width: 44, height: 44)
             }

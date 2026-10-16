@@ -613,7 +613,7 @@ struct SymbolPicker: View {
                         let t = palette.tint(tint)
                         Image(systemName: name)
                             .font(.title3.weight(.semibold))
-                            .foregroundStyle(name == symbol ? (palette.monochrome ? palette.backgroundColor : Color.white) : t)
+                            .foregroundStyle(name == symbol ? palette.onFill : t)
                             .frame(width: 52, height: 52)
                             .background(name == symbol ? t : palette.raisedColor, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                     }

@@ -385,7 +385,7 @@ struct LibraryGlyph: View {
     var body: some View {
         Image(systemName: UIImage(systemName: symbol) == nil ? "square.dashed" : symbol)
             .font(.system(size: 15, weight: .semibold))
-            .foregroundStyle(palette.monochrome ? palette.backgroundColor : .white)
+            .foregroundStyle(palette.onFill)
             .frame(width: 30, height: 30)
             .background(palette.tint(color), in: RoundedRectangle(cornerRadius: 7, style: .continuous))
             .accessibilityHidden(true)
@@ -487,7 +487,7 @@ struct FrontAppButtonsSheet: View {
                     Image(systemName: "plus.circle.fill")
                         .font(.title3)
                         .symbolRenderingMode(.palette)
-                        .foregroundStyle(.white, Color(uiColor: .systemGreen))
+                        .foregroundStyle(.white, palette.good)
                 }
                 .buttonStyle(.plain)
                 .disabled(full)

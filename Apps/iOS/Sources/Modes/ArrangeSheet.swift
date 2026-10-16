@@ -186,7 +186,7 @@ struct ArrangeSheet: View {
                                 if let title = w.title, !title.isEmpty, title != w.appName { Text(title) }
                             } icon: {
                                 if let icon = w.bundleID.flatMap({ session.icons.image(for: $0) }) {
-                                    Image(uiImage: icon)
+                                    Image(uiImage: palette.appIcon(icon))
                                 } else {
                                     Image(systemName: "macwindow")
                                 }
@@ -412,7 +412,7 @@ private struct WindowPlaceCard: View {
         return VStack(spacing: roomy ? 6 : 3) {
             Group {
                 if let icon {
-                    Image(uiImage: icon).resizable().interpolation(.high)
+                    Image(uiImage: palette.appIcon(icon)).resizable().interpolation(.high)
                 } else {
                     Image(systemName: "macwindow").resizable().scaledToFit().foregroundStyle(palette.inkSoftColor).padding(side * 0.12)
                 }
