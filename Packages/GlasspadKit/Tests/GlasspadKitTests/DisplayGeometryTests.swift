@@ -277,6 +277,6 @@ private enum Arrangement {
         #expect(ModeListLayout().visible(known: ModeListLayout.defaultOrder) == ["trackpad", "keys", "media", "dock", "actions"])
         let old = #"{"order":["trackpad","keys","remote"],"hidden":[],"splitActions":false}"#
         let decoded = try JSONDecoder().decode(ModeListLayout.self, from: Data(old.utf8))
-        #expect(decoded.order.last == "displays" && decoded.hidden == ["displays"])
+        #expect(decoded.order.contains("displays") && decoded.hidden.contains("displays") && !decoded.hidden.contains("remote"))
     }
 }

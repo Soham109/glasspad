@@ -197,12 +197,21 @@ import Testing
     }
 
     @Test func hidingAndReorderingButTrackpadStays() {
-        var l = ModeListLayout(hidden: ["media", "trackpad", "remote", "displays"])
+        var l = ModeListLayout(hidden: ModeListLayout.hiddenAtFirst.union(["media", "trackpad"]))
         l.move("actions", before: "keys")
         #expect(l.visible(known: known) == ["trackpad", "actions", "keys", "dock"])
         #expect(l.replacement(for: "media", known: known) == "trackpad")
         l.move("trackpad", before: nil)
         #expect(l.visible(known: known).last == "trackpad")
+    }
+
+    @Test func standByScreensStartHiddenAndJoinAnOlderSavedListHidden() {
+        #expect(!ModeListLayout().visible(known: known).contains("clock"))
+        let old = #"{"order":["trackpad","keys","media","dock","actions","remote"],"hidden":["remote"],"splitActions":false}"#
+        let l = try! JSONDecoder().decode(ModeListLayout.self, from: Data(old.utf8))
+        #expect(l.order.suffix(3) == ["clock", "nowPlaying", "calendar"])
+        #expect(l.hidden.isSuperset(of: ["clock", "nowPlaying", "calendar"]))
+        #expect(l.visible(known: known) == ["trackpad", "keys", "media", "dock", "actions"])
     }
 
     @Test func newModesAppearAndUnknownOnesGo() {

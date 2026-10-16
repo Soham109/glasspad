@@ -187,6 +187,9 @@ struct ModeScreen: View {
         case .present: PresentMode()
         case .remote: RemoteMode()
         case .displays: DisplaysMode()
+        case .clock: ClockMode()
+        case .nowPlaying: NowPlayingMode()
+        case .calendar: CalendarMode()
         }
     }
 }
