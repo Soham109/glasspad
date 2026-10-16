@@ -156,10 +156,7 @@ struct DeckButtonEditor: View {
                     } label: {
                         HStack(spacing: 12) {
                             let t = ActionCategory.template(for: button.action)
-                            Image(systemName: t?.symbol ?? "terminal")
-                                .foregroundStyle(.white)
-                                .frame(width: 30, height: 30)
-                                .background(Color(hexString: t?.color) ?? .gray, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+                            LibraryGlyph(symbol: t?.symbol ?? "terminal", color: Color(hexString: t?.color) ?? .gray)
                             Text(t?.title ?? "Shell Script").foregroundStyle(palette.inkColor)
                             Spacer()
                             Text("Change").foregroundStyle(palette.inkSoftColor)
@@ -174,7 +171,9 @@ struct DeckButtonEditor: View {
                     NavigationLink {
                         SymbolPicker(symbol: $button.symbol, tint: button.tint)
                     } label: {
-                        LabeledContent("Symbol") { Image(systemName: button.symbol).foregroundStyle(button.tint) }
+                        LabeledContent(button.action.websiteLink != nil ? "Symbol If No Logo" : "Symbol") {
+                            Image(systemName: button.symbol).foregroundStyle(palette.tint(button.tint))
+                        }
                     }
                     colorRow
                     Picker("Size", selection: Binding(get: { button.size ?? .regular }, set: { button.size = $0 == .regular ? nil : $0 })) {
@@ -492,11 +491,7 @@ struct ActionPicker: View {
                             onPick(item)
                         } label: {
                             HStack(spacing: 12) {
-                                Image(systemName: item.symbol)
-                                    .font(.body.weight(.semibold))
-                                    .foregroundStyle(.white)
-                                    .frame(width: 32, height: 32)
-                                    .background(Color(hexString: item.color) ?? .gray, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                                LibraryGlyph(symbol: item.symbol, color: Color(hexString: item.color) ?? .gray)
                                 VStack(alignment: .leading, spacing: 1) {
                                     Text(item.title).foregroundStyle(palette.inkColor)
                                     if !item.detail.isEmpty {
@@ -609,11 +604,12 @@ struct SymbolPicker: View {
                         symbol = name
                         dismiss()
                     } label: {
+                        let t = palette.tint(tint)
                         Image(systemName: name)
-                            .font(.title3.weight(.medium))
-                            .foregroundStyle(name == symbol ? Color.white : tint)
+                            .font(.title3.weight(.semibold))
+                            .foregroundStyle(name == symbol ? (palette.monochrome ? palette.backgroundColor : Color.white) : t)
                             .frame(width: 52, height: 52)
-                            .background(name == symbol ? tint : palette.raisedColor, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                            .background(name == symbol ? t : palette.raisedColor, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel(name.replacingOccurrences(of: ".", with: " "))

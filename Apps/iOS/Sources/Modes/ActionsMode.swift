@@ -652,6 +652,8 @@ struct ActionsMode: View {
     // MARK: Doing things
 
     private func tap(_ button: DeckButton, page: Int) {
+        // A drag that ended outside any drop target (so nothing reported it) ends here.
+        if draft != nil { commitDraft() }
         if editing {
             open(button, page: page)
             return
