@@ -12,7 +12,7 @@
   <img alt="license" src="https://img.shields.io/badge/license-MIT-blue.svg">
   <img alt="macOS" src="https://img.shields.io/badge/macOS-14%2B-lightgrey">
   <img alt="iOS" src="https://img.shields.io/badge/iOS-18%2B-lightgrey">
-  <img alt="status" src="https://img.shields.io/badge/status-0.1.0%20unreleased-orange">
+  <a href="https://github.com/Soham109/glasspad/releases/tag/v0.1.0"><img alt="release" src="https://img.shields.io/badge/release-v0.1.0-blue"></a>
 </p>
 
 <p align="center">
