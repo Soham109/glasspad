@@ -10,6 +10,7 @@ struct DisplaysMode: View {
     var onClose: (() -> Void)?
 
     @Environment(\.palette) private var palette
+    @Environment(\.modeTopClearance) private var topClearance
     @Bindable var settings = PhoneSettings.shared
     var session = MacSession.shared
     var store = DisplaysStore.shared
@@ -23,18 +24,20 @@ struct DisplaysMode: View {
         GeometryReader { geo in
             let size = geo.size
             let wide = size.width > size.height * 1.15
-            // At the top of the screen (not in a lower split pane), leave room for the mode pill.
-            let atTop = onClose == nil && geo.frame(in: .global).minY < 120 && settings.pillPosition == .top
+            // Room for the mode pill: none as a tool, the pane's own in a layout.
+            let pill = onClose == nil && topClearance == nil
+            let top = topClearance ?? (pill && settings.pillPosition == .top ? (wide ? 44 : 60) : 12)
+            let bottom: CGFloat = pill && settings.pillPosition == .bottom ? 72 : (wide ? 8 : 16)
             VStack(alignment: .leading, spacing: wide ? 10 : 16) {
                 if size.height > 320 || onClose != nil { header(compact: wide) }
                 content(wide: wide, height: size.height)
             }
             .padding(.horizontal, 16)
-            .padding(.top, atTop ? (wide ? 44 : 60) : 12)
-            .padding(.bottom, wide ? 8 : 16)
+            .padding(.top, top)
+            .padding(.bottom, bottom)
             .frame(width: size.width, height: size.height, alignment: .top)
         }
-        .background(palette.backgroundColor.ignoresSafeArea())
+        .background(SurfaceBackground())
         .overlay(alignment: .bottom) {
             DisplaysNotices()
                 .padding(.horizontal, 16)
@@ -131,6 +134,9 @@ struct DisplaysMode: View {
                             .frame(width: 300)
                     }
                 }
+            } else if height < 460 {
+                // A short pane: the arrangement alone.
+                arrangement(state)
             } else {
                 arrangement(state)
                     .frame(height: arrangementHeight(state, height: height))
@@ -158,7 +164,8 @@ struct DisplaysMode: View {
         let union = state.shownDisplays.reduce(CGRect.null) { $0.union($1.frame) }
         let width = UIScreen.main.bounds.width - 32 - 24
         guard !union.isNull, union.width > 0 else { return 200 }
-        let labels: CGFloat = state.shownDisplays.count > 1 ? DisplaysCanvas.labelRoom * 2 : 0
+        let rooms = DisplaysCanvas.labelRooms(state.shownDisplays)
+        let labels = rooms.top + rooms.bottom
         return min(height * 0.5, max(160, width * union.height / union.width + labels + 24 + 2))
     }
 
@@ -215,13 +222,27 @@ private struct DisplaysCanvas: View {
     /// Room above and below the arrangement for display names.
     static let labelRoom: CGFloat = 20
 
+    /// A display's name goes under it, or above it when another display sits right below.
+    static func nameAbove(_ d: MacDisplay, among displays: [MacDisplay]) -> Bool {
+        displays.contains { o in
+            o.id != d.id && abs(o.frame.minY - d.frame.maxY) < 1 && o.frame.minX < d.frame.maxX && o.frame.maxX > d.frame.minX
+        }
+    }
+
+    /// Room for names above and below the arrangement (none for a single display).
+    static func labelRooms(_ displays: [MacDisplay]) -> (top: CGFloat, bottom: CGFloat) {
+        guard displays.count > 1 else { return (0, 0) }
+        return (displays.contains { nameAbove($0, among: displays) } ? labelRoom : 0, labelRoom)
+    }
+
     var body: some View {
         GeometryReader { geo in
             let displays = state.shownDisplays
             let labels = displays.count > 1
-            let room = labels ? Self.labelRoom : 0
+            let rooms = Self.labelRooms(displays)
+            let room = rooms.top
             let map = DisplayMiniature(frames: displays.map(\.frame),
-                                       fitting: CGSize(width: geo.size.width, height: geo.size.height - room * 2), padding: 1)
+                                       fitting: CGSize(width: geo.size.width, height: geo.size.height - rooms.top - rooms.bottom), padding: 1)
             let place = { (r: CGRect) in map.toView(r).offsetBy(dx: 0, dy: room) }
             let target = drag.flatMap { dropTarget($0, map: map, room: room) }
             ZStack(alignment: .topLeading) {
@@ -312,8 +333,7 @@ private struct DisplaysCanvas: View {
         let rects = displays.map { place($0.frame) }
         return ForEach(Array(displays.enumerated()), id: \.element.id) { i, d in
             let r = rects[i]
-            let below = CGRect(x: r.minX, y: r.maxY + 1, width: r.width, height: Self.labelRoom - 2)
-            let blocked = rects.indices.contains { $0 != i && rects[$0].intersects(below) }
+            let blocked = Self.nameAbove(d, among: displays)
             Text(d.name)
                 .font(.caption2.weight(.medium))
                 .foregroundStyle(palette.inkSoftColor)
@@ -484,6 +504,7 @@ private struct DisplayTile: View {
         let shape = RoundedRectangle(cornerRadius: corner, style: .continuous)
         let accent = AppMode.displays.accent(palette)
         ZStack(alignment: .top) {
+            shape.fill(palette.solidColor)
             shape.fill(palette.raisedPressedColor)
             shape.fill(LinearGradient(colors: [accent.opacity(palette.isDark ? 0.30 : 0.22), accent.opacity(0.06)],
                                       startPoint: .topLeading, endPoint: .bottomTrailing))
@@ -506,9 +527,10 @@ private struct DisplayTile: View {
         let height = max(2.5, max(display.menuBarHeight, 24) * scale)
         return ZStack(alignment: .top) {
             Rectangle().fill(palette.raisedColor.opacity(0.92))
+                .overlay(alignment: .bottom) { Rectangle().fill(palette.inkColor.opacity(0.12)).frame(height: 0.5) }
             if let notch = display.notchWidth, notch > 0 {
                 UnevenRoundedRectangle(bottomLeadingRadius: height * 0.45, bottomTrailingRadius: height * 0.45, style: .continuous)
-                    .fill(palette.isDark ? palette.backgroundColor : palette.inkColor)
+                    .fill(palette.isDark ? palette.solidColor : palette.inkColor)
                     .frame(width: max(4, notch * scale), height: height)
             }
         }
@@ -541,8 +563,10 @@ private struct WindowChip: View {
         let corner = min(max(2, 16 * scale), min(size.width, size.height) / 3)
         let shape = RoundedRectangle(cornerRadius: corner, style: .continuous)
         let bar = min(size.height * 0.3, max(2, 28 * scale))
-        let shade = palette.isDark ? palette.backgroundColor : palette.inkColor
+        let shade = palette.isDark ? palette.solidColor : palette.inkColor
         ZStack(alignment: .top) {
+            // Opaque even where raised is frosted (the glass themes): windows hide what is behind.
+            shape.fill(palette.solidColor)
             shape.fill(palette.raisedColor)
             Rectangle()
                 .fill(palette.inkColor.opacity(0.05))

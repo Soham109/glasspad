@@ -35,7 +35,7 @@ struct DisplaySettingsSheet: View {
                 .padding(16)
                 .padding(.bottom, 140)
             }
-            .background(palette.backgroundColor.ignoresSafeArea())
+            .background(SurfaceBackground())
             .navigationTitle(display?.name ?? "Display")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -315,7 +315,7 @@ private struct ArrangeDisplaysView: View {
                 .multilineTextAlignment(.center)
         }
         .padding(16)
-        .background(palette.backgroundColor.ignoresSafeArea())
+        .background(SurfaceBackground())
         .navigationTitle("Arrange Displays")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -339,6 +339,7 @@ private struct ArrangeDisplaysView: View {
         let shape = RoundedRectangle(cornerRadius: max(4, 10 * map.scale), style: .continuous)
         let menuBar = max(3, max(d.menuBarHeight, 24) * map.scale)
         return ZStack(alignment: .top) {
+            shape.fill(palette.solidColor)
             shape.fill(palette.raisedPressedColor)
             shape.fill(LinearGradient(colors: [accent.opacity(palette.isDark ? 0.30 : 0.22), accent.opacity(0.06)],
                                       startPoint: .topLeading, endPoint: .bottomTrailing))
