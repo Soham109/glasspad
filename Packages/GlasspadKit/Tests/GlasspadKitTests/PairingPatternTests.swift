@@ -20,7 +20,7 @@ struct PairingPatternTests {
         // Version 2 and up are 4k+17 modules wide.
         #expect((p.size - 17) % 4 == 0)
         #expect(p.size >= 25)
-        // Finder squares: a dark ring around a light ring around a dark 3x3 centre.
+        // Finder squares: a dark ring around a light ring around a dark 3x3 center.
         for (r0, c0) in [(0, 0), (0, p.size - 7), (p.size - 7, 0)] {
             #expect(p.isDark(row: r0, column: c0))
             #expect(!p.isDark(row: r0 + 1, column: c0 + 1))

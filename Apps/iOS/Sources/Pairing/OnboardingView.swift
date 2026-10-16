@@ -23,15 +23,16 @@ struct OnboardingView: View {
         ZStack {
             switch page {
             case .hello:
-                SetupPage(title: "Your iPhone,\nas a trackpad",
-                          detail: "Move, click, scroll and swipe on your Mac, with a tap you can feel. Everything stays on your Wi-Fi.",
+                // A non-breaking hyphen keeps Wi-Fi on one line where the sentence wraps.
+                SetupPage(title: "Your Mac, at\nYour Fingertips",
+                          detail: "A trackpad, keyboard, remote and buttons for every app. Everything stays on your Wi\u{2011}Fi.",
                           primary: "Continue", primaryAction: { go(.mac) }) {
                     IPhoneArt(height: 250)
                 }
                 .transition(.push(from: forward ? .trailing : .leading))
             case .mac:
-                SetupPage(title: "Open Glasspad\non your Mac",
-                          detail: "In the menu bar, click Glasspad and choose Pair Your iPhone. Keep both on the same Wi-Fi.",
+                SetupPage(title: "Open Glasspad\non Your Mac",
+                          detail: "In the menu bar, click Glasspad and choose Pair Your iPhone. Keep both on the same Wi\u{2011}Fi.",
                           primary: "Pair a Mac", secondary: "Set Up Later",
                           primaryAction: { go(.pair) }, secondaryAction: onFinish) {
                     MacMenuArt(width: 300)

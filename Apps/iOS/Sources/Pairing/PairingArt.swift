@@ -4,7 +4,7 @@ import SwiftUI
 // Pictures for the pairing screens: the Mac and the iPhone drawn as they really look, and the
 // pairing code's dots (the same pattern the Mac shows, from GlasspadKit's `PairingPattern`).
 
-/// The real hardware's colours. They are the devices' own finish, not the app's surface, so
+/// The real hardware's colors. They are the devices' own finish, not the app's surface, so
 /// they are the same in every theme (the screens inside them use the palette).
 enum Hardware {
     /// The black glass around a display.
@@ -122,7 +122,7 @@ struct MacBookArt<Screen: View>: View {
 }
 
 /// What a display shows behind everything: the theme's surface, softly lit. Starts from the
-/// plain surface colour, so the translucent glass themes do not show the black bezel through.
+/// plain surface color, so the translucent glass themes do not show the black bezel through.
 struct ScreenWallpaper: View {
     @Environment(\.palette) private var palette
 
@@ -136,32 +136,40 @@ struct ScreenWallpaper: View {
 
 // MARK: - iPhone
 
-/// An iPhone seen from the front: the frame, the black border, the Dynamic Island, and the
-/// Glasspad surface with two finger dots drifting on it.
+/// An iPhone seen from the front: the frame, the black border, the Dynamic Island, and Glasspad
+/// on its screen, cycling softly through the trackpad, a page of Actions and the Remote. Still on
+/// the Actions page with Reduce Motion or a warm phone.
 struct IPhoneArt: View {
     @Environment(\.palette) private var palette
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var height: CGFloat = 250
     var power = PowerMonitor.shared
 
+    /// Seconds each screen shows, and how long the cross fade between two takes.
+    static let hold: Double = 3.2
+    static let fade: Double = 0.7
+
     var body: some View {
         let h = height, w = height * 0.49
-        // Gentle drift at a decorative frame rate; still with Reduce Motion or a warm phone.
+        // A decorative frame rate, capped at 30 a second.
         let interval = power.policy.decorativeFrameInterval.map { max($0, 1.0 / 30) }
+        let still = reduceMotion || interval == nil
         ZStack {
             RoundedRectangle(cornerRadius: w * 0.2, style: .continuous)
                 .fill(LinearGradient(colors: Hardware.metal(dark: palette.isDark), startPoint: .topLeading, endPoint: .bottomTrailing))
             RoundedRectangle(cornerRadius: w * 0.185, style: .continuous)
                 .fill(Hardware.bezel)
                 .padding(w * 0.018)
-            TimelineView(.animation(minimumInterval: interval, paused: reduceMotion || interval == nil)) { context in
+            TimelineView(.animation(minimumInterval: interval, paused: still)) { context in
                 let t = context.date.timeIntervalSinceReferenceDate
+                let cycle = t / Self.hold
+                let index = still ? 1 : Int(cycle.rounded(.down)) % 3
+                // The last moments of each screen fade into the next.
+                let into = still ? 0 : max(0, (cycle - cycle.rounded(.down)) * Self.hold - (Self.hold - Self.fade)) / Self.fade
                 ZStack {
                     SurfaceBackground()
-                    SoftDot(color: palette.dot, size: w * 0.3)
-                        .offset(x: -w * 0.15 + w * 0.05 * sin(t * 0.9), y: -h * 0.04 + h * 0.1 * sin(t * 0.7))
-                    SoftDot(color: palette.dot, size: w * 0.3)
-                        .offset(x: w * 0.17 + w * 0.05 * sin(t * 0.9), y: h * 0.02 + h * 0.1 * sin(t * 0.7))
+                    screen(index, t: t, w: w, h: h).opacity(1 - into)
+                    if into > 0 { screen((index + 1) % 3, t: t, w: w, h: h).opacity(into) }
                 }
             }
             .clipShape(RoundedRectangle(cornerRadius: w * 0.15, style: .continuous))
@@ -177,9 +185,92 @@ struct IPhoneArt: View {
         .shadow(color: .black.opacity(palette.isDark ? 0.4 : 0.12), radius: 14, y: 6)
         .accessibilityHidden(true)
     }
+
+    @ViewBuilder private func screen(_ index: Int, t: Double, w: CGFloat, h: CGFloat) -> some View {
+        switch index {
+        case 0:
+            // Trackpad: two finger dots gliding.
+            ZStack {
+                SoftDot(color: palette.dot, size: w * 0.3)
+                    .offset(x: -w * 0.15 + w * 0.05 * sin(t * 0.9), y: -h * 0.04 + h * 0.1 * sin(t * 0.7))
+                SoftDot(color: palette.dot, size: w * 0.3)
+                    .offset(x: w * 0.17 + w * 0.05 * sin(t * 0.9), y: h * 0.02 + h * 0.1 * sin(t * 0.7))
+            }
+        case 1:
+            ActionTilesArt(width: w * 0.8)
+        default:
+            RemoteArt(width: w * 0.8)
+        }
+    }
 }
 
-/// The finger dot used everywhere: solid centre, soft edge.
+/// A page of Actions: app and system buttons as colored tiles.
+private struct ActionTilesArt: View {
+    @Environment(\.palette) private var palette
+    let width: CGFloat
+
+    private static let tiles: [(String, Color)] = [
+        ("safari.fill", .blue), ("music.note", .pink), ("message.fill", .green),
+        ("moon.fill", .indigo), ("camera.fill", .gray), ("mic.fill", .orange),
+        ("rectangle.split.2x1.fill", .teal), ("lock.fill", .gray), ("sun.max.fill", .yellow),
+        ("speaker.wave.2.fill", .purple), ("play.fill", .red), ("calendar", .red),
+    ]
+
+    var body: some View {
+        let gap = width * 0.06
+        let side = (width - gap * 2) / 3
+        LazyVGrid(columns: Array(repeating: GridItem(.fixed(side), spacing: gap), count: 3), spacing: gap) {
+            ForEach(Self.tiles.indices, id: \.self) { i in
+                let (symbol, color) = Self.tiles[i]
+                RoundedRectangle(cornerRadius: side * 0.26, style: .continuous)
+                    .fill(palette.tint(color))
+                    .frame(width: side, height: side)
+                    .overlay {
+                        Image(systemName: symbol)
+                            .font(.system(size: side * 0.42, weight: .semibold))
+                            .foregroundStyle(palette.monochrome ? palette.solidColor : .white)
+                    }
+            }
+        }
+        .frame(width: width)
+    }
+}
+
+/// The Remote: a round pad with its center button, and the play and volume keys below.
+private struct RemoteArt: View {
+    @Environment(\.palette) private var palette
+    let width: CGFloat
+
+    var body: some View {
+        VStack(spacing: width * 0.12) {
+            ZStack {
+                Circle().fill(palette.raisedColor)
+                Circle().strokeBorder(palette.lineColor)
+                Circle().fill(palette.raisedPressedColor).frame(width: width * 0.32, height: width * 0.32)
+                ForEach(0..<4) { i in
+                    Image(systemName: "chevron.up")
+                        .font(.system(size: width * 0.09, weight: .bold))
+                        .foregroundStyle(palette.inkSoftColor)
+                        .offset(y: -width * 0.32)
+                        .rotationEffect(.degrees(Double(i) * 90))
+                }
+            }
+            .frame(width: width * 0.86, height: width * 0.86)
+            HStack(spacing: width * 0.08) {
+                ForEach(["playpause.fill", "speaker.minus.fill", "speaker.plus.fill"], id: \.self) { symbol in
+                    Image(systemName: symbol)
+                        .font(.system(size: width * 0.1, weight: .semibold))
+                        .foregroundStyle(palette.inkColor)
+                        .frame(width: width * 0.26, height: width * 0.26)
+                        .background(Circle().fill(palette.raisedColor))
+                        .overlay(Circle().strokeBorder(palette.lineColor))
+                }
+            }
+        }
+    }
+}
+
+/// The finger dot used everywhere: solid center, soft edge.
 struct SoftDot: View {
     let color: UIColor
     var size: CGFloat = 44

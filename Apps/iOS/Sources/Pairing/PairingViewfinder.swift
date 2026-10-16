@@ -267,7 +267,7 @@ struct PairingViewfinder: View {
         return CGRect(x: (size.width - side) / 2, y: size.height * 0.46 - side / 2, width: side, height: side)
     }
 
-    /// A code's box made square around its centre, with a little room, kept on screen.
+    /// A code's box made square around its center, with a little room, kept on screen.
     static func square(_ r: CGRect, in size: CGSize) -> CGRect {
         let side = min(max(r.width, r.height) * 1.12, min(size.width, size.height) * 0.9)
         var out = CGRect(x: r.midX - side / 2, y: r.midY - side / 2, width: side, height: side)

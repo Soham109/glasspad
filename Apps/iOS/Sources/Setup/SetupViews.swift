@@ -143,7 +143,7 @@ enum StepStatus: Equatable {
     case ready
     case checking
     case done
-    /// Something to do, shown in the caution colour.
+    /// Something to do, shown in the caution color.
     case needsAction
     /// Cannot tell; guidance shown.
     case unknown

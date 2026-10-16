@@ -272,7 +272,7 @@ struct ConnectedView: View {
     }
 
     private var detail: String {
-        session.isConnected ? "Your iPhone is now a trackpad for this Mac." : "Glasspad will connect whenever this Mac is nearby."
+        session.isConnected ? "Your iPhone is ready to control this Mac." : "Glasspad will connect whenever this Mac is nearby."
     }
 
     @ViewBuilder private var status: some View {
@@ -363,7 +363,7 @@ struct PasteLinkSheet: View {
 
 // MARK: - Pair a Mac
 
-/// "Pair a Mac" from Settings and the trackpad: the same flow as onboarding, in a sheet.
+/// "Pair a Mac" from Settings and the modes with no Mac: the same flow as onboarding, in a sheet.
 struct PairSheet: View {
     @Environment(\.dismiss) private var dismiss
 
@@ -379,7 +379,7 @@ struct PairSheet: View {
     }
 }
 
-/// A status line in the setup screens: a coloured symbol, what it is, one sentence, one fix.
+/// A status line in the setup screens: a colored symbol, what it is, one sentence, one fix.
 struct StatusRow<Fix: View>: View {
     @Environment(\.palette) private var palette
     let symbol: String
