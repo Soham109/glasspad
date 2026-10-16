@@ -226,6 +226,15 @@ public final class GlasspadServer: @unchecked Sendable {
         }
     }
 
+    /// Tests only: seals this JSON as one control message to the phone, as a build with other
+    /// message types would send it.
+    func sendRawJSONForTesting(_ json: Data) {
+        queue.async { [self] in
+            guard let s = active, s.phase == .authenticated else { return }
+            sendRaw(json, on: s)
+        }
+    }
+
     /// Sends `bye` and closes the active session; the phone will reconnect unless rejected.
     public func disconnect(reason: String) {
         queue.async { [self] in

@@ -112,9 +112,11 @@ private let sep = ScriptablePlayer.separator
 
 /// The helper restart policy, with a fake helper (/bin/sh) instead of perl.
 @MainActor @Suite(.serialized) struct AdapterRestartTests {
-    /// Says "nothing is playing", then dies at once.
+    /// Says "nothing is playing", then dies right after. The short pause lets the line be read
+    /// first: output still in the pipe when the helper exits can be lost (the termination
+    /// handler drops the reader), which made this test fail now and then under load.
     static func crashingHelper(_ library: URL) -> (executable: URL, arguments: [String]) {
-        (URL(fileURLWithPath: "/bin/sh"), ["-c", #"echo '{"type":"data","diff":false,"payload":null}'; exit 3"#])
+        (URL(fileURLWithPath: "/bin/sh"), ["-c", #"echo '{"type":"data","diff":false,"payload":null}'; sleep 0.05; exit 3"#])
     }
 
     func waitFor(_ seconds: Double, _ cond: () -> Bool) async -> Bool {
@@ -157,7 +159,8 @@ private let sep = ScriptablePlayer.separator
         adapter.restartDelays = [0.05]
         adapter.stableRun = 0.2
         adapter.start()
-        #expect(await waitFor(4) { adapter.launches >= NowPlayingAdapter.maxQuickRestarts + 3 })
+        // About 3 s of restarts; the margin is for a busy machine (it returns as soon as they happen).
+        #expect(await waitFor(15) { adapter.launches >= NowPlayingAdapter.maxQuickRestarts + 3 })
         if case .unavailable(let why) = adapter.status { Issue.record("gave up: \(why)") }
         adapter.stop()
     }

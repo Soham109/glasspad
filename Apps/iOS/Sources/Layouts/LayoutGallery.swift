@@ -33,7 +33,7 @@ struct LayoutGallery: View {
                 }
             }
             .scrollContentBackground(.hidden)
-            .background(palette.backgroundColor.ignoresSafeArea())
+            .background { SurfaceBackground() }
             .navigationTitle("Layouts")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -70,8 +70,9 @@ struct LayoutGallery: View {
             router.show(layout: layout)
         } label: {
             HStack(spacing: 14) {
-                LayoutDiagram(layout: layout, landscape: landscape, showsSymbols: landscape)
-                    .frame(width: 58, height: 40)
+                // The same small drawing as in the mode menu.
+                LayoutDiagram(layout: layout, landscape: landscape, showsSymbols: false, vivid: true)
+                    .frame(width: 58, height: landscape ? 28 : 40)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(layout.name)
                         .font(.body.weight(.medium))

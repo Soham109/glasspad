@@ -92,7 +92,8 @@ struct MacroHarness {
     let dir: URL
     var sent: () -> [MacroMessage]
 
-    init(frontmost: String? = "com.apple.finder", seed: Bool = false, macros: [Macro] = []) throws {
+    init(frontmost: String? = "com.apple.finder", seed: Bool = false, macros: [Macro] = [],
+         controls: (any MacControlRunning)? = nil) throws {
         dir = macroTempDir()
         observer = FakeObserver(frontmost)
         let store = MacroStore(directory: dir.appendingPathComponent("macros"))
@@ -104,7 +105,7 @@ struct MacroHarness {
         }
         let env = MacroEnvironment(output: output, windows: NoWindows(), apps: apps, shortcuts: FakeShortcutsRunner(),
                                    scripts: FakeScriptRunner(), clipboard: FakeClipboardWriter(), notifier: FakeNotify(),
-                                   clock: clock, inputMonitor: nil)
+                                   clock: clock, inputMonitor: nil, controls: controls)
         let engine = MacroEngine(store: store, profileStore: ProfileStore(file: dir.appendingPathComponent("profiles.json")),
                                  player: MacroPlayer(environment: env),
                                  recorder: MacroRecorder(source: source, secureInput: secure, windows: NoWindows()),

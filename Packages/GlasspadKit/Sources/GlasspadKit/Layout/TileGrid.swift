@@ -53,7 +53,7 @@ public struct TileGridMetrics: Equatable, Sendable {
         let w = usable(width)
         guard preferred > 0 else { return 1 }
         let floorTile = max(minimum, preferred * 0.7)
-        let most = min(64, max(1, Int(((w + spacing) / (floorTile + spacing)).rounded(.down))))
+        let most = Int(min(64, max(1, ((w + spacing) / (floorTile + spacing)).rounded(.down))))
         var best = 1, bestCost = Double.infinity
         for c in 1...most {
             let t = (w - Double(c - 1) * spacing) / Double(c)

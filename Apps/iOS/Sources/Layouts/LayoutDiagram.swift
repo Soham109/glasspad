@@ -11,6 +11,9 @@ struct LayoutDiagram: View {
     var showsSymbols = true
     /// Pane titles under the symbols, for large drawings.
     var showsTitles = false
+    /// Panes filled with their full mode colour, so a small drawing reads as an icon among
+    /// the mode symbols (the mode menu).
+    var vivid = false
 
     /// The real screen's proportions (iPhone 18 Pro).
     static let aspect: CGFloat = 874.0 / 402.0
@@ -29,7 +32,9 @@ struct LayoutDiagram: View {
                 ForEach(arrangement.panes, id: \.index) { pane in
                     let mode = layout.mode(at: pane.index)
                     PaneTile(mode: mode, size: pane.rect.size, cornerRadius: max(2, corner - inset),
-                             showsSymbol: showsSymbols, showsTitle: showsTitles)
+                             showsSymbol: showsSymbols, showsTitle: showsTitles, vivid: vivid,
+                             // Mono has one colour: the panes after the first are a lighter ink.
+                             vividOpacity: palette.monochrome && pane.index > 0 ? 0.4 : 1)
                         .offset(x: pane.rect.minX + inset, y: pane.rect.minY + inset)
                 }
             }
@@ -49,11 +54,22 @@ struct PaneTile: View {
     var cornerRadius: CGFloat
     var showsSymbol = true
     var showsTitle = false
+    var vivid = false
+    var vividOpacity: Double = 1
 
     var body: some View {
         let accent = mode.accent(palette)
         let side = min(size.width, size.height)
         let shape = RoundedRectangle(cornerRadius: min(cornerRadius, side / 2), style: .continuous)
+        if vivid {
+            shape.fill(accent.opacity(vividOpacity))
+                .frame(width: size.width, height: size.height)
+        } else {
+            tinted(accent: accent, side: side, shape: shape)
+        }
+    }
+
+    private func tinted(accent: Color, side: CGFloat, shape: RoundedRectangle) -> some View {
         ZStack {
             shape.fill(palette.raisedColor)
             shape.fill(accent.opacity(palette.isDark ? 0.22 : 0.13))

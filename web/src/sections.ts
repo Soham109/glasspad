@@ -25,7 +25,7 @@ export function initNav() {
   const ind = document.getElementById("navInd")!;
   const links = Array.from(document.querySelectorAll<HTMLAnchorElement>("#navLinks a"));
   const darks = Array.from(document.querySelectorAll<HTMLElement>(".dark"));
-  const targets = links.map(a => document.querySelector<HTMLElement>(a.getAttribute("href")!));
+  const targets = links.map(a => { const h = a.getAttribute("href")!; return h.startsWith("#") ? document.querySelector<HTMLElement>(h) : null; });
   const menu = document.getElementById("navMenu")!, sheet = document.getElementById("navSheet")!;
   let active = -1;
   const place = () => {
@@ -63,7 +63,7 @@ export function initScrollLinked() {
   if (reduce) return;
   const mark = document.querySelector<SVGElement>("#heroGlide");
   const phone = document.getElementById("phone");
-  const demo = document.getElementById("try");
+  const demo = document.getElementById("trackpad");
   let ticking = false;
   const update = () => {
     ticking = false;

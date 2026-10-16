@@ -3,7 +3,7 @@ import SwiftUI
 
 /// The layouts in the mode menu, under the modes: one tap opens a layout, a long press
 /// edits, copies or deletes it, and the last tile makes a new one. With no layouts yet it is
-/// a single quiet "New Layout" button.
+/// a single quiet "New Layout" tile. The tiles are the menu's own (`MenuTile`).
 struct LayoutMenuRow: View {
     @Environment(\.palette) private var palette
     @Environment(\.verticalSizeClass) private var verticalSize
@@ -15,30 +15,21 @@ struct LayoutMenuRow: View {
 
     var body: some View {
         Group {
-            if store.layouts.isEmpty {
-                Button(action: openGallery) {
-                    Label("New Layout", systemImage: "rectangle.split.2x1")
-                        .font(.subheadline.weight(.medium))
-                        .foregroundStyle(palette.inkColor)
-                        .frame(maxWidth: .infinity, minHeight: 44)
-                        .background(palette.inkColor.opacity(0.06), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-                        .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                }
-                .buttonStyle(TileStyle())
-                .accessibilityHint("Puts two or three modes on one screen")
-            } else if store.layouts.count <= 4 {
-                // Up to four share the row evenly, like the modes above them.
-                HStack(spacing: 6) {
+            if store.layouts.count < Self.columns * 2 {
+                // In the modes' five columns, the New tile last: one row, or two.
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: ModeSwitcher.tileSpacing), count: Self.columns),
+                          spacing: ModeSwitcher.tileSpacing) {
                     ForEach(store.layouts) { layout in tile(layout, width: nil) }
-                    newTile
+                    newTile(width: nil)
                 }
             } else {
+                // Many layouts scroll sideways; the last one showing is cut by the edge, which
+                // says there are more.
                 ScrollView(.horizontal) {
-                    HStack(spacing: 6) {
-                        ForEach(store.layouts) { layout in tile(layout, width: 70) }
-                        newTile
+                    HStack(spacing: ModeSwitcher.tileSpacing) {
+                        ForEach(store.layouts) { layout in tile(layout, width: Self.scrollingWidth) }
+                        newTile(width: Self.scrollingWidth)
                     }
-                    .padding(.horizontal, 2)
                 }
                 .scrollIndicators(.hidden)
                 .scrollBounceBehavior(.basedOnSize)
@@ -53,6 +44,11 @@ struct LayoutMenuRow: View {
 
     private var landscape: Bool { verticalSize == .compact }
 
+    /// The modes' columns, so each layout sits under a mode.
+    static let columns = 5
+    /// Tile width when scrolling: four and a half show.
+    static let scrollingWidth: CGFloat = (ModeSwitcher.contentWidth - ModeSwitcher.tileSpacing * 4) / 4.5
+
     private func tile(_ layout: ScreenLayout, width: CGFloat?) -> some View {
         let current = router.layoutID == layout.id
         return Button {
@@ -60,24 +56,12 @@ struct LayoutMenuRow: View {
             router.show(layout: layout)
             close()
         } label: {
-            VStack(spacing: 6) {
-                LayoutDiagram(layout: layout, landscape: landscape, showsSymbols: landscape)
-                    .frame(height: landscape ? 24 : 34)
-                    .frame(height: 34)
-                Text(layout.name)
-                    .font(.caption2.weight(.medium))
-                    .foregroundStyle(palette.inkColor)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
+            MenuTile(title: layout.name, selected: current) {
+                // Drawn the way the screen splits now, in the modes' colours.
+                LayoutDiagram(layout: layout, landscape: landscape, showsSymbols: false, vivid: true)
+                    .frame(height: landscape ? 22 : 30)
             }
-            .padding(.horizontal, 4)
-            .frame(width: width, height: 68)
-            .frame(maxWidth: width == nil ? .infinity : nil)
-            .background {
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .fill(palette.inkColor.opacity(current ? 0.10 : 0))
-            }
-            .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .frame(width: width)
         }
         .buttonStyle(TileStyle())
         .contextMenu {
@@ -99,27 +83,18 @@ struct LayoutMenuRow: View {
         .accessibilityAction(named: "Edit") { edit(layout) }
     }
 
-    private var newTile: some View {
+    private func newTile(width: CGFloat?) -> some View {
         Button(action: openGallery) {
-            VStack(spacing: 6) {
+            MenuTile(title: store.layouts.isEmpty ? "New Layout" : "New", soft: true) {
                 Image(systemName: "plus")
-                    .font(.body.weight(.semibold))
-                    .foregroundStyle(palette.inkSoftColor)
-                    .frame(height: 34)
-                Text("New")
-                    .font(.caption2.weight(.medium))
+                    .font(.title3.weight(.medium))
                     .foregroundStyle(palette.inkSoftColor)
             }
-            .frame(width: 48, height: 68)
-            .background {
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .strokeBorder(palette.inkColor.opacity(0.14), style: StrokeStyle(lineWidth: 1, dash: [3, 3]))
-            }
-            .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .frame(width: width)
         }
         .buttonStyle(TileStyle())
-        .accessibilityLabel("Layouts")
-        .accessibilityHint("Make a new layout or change your layouts")
+        .accessibilityLabel(store.layouts.isEmpty ? "New Layout" : "Layouts")
+        .accessibilityHint(store.layouts.isEmpty ? "Puts two or three modes on one screen" : "Make a new layout or change your layouts")
     }
 
     private func openGallery() {
@@ -159,6 +134,6 @@ struct LayoutPreviewCard: View {
             }
         }
         .padding(18)
-        .background(palette.backgroundColor)
+        .background { SurfaceBackground() }
     }
 }
