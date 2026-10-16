@@ -76,3 +76,30 @@ export const PINNED: [string, string, string][] = [
   ["YouTube", "logo.youtube", "#FF3B30"],
   ["GitHub", "logo.github", "#1A1A1A"],
 ];
+
+/* Scenes, Displays and the cards below Actions */
+GLYPH["scissors"] = '<circle cx="6.5" cy="7" r="2.5"/><circle cx="6.5" cy="17" r="2.5"/><path d="M8.6 8.4 19 16.5M8.6 15.6 19 7.5"/>';
+GLYPH["magnet"] = '<path d="M6 4.5v7a6 6 0 0 0 12 0v-7h-4v7a2 2 0 0 1-4 0v-7Z"/><path d="M6 8h4M14 8h4"/>';
+GLYPH["arrow.right.to.line"] = '<path d="M4 12h11M11 8l4 4-4 4M19.5 5v14"/>';
+GLYPH["arrow.left.to.line"] = '<path d="M20 12H9M13 8l-4 4 4 4M4.5 5v14"/>';
+GLYPH["globe"] = '<circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.4 2.4 3.5 5.2 3.5 8.5s-1.1 6.1-3.5 8.5M12 3.5C9.6 5.9 8.5 8.7 8.5 12s1.1 6.1 3.5 8.5"/>';
+GLYPH["square.stack.3d.up.fill"] = '<path class="f" d="m12 3 8 4-8 4-8-4Z"/><path d="m4 11.5 8 4 8-4M4 15.5l8 4 8-4"/>';
+GLYPH["rectangle.lefthalf.filled"] = '<rect x="3.5" y="5.5" width="17" height="13" rx="2.5"/><path class="f" d="M6 5.5h6v13H6a2.5 2.5 0 0 1-2.5-2.5V8A2.5 2.5 0 0 1 6 5.5Z"/>';
+GLYPH["rectangle.righthalf.filled"] = '<rect x="3.5" y="5.5" width="17" height="13" rx="2.5"/><path class="f" d="M12 5.5h6A2.5 2.5 0 0 1 20.5 8v8a2.5 2.5 0 0 1-2.5 2.5h-6Z"/>';
+GLYPH["macwindow"] = '<rect x="3.5" y="5" width="17" height="14" rx="2.5"/><path d="M3.5 8.5h17"/>';
+GLYPH["rectangle.on.rectangle"] = '<rect x="7.5" y="8" width="13" height="10" rx="2"/><path d="M16.5 8V6.5a2 2 0 0 0-2-2h-9a2 2 0 0 0-2 2V13a2 2 0 0 0 2 2h2"/>';
+GLYPH["wand.and.stars"] = '<path d="m4 20 11-11M13 7l4 4"/><path d="M18 3v3M16.5 4.5h3M20 9v2M19 10h2M9.5 3.5v2M8.5 4.5h2"/>';
+GLYPH["record.circle"] = '<circle cx="12" cy="12" r="8.5"/><circle class="f" cx="12" cy="12" r="4"/>';
+GLYPH["checkmark"] = '<path d="m5 12.5 4.5 4.5L19 7.5"/>';
+GLYPH["plus"] = '<path d="M12 5.5v13M5.5 12h13"/>';
+GLYPH["display"] = '<rect x="3" y="4.5" width="18" height="12" rx="2"/><path d="M9 20h6M12 16.5V20"/>';
+GLYPH["laptopcomputer"] = '<rect x="5" y="5.5" width="14" height="10" rx="1.5"/><path d="M2.5 18.5h19"/>';
+GLYPH["doc.on.clipboard"] = '<rect x="8" y="7" width="11" height="13" rx="2"/><path d="M8 17H6.5A1.5 1.5 0 0 1 5 15.5V5.5A1.5 1.5 0 0 1 6.5 4h7A1.5 1.5 0 0 1 15 5.5V7"/>';
+GLYPH["square.and.arrow.down"] = '<path d="M8 9.5H6.5A1.5 1.5 0 0 0 5 11v7.5A1.5 1.5 0 0 0 6.5 20h11a1.5 1.5 0 0 0 1.5-1.5V11a1.5 1.5 0 0 0-1.5-1.5H16M12 3.5v11M8.5 11l3.5 3.5 3.5-3.5"/>';
+GLYPH["square.and.arrow.up"] = '<path d="M8 9.5H6.5A1.5 1.5 0 0 0 5 11v7.5A1.5 1.5 0 0 0 6.5 20h11a1.5 1.5 0 0 0 1.5-1.5V11a1.5 1.5 0 0 0-1.5-1.5H16M12 14.5v-11M8.5 7 12 3.5 15.5 7"/>';
+GLYPH["logo.wikipedia"] = '<rect x="2.5" y="2.5" width="19" height="19" rx="4.5" fill="#fff" stroke="rgba(26,26,26,.12)"/><path d="m5.5 8 3 9 3.5-8 3.5 8 3-9" stroke="#1A1A1A" stroke-width="1.5"/>';
+GLYPH["arrow.counterclockwise"] = '<path d="M5 12a7 7 0 1 0 2.05-4.95"/><path d="M5 4.5V8h3.5"/>';
+GLYPH["dot.radiowaves"] = '<circle class="f" cx="12" cy="12" r="1.8"/><path d="M8.6 8.6a4.8 4.8 0 0 0 0 6.8M15.4 8.6a4.8 4.8 0 0 1 0 6.8M6 6a8.5 8.5 0 0 0 0 12M18 6a8.5 8.5 0 0 1 0 12"/>';
+GLYPH["chevron.left"] = '<path d="m14.5 5-7 7 7 7"/>';
+GLYPH["sun.max.fill"] = '<circle class="f" cx="12" cy="12" r="4"/><path d="M12 3v2.2M12 18.8V21M3 12h2.2M18.8 12H21M5.6 5.6l1.6 1.6M16.8 16.8l1.6 1.6M18.4 5.6l-1.6 1.6M7.2 16.8l-1.6 1.6"/>';
+GLYPH["pause.fill"] = '<rect class="f" x="6.5" y="5" width="4" height="14" rx="1.2"/><rect class="f" x="13.5" y="5" width="4" height="14" rx="1.2"/>';
