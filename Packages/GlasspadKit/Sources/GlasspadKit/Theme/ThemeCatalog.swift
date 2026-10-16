@@ -62,7 +62,7 @@ public enum ThemeChoice: String, CaseIterable, Identifiable, Sendable {
             switch self {
             case .classic: "Classic"
             case .glass: "Glass"
-            case .colour: "Colour"
+            case .colour: "Color"
             case .photo: "Photo"
             }
         }
