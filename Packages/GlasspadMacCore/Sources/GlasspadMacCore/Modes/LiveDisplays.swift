@@ -97,6 +97,12 @@ public final class LiveDisplays: DisplaysBackend {
 
     private var highlighter: WindowHighlight?
 
+    public func frame(of window: UInt32) -> CGRect? {
+        guard let info = (CGWindowListCopyWindowInfo([.optionIncludingWindow], window) as? [[String: Any]])?.first,
+              let bounds = info[kCGWindowBounds as String] as? NSDictionary else { return nil }
+        return CGRect(dictionaryRepresentation: bounds as CFDictionary)
+    }
+
     public func highlight(_ frame: CGRect) {
         if highlighter == nil { highlighter = WindowHighlight() }
         highlighter?.show(around: frame)

@@ -221,8 +221,6 @@ struct ArrangeSheet: View {
                     card
                 }
                 .buttonStyle(TileStyle())
-                // Opening the list shows which window sits here now, on the Mac too.
-                .simultaneousGesture(TapGesture().onEnded { if let window { light(place: i, window: window) } })
             }
         }
         .frame(width: rect.width, height: rect.height)
@@ -248,7 +246,7 @@ struct ArrangeSheet: View {
                 .foregroundStyle(palette.inkColor)
                 .frame(width: 36, height: 36)
                 .background(Circle().fill(palette.solidColor))
-                .background(Circle().fill(palette.raisedColor))
+                .displaysSurface(Circle())
                 .shadow(color: (palette.isDark ? palette.solidColor : palette.inkColor).opacity(0.2), radius: 6, y: 2)
                 .frame(width: 44, height: 44)
                 .contentShape(Circle())
@@ -327,7 +325,7 @@ private struct ArrangementOption: View {
                 .frame(width: 40, height: 28)
                 .frame(maxWidth: .infinity)
                 .frame(height: Self.height)
-                .background { if selected { shape.fill(palette.raisedColor) } }
+                .background { if selected { Color.clear.displaysSurface(shape) } }
                 .contentShape(shape)
                 .opacity(isEnabled ? 1 : 0.35)
         }

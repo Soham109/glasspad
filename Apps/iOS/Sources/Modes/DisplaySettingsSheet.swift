@@ -163,7 +163,7 @@ struct DisplaySettingsSheet: View {
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(RoundedRectangle(cornerRadius: DisplaysMetrics.corner, style: .continuous).fill(palette.raisedColor))
+            .displaysSurface(RoundedRectangle(cornerRadius: DisplaysMetrics.corner, style: .continuous))
     }
 
     private var divider: some View { Rectangle().fill(palette.lineColor).frame(height: 0.5).padding(.leading, 40) }
@@ -303,7 +303,7 @@ private struct ArrangeDisplaysView: View {
                 }
                 .frame(width: geo.size.width, height: geo.size.height, alignment: .topLeading)
             }
-            .background(RoundedRectangle(cornerRadius: DisplaysMetrics.corner, style: .continuous).fill(palette.raisedColor))
+            .displaysSurface(RoundedRectangle(cornerRadius: DisplaysMetrics.corner, style: .continuous))
             Text("Drag displays to match how they sit on your desk.")
                 .font(.footnote)
                 .foregroundStyle(palette.inkSoftColor)

@@ -28,7 +28,13 @@ final class FakeDisplays: DisplaysBackend {
     var failing: String?
 
     func displays() -> [MacDisplay] { shown }
-    func windows() -> [MacWindow] { open }
+    /// How often the full window list was read (on the Mac it asks every app through Accessibility).
+    var windowListReads = 0
+    func windows() -> [MacWindow] {
+        windowListReads += 1
+        return open
+    }
+    func frame(of window: UInt32) -> CGRect? { open.first { $0.id == window }?.frame }
     var canArrangeWindows: Bool { trusted }
     var tileMargin: CGFloat { 0 }
 
@@ -77,12 +83,15 @@ final class FakeDisplays: DisplaysBackend {
     @Test func aHighlightOutlinesTheWindowWithoutAnswerOrMoving() {
         let (m, fake, sent) = mode()
         #expect(m.state().highlightsWindows == true)
+        fake.windowListReads = 0
         m.highlight(windowID: 101)
         #expect(fake.highlighted == [CGRect(x: 1700, y: -300, width: 1000, height: 800)])
         // A window that has closed: nothing. Never an answer, never a move.
         m.highlight(windowID: 999)
         #expect(fake.highlighted.count == 1)
         #expect(sent().isEmpty && fake.operations.isEmpty)
+        // One window's frame only, never the full list.
+        #expect(fake.windowListReads == 0)
     }
 
     @Test func theOutlineLandsOnTheWindowInAppKitCoordinates() {

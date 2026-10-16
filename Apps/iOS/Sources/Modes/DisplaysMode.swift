@@ -142,7 +142,7 @@ struct DisplaysMode: View {
             settingsFor = DisplayPick(id: display.id)
         }
         .padding(16)
-        .background(RoundedRectangle(cornerRadius: DisplaysMetrics.corner, style: .continuous).fill(palette.raisedColor))
+        .displaysSurface(RoundedRectangle(cornerRadius: DisplaysMetrics.corner, style: .continuous))
     }
 
     /// Upright: as tall as the arrangement needs at full width, up to half the screen.
@@ -217,6 +217,28 @@ enum DisplaysMetrics {
     static let innerCorner: CGFloat = 12
 }
 
+/// A raised fill alone, as Apple draws grouped content; where that fill barely differs from
+/// the surface (Mono, Pure Black, High Contrast) or with Increase Contrast, a hairline edge too.
+struct DisplaysSurface<S: InsettableShape>: ViewModifier {
+    @Environment(\.palette) private var palette
+    @Environment(\.colorSchemeContrast) private var contrast
+    let shape: S
+
+    static func needsEdge(_ theme: ThemeChoice, contrast: ColorSchemeContrast) -> Bool {
+        contrast == .increased || [.mono, .pureBlack, .highContrast].contains(theme)
+    }
+
+    func body(content: Content) -> some View {
+        content
+            .background(shape.fill(palette.raisedColor))
+            .overlay { if Self.needsEdge(palette.theme, contrast: contrast) { shape.strokeBorder(palette.lineColor, lineWidth: 1) } }
+    }
+}
+
+extension View {
+    func displaysSurface<S: InsettableShape>(_ shape: S) -> some View { modifier(DisplaysSurface(shape: shape)) }
+}
+
 /// A round, icon-only button face, 44 points across.
 struct DisplaysGlyph: View {
     @Environment(\.palette) private var palette
@@ -227,7 +249,7 @@ struct DisplaysGlyph: View {
             .font(.body.weight(.semibold))
             .foregroundStyle(palette.inkColor)
             .frame(width: 44, height: 44)
-            .background(Circle().fill(palette.raisedColor))
+            .displaysSurface(Circle())
             .contentShape(Circle())
     }
 }
@@ -448,7 +470,7 @@ private struct WindowList: View {
                     row(w)
                 }
             }
-            .background(RoundedRectangle(cornerRadius: DisplaysMetrics.corner, style: .continuous).fill(palette.raisedColor))
+            .displaysSurface(RoundedRectangle(cornerRadius: DisplaysMetrics.corner, style: .continuous))
             .clipShape(RoundedRectangle(cornerRadius: DisplaysMetrics.corner, style: .continuous))
             if hint {
                 Text("Tap to bring forward. Drag to move. Hold for more.")

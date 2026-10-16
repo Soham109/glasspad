@@ -19,6 +19,9 @@ public protocol DisplaysBackend: AnyObject {
     /// Back to the last permanent setup (what was there before an unconfirmed change).
     func restorePermanent()
     func setBrightness(_ value: Double, display: UInt32)
+    /// One window's frame (global display coordinates) without reading the others or asking
+    /// apps through Accessibility; nil when it has closed.
+    func frame(of window: UInt32) -> CGRect?
     /// Outlines this frame (global display coordinates) for a moment, over everything and
     /// without taking clicks; nothing moves or comes forward.
     func highlight(_ frame: CGRect)
@@ -192,10 +195,11 @@ public final class DisplaysMode {
     }
 
     /// The phone picked this window: outline it on the Mac so the person sees which one it is.
-    /// No answer, and nothing for a window that has closed.
+    /// No answer, and nothing for a window that has closed. Reads that one window only: picks
+    /// come often, and the full window list asks every app through Accessibility.
     public func highlight(windowID: UInt32) {
-        guard let w = backend.windows().first(where: { $0.id == windowID }) else { return }
-        backend.highlight(w.frame)
+        guard let frame = backend.frame(of: windowID) else { return }
+        backend.highlight(frame)
     }
 
     // MARK: Displays
