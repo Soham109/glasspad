@@ -106,6 +106,8 @@ final class MacSession {
     @ObservationIgnored private var laserOn = false
     @ObservationIgnored private var power = PowerPolicy()
     @ObservationIgnored private var diagnosticsVisible = 0
+    /// The last Deck save, until the Mac confirms or refuses it.
+    @ObservationIgnored private var deckSaveWatch = ReplyWatch()
 
     private static let settingsKey = "lastMacSettings"
     private static let deckCacheKey = "deckButtonsCache"
@@ -316,6 +318,7 @@ final class MacSession {
         if !modes.contains(.present), laserOn { laserOff() }
         let plan = LayoutWirePlan(modes: modes.map(\.wireMode))
         send(.modeSelected(plan.primary))
+        if let shown = plan.shown { send(.modesShown(shown)) }
         if plan.requestsMedia { send(.mediaRequest) }
     }
 
@@ -341,6 +344,23 @@ final class MacSession {
         deckLayout = layout
         cacheDeckLayout(layout)
         send(.deckSave(layout))
+        // An older Mac drops a Deck it cannot read without answering; never leave it looking saved.
+        let generation = deckSaveWatch.start()
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(10))
+            guard self.deckSaveWatch.timedOut(generation) else { return }
+            self.deckSaveError = self.isConnected
+                ? "Your Mac did not save the change. Update Glasspad on your Mac, then try again."
+                : "Not connected to your Mac, so the change was not saved."
+            Haptics.shared.play(.error)
+            self.send(.deckRequest)
+        }
+    }
+
+    /// A button from a newer Glasspad was tapped: it cannot run, so say why.
+    func deckNeedsUpdate() {
+        Haptics.shared.play(.error)
+        showDeckFailure(DeckAction.updateToUse)
     }
 
     func runDeck(_ id: UUID, confirmed: Bool = false) {
@@ -550,6 +570,7 @@ final class MacSession {
             deckLayout = layout
             cacheDeckLayout(layout)
         case .deckSaveResult(let ok, let message):
+            deckSaveWatch.settle()
             if !ok {
                 deckSaveError = message ?? "Your Mac did not save the Deck."
                 Haptics.shared.play(.error)

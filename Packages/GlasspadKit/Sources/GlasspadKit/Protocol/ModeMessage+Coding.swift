@@ -24,6 +24,11 @@ private struct CaseFields {
     func optional<T: Decodable>(_ type: T.Type, _ name: String, unlabeled: Bool = false) throws -> T? {
         try c.decodeIfPresent(T.self, forKey: key(name, unlabeled: unlabeled))
     }
+
+    /// A list, skipping only the elements this build cannot read.
+    func lenientArray<T: Decodable>(_ type: T.Type, _ name: String, unlabeled: Bool = false) throws -> [T] {
+        try c.decodeLenientArray(T.self, forKey: key(name, unlabeled: unlabeled))
+    }
 }
 
 extension ModeMessage {
@@ -46,6 +51,9 @@ extension ModeMessage {
         let f = fields
         switch tag {
         case "modeSelected": self = .modeSelected(try f.value(GlasspadMode.self, "mode", unlabeled: true))
+        case "modesShown":
+            // A screen from a newer build is skipped, not a reason to drop the rest.
+            self = .modesShown(try f.value([String].self, "modes").compactMap(GlasspadMode.init(rawValue:)))
         case "dockRequest": self = .dockRequest
         case "dockList": self = .dockList(apps: try f.value([DockApp].self, "apps"))
         case "dockOpen": self = .dockOpen(bundleID: try f.value(String.self, "bundleID"))
@@ -71,7 +79,7 @@ extension ModeMessage {
         case "mediaSetBrightness": self = .mediaSetBrightness(try f.value(Double.self, "value", unlabeled: true))
         case "mediaControl": self = .mediaControl(try f.value(MediaControl.self, "control", unlabeled: true))
         case "deckRequest": self = .deckRequest
-        case "deckButtons": self = .deckButtons(try f.value([DeckButton].self, "buttons", unlabeled: true))
+        case "deckButtons": self = .deckButtons(try f.lenientArray(DeckButton.self, "buttons", unlabeled: true))
         case "deckRun": self = .deckRun(id: try f.value(UUID.self, "id"))
         case "deckResult":
             self = .deckResult(id: try f.value(UUID.self, "id"), ok: try f.value(Bool.self, "ok"),
@@ -122,6 +130,7 @@ extension ModeMessage {
         try put(tag, "t")
         switch self {
         case .modeSelected(let m): try put(m, "mode")
+        case .modesShown(let modes): try put(modes, "modes")
         case .dockList(let apps): try put(apps, "apps")
         case .dockOpen(let id): try put(id, "bundleID")
         case .dockSync(let keys): try put(keys, "iconKeys")
@@ -195,6 +204,7 @@ extension ModeMessage {
     var tag: String {
         switch self {
         case .modeSelected: "modeSelected"
+        case .modesShown: "modesShown"
         case .dockRequest: "dockRequest"
         case .dockList: "dockList"
         case .dockOpen: "dockOpen"

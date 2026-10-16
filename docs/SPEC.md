@@ -263,7 +263,19 @@ As built (GlasspadKit):
   Media) and `frontmostApp` (as for Dock and Deck). `remoteSystem(id:action:)` runs one
   `DeckSystemAction` without a Deck button (Sleep Display, Do Not Disturb, volume keys); the
   Mac answers `deckResult` for `id` and refuses actions that need confirming. An older Mac
-  drops both, and the phone falls back to plain media and key messages.
+  drops both, and the phone falls back to plain media and key messages. On success the Mac
+  sends the new state of a switch as `message` ("Do Not Disturb is on"), as for Deck runs.
+  Layouts (Oct 2026, additive): after `modeSelected` (the pane `LayoutWirePlan` picks), a layout
+  of several panes sends `modesShown([GlasspadMode])`, every pane's mode. The Mac then pushes
+  `frontmostApp` while any of Dock, Deck or Remote shows and Dock list changes while Dock shows.
+  Modes it does not know are skipped. An older Mac drops it; a Dock pane still asks for its list
+  every 3 seconds.
+  Deck actions from a newer build (a new kind, or a Mac control this build does not know) decode
+  as `DeckAction.unsupported` with the raw JSON, written back unchanged, so saving the Deck never
+  loses them; lists of buttons and pages skip only an element that cannot be read at all. The
+  phone shows such a button as "Update Glasspad to use this"; the Mac refuses to run it, and
+  refuses a `deckSave` that adds or changes one. A `deckSave` with no `deckSaveResult` within
+  10 seconds (an older Mac drops what it cannot read) shows as not saved.
   Displays (Oct 2026, additive; types in `Displays/DisplayTypes.swift`): `displaysWatch(on:)`
   (phone -> Mac) starts or stops `displaysState(DisplaysState)` (Mac -> phone), sent at once and
   again on every change, read four times a second while watched; any Displays screen or layout
