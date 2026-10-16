@@ -1,0 +1,55 @@
+[
+ {
+  "id": "open",
+  "text": "The iPhone in your pocket, made part of your Mac."
+ },
+ {
+  "id": "trackpad",
+  "text": "Every gesture you know, with a click you can feel."
+ },
+ {
+  "id": "actions",
+  "text": "Its buttons follow the app in front, in more than seventy apps."
+ },
+ {
+  "id": "pinned",
+  "text": "Pin the Mac controls you reach for every day."
+ },
+ {
+  "id": "modes",
+  "text": "Everything else is one touch away."
+ },
+ {
+  "id": "layouts",
+  "text": "Or put two or three side by side."
+ },
+ {
+  "id": "remote",
+  "text": "From the couch, it's a remote."
+ },
+ {
+  "id": "present",
+  "text": "On stage, it keeps time and points for you."
+ },
+ {
+  "id": "displays",
+  "text": "Send any window to another display."
+ },
+ {
+  "id": "standby",
+  "text": "At night, it's a clock on your nightstand."
+ },
+ {
+  "id": "themes",
+  "text": "Twenty-eight themes, to make it yours."
+ },
+ {
+  "id": "private",
+  "text": "Pair once with a scan. It stays between your iPhone and your Mac."
+ },
+ {
+  "id": "end",
+  "text": "Glasspad. Free and open source.",
+  "keep": true
+ }
+]

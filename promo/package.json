@@ -20,7 +20,12 @@
     "v4:cues": "esbuild scripts/v4/cues.ts --bundle --platform=node --format=esm --outfile=voice/work/v4-cues.mjs --log-level=warning && node voice/work/v4-cues.mjs",
     "render:v4": "scripts/v4/render.sh",
     "render:4k": "scripts/v4/render-4k.sh",
-    "v4:verify": "python3 -I scripts/v4/verify.py"
+    "v4:verify": "python3 -I scripts/v4/verify.py",
+    "motion:cues": "esbuild scripts/motion/cues.ts --bundle --platform=node --format=esm --outfile=voice/work/motion-cues.mjs --log-level=warning --external:react --external:remotion && node voice/work/motion-cues.mjs",
+    "motion:voice": "python3 -I scripts/motion/voice.py",
+    "motion:mix": "python3 -I scripts/motion/mix.py",
+    "render:motion": "scripts/motion/render.sh",
+    "render:motion-4k": "scripts/motion/render-4k.sh"
   },
   "dependencies": {
     "@remotion/bundler": "4.0.529",

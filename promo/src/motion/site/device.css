@@ -1,0 +1,75 @@
+/* iPhone 18 Pro class device, drawn in CSS. Proportions from a 71.9 x 150 mm body and a
+   402 x 874 pt screen: screen inset 3.65% of the short side, screen corner 12.7%, body corner 16.4%.
+   All sizes use cqmin, so the same rules work for any size and for both orientations. */
+.iphone {
+  --band: #BDBAB4;        /* flat aluminium band */
+  --band-edge: #A3A09A;
+  --bezel: #0C0C0C;
+  --btn: #ADAAA4;
+  --screen-bg: #F2F1EE;
+  position: relative;
+  container-type: size;
+  aspect-ratio: 71.9 / 150;
+  flex: none;
+}
+.iphone[data-orient="landscape"] { aspect-ratio: 150 / 71.9; }
+.iphone[data-finish="dark"] { --band: #3C3B39; --band-edge: #2B2A29; --btn: #353432; }
+
+.ip-body {
+  position: absolute; inset: 0;
+  border-radius: 16.4cqmin;
+  background: var(--band);
+  box-shadow:
+    inset 0 0 0 0.35cqmin var(--band-edge),
+    0 2px 3px rgba(20, 20, 20, 0.10),
+    0 24px 48px -26px rgba(20, 20, 20, 0.45);
+}
+.ip-bezel {
+  position: absolute; inset: 1.25cqmin;
+  border-radius: 15.2cqmin;
+  background: var(--bezel);
+}
+.ip-screen {
+  position: absolute; inset: 3.65cqmin;
+  border-radius: 12.7cqmin;
+  overflow: hidden;
+  background: var(--screen-bg);
+  isolation: isolate;
+}
+.ip-island {
+  position: absolute; z-index: 5;
+  background: #000; border-radius: 99cqmin;
+  pointer-events: none;
+}
+.iphone[data-orient="portrait"] .ip-island { top: calc(3.65cqmin + 2.5cqmin); left: 50%; width: 29cqmin; height: 8.5cqmin; transform: translateX(-50%); }
+.iphone[data-orient="landscape"] .ip-island { left: calc(3.65cqmin + 2.5cqmin); top: 50%; height: 29cqmin; width: 8.5cqmin; transform: translateY(-50%); }
+
+/* Side buttons, protruding 0.8 of a cqmin */
+.ip-btn { position: absolute; background: var(--btn); border-radius: 0.6cqmin; }
+.iphone[data-orient="portrait"] .ip-btn { width: 1.1cqmin; }
+.iphone[data-orient="portrait"] .ip-btn.l { left: -0.8cqmin; }
+.iphone[data-orient="portrait"] .ip-btn.r { right: -0.8cqmin; }
+.iphone[data-orient="portrait"] .ip-btn.action { top: 18%; height: 5%; }
+.iphone[data-orient="portrait"] .ip-btn.up { top: 26.5%; height: 8.5%; }
+.iphone[data-orient="portrait"] .ip-btn.down { top: 36.5%; height: 8.5%; }
+.iphone[data-orient="portrait"] .ip-btn.side { top: 27%; height: 12%; }
+.iphone[data-orient="portrait"] .ip-btn.cam { top: 56%; height: 11%; right: -0.35cqmin; opacity: 0.7; }
+/* Landscape: the top of the phone points left, so the left side becomes the bottom edge */
+.iphone[data-orient="landscape"] .ip-btn { height: 1.1cqmin; }
+.iphone[data-orient="landscape"] .ip-btn.l { bottom: -0.8cqmin; }
+.iphone[data-orient="landscape"] .ip-btn.r { top: -0.8cqmin; }
+.iphone[data-orient="landscape"] .ip-btn.action { left: 18%; width: 5%; }
+.iphone[data-orient="landscape"] .ip-btn.up { left: 26.5%; width: 8.5%; }
+.iphone[data-orient="landscape"] .ip-btn.down { left: 36.5%; width: 8.5%; }
+.iphone[data-orient="landscape"] .ip-btn.side { left: 27%; width: 12%; }
+.iphone[data-orient="landscape"] .ip-btn.cam { left: 56%; width: 11%; top: -0.35cqmin; opacity: 0.7; }
+
+/* Screen content authored at real iPhone points, scaled to fit */
+.pt {
+  position: absolute; left: 0; top: 0;
+  width: 402px; height: 874px;
+  transform-origin: 0 0;
+  font-family: var(--font);
+  color: #1A1A1A;
+}
+.pt.land { width: 874px; height: 402px; }
