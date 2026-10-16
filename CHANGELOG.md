@@ -2,6 +2,12 @@
 
 All notable changes are listed here. The format follows [Keep a Changelog](https://keepachangelog.com), and the project follows [semantic versioning](https://semver.org).
 
+## [0.1.1] - 2026-10-16
+
+### Fixed
+
+- The Mac menu bar icon could stop responding while Media looked up Spotify or Music, because macOS never answered a permission check. That check now never makes the app wait.
+
 ## [0.1.0] - 2026-10-16
 
 The first release. Changed and Fixed compare it with the test builds made before it.
