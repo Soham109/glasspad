@@ -11,10 +11,10 @@ struct RemoteMode: View {
     var onClose: (() -> Void)?
 
     var body: some View {
-        // Mono stays black and white here too. Read from the setting, as the full screen
-        // tool is not handed the app's palette.
+        // Always dark; Mono stays black and white here too. Read from the setting, as the
+        // full screen tool is not handed the app's palette.
         RemoteScreen(onClose: onClose)
-            .environment(\.palette, settings.theme == .mono ? ThemeChoice.mono.preview(dark: true) : .graphite)
+            .environment(\.palette, settings.theme.remotePalette)
             .environment(\.colorScheme, .dark)
     }
 }

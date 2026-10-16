@@ -188,7 +188,8 @@ final class PhoneSettings {
         func double(_ key: String, _ fallback: Double, _ range: ClosedRange<Double>) -> Double {
             (defaults.object(forKey: key) as? Double).map { min(range.upperBound, max(range.lowerBound, $0)) } ?? fallback
         }
-        theme = ThemeChoice(rawValue: defaults.string(forKey: Key.theme) ?? "") ?? .paper
+        // A theme this build does not know (from a newer build) falls back to System.
+        theme = defaults.string(forKey: Key.theme).map(ThemeChoice.init(saved:)) ?? .paper
         hapticStrength = double(Key.hapticStrength, 0.7, 0...1)
         showDots = bool(Key.showDots, true)
         dotStyle = DotStyle(rawValue: defaults.string(forKey: Key.dotStyle) ?? "") ?? .soft

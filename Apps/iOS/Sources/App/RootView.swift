@@ -54,7 +54,7 @@ struct RootView: View {
         // Set on the window, not with preferredColorScheme, so that system text, controls,
         // sheets already on screen, menus, alerts and the keyboard all follow a change at once.
         .background(WindowAppearance(style: settings.theme.interfaceStyle))
-        .tint(palette.inkColor)
+        .tint(palette.accentColor)
         .statusBarHidden(true)
         .sheet(isPresented: $router.showSettings, onDismiss: ScreenAwake.update) {
             SettingsView()
