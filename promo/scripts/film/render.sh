@@ -11,7 +11,7 @@ python3 -I scripts/film/build_edit.py
 python3 -I scripts/film/mix.py
 npx remotion render src/index.ts GlasspadFilm out/_film-picture.mp4 --muted --log=error
 npx remotion render src/index.ts GlasspadTeaserVertical out/_teaser-picture.mp4 --muted --log=error
-mux() { ffmpeg -v error -y -i "$1" -i "$2" -map 0:v -map 1:a -c:v copy -c:a aac -b:a 320k -ar 48000 -movflags +faststart -shortest "$3"; }
+mux() { ffmpeg -v error -y -i "$1" -i "$2" -map 0:v -map 1:a -c:v copy -c:a aac -b:a 320k -cutoff 20000 -ar 48000 -movflags +faststart -shortest "$3"; }
 mux out/_film-picture.mp4 public/v2/mix-film.wav out/glasspad-film.mp4
 mux out/_film-picture.mp4 public/v2/mix-film-novo.wav out/glasspad-film-no-vo.mp4
 mux out/_teaser-picture.mp4 public/v2/mix-teaser.wav out/glasspad-teaser-vertical.mp4

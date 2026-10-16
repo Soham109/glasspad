@@ -340,9 +340,9 @@ def build(cut, with_vo=True):
     if with_vo:
         v, spans = voice_track(cut, dur)
         m = m * duck_env(spans, dur)[:, None]
-        mix = m * db(-4) + v + sfx
+        mix = m * db(-12) + v + sfx  # bed 8 dB lower than the first cut, at the owner's request
     else:
-        mix = m * db(-4) + sfx
+        mix = m * db(-8) + sfx  # no-VO cut: 4 dB lower than the first cut so the effects read
     return master(mix)
 
 
