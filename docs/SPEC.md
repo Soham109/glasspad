@@ -1,7 +1,9 @@
 # Glasspad: build spec
 
-Glasspad turns an iPhone into a wireless Mac trackpad with haptics, plus a set of
-extra modes (Dock, Keys, Media, Deck, Clipboard, Present). Open source, MIT.
+Glasspad turns an iPhone into a control surface for a Mac: a wireless trackpad with
+haptics, plus Keyboard, Media, Dock, Actions (Deck and Macros), Remote, Present, Clipboard,
+Displays and the StandBy screens (Clock, Now Playing, Calendar), alone or up to three at once
+in a layout. Open source, MIT.
 This file is the contract every part is built against. If you change an
 interface here, change it everywhere.
 
@@ -10,7 +12,7 @@ interface here, change it everywhere.
 - Feels like the Mac's own trackpad. Gestures follow the user's real macOS
   trackpad settings, read live from `defaults`.
 - Lowest possible latency over Wi-Fi. Measure it, never guess it.
-- Minimal UI. The trackpad screen is a plain soft-white (or graphite) surface
+- Minimal UI. The trackpad screen is a plain surface in the theme's colors
   with a dot under each finger. Nothing else unless asked for.
 - Safe for the phone. Only public iOS APIs on the phone. Dims after idle,
   backs off when the phone is warm, never forces max brightness.
@@ -25,26 +27,42 @@ interface here, change it everywhere.
 glasspad/
   Packages/GlasspadKit/          shared Swift package (iOS 17+, macOS 14+)
     Sources/GlasspadKit/
-      Protocol/                  wire messages + binary codec
+      Protocol/                  wire messages, binary codec, Deck types, lenient decoding
       Crypto/                    pairing payload, session keys, AEAD framing
-      Transport/                 Bonjour discovery, TCP control, UDP touch link
-      Gestures/                  touch model, TrackpadSettings, GestureRecognizer
+      Transport/                 Bonjour discovery, TCP control, UDP touch link, known Macs, Wake-on-LAN
+      Gestures/                  touch model, TrackpadSettings, GestureRecognizer, Mac acceleration
+      Pairing/                   living pairing pattern, Vision code reader
+      Layouts/                   ScreenLayout, templates, divider math, what to tell the Mac
+      Theme/                     ThemeCatalog, photo tone
+      Power/                     PowerPolicy
+      StandBy/                   clock faces, burn in shift, night mode, StandBy power
+      Remote/                    RemoteKeymap
+      Displays/                  display and window types, frame math
+      Layout/                    tile grids
+      Media/, Keys/, Web/        playback clock, keyboard input, website icons
     Tests/GlasspadKitTests/
   Packages/GlasspadMacCore/      Mac-only logic as a package (macOS 14+)
     Sources/GlasspadMacCore/
       Settings/                  reads macOS trackpad prefs -> TrackpadSettings
-      Synth/                     CGEvent pointer/click/scroll + private gestures
-      Server/                    NWListener, pairing store, session handling
-      Modes/                     Dock, Media, Keys, Deck, Clipboard, Present
+      Synth/                     CGEvent pointer/click/scroll, private gestures, MotionScheduler
+      Server/                    controller, pairing store and flow, touch pipeline, Mac status
+      Modes/                     Dock, Keys, Media, Deck, Clipboard, Present, Displays, Mac controls, tiling
+      Macros/                    bridge between Macros mode and GlasspadMacros
     Tests/GlasspadMacCoreTests/
-  Apps/Mac/                      menu bar app (SwiftUI + AppKit), thin shell
-  Apps/iOS/                      iPhone app (SwiftUI + UIKit touch view), thin shell
+  Packages/GlasspadMacros/       macros engine (macOS 14+), see docs/SPEC-macros.md
+  Apps/Mac/                      menu bar app (SwiftUI + AppKit), a SwiftPM package
+    Helpers/                     now playing helper (MediaRemote)
+    Tests/GlasspadMacSnapshots/  wording and pairing code tests, snapshot harness
+  Apps/iOS/                      iPhone app (iOS 18+, SwiftUI + UIKit touch view), widgets
   project.yml                    XcodeGen project for both apps
-  scripts/                       test.sh, build-mac.sh (SwiftPM + ad-hoc .app)
-  docs/                          SPEC, ARCHITECTURE, screenshots, site
+  install.sh                     one-line installer
+  scripts/                       test.sh, build-mac.sh, install and renewal scripts, tests/
+  docs/                          SPEC, install test notes, reviews, images
+  web/, promo/                   website and demo film
 ```
 
 Build without Xcode (Mac side only): `scripts/test.sh` and `scripts/build-mac.sh`.
+The scripts keep intermediate build files in `~/Library/Caches/glasspad-build` (`GLASSPAD_BUILD_ROOT`), outside the repo.
 Command line tools need extra flags for swift-testing; `scripts/test.sh` adds them:
 `-Xswiftc -F$F -Xlinker -F$F -Xlinker -rpath -Xlinker $F` with
 `F=/Library/Developer/CommandLineTools/Library/Developer/Frameworks`.
@@ -63,7 +81,7 @@ Tests use swift-testing (`import Testing`), not XCTest.
   Separate counters for TCP and UDP (UDP uses tags `"P2MU"`/`"M2PU"`).
 - Replay: TCP counters must strictly increase. UDP accepts a sliding window of
   64 behind the highest counter seen and rejects duplicates.
-- Wrong key or bad tag: drop silently, count it, surface in the Mac debug view.
+- Wrong key or bad tag: drop silently and count it (`LinkStats.authFailures`, `replayDrops`).
 
 Public API:
 ```swift
@@ -95,6 +113,14 @@ As built (GlasspadKit):
   and close. The phone shows `failed(reason)` and does not retry.
 - Helpers: `PairingPayload.generateKey()`, `randomBytes(_:)`.
   `SessionCryptoError`: `tooShort`, `replay`, `authenticationFailed`, `counterExhausted`.
+- The code (Oct 2026): `PairingFlow` (GlasspadMacCore) keeps one code valid for 5 minutes
+  (`codeLifetime`), then disarms its key and shows Code Expired. The QR code is drawn as a
+  living pattern (`Pairing/PairingPattern.swift`): finder squares stay solid, every other dark
+  module is a dot that drifts at most 0.07 of a module, and the dots gather into a checkmark
+  when pairing finishes. The phone reads it from camera frames with Vision
+  (`PairingCodeReader`, which also tries the picture inverted for the dark card in Dark Mode).
+  `PairingPatternTests` and the Mac's `PairingCodeRenderTests` render the moving code in light
+  and dark and read it back. Copy Link and Share (AirDrop) carry the same `glasspad://pair` link.
 
 ## 4. Transport (GlasspadKit/Transport)
 
@@ -110,9 +136,11 @@ As built (GlasspadKit):
   `serviceClass = .interactiveVoice` (WMM voice queue), `includePeerToPeer = true`.
 - Keep-awake: while the trackpad screen is visible, the phone sends a
   heartbeat every 20 ms when no touches are flowing, so the Wi-Fi radio never
-  enters power save. Stops when the screen is hidden or the phone is idle 2 min.
+  enters power save. Stops when the screen is hidden or the phone is idle 2 min (10 s in Low
+  Power Mode), and pauses while the phone is warm (`PowerPolicy`, section 9).
 - RTT: Mac sends `ping` on TCP each second, phone answers `pong` with the
-  same id; Mac shows median and p95 RTT in its debug view.
+  same id; the Mac turns median and p95 RTT into signal bars on the iPhone row of its menu
+  bar popover (`SignalQuality`).
 - Reconnect automatically with backoff (0.2, 0.5, 1, 2 s cap).
 
 Public API (both sides use these; names are fixed):
@@ -306,8 +334,9 @@ As built (GlasspadKit):
   (`granted`, `denied`, `notDetermined`, `notNeeded`; Spotify and Music control, optional) and
   `macName: String?`. The Mac sends it right after each handshake and again whenever a field
   changes (`GlasspadMacCore` `MacStatusReporter`). Accessibility is re-read every second both
-  ways (`AccessibilityMonitor`), so turning it off in System Settings while connected reaches
-  the phone within a second. Unknown fields and unknown `automationMedia` values are ignored.
+  ways (`AccessibilityMonitor`) while a phone is connected or a pairing code is up, so turning
+  it off in System Settings while connected reaches the phone within a second; with no phone
+  and no code it is read every 5 seconds. Unknown fields and unknown `automationMedia` values are ignored.
 - `ControlMessage.unknown(type:)`: a `t` this build does not know decodes to this no-op instead
   of throwing, and both ends ignore it without ending the session (a known `t` with broken
   fields still throws and counts as malformed). Builds from before this change dropped any
@@ -536,12 +565,13 @@ Each mode is a `ModeMessage` case pair handled by `GlasspadMacCore/Modes`.
 |---|---|---|
 | Trackpad | full-screen surface, finger dots | gesture engine + synth |
 | Dock | the Mac's Dock and nothing else: Dock apps + running apps in Dock order, running dots, long-press Quit / Hide / Show in Finder / Keep, phone-side order and hiding. Apps outside the Dock are pinned in Actions | read Dock prefs + NSWorkspace, icons as 384 px PNG (3x the largest icon the phone draws) keyed by bundle id + app modification date + size, sent once (`dockSync`), in messages of at most 1.5 MB of icons, launch / activate / reopen (`AppLauncher`), hide the Mac Dock (`MacDockHider`) |
-| Keys | text field that streams typed text; arrows, esc, tab, cmd shortcuts row; dictation works | CGEvent keyboard unicode strings |
-| Media | now playing title/artist/art, play/pause/next/prev, volume, brightness | MediaRemote (private, with fallback to media key events), volume via CoreAudio |
+| Keyboard (stored as `keys`) | text field that streams typed text; arrows, esc, tab, cmd shortcuts row, modifier keys, F1 to F12; dictation works | CGEvent keyboard unicode strings; shortcuts press the key that types that character on the Mac's keyboard layout (`KeyLayout`) |
+| Media | now playing title/artist/art, play/pause/next/prev, scrubbing, shuffle and repeat, sound output, volume, brightness | MediaRemote through `Apps/Mac/Helpers/NowPlayingHelper.m` (since macOS 15.4 MediaRemote answers only Apple processes, so the helper runs inside `/usr/bin/perl`), AppleScript to Spotify and Music, media key events for commands, volume via CoreAudio |
 | Actions (Deck) | one screen: the front app's best buttons (6 by default, up to 8 chosen and ordered per app) above Pinned (favourites of every kind, + opens a searchable Library whose Apps group lists every installed Mac app); folders, sizes, colours, edit on the phone. Sideways it splits: front app on the left half, Pinned on the right. Clipboard and Present are tools in the mode menu. Older Decks move into Pinned once, losslessly (`PinnedDeck.migrated`) | executes actions directly (screencapture, pmset, CoreAudio...), config v3 on the Mac, phone edits via `deckSave` (never shell) |
+| Macros | the Mac's macros, the set for the app in front, record on the Mac | GlasspadMacros (docs/SPEC-macros.md) |
 | Clipboard | send phone clipboard to Mac, pull Mac clipboard to phone (text, images) | NSPasteboard |
 | Present | big next/previous buttons, timer, laser dot (move a highlight on the Mac) | arrow keys + transparent overlay window for the laser |
-| Remote | couch remote: touch surface (tap play or pause, swipe sideways to skip, up and down for volume), back 10 / play / forward 10, Search, Subtitles, Full Screen, Mute, Sleep Display and Do Not Disturb. Keys follow the player in front (`RemoteKeymap`: web players, Apple TV, QuickTime, IINA, VLC, Infuse, Spotify and Music). Hidden at first: a tool in the mode menu until Settings shows it | media commands and seeking through now playing, keystrokes, CoreAudio volume |
+| Remote | couch remote: touch surface (tap play or pause, swipe sideways to skip, up and down for volume), back 10 / play / forward 10, Search, Subtitles, Full Screen, Mute, Sleep Display and Do Not Disturb. Keys follow the player in front (`RemoteKeymap`: web players, with YouTube, Netflix, Prime Video and Disney+ told apart, Apple TV, QuickTime, IINA, VLC, Infuse, Spotify and Music); Skip Intro shows for Netflix. Hidden at first: a tool in the mode menu until Settings shows it | media commands and seeking through now playing, keystrokes, CoreAudio volume |
 | Displays | the Mac's displays drawn as in System Settings (true sizes and places, menu bar and camera housing on the main one) with every window in front to back order and its app icon, plus a window list. Tap brings a window forward, drag moves it (to another display keeping its share), touch and hold for Left, Right, Top and Bottom Half, Fill, Center, Split With, Move to a display, Full Screen, Minimize and Close (asks first). Tap a display for brightness, the "Looks like" resolutions, Night Shift, main display, mirroring and Arrange Displays. Hidden at first: a tool in the mode menu until Settings shows it | window server list for order and frames, Accessibility for names and moves, CoreGraphics display configuration with Keep or Revert, DisplayServices brightness |
 | StandBy (Clock, Now Playing, Calendar) | glanceable screens like iOS StandBy, hidden at first, used as layout panes (templates StandBy and Clock and Trackpad). Clock: Digital, Analog and Minimal faces (tap to change), 12 or 24 hour as the phone is set, date and charge level. Now Playing: cover, title, artist, back, play or pause, next (MediaStore). Calendar: the next three events from EventKit, asked for only after a tap. Always black, content shifts up to 3 pt each minute against burn in, night mode turns everything dim red (Off, At Night 22:00 to 07:00, Always), dims in Low Power Mode and when warm. Keeps the screen on only while visible and charging, or on battery when Stay On When Unplugged is on and Low Power Mode is off, and never while the phone is warm (thermal state serious or worse, `PowerPolicy.isWarm`) (rules in GlasspadKit `StandBy.swift`) | Now Playing reports `media` (now playing stream); Clock and Calendar report `trackpad` and need nothing from the Mac |
 
@@ -587,16 +617,33 @@ As built, UX pass (Oct 2026):
   moment a finger lifts. Sending every sample per finger had produced 430 to 700 packets a
   second. It logs `touch rate: ... callbacks (/s), samples (/s), frames sent (/s)` per touch.
 - Hides the status bar and home indicator, defers system edge gestures
-  (`preferredScreenEdgesDeferringSystemGestures = .all`).
-- Mode switching: a small pill at the top centre that fades out after 2 s,
-  revealed by touching the top 24 pt. Long press the pill for Settings.
+  (SwiftUI `defersSystemGestures(on: .all)` while a trackpad shows, alone or in a layout pane).
+- Mode switching: a small pill at the top centre (or the bottom, in Settings) that fades out
+  after 2 s, revealed by touching the edge it sits on. Tap it for the mode menu, long press it
+  for Settings. As built (Oct 2026): the pill and the menu are one piece of glass (on iOS 26 the
+  pill grows into the menu); the menu lists the modes, the tools (Clipboard, Present, Remote,
+  Displays unless shown as modes) and a Layouts row with + for a new layout. A small dot on
+  the pill shows the connection only when something is wrong.
 - Haptics: Core Haptics (`CHHapticEngine`) pre-warmed; transient events for
   click, force click ramp, detents. Strength follows Mac click pressure and
   the phone-side slider.
 - Phone safety: `isIdleTimerDisabled` only while the surface is visible;
-  dims the surface after 60 s idle; on `thermalState >= .serious` it stops
-  haptics and heartbeats and shows a calm notice; no brightness changes.
-- Pairing: camera QR scan (`AVCaptureMetadataOutput`), Keychain storage.
+  dims the surface after 60 s idle (Settings: 30 s, 1, 2 or 5 minutes, or never); on
+  `thermalState >= .serious` it stops haptics and heartbeats and shows a calm notice; no
+  brightness changes.
+  As built (Oct 2026): one `PowerPolicy` (GlasspadKit `Power/PowerPolicy.swift`), fed by the
+  app's `PowerMonitor` with the thermal state and Low Power Mode, decides every extra. Warm
+  (`isWarm`, serious or worse): no haptics, no heartbeats, no decorative motion, progress
+  redraws once a second. Low Power Mode or fair heat: decorative motion at 30 frames a second.
+  Low Power Mode also: one marquee pass instead of three, progress redraws once a second, and
+  heartbeats stop after 10 s idle. Keep Screen On holds the screen only for the trackpad or Present, with the app active,
+  nothing on top, a Mac connected, and less than `keepAwakeLimit` since the last touch (10
+  minutes; 3 in Low Power Mode or warm; 1 when critical). Pointer traffic, click haptics and
+  taps are never slowed. The haptic engine rests while dimmed or in the background. Tests:
+  `PowerPolicyTests`.
+- Pairing: camera QR scan (`AVCaptureVideoDataOutput` frames read with Vision through
+  `PairingCodeReader`, section 3), or a pasted `glasspad://pair` link; Keychain storage
+  (this device only).
 - Themes: Paper (#F2F1EE background, dots #1A1A1A at 14% opacity) and
   Graphite (#141414, dots white at 18%). Dots 44 pt, soft edge, fade on lift.
   As built (Oct 2026): also System (Paper or Graphite with the phone), Mono (pure white or black
@@ -613,18 +660,38 @@ As built, UX pass (Oct 2026):
   WCAG AA on every surface. Mode accents and status colours are Apple's system colours, moved
   toward the ink only as far as a theme needs for 3:1. Unknown saved themes fall back to System.
   Remote and StandBy stay dark.
+- Layouts (Oct 2026): one to three modes on one screen (GlasspadKit `Layouts/`, views in
+  `Apps/iOS/Sources/Layouts`). `ScreenLayout` keeps panes by mode name (unknown names
+  survive), a direction (`automatic`: side by side in landscape, stacked upright; or fixed),
+  the main split and, with three panes, the inner split of the second side. A mode never
+  shows twice: putting it in a second pane swaps the two. Dividers (`DividerMath`) rest on a
+  third, the middle or two thirds within 22 pt, resist past a 120 pt minimum pane, and fold a
+  pane away when pulled 56 pt further; double tap a line for even shares. A new install has
+  Desk, Type, Listen and Couch (`LayoutLibrary.starter`); the gallery adds Trackpad and Dock,
+  Media and Actions, Studio, Presenter, StandBy, and Clock and Trackpad. Layouts sit in the
+  mode menu and are edited on the phone (name, panes, Swap Panes, Split direction). What the Mac is told
+  is `LayoutWirePlan` (section 5). Views shown in several panes count with `ShownCount`, so
+  one pane leaving never switches off the trackpad or diagnostics of another. Tests:
+  `ScreenLayoutTests`, `ShownCountTests`.
 
 ## 10. Mac app (Apps/Mac)
 
 - Menu bar only (`LSUIElement`). Popover: connection state + RTT, pair button
   (QR), permissions checklist, which gestures are native vs fallback,
   paired phones (revoke), launch at login (`SMAppService`).
-- Settings sync: watches the trackpad preference domains and pushes changes.
+- Settings sync: watches the trackpad preference domains and pushes changes (notifications,
+  plus a read every 2 s while a phone is connected and every 5 s otherwise).
 
 As built (Oct 2026 UX pass):
 - First launch with no phone paired opens a Welcome window (`SetupViews.swift`) with the code
   already showing, three steps, and the permissions in order: Accessibility (Required), then
   Spotify and Music (Optional, "Ask" enabled only once Accessibility is allowed).
+  As built (Oct 2026): a short assistant (welcome, permissions that tick themselves off as each
+  is granted, then the living pairing code). The popover is laid out like the system's own
+  menu bar extras: Glasspad with an on switch, the iPhone as a device row, anything that needs
+  fixing, Pair Your iPhone…, Hide Mac Dock, then Glasspad Settings… and Quit Glasspad. Settings has General
+  (Open at Login), iPhone (paired phones, Forget… to revoke), Trackpad, Macros, Advanced and
+  About.
 - Pairing states (`GlasspadMacCore` `PairingFlow`): waiting (code valid 5 minutes), Paired with
   the phone's name (closes itself after 2.5 s), Code Expired (Show a New Code), failed (Try
   Again). Copy Link and Share (AirDrop) sit under every code; the phone pastes the link with
@@ -632,13 +699,17 @@ As built (Oct 2026 UX pass):
 - The Mac uses the phone's words: Trackpad, Keyboard, Media, Dock, Actions (Pinned, Library),
   Macros. Settings > Macros has "All Macros" and "For Each App" (the sets behind "For <app>" in
   Macros on the iPhone). The macro editor shows gestures, keys and apps by name, never as
-  identifiers. Advanced keeps round trip and packet counts under a Diagnostics disclosure, with the last
-  clipboard refusal and the path each gesture uses now. Trackpad has "If a Gesture Stops Working":
-  Automatic, Trackpad gesture or Keyboard shortcut per gesture, applied at once.
+  identifiers. Trackpad has "If a Gesture Stops Working": Automatic, Trackpad gesture or Keyboard
+  shortcut per gesture, applied at once, with the path each gesture uses now under its name.
+  As built (Oct 2026): the Diagnostics rows (round trip, packet counts, last clipboard refusal)
+  left Settings; round trip shows as signal bars in the popover, and connection and touch
+  diagnostics are in the log (`/usr/bin/log show --predicate 'subsystem == "com.soham109.glasspad"'`). Advanced keeps
+  "Allow shell command buttons" and the Macros folder.
 
 ## 11. Definition of done
 
-- `scripts/test.sh` green for both packages.
+- `scripts/test.sh` green for every package and the installer tests.
+- `swift test --package-path Apps/Mac` green (wording and pairing code render tests).
 - Mac app builds into `build/Glasspad.app` with `scripts/build-mac.sh`.
 - iOS app builds in Xcode once installed (project generated by XcodeGen).
 - A loopback test: `GlasspadClient` (macOS) pairs with `GlasspadServer` in one
