@@ -24,6 +24,9 @@ public protocol DisplaysBackend: AnyObject {
 /// One thing done to one window, with the frame already worked out.
 public enum WindowOperation: Equatable, Sendable {
     case setFrame(CGRect)
+    /// This window on the left of `visible` and `with` on the right, `gap` around and between
+    /// them; `display` names the display in messages.
+    case split(with: UInt32, visible: CGRect, gap: CGFloat, display: String)
     case raise
     case minimize
     case close
@@ -148,7 +151,11 @@ public final class DisplaysMode {
         case .minimize: return [(id, .minimize)]
         case .close: return [(id, .close)]
         case .fullScreen: return [(id, .fullScreen)]
-        case .split(let other): return framed + [(other, .raise), (id, .raise)]
+        case .split(let other):
+            // Both together, so a window that will not get narrow enough leaves the other the rest.
+            guard let w = s.window(id), let d = s.display(of: w) else { return nil }
+            return [(id, .split(with: other, visible: d.visibleFrame, gap: CGFloat(s.tileMargin), display: d.name)),
+                    (other, .raise), (id, .raise)]
         case .tile, .move: return framed + [(id, .raise)]
         }
     }

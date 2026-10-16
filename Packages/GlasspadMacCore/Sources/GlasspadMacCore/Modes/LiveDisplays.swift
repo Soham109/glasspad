@@ -193,15 +193,20 @@ public final class LiveDisplays: DisplaysBackend {
         let fullScreen = AXUI.bool(window, "AXFullScreen") == true
         switch operation {
         case .setFrame(let frame):
-            if fullScreen { return "That window is in full screen." }
-            return WindowMover.set(window, app: app, to: frame) ? nil : "That window cannot be moved."
+            if fullScreen { return WindowFailure.fullScreen(appName(app)).message }
+            return WindowMover.set(window, app: app, to: frame) ? nil : WindowFailure.refused(appName(app)).message
+        case .split(let otherID, let visible, let gap, let display):
+            if axWindows[otherID] == nil, let pid = ownerPID(otherID) { refreshAccessibility(pids: [pid], force: true) }
+            guard let other = axWindows[otherID] else { return WindowFailure.closed.message }
+            return WindowMover.split(left: (app, window), right: (other.app, other.window), in: visible, gap: gap,
+                                     displayName: display)?.message
         case .raise:
             AXUIElementSetAttributeValue(window, kAXMainAttribute as CFString, kCFBooleanTrue)
             AXUIElementPerformAction(window, kAXRaiseAction as CFString)
             if let pid = ownerPID(id) { NSRunningApplication(processIdentifier: pid)?.activate(options: []) }
             return nil
         case .minimize:
-            if fullScreen { return "That window is in full screen." }
+            if fullScreen { return WindowFailure.fullScreen(appName(app)).message }
             return AXUIElementSetAttributeValue(window, kAXMinimizedAttribute as CFString, kCFBooleanTrue) == .success
                 ? nil : "That window cannot be minimized."
         case .close:
@@ -212,6 +217,12 @@ public final class LiveDisplays: DisplaysBackend {
             let ok = AXUIElementSetAttributeValue(window, "AXFullScreen" as CFString, (!fullScreen) as CFBoolean) == .success
             return ok ? nil : "That window cannot go full screen."
         }
+    }
+
+    private func appName(_ app: AXUIElement) -> String {
+        var pid: pid_t = 0
+        guard AXUIElementGetPid(app, &pid) == .success else { return "That app" }
+        return NSRunningApplication(processIdentifier: pid)?.localizedName ?? "That app"
     }
 
     private func ownerPID(_ id: UInt32) -> pid_t? {

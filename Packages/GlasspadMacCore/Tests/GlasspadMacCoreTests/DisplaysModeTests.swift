@@ -35,7 +35,15 @@ final class FakeDisplays: DisplaysBackend {
     func perform(_ operation: WindowOperation, window: UInt32) -> String? {
         operations.append((window, operation))
         if let failing { return failing }
-        if case .setFrame(let f) = operation, let i = open.firstIndex(where: { $0.id == window }) { open[i].frame = f }
+        func frame(_ id: UInt32, _ f: CGRect) { if let i = open.firstIndex(where: { $0.id == id }) { open[i].frame = f } }
+        switch operation {
+        case .setFrame(let f): frame(window, f)
+        case .split(let other, let visible, let gap, _):
+            let halves = DisplayGeometry.split(in: visible, gap: gap)
+            frame(window, halves.left)
+            frame(other, halves.right)
+        default: break
+        }
         return nil
     }
 
@@ -116,6 +124,9 @@ final class FakeDisplays: DisplaysBackend {
         #expect(result(sent(), id)?.ok == true)
         #expect(fake.open[0].frame == CGRect(x: 0, y: 37, width: 756, height: 875))
         #expect(fake.open[1].frame == CGRect(x: 756, y: 37, width: 756, height: 875))
+        // One step for both (on Safari's display, the laptop), then Mail and Safari forward.
+        #expect(fake.operations.first?.1 == .split(with: 101, visible: CGRect(x: 0, y: 37, width: 1512, height: 875), gap: 0,
+                                                   display: "Built-in Retina Display"))
         #expect(fake.operations.suffix(2).map(\.0) == [101, 100])
         // With itself: refused.
         let again = UUID()

@@ -38,10 +38,13 @@ public struct TilingScreen: Equatable, Sendable {
     public var frame: CGRect
     /// Without the menu bar and the Dock.
     public var visible: CGRect
+    /// "Studio Display", for messages.
+    public var name: String
 
-    public init(frame: CGRect, visible: CGRect) {
+    public init(frame: CGRect, visible: CGRect, name: String = "this display") {
         self.frame = frame
         self.visible = visible
+        self.name = name
     }
 }
 
@@ -141,33 +144,39 @@ public enum MoveResizeMenu {
 
 // MARK: - Live windows
 
+/// One window through the Accessibility API, for `WindowArranger`.
+@MainActor
+final class AXMovableWindow: MovableWindow {
+    let app: AXUIElement
+    let window: AXUIElement
+    let appName: String
+
+    init(app: AXUIElement, window: AXUIElement) {
+        self.app = app
+        self.window = window
+        var pid: pid_t = 0
+        let name = AXUIElementGetPid(app, &pid) == .success ? NSRunningApplication(processIdentifier: pid)?.localizedName : nil
+        appName = name ?? AXUI.string(app, kAXTitleAttribute) ?? "That app"
+    }
+
+    var frame: CGRect? { AXUI.frame(window) }
+    var isFullScreen: Bool { AXUI.bool(window, "AXFullScreen") == true }
+    var isMinimized: Bool { AXUI.bool(window, kAXMinimizedAttribute) == true }
+    func setPosition(_ origin: CGPoint) -> Bool { AXUI.setPosition(window, origin) }
+    func setSize(_ size: CGSize) -> Bool { AXUI.setSize(window, size) }
+}
+
 /// Moves real windows with the Accessibility API, falling back to the app's own Move & Resize
 /// menu items when a window refuses to be set directly.
 @MainActor
 enum WindowMover {
-    /// Both a problem the user can fix and a short message for the phone.
-    enum Failure: Error, Equatable {
-        case noPermission, noWindow, fullScreen, refused, oneScreen, noSecondWindow
-
-        var message: String {
-            switch self {
-            case .noPermission: AXUI.permissionHint
-            case .noWindow: "No window to move"
-            case .fullScreen: "That window is in full screen"
-            case .refused: "That window cannot be moved"
-            case .oneScreen: "Only one display is connected"
-            case .noSecondWindow: "Open a second window to split the screen"
-            }
-        }
-    }
-
     /// Every display, Quartz coordinates.
     static func screens() -> [TilingScreen] {
         let all = NSScreen.screens
         guard let main = all.first else { return [] }
         let h = main.frame.height
         return all.map { TilingScreen(frame: WindowTiling.quartz($0.frame, mainHeight: h),
-                                      visible: WindowTiling.quartz($0.visibleFrame, mainHeight: h)) }
+                                      visible: WindowTiling.quartz($0.visibleFrame, mainHeight: h), name: $0.localizedName) }
     }
 
     /// The gap from "Tiled windows have margins" (on unless the user turned it off).
@@ -177,52 +186,100 @@ enum WindowMover {
         return on ?? true ? WindowTiling.margin : 0
     }
 
-    static func place(_ placement: WindowPlacement) -> Result<Void, Failure> {
+    static func arranger(_ screens: [TilingScreen]) -> WindowArranger {
+        WindowArranger(displays: screens.map(\.frame)) { Thread.sleep(forTimeInterval: $0) }
+    }
+
+    static func place(_ placement: WindowPlacement) -> Result<Void, WindowFailure> {
         guard AXIsProcessTrusted() else { return .failure(.noPermission) }
         guard let (app, window) = frontWindow() else { return .failure(.noWindow) }
-        if AXUI.bool(window, "AXFullScreen") == true { return .failure(.fullScreen) }
+        let w = AXMovableWindow(app: app, window: window)
+        if w.isFullScreen { return .failure(.fullScreen(w.appName)) }
         let all = screens()
-        guard let current = AXUI.frame(window), let i = WindowTiling.screenIndex(for: current, in: all) else {
-            return .failure(.noWindow)
-        }
+        guard let current = w.frame, let i = WindowTiling.screenIndex(for: current, in: all) else { return .failure(.noWindow) }
         let target = WindowTiling.frame(placement, window: current, in: all[i].visible, gap: gap())
         if set(window, app: app, to: target) { return .success(()) }
-        return pressMenuItem(placement, app: app) ? .success(()) : .failure(.refused)
+        return pressMenuItem(placement, app: app) ? .success(()) : .failure(.refused(w.appName))
     }
 
-    static func split() -> Result<Void, Failure> {
+    /// The front window on the left half of its display and the one behind it on the right.
+    /// macOS's own Window > Move & Resize > Arrange > Left & Right when both are already on that
+    /// display; otherwise (or when it does not land) Glasspad moves the second window over to
+    /// the front window's display and sizes both itself.
+    static func split() -> Result<Void, WindowFailure> {
         guard AXIsProcessTrusted() else { return .failure(.noPermission) }
-        let windows = frontWindows(limit: 2)
-        guard let first = windows.first else { return .failure(.noWindow) }
-        guard windows.count == 2 else { return .failure(.noSecondWindow) }
+        let windows = frontWindows(limit: 2).map { AXMovableWindow(app: $0.app, window: $0.window) }
         let all = screens()
-        guard let frame = AXUI.frame(first.window), let i = WindowTiling.screenIndex(for: frame, in: all) else {
-            return .failure(.noWindow)
+        let candidates = windows.map { SplitScreen.Candidate(app: $0.appName, frame: $0.frame ?? .zero, isFullScreen: $0.isFullScreen) }
+        let choice: SplitScreen.Choice
+        switch SplitScreen.choose(candidates, displays: all.map(\.frame)) {
+        case .success(let c): choice = c
+        case .failure(let f): return .failure(f)
         }
-        let second = windows[1]
-        // macOS's own Arrange > Left & Right first: native tiling, its animation and margins.
-        if AXUI.bool(first.window, "AXFullScreen") != true, pressLeftAndRight(app: first.app) { return .success(()) }
-        let halves = WindowTiling.split(in: all[i].visible, gap: gap())
-        let ok = set(second.window, app: second.app, to: halves.right) && set(first.window, app: first.app, to: halves.left)
+        let first = windows[choice.left], second = windows[choice.right], screen = all[choice.display]
+        let sameDisplay = WindowTiling.screenIndex(for: candidates[choice.right].frame, in: all) == choice.display
+        if sameDisplay, pressLeftAndRight(app: first.app), nativeSplitLanded(first, second, in: screen.visible) {
+            return .success(())
+        }
+        let failure = withoutEnhancedUI([first.app, second.app]) {
+            arranger(all).split(left: first, right: second, in: screen.visible, gap: gap(), displayName: screen.name)
+        }
         // Bring both forward, the right one first, so neither half is left behind other windows.
-        bringForward(second)
-        bringForward(first)
-        return ok ? .success(()) : .failure(.refused)
+        bringForward((second.app, second.window))
+        bringForward((first.app, first.window))
+        return failure.map { .failure($0) } ?? .success(())
     }
 
-    static func toNextScreen() -> Result<Void, Failure> {
+    static func toNextScreen() -> Result<Void, WindowFailure> {
         guard AXIsProcessTrusted() else { return .failure(.noPermission) }
         let all = screens()
         guard all.count > 1 else { return .failure(.oneScreen) }
         guard let (app, window) = frontWindow() else { return .failure(.noWindow) }
-        if AXUI.bool(window, "AXFullScreen") == true { return .failure(.fullScreen) }
-        guard let current = AXUI.frame(window), let i = WindowTiling.screenIndex(for: current, in: all),
+        let w = AXMovableWindow(app: app, window: window)
+        if w.isFullScreen { return .failure(.fullScreen(w.appName)) }
+        guard let current = w.frame, let i = WindowTiling.screenIndex(for: current, in: all),
               let next = WindowTiling.nextScreenIndex(after: i, in: all) else { return .failure(.noWindow) }
         let target = WindowTiling.moved(current, from: all[i].visible, to: all[next].visible)
-        return set(window, app: app, to: target) ? .success(()) : .failure(.refused)
+        return set(window, app: app, to: target) ? .success(()) : .failure(.refused(w.appName))
+    }
+
+    /// Moves one window to `target` the way that works across displays (`WindowArranger`).
+    /// True once it is there, or as close as its own minimum or maximum size allows.
+    static func set(_ window: AXUIElement, app: AXUIElement, to target: CGRect) -> Bool {
+        withoutEnhancedUI([app]) {
+            arranger(screens()).move(AXMovableWindow(app: app, window: window), to: target).frame != nil
+        }
+    }
+
+    /// Two windows side by side on `visible`, for Displays' Split With. nil when it worked.
+    static func split(left: (app: AXUIElement, window: AXUIElement), right: (app: AXUIElement, window: AXUIElement),
+                      in visible: CGRect, gap: CGFloat, displayName: String) -> WindowFailure? {
+        let l = AXMovableWindow(app: left.app, window: left.window), r = AXMovableWindow(app: right.app, window: right.window)
+        return withoutEnhancedUI([left.app, right.app]) {
+            arranger(screens()).split(left: l, right: r, in: visible, gap: gap, displayName: displayName)
+        }
     }
 
     // MARK: Private
+
+    /// "Enhanced user interface", which some apps turn on for assistive tools, animates every
+    /// change and makes sizes land wrong, so it is off while moving.
+    private static func withoutEnhancedUI<T>(_ apps: [AXUIElement], _ body: () -> T) -> T {
+        let enhanced = apps.filter { AXUI.bool($0, "AXEnhancedUserInterface") == true }
+        for app in enhanced { AXUI.set(app, "AXEnhancedUserInterface", false) }
+        defer { for app in enhanced { AXUI.set(app, "AXEnhancedUserInterface", true) } }
+        return body()
+    }
+
+    /// After Left & Right: true once both windows sit on their sides (macOS animates there).
+    private static func nativeSplitLanded(_ left: AXMovableWindow, _ right: AXMovableWindow, in visible: CGRect) -> Bool {
+        let deadline = Date().addingTimeInterval(0.6)
+        repeat {
+            if let l = left.frame, let r = right.frame, SplitScreen.looksSplit(left: l, right: r, in: visible) { return true }
+            Thread.sleep(forTimeInterval: 0.05)
+        } while Date() < deadline
+        return false
+    }
 
     /// The frontmost app's focused (else main) window.
     private static func frontWindow() -> (AXUIElement, AXUIElement)? {
@@ -235,7 +292,8 @@ enum WindowMover {
         return AXUI.elements(app, kAXWindowsAttribute).first.map { (app, $0) }
     }
 
-    /// The front `limit` ordinary windows on screen, any app, front to back.
+    /// The front `limit` ordinary windows on screen, any app, front to back (minimized ones are
+    /// not on screen).
     private static func frontWindows(limit: Int) -> [(app: AXUIElement, window: AXUIElement)] {
         guard let list = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID)
                 as? [[String: Any]] else { return [] }
@@ -274,22 +332,6 @@ enum WindowMover {
         guard let getWindow else { return nil }
         var id = CGWindowID(0)
         return getWindow(window, &id) == .success && id != 0 ? id : nil
-    }
-
-    /// Size, position, size again (a window crossing displays can be limited by the screen it
-    /// starts on). "Enhanced user interface", which some apps turn on for assistive tools,
-    /// animates every change and makes sizes land wrong, so it is off while moving.
-    static func set(_ window: AXUIElement, app: AXUIElement, to target: CGRect) -> Bool {
-        let enhanced = AXUI.bool(app, "AXEnhancedUserInterface") == true
-        if enhanced { AXUI.set(app, "AXEnhancedUserInterface", false) }
-        defer { if enhanced { AXUI.set(app, "AXEnhancedUserInterface", true) } }
-        let sized = AXUI.setSize(window, target.size)
-        let moved = AXUI.setPosition(window, target.origin)
-        AXUI.setSize(window, target.size)
-        guard sized || moved else { return false }
-        guard let now = AXUI.frame(window) else { return moved }
-        // A window with a fixed or minimum size still counts once it is where it should be.
-        return WindowTiling.isClose(now, target) || (moved && abs(now.minX - target.minX) <= 2 && abs(now.minY - target.minY) <= 2)
     }
 
     /// Raises the window and activates its app (a raised window of an app behind stays hidden).
