@@ -102,10 +102,6 @@ struct PointerSettings: View {
     var body: some View {
         Form {
             TrackpadTuningSection(part: .motion)
-            Section {
-            } footer: {
-                Text("Gestures, secondary click and scroll direction follow the trackpad settings on your Mac.")
-            }
         }
         .scrollContentBackground(.hidden)
         .background(SurfaceBackground())
@@ -302,7 +298,7 @@ struct ModeDetailSettings: View {
     }
 
     @ViewBuilder private var apps: some View {
-        Section("Icon Size") {
+        Section {
             Picker("Icon Size", selection: $settings.dockDensity) {
                 Text("Small").tag(DockDensity.compact)
                 Text("Medium").tag(DockDensity.regular)
@@ -310,23 +306,25 @@ struct ModeDetailSettings: View {
             }
             .pickerStyle(.segmented)
             Toggle("Show Names", isOn: $settings.dockShowsNames)
-        }
-        .listRowBackground(palette.raisedColor)
-        Section {
-            if !settings.dockArrangement.order.isEmpty {
-                Button("Use the Mac's Order") { settings.dockArrangement.order = [] }
-            }
-            if !settings.dockArrangement.hidden.isEmpty {
-                Button("Show \(settings.dockArrangement.hidden.count) Hidden \(settings.dockArrangement.hidden.count == 1 ? "App" : "Apps")") {
-                    settings.dockArrangement.hidden = []
-                }
-            }
         } header: {
-            Text("Arrangement")
+            Text("Icons")
         } footer: {
             Text("Touch and hold an app in Dock to keep, hide or move it. Your Mac's Dock stays as it is.")
         }
         .listRowBackground(palette.raisedColor)
+        if !settings.dockArrangement.order.isEmpty || !settings.dockArrangement.hidden.isEmpty {
+            Section {
+                if !settings.dockArrangement.order.isEmpty {
+                    Button("Use the Mac's Order") { settings.dockArrangement.order = [] }
+                }
+                if !settings.dockArrangement.hidden.isEmpty {
+                    Button("Show \(settings.dockArrangement.hidden.count) Hidden \(settings.dockArrangement.hidden.count == 1 ? "App" : "Apps")") {
+                        settings.dockArrangement.hidden = []
+                    }
+                }
+            }
+            .listRowBackground(palette.raisedColor)
+        }
         Section {
             Toggle("Hide Mac Dock", isOn: macDock(\.hidden))
             Toggle("Hide Mac Dock While Connected", isOn: macDock(\.hideWhileConnected))

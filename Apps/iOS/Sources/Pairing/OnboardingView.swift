@@ -190,9 +190,11 @@ private struct OnboardingPage<Art: View>: View {
                     Text(title)
                         .font(.largeTitle.bold())
                         .foregroundStyle(palette.inkColor)
+                        .fixedSize(horizontal: false, vertical: true)
                     Text(detail)
                         .font(.body)
                         .foregroundStyle(palette.inkSoftColor)
+                        .fixedSize(horizontal: false, vertical: true)
                         .frame(maxWidth: 340, alignment: .leading)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
