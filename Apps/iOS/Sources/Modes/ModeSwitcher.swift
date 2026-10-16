@@ -53,6 +53,8 @@ struct ModeSwitcher: View {
                             .transition(reduceMotion ? .opacity : .opacity.combined(with: .scale(scale: 0.85, anchor: bottom ? .bottom : .top)))
                     } else {
                         ConnectionDot(state: session.state)
+                            // The one lit spot left on a dimmed screen; dim it too (OLED).
+                            .opacity(router.isDimmed ? 0.3 : 1)
                             .padding(bottom ? .bottom : .top, 8)
                             .transition(.opacity)
                     }
@@ -199,9 +201,11 @@ struct ModeSwitcher: View {
             }
             LayoutMenuRow(close: close)
             Divider().padding(.horizontal, 8).padding(.vertical, 2)
-            let tools = [AppMode.clipboard, .present, .remote].filter { !modes.contains($0) }
+            let tools = [AppMode.clipboard, .present, .remote, .displays].filter { !modes.contains($0) }
             if !tools.isEmpty {
-                HStack(spacing: 6) {
+                // Four tools do not fit in one row with their names: two rows of two.
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: tools.count == 4 ? 2 : tools.count),
+                          spacing: 6) {
                     ForEach(tools) { tool in
                         Button {
                             Haptics.shared.tap()

@@ -562,6 +562,10 @@ final class IconCache {
             .flatMap { try? JSONDecoder().decode([String: String].self, from: $0) } ?? [:]
         // The 64 px cache from the first version is not used any more.
         if let old = base?.appendingPathComponent("DockIcons", isDirectory: true) { try? FileManager.default.removeItem(at: old) }
+        // Decoded icons are up to 1 MB each; under memory pressure drop them (they reload from disk).
+        NotificationCenter.default.addObserver(forName: UIApplication.didReceiveMemoryWarningNotification, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.memory.removeAll() }
+        }
     }
 
     /// Icon keys this phone has on disk (sent to the Mac in `dockSync`).
