@@ -109,10 +109,11 @@ while IFS='|' read -r name app kind wait args <&3; do
     rm -f "$CACHE/$name.mov"
     xcrun simctl io "$UDID" recordVideo --codec=h264 --force "$CACHE/$name.mov" > /dev/null 2>&1 &
     rec=$!
+    trap 'kill -INT $rec 2>/dev/null || true' EXIT
     sleep 1.5
     xcrun simctl launch "$UDID" $BID -GPDemo "$ICONS" $args > /dev/null < /dev/null
     sleep "$secs"
-    kill -INT $rec; wait $rec || true
+    kill -INT $rec 2>/dev/null || echo "recording of $name stopped early" >&2; wait $rec || true
     # Constant 60 fps, every frame a keyframe-friendly GOP for exact seeking in Remotion.
     # The simulator records in the device's portrait frame; sideways shots are turned upright.
     rot=""; case "$args" in *"-GPOrientation landscape"*) rot=",transpose=2";; esac
