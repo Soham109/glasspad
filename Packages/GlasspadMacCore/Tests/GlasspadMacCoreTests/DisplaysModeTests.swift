@@ -32,7 +32,7 @@ final class FakeDisplays: DisplaysBackend {
     var canArrangeWindows: Bool { trusted }
     var tileMargin: CGFloat { 0 }
 
-    func perform(_ operation: WindowOperation, window: UInt32) -> String? {
+    func perform(_ operation: WindowOperation, window: UInt32) async -> String? {
         operations.append((window, operation))
         if let failing { return failing }
         func frame(_ id: UInt32, _ f: CGRect) { if let i = open.firstIndex(where: { $0.id == id }) { open[i].frame = f } }
@@ -42,6 +42,8 @@ final class FakeDisplays: DisplaysBackend {
             let halves = DisplayGeometry.split(in: visible, gap: gap)
             frame(window, halves.left)
             frame(other, halves.right)
+        case .arrange(let arrangement, let others, let visible, let gap, _):
+            for (id, slot) in zip([window] + others, arrangement.slots) { frame(id, DisplayGeometry.frame(of: slot, in: visible, gap: gap)) }
         default: break
         }
         return nil
@@ -101,26 +103,26 @@ final class FakeDisplays: DisplaysBackend {
         m.watch(false)
     }
 
-    @Test func tilesAndMovesUseTheDisplayTheWindowIsOn() {
+    @Test func tilesAndMovesUseTheDisplayTheWindowIsOn() async {
         let (m, fake, sent) = mode()
         let id = UUID()
-        m.handle(id: id, windowID: 101, command: .tile(.leftHalf))
+        await m.handle(id: id, windowID: 101, command: .tile(.leftHalf)).value
         #expect(result(sent(), id)?.ok == true)
         // Mail is on the Studio Display: its left half.
         #expect(fake.operations.first?.1 == .setFrame(CGRect(x: 1512, y: -458, width: 1280, height: 1440)))
         #expect(fake.operations.last?.1 == .raise)
         // To the laptop, keeping its place: a left half stays a left half.
-        m.handle(id: UUID(), windowID: 101, command: .move(display: 1, origin: nil))
+        await m.handle(id: UUID(), windowID: 101, command: .move(display: 1, origin: nil)).value
         #expect(fake.open[1].frame == CGRect(x: 0, y: 37, width: 756, height: 875))
         // Dropped at a point on the same display: goes there, kept inside.
-        m.handle(id: UUID(), windowID: 100, command: .move(display: 1, origin: CGPoint(x: 1400, y: 500)))
+        await m.handle(id: UUID(), windowID: 100, command: .move(display: 1, origin: CGPoint(x: 1400, y: 500))).value
         #expect(fake.open[0].frame == CGRect(x: 712, y: 312, width: 800, height: 600))
     }
 
-    @Test func splitPutsBothWindowsSideBySideAndRaisesBoth() {
+    @Test func splitPutsBothWindowsSideBySideAndRaisesBoth() async {
         let (m, fake, sent) = mode()
         let id = UUID()
-        m.handle(id: id, windowID: 100, command: .split(with: 101))
+        await m.handle(id: id, windowID: 100, command: .split(with: 101)).value
         #expect(result(sent(), id)?.ok == true)
         #expect(fake.open[0].frame == CGRect(x: 0, y: 37, width: 756, height: 875))
         #expect(fake.open[1].frame == CGRect(x: 756, y: 37, width: 756, height: 875))
@@ -130,31 +132,31 @@ final class FakeDisplays: DisplaysBackend {
         #expect(fake.operations.suffix(2).map(\.0) == [101, 100])
         // With itself: refused.
         let again = UUID()
-        m.handle(id: again, windowID: 100, command: .split(with: 100))
+        await m.handle(id: again, windowID: 100, command: .split(with: 100)).value
         #expect(result(sent(), again)?.ok == false)
     }
 
-    @Test func refusalsSayWhy() {
+    @Test func refusalsSayWhy() async {
         let (m, fake, sent) = mode()
         let gone = UUID()
-        m.handle(id: gone, windowID: 999, command: .raise)
+        await m.handle(id: gone, windowID: 999, command: .raise).value
         #expect(result(sent(), gone)?.message == "That window has closed.")
         fake.trusted = false
         let blocked = UUID()
-        m.handle(id: blocked, windowID: 100, command: .tile(.fill))
+        await m.handle(id: blocked, windowID: 100, command: .tile(.fill)).value
         #expect(result(sent(), blocked)?.message?.contains("Accessibility") == true)
         #expect(fake.operations.isEmpty)
         // Raising needs no permission.
         let raise = UUID()
-        m.handle(id: raise, windowID: 100, command: .raise)
+        await m.handle(id: raise, windowID: 100, command: .raise).value
         #expect(result(sent(), raise)?.ok == true)
         fake.trusted = true
         fake.failing = "That window cannot be moved."
         let refused = UUID()
-        m.handle(id: refused, windowID: 100, command: .close)
+        await m.handle(id: refused, windowID: 100, command: .close).value
         #expect(result(sent(), refused)?.message == "That window cannot be moved.")
         let noDisplay = UUID()
-        m.handle(id: noDisplay, windowID: 100, command: .move(display: 7, origin: nil))
+        await m.handle(id: noDisplay, windowID: 100, command: .move(display: 7, origin: nil)).value
         #expect(result(sent(), noDisplay)?.ok == false)
     }
 
@@ -258,13 +260,41 @@ final class FakeDisplays: DisplaysBackend {
         #expect(fake.applied.isEmpty && m.state().pending == nil)
     }
 
-    @Test func aMoveToAPointFarAwayStaysOnTheDisplay() {
+    @Test func aMoveToAPointFarAwayStaysOnTheDisplay() async {
         let (m, fake, _) = mode()
-        m.handle(id: UUID(), windowID: 100, command: .move(display: 1, origin: CGPoint(x: 1e300, y: -1e300)))
+        await m.handle(id: UUID(), windowID: 100, command: .move(display: 1, origin: CGPoint(x: 1e300, y: -1e300))).value
         #expect(fake.open[0].frame == CGRect(x: 712, y: 37, width: 800, height: 600))
     }
 
-    @Test func theRouterPassesDisplaysMessagesAndStopsOnDisconnect() {
+    @Test func arrangementsGoToTheMacAsOneStepAndSplitViewStartsOnItsDisplay() async {
+        let (m, fake, sent) = mode()
+        fake.open.append(MacWindow(id: 102, bundleID: "com.apple.Notes", appName: "Notes", frame: CGRect(x: 200, y: 200, width: 500, height: 400)))
+        // The Mac says what it takes.
+        #expect(m.state().offeredArrangements == WindowArrangement.allCases)
+        let id = UUID()
+        await m.handle(id: id, windowID: 101, command: .arrange(.quarters, windows: [101, 100, 102], display: 1)).value
+        let laptop = fake.shown[0]
+        guard case .arrange(.quarters, let others, let visible, _, let name)? = fake.operations.last?.1 else {
+            Issue.record("not arranged")
+            return
+        }
+        #expect(fake.operations.last?.0 == 101 && others == [100, 102] && visible == laptop.visibleFrame && name == laptop.name)
+        #expect(fake.open.first { $0.id == 101 }?.frame == DisplayGeometry.frame(of: .topLeft, in: laptop.visibleFrame))
+        #expect(sent().contains(.displaysResult(id: id, ok: true, message: nil)))
+        // Split View on the Studio Display for a laptop window: over there first, then Split View.
+        fake.operations = []
+        await m.handle(id: UUID(), windowID: 100, command: .arrange(.fullScreen, windows: [100, 101], display: 2)).value
+        #expect(fake.operations.count == 2 && fake.operations.last.map { $0.0 == 100 && $0.1 == .fullScreenSplit(with: 101) } == true)
+        if case .setFrame(let f)? = fake.operations.first?.1 { #expect(fake.shown[1].frame.contains(f)) } else { Issue.record("not moved over") }
+        // Gone, twice or too few: nothing is moved.
+        fake.operations = []
+        await m.handle(id: UUID(), windowID: 100, command: .arrange(.leftAndRight, windows: [100, 100], display: 1)).value
+        await m.handle(id: UUID(), windowID: 100, command: .arrange(.quarters, windows: [100, 101], display: 1)).value
+        await m.handle(id: UUID(), windowID: 100, command: .arrange(.leftAndRight, windows: [101, 100], display: 1)).value
+        #expect(fake.operations.isEmpty)
+    }
+
+    @Test func theRouterPassesDisplaysMessagesAndStopsOnDisconnect() async {
         let poster = CapturingEventPoster()
         let keys = KeysMode(poster: poster, source: nil)
         let r = ModeRouter(keys: keys, dock: DockMode(workspace: FakeWorkspace(), cacheDirectory: nil), media: MediaMode(poster: poster),
@@ -279,6 +309,10 @@ final class FakeDisplays: DisplaysBackend {
         #expect(sent.contains { if case .displaysState = $0 { true } else { false } })
         let id = UUID()
         r.handle(.windowCommand(id: id, windowID: 100, command: .minimize))
+        // Window commands run as a task, so the main thread is free while windows land.
+        for _ in 0..<100 where !sent.contains(.displaysResult(id: id, ok: true, message: nil)) {
+            try? await Task.sleep(for: .milliseconds(10))
+        }
         #expect(fake.operations.last?.1 == .minimize && sent.contains(.displaysResult(id: id, ok: true, message: nil)))
         r.handle(.displayCommand(id: id, command: .brightness(display: 1, value: 0.2)))
         #expect(fake.brightness.last! == (1, 0.2))

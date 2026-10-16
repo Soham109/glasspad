@@ -200,9 +200,11 @@ final class FakeDeckEnvironment: DeckEnvironment {
     func openNotificationCenter() -> Bool { notificationCenterOpens += 1; return notificationCenterWorks }
     var placed: [WindowPlacement] = []
     var splits = 0
+    var returns = 0
     var nextDisplayMoves = 0
     var windowFailure: String?
-    func placeFrontWindow(_ placement: WindowPlacement) -> String? { placed.append(placement); return windowFailure }
-    func splitFrontWindows() -> String? { splits += 1; return windowFailure }
-    func moveFrontWindowToNextDisplay() -> String? { nextDisplayMoves += 1; return windowFailure }
+    func placeFrontWindow(_ placement: WindowPlacement) async -> String? { placed.append(placement); return windowFailure }
+    func returnFrontWindowToPreviousSize() async -> String? { returns += 1; return windowFailure }
+    func splitFrontWindows() async -> String? { splits += 1; return windowFailure }
+    func moveFrontWindowToNextDisplay() async -> String? { nextDisplayMoves += 1; return windowFailure }
 }

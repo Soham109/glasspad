@@ -75,6 +75,11 @@ extension DeckSystemAction {
         case .windowBottom: "Moves the front window to the bottom half of the screen"
         case .windowFill: "Makes the front window fill the screen"
         case .windowCenter: "Moves the front window to the middle of the screen"
+        case .windowTopLeft: "Moves the front window to the top left quarter of the screen"
+        case .windowTopRight: "Moves the front window to the top right quarter of the screen"
+        case .windowBottomLeft: "Moves the front window to the bottom left quarter of the screen"
+        case .windowBottomRight: "Moves the front window to the bottom right quarter of the screen"
+        case .windowPreviousSize: "Puts the front window back the way it was before it was tiled"
         case .windowSplit: "Puts the two front windows side by side"
         case .windowNextDisplay: "Moves the front window to your other screen"
         }

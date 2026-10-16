@@ -60,7 +60,8 @@ import Testing
         all += [.displaysWatch(on: true), .displaysWatch(on: false), .displaysState(shown),
                 .displaysResult(id: id, ok: false, message: "That display is not connected any more.")]
         all += ([.raise, .split(with: 7), .move(display: 2, origin: nil), .move(display: 2, origin: CGPoint(x: 1, y: 2)),
-                 .minimize, .close, .fullScreen] + WindowTile.allCases.map(WindowCommand.tile))
+                 .minimize, .close, .fullScreen, .arrange(.leftAndRight, windows: [42, 7], display: 1)]
+                + WindowTile.allCases.map(WindowCommand.tile))
             .map { .windowCommand(id: id, windowID: 42, command: $0) }
         all += [DisplayCommand.brightness(display: 1, value: 0.5), .resolution(display: 1, id: 3), .mirror(display: 2, of: 1),
                 .mirror(display: 2, of: nil), .makeMain(display: 2), .arrange([DisplayOrigin(display: 1, origin: .zero)]),

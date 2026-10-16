@@ -291,11 +291,13 @@ public protocol DeckEnvironment: AnyObject {
     func toggleKeepAwake() -> DeckSwitchResult
     func openNotificationCenter() -> Bool
     /// Moves the front window; nil when done, else why not.
-    func placeFrontWindow(_ placement: WindowPlacement) -> String?
+    func placeFrontWindow(_ placement: WindowPlacement) async -> String?
+    /// The front window back where it was before it was last tiled; nil when done, else why not.
+    func returnFrontWindowToPreviousSize() async -> String?
     /// The two front windows side by side; nil when done, else why not.
-    func splitFrontWindows() -> String?
+    func splitFrontWindows() async -> String?
     /// The front window to the next display; nil when done, else why not.
-    func moveFrontWindowToNextDisplay() -> String?
+    func moveFrontWindowToNextDisplay() async -> String?
 }
 
 extension DeckEnvironment {
@@ -655,13 +657,16 @@ public final class DeckMode {
             return Self.outcome(r, "Keep Awake")
         case .notificationCenter:
             return env.openNotificationCenter() ? .done : .fail("Could not open Notification Center. " + AXUI.permissionHint)
-        case .windowLeft, .windowRight, .windowTop, .windowBottom, .windowFill, .windowCenter:
+        case .windowLeft, .windowRight, .windowTop, .windowBottom, .windowFill, .windowCenter, .windowTopLeft, .windowTopRight,
+             .windowBottomLeft, .windowBottomRight:
             guard let placement = WindowPlacement(s) else { return .fail("Unknown window position") }
-            return env.placeFrontWindow(placement).map(Outcome.fail) ?? .done
+            return await env.placeFrontWindow(placement).map(Outcome.fail) ?? .done
+        case .windowPreviousSize:
+            return await env.returnFrontWindowToPreviousSize().map(Outcome.fail) ?? .done
         case .windowSplit:
-            return env.splitFrontWindows().map(Outcome.fail) ?? .done
+            return await env.splitFrontWindows().map(Outcome.fail) ?? .done
         case .windowNextDisplay:
-            return env.moveFrontWindowToNextDisplay().map(Outcome.fail) ?? .done
+            return await env.moveFrontWindowToNextDisplay().map(Outcome.fail) ?? .done
         }
     }
 

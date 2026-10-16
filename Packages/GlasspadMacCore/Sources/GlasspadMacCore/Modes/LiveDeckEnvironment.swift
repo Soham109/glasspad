@@ -216,18 +216,23 @@ public final class LiveDeckEnvironment: DeckEnvironment {
     public func toggleKeepAwake() -> DeckSwitchResult { KeepAwake.shared.toggle() }
     public func openNotificationCenter() -> Bool { ControlCenterFocus.openNotificationCenter() }
 
-    public func placeFrontWindow(_ placement: WindowPlacement) -> String? {
-        if case .failure(let f) = WindowMover.place(placement) { return f.message }
+    public func placeFrontWindow(_ placement: WindowPlacement) async -> String? {
+        if case .failure(let f) = await WindowMover.place(placement) { return f.message }
         return nil
     }
 
-    public func splitFrontWindows() -> String? {
-        if case .failure(let f) = WindowMover.split() { return f.message }
+    public func splitFrontWindows() async -> String? {
+        if case .failure(let f) = await WindowMover.split() { return f.message }
         return nil
     }
 
-    public func moveFrontWindowToNextDisplay() -> String? {
-        if case .failure(let f) = WindowMover.toNextScreen() { return f.message }
+    public func returnFrontWindowToPreviousSize() async -> String? {
+        if case .failure(let f) = await WindowMover.returnToPreviousSize() { return f.message }
+        return nil
+    }
+
+    public func moveFrontWindowToNextDisplay() async -> String? {
+        if case .failure(let f) = await WindowMover.toNextScreen() { return f.message }
         return nil
     }
 

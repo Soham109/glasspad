@@ -56,7 +56,8 @@ public final class LiveDisplays: DisplaysBackend {
             guard CGDisplayIsActive(id) != 0 || master != kCGNullDirectDisplay, CGDisplayIsAsleep(id) == 0 else { return nil }
             let frame = CGDisplayBounds(id)
             let screen = screens[id]
-            let visible = screen.map { DisplayGeometry.quartz($0.visibleFrame, mainHeight: mainHeight) } ?? frame
+            // Where windows go: Stage Manager's strip, when it shows, is kept clear as macOS does.
+            let visible = WindowMover.tilingArea(screen.map { DisplayGeometry.quartz($0.visibleFrame, mainHeight: mainHeight) } ?? frame)
             var notch: Double?
             if let screen, screen.safeAreaInsets.top > 0,
                let left = screen.auxiliaryTopLeftArea, let right = screen.auxiliaryTopRightArea {
@@ -184,7 +185,7 @@ public final class LiveDisplays: DisplaysBackend {
         axWindows = found
     }
 
-    public func perform(_ operation: WindowOperation, window id: UInt32) -> String? {
+    public func perform(_ operation: WindowOperation, window id: UInt32) async -> String? {
         guard AXIsProcessTrusted() else {
             return "Allow Glasspad in System Settings > Privacy & Security > Accessibility to move windows."
         }
@@ -194,15 +195,27 @@ public final class LiveDisplays: DisplaysBackend {
         switch operation {
         case .setFrame(let frame):
             // Out of full screen first, as macOS does (and as the window buttons do).
-            if fullScreen, !WindowMover.arranger(WindowMover.screens()).leaveFullScreen(AXMovableWindow(app: app, window: window)) {
+            if fullScreen, !(await WindowMover.arranger(WindowMover.screens()).leaveFullScreen(AXMovableWindow(app: app, window: window))) {
                 return WindowFailure.fullScreen(appName(app)).message
             }
-            return WindowMover.set(window, app: app, to: frame) ? nil : WindowFailure.refused(appName(app)).message
+            return await WindowMover.set(window, app: app, to: frame) ? nil : WindowFailure.refused(appName(app)).message
         case .split(let otherID, let visible, let gap, let display):
             if axWindows[otherID] == nil, let pid = ownerPID(otherID) { refreshAccessibility(pids: [pid], force: true) }
             guard let other = axWindows[otherID] else { return WindowFailure.closed.message }
-            return WindowMover.split(left: (app, window), right: (other.app, other.window), in: visible, gap: gap,
-                                     displayName: display)?.message
+            return await WindowMover.arrange([(app, window), (other.app, other.window)], .leftAndRight, in: visible, gap: gap,
+                                       displayName: display)?.message
+        case .arrange(let arrangement, let others, let visible, let gap, let display):
+            var pairs: [WindowMover.Pair] = [(app, window)]
+            for otherID in others {
+                if axWindows[otherID] == nil, let pid = ownerPID(otherID) { refreshAccessibility(pids: [pid], force: true) }
+                guard let other = axWindows[otherID] else { return WindowFailure.closed.message }
+                pairs.append((other.app, other.window))
+            }
+            return await WindowMover.arrange(pairs, arrangement, in: visible, gap: gap, displayName: display)?.message
+        case .fullScreenSplit(let otherID):
+            if axWindows[otherID] == nil, let pid = ownerPID(otherID) { refreshAccessibility(pids: [pid], force: true) }
+            guard let other = axWindows[otherID] else { return WindowFailure.closed.message }
+            return await WindowMover.fullScreenSplit(left: (app, window), right: (other.app, other.window))?.message
         case .raise:
             AXUIElementSetAttributeValue(window, kAXMainAttribute as CFString, kCFBooleanTrue)
             AXUIElementPerformAction(window, kAXRaiseAction as CFString)

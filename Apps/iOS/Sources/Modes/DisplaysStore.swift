@@ -18,13 +18,13 @@ final class DisplaysStore {
     private(set) var notice: String?
     /// Watching, connected, and the Mac has not answered for a while: it is too old for Displays.
     private(set) var macTooOld = false
-    /// What the last Split Screen did, shown for a few seconds wherever it was started.
+    /// What the last Arrange did, shown for a few seconds wherever it was started.
     private(set) var splitNotice: SplitNotice?
 
     @ObservationIgnored private var watchers = 0
     @ObservationIgnored private var watchStarted: Date?
     @ObservationIgnored private var noticeTask: Task<Void, Never>?
-    /// The commands of the Split Screen in flight, and what to say once the last one worked.
+    /// The commands of the Arrange in flight, and what to say once the last one worked.
     @ObservationIgnored private var splitAsked: (ids: [UUID], summary: String)?
     private var session: MacSession { .shared }
 
@@ -85,7 +85,7 @@ final class DisplaysStore {
                 if !ok {
                     splitAsked = nil
                     Haptics.shared.play(.error)
-                    showSplit(message ?? "Your Mac did not split the screen.", ok: false)
+                    showSplit(message ?? "Your Mac did not arrange the windows.", ok: false)
                 } else if id == asked.ids.last {
                     splitAsked = nil
                     Haptics.shared.play(.detent)
@@ -120,10 +120,10 @@ final class DisplaysStore {
         session.send(.windowCommand(id: UUID(), windowID: window.id, command: command))
     }
 
-    /// Split Screen as chosen in its sheet: shown at once, then confirmed by name ("Safari and
-    /// Notes, side by side on Studio Display.") or with the Mac's reason it could not.
-    func split(_ selection: SplitSelection) {
-        guard let state, let steps = state.commands(for: selection), let summary = state.splitSummary(selection) else {
+    /// Arrange as chosen in its sheet: shown at once, then confirmed by name ("Safari and Notes,
+    /// side by side on Studio Display.") or with the Mac's reason it could not.
+    func arrange(_ selection: ArrangeSelection) {
+        guard let state, let steps = state.commands(for: selection), let summary = state.arrangeSummary(selection) else {
             Haptics.shared.play(.error)
             return showSplit("That window has closed.", ok: false)
         }
@@ -145,9 +145,10 @@ final class DisplaysStore {
         for (id, step) in zip(ids, steps) {
             session.send(.windowCommand(id: id, windowID: step.window, command: step.command))
         }
-        // A dropped link never leaves it unanswered.
+        // A dropped link never leaves it unanswered (Split View takes the longest: two windows
+        // out of full screen, then into it together).
         Task { @MainActor in
-            try? await Task.sleep(for: .seconds(8))
+            try? await Task.sleep(for: .seconds(15))
             guard self.splitAsked?.ids == ids else { return }
             self.splitAsked = nil
             self.showSplit("Your Mac did not answer.", ok: false)
@@ -233,7 +234,7 @@ final class DisplaysStore {
     #endif
 }
 
-/// One Split Screen result.
+/// One Arrange result.
 struct SplitNotice: Equatable {
     let id = UUID()
     let text: String
@@ -285,7 +286,8 @@ struct DisplaysDemo {
         default:
             break
         }
-        state = DisplaysState(displays: displays, windows: windows, nightShift: false, canArrangeWindows: true, tileMargin: 8)
+        state = DisplaysState(displays: displays, windows: windows, nightShift: false, canArrangeWindows: true, tileMargin: 8,
+                              arrangements: WindowArrangement.allCases.map(\.rawValue))
     }
 
     mutating func run(_ command: DisplayCommand) {

@@ -111,6 +111,7 @@ import Testing
     @Test func placementsComeFromTheirButtons() {
         #expect(WindowPlacement(.windowLeft) == .left)
         #expect(WindowPlacement(.windowCenter) == .center)
+        #expect(WindowPlacement(.windowBottomRight) == .bottomRight && WindowPlacement(.windowPreviousSize) == nil)
         #expect(WindowPlacement(.windowSplit) == nil)
         #expect(WindowPlacement(.mute) == nil)
     }

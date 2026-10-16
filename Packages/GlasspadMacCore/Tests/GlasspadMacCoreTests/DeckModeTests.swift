@@ -353,11 +353,14 @@ import Testing
     @Test func windowButtonsMoveTheFrontWindow() async throws {
         let (d, env) = try deck([])
         let all: [(DeckSystemAction, WindowPlacement)] = [(.windowLeft, .left), (.windowRight, .right), (.windowTop, .top),
-                                                          (.windowBottom, .bottom), (.windowFill, .fill), (.windowCenter, .center)]
+                                                          (.windowBottom, .bottom), (.windowFill, .fill), (.windowCenter, .center),
+                                                          (.windowTopLeft, .topLeft), (.windowTopRight, .topRight),
+                                                          (.windowBottomLeft, .bottomLeft), (.windowBottomRight, .bottomRight)]
         for (action, _) in all { #expect(await outcome(d, .system(action)).ok) }
         #expect(env.placed == all.map(\.1))
         #expect(await outcome(d, .system(.windowSplit)).ok && env.splits == 1)
         #expect(await outcome(d, .system(.windowNextDisplay)).ok && env.nextDisplayMoves == 1)
+        #expect(await outcome(d, .system(.windowPreviousSize)).ok && env.returns == 1)
         env.windowFailure = "No window to move"
         #expect(await outcome(d, .system(.windowLeft)) == DeckMode.Outcome(ok: false, message: "No window to move"))
     }

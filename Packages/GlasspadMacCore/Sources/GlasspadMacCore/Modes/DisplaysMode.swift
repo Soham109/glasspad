@@ -12,7 +12,7 @@ public protocol DisplaysBackend: AnyObject {
     var canArrangeWindows: Bool { get }
     var tileMargin: CGFloat { get }
     /// nil on success, else why not, in words for the phone.
-    func perform(_ operation: WindowOperation, window: UInt32) -> String?
+    func perform(_ operation: WindowOperation, window: UInt32) async -> String?
     /// `permanently` false: macOS undoes it when Glasspad quits, so a crash mid-way never
     /// leaves a blank display behind.
     func apply(_ change: DisplayChange, permanently: Bool) -> Bool
@@ -27,6 +27,10 @@ public enum WindowOperation: Equatable, Sendable {
     /// This window on the left of `visible` and `with` on the right, `gap` around and between
     /// them; `display` names the display in messages.
     case split(with: UInt32, visible: CGRect, gap: CGFloat, display: String)
+    /// This window and `with` in their places of `arrangement` on `visible`, in order.
+    case arrange(WindowArrangement, with: [UInt32], visible: CGRect, gap: CGFloat, display: String)
+    /// Split View: this window on the left in full screen, `with` on the right.
+    case fullScreenSplit(with: UInt32)
     case raise
     case minimize
     case close
@@ -63,6 +67,8 @@ public final class DisplaysMode {
     private var last: DisplaysState?
     private var iconsSent: Set<String> = []
     private var pending: Pending?
+    /// The window command running now, which the next one waits for.
+    private var windowWork: Task<Void, Never>?
 
     private struct Pending {
         var token = UUID()
@@ -102,7 +108,8 @@ public final class DisplaysMode {
         let left = pending.map { max(0, Int($0.deadline.timeIntervalSince(now()).rounded(.up))) }
         return DisplaysState(displays: backend.displays(), windows: backend.windows(), nightShift: nightShift(),
                              canArrangeWindows: backend.canArrangeWindows, tileMargin: Double(backend.tileMargin),
-                             pending: pending.map { PendingDisplayChange(summary: $0.summary, secondsLeft: left ?? 0) })
+                             pending: pending.map { PendingDisplayChange(summary: $0.summary, secondsLeft: left ?? 0) },
+                             arrangements: WindowArrangement.allCases.map(\.rawValue))
     }
 
     /// Sends the state when it changed, with the icons of apps the phone has not seen first.
@@ -122,13 +129,22 @@ public final class DisplaysMode {
 
     // MARK: Windows
 
-    public func handle(id: UUID, windowID: UInt32, command: WindowCommand) {
-        let message = run(windowID: windowID, command: command)
-        send(.displaysResult(id: id, ok: message == nil, message: message))
-        push()
+    /// Runs one window command after the ones before it (windows take a moment to land, and
+    /// the main thread stays free meanwhile). The task is for tests to wait on.
+    @discardableResult
+    public func handle(id: UUID, windowID: UInt32, command: WindowCommand) -> Task<Void, Never> {
+        let before = windowWork
+        let task = Task { @MainActor in
+            await before?.value
+            let message = await self.run(windowID: windowID, command: command)
+            self.send(.displaysResult(id: id, ok: message == nil, message: message))
+            self.push()
+        }
+        windowWork = task
+        return task
     }
 
-    private func run(windowID: UInt32, command: WindowCommand) -> String? {
+    private func run(windowID: UInt32, command: WindowCommand) async -> String? {
         let s = DisplaysState(displays: backend.displays(), windows: backend.windows(), tileMargin: Double(backend.tileMargin))
         guard s.window(windowID) != nil else { return "That window has closed." }
         if command != .raise, !backend.canArrangeWindows {
@@ -136,7 +152,7 @@ public final class DisplaysMode {
         }
         guard let steps = Self.plan(command, window: windowID, in: s) else { return "That display is not connected any more." }
         for step in steps {
-            if let failure = backend.perform(step.operation, window: step.window) { return failure }
+            if let failure = await backend.perform(step.operation, window: step.window) { return failure }
         }
         return nil
     }
@@ -157,6 +173,18 @@ public final class DisplaysMode {
             return [(id, .split(with: other, visible: d.visibleFrame, gap: CGFloat(s.tileMargin), display: d.name)),
                     (other, .raise), (id, .raise)]
         case .tile, .move: return framed + [(id, .raise)]
+        case .arrange(let arrangement, let ids, let displayID):
+            guard let d = s.shownDisplays.first(where: { $0.id == displayID }) else { return nil }
+            if arrangement == .fullScreen {
+                // Split View happens on the first window's display: over there first.
+                guard let w = s.window(id), let from = s.display(of: w) else { return nil }
+                let over: [(window: UInt32, operation: WindowOperation)] = from.id == d.id ? []
+                    : [(id, .setFrame(DisplayGeometry.moved(w.frame, from: from.visibleFrame, to: d.visibleFrame)))]
+                return over + [(id, .fullScreenSplit(with: ids[1]))]
+            }
+            // All together, so a window that will not get small enough leaves the others the rest.
+            return [(id, .arrange(arrangement, with: Array(ids.dropFirst()), visible: d.visibleFrame, gap: CGFloat(s.tileMargin),
+                                  display: d.name))]
         }
     }
 
