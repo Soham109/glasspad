@@ -147,6 +147,10 @@ struct ActionsMode: View {
             if DebugLaunch.demoActionsPage == "front" { showFrontPicker = true }
             if DebugLaunch.demoActionsPage == "editor", let b = pinnedButtons.first(where: { $0.action != .folder }) { open(b, page: pinnedIndex ?? 0) }
             if DebugLaunch.demoActionsPage == "website", let b = pinnedButtons.first(where: { $0.action.websiteLink != nil }) { open(b, page: pinnedIndex ?? 0) }
+            if DebugLaunch.demoActionsPage == "newsite" {
+                editorTarget = EditorTarget(button: DeckButton(title: "", symbol: "globe", action: .openURL("https://www.apple.com"), color: "#0A84FF"),
+                                            isNew: true, page: pinnedIndex ?? 0, folder: nil, picksAction: false)
+            }
             if DebugLaunch.demoActionsPage == "folder", let f = pinnedButtons.first(where: { $0.action == .folder && !($0.children ?? []).isEmpty }) {
                 folderPath = [f.id]
             }
