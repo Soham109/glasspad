@@ -106,3 +106,27 @@ Voice for v4: ElevenLabs eleven_v4, Sarah, one take per line (`scripts/v4/voice.
 `src/v4/vo-lines.json`). Lines the voice read faster than 155 words a minute were eased to
 about 150 with a pitch preserving tempo change (never more than 12% slower); the measured
 pace of every line is in `src/v4/vo-measured.json`.
+
+## Motion film (the 2D cut)
+
+Same track, same licence and credit line (shown on the end card). 145 BPM, scenes start on
+downbeats; the edit lives in `src/motion/timeline.ts` (`MUSIC`) and is written to
+`src/motion/edit.json` by `pnpm motion:cues`, which also reads every sound cue from the scenes'
+own timings.
+
+| Film bars | Film time | Track bars | Section | Scenes |
+| --- | --- | --- | --- | --- |
+| 0 to 17 | 0 to 28.1 s | 0 to 17 | stop-start intro, then the groove at bar 4 | Open, Trackpad, Actions, Pinned |
+| 17 to 25 | 28.1 to 41.4 s | 20 to 28 | lift | Modes, Layouts |
+| 25 to 33 | 41.4 to 54.6 s | 52 to 60 | breakdown | Remote, Present |
+| 33 to 47 | 54.6 to 77.8 s | 60 to 74 | build, then the second lift | Displays, StandBy, Themes, Private |
+| 47 to 50 | 77.8 to 82.8 s | 96 to 99 | last bars and the hard stop | End card, then a 2.6 s room tail |
+
+Mix (`scripts/motion/mix.py`, the v4 mix with the motion edit): voice lines levelled to one
+loudness, the bed side chained under the voice, UI sounds synthesized (no samples), master to
+-16 LUFS integrated with a true peak limiter at -1.2 dBTP; the no voice version is mastered to
+the same -16 LUFS with the bed never ducking.
+
+Voice: ElevenLabs eleven_v4, Sarah (`scripts/motion/voice.py`, lines in
+`src/motion/vo-lines.json`, the script in SCRIPT-motion.md). Lines read faster than 155 words a
+minute were eased toward 148 with a pitch preserving tempo change of at most 12%.

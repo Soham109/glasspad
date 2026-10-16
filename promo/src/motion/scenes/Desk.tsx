@@ -95,8 +95,8 @@ function camera(t: number): { cx: number; cy: number; s: number } {
     return { cx: A[0] - (sp[0] - 960) / s, cy: A[1] - (sp[1] - 540) / s, s };
   }
   const k: [number, number, number, number][] = [
-    [T.zoom1, 970, 530, 1], [S.trackpad + 0.2, 970, 530, 1], [S.trackpad + 4.6, 975, 535, 1.04],
-    [S.actions - 1.0, 975, 535, 1.04], [S.actions + 0.3, CAM2.cx, CAM2.cy, CAM2.s],
+    [T.zoom1, 970, 530, 1], [S.trackpad + 0.2, 970, 530, 1], [S.trackpad + 3.2, 1040, 545, 1.1], [S.trackpad + 4.6, 1040, 545, 1.1],
+    [S.actions - 1.0, 1040, 545, 1.1], [S.actions + 0.3, CAM2.cx, CAM2.cy, CAM2.s],
   ];
   const pick = (j: number) => K(t, k.map(r => [r[0], r[j]] as [number, number]));
   return { cx: pick(1), cy: pick(2), s: pick(3) };
@@ -168,8 +168,11 @@ const MacScreen: React.FC<{ t: number }> = ({ t }) => {
       </div>
       {/* Space 2 */}
       <div style={{ position: "absolute", inset: 0, transform: `translateX(${(1 - space) * 100}%)` }}>
-        <FcpWin box={split > 0 ? lerpBox(W_FC, HALF_L, split) : W_FC} front={front === "fcp"} z={z("fcp")} cut={cut} />
-        <XcodeWin box={split > 0 ? lerpBox(W_XC, HALF_R, split) : W_XC} front={front === "xcode"} z={z("xcode")} status={status} running={running} />
+        {/* the app that comes forward fades in over its own place in the stack */}
+        {front === "fcp" && t < T.fcFront + 0.3 ? <FcpWin box={W_FC} z={2} cut={cut} /> : null}
+        {front === "xcode" && t < T.xcFront + 0.3 ? <XcodeWin box={W_XC} z={3} status={status} running={running} /> : null}
+        <FcpWin box={split > 0 ? lerpBox(W_FC, HALF_L, split) : W_FC} front={front === "fcp"} z={z("fcp")} cut={cut} o={front === "fcp" ? E(t, T.fcFront, 0.3) : 1} s={front === "fcp" ? lerp(0.99, 1, E(t, T.fcFront, 0.3)) : 1} />
+        <XcodeWin box={split > 0 ? lerpBox(W_XC, HALF_R, split) : W_XC} front={front === "xcode"} z={z("xcode")} status={status} running={running} o={front === "xcode" ? E(t, T.xcFront, 0.3) : 1} s={front === "xcode" ? lerp(0.99, 1, E(t, T.xcFront, 0.3)) : 1} />
         <SafariWin box={W_SAF2} front={front === "web"} z={z("web")} tabs={tabs} active={tabs > 2.5 ? 2 : 0} />
         <SafariWin box={{ x: 21, y: 8, w: 58, h: 72 }} front z={9} o={clamp(siteOpen * 3)} s={lerp(0.3, 1, siteOpen)} url="glasspad.sohamaggarwal.com" page={<SitePage />} tabs={1} />
         {me.notes > 0 ? <NotesWin box={{ x: 6, y: 9, w: 52, h: 64 }} front={me.notesZ > 11} z={me.notesZ} o={clamp(me.notes * 3)} s={lerp(0.6, 1, me.notes)} text={me.typed} more={me.pasted} caret={me.caret} /> : null}
@@ -294,6 +297,12 @@ export const Desk: React.FC = () => {
         <Stand x={P.cx - standW / 2} y={standY} width={standW} />
         <Phone cx={P.cx} cy={P.cy} w={PW} turn={P.turn} scale={P.sc} land={landscape} port={portrait} mix={mix} />
         <Haptic x={PH.cx - PH.W / 2} y={PH.cy - PW / 2} w={PH.W} h={PW} p={hap} />
+        {/* every tap on a button: a faint knock from the phone's edge */}
+        {[T.reopen, T.run, T.blade, T.split, T.dnd, T.site, T.menuTap].map(t0 => {
+          const p = clamp((t - t0 - 0.02) / 0.45);
+          if (p <= 0 || p >= 1 || P.turn < 0.99) return null;
+          return <div key={t0} style={{ position: "absolute", inset: 0, opacity: 0.55 }}><Haptic x={P.cx - visW / 2} y={P.cy - visH / 2} w={visW} h={visH} p={p} /></div>;
+        })}
       </div>
       <div className="fm-head" style={{ top: 78, fontSize: 58, opacity: clamp(headP * 1.2), transform: `translateY(${(1 - OUT(clamp(headP))) * 16}px)` }}>A control surface for your Mac.</div>
       {caps.map(c => <Caption key={c.id} text={c.text} color={c.color} p={E(t, c.a, 0.6)} q={E(t, c.b, 0.35)} />)}

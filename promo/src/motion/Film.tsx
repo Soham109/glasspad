@@ -19,9 +19,9 @@ type Part = { C: React.FC; from: number; to: number; fadeIn?: number };
 const PARTS: Part[] = [
   { C: Desk, from: 0, to: barF(25) },
   { C: Couch, from: barF(25), to: barF(33) },
-  { C: Night, from: barF(33), to: barF(40) },
+  { C: Night, from: barF(33) - 27, to: barF(40), fadeIn: 27 },
   { C: Themes, from: barF(40), to: barF(43) },
-  { C: Finale, from: barF(43), to: FILM_LEN },
+  { C: Finale, from: barF(43) - 24, to: FILM_LEN, fadeIn: 24 },
 ];
 
 export const MotionFilm: React.FC = () => {

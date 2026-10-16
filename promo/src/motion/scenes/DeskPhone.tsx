@@ -80,7 +80,11 @@ const Keys: React.FC<{ t: number }> = ({ t }) => {
       <div className="u-kb">
         <div>{[...KB[0]].map(k)}</div><div>{[...KB[1]].map(k)}</div>
         <div><span className="w">⇧</span>{[...KB[2]].map(k)}<span className="w">⌫</span></div>
-        <div className="kb-b"><span className="w">123</span><span className={`sp${hitOn && ch === " " ? " hit" : ""}`}>space</span><span className="w">return</span></div>
+        <div className="kb-b">
+          <span style={{ width: 88, background: "#ADB0B8", fontSize: 15, flex: "none" }}>123</span>
+          <span style={{ width: 196, flex: "none", fontSize: 15, color: "transparent", background: hitOn && ch === " " ? "#ADB0B8" : undefined }}>space</span>
+          <span style={{ width: 88, background: "#ADB0B8", fontSize: 15, flex: "none" }}>return</span>
+        </div>
       </div>
     </div>
   );
@@ -211,7 +215,9 @@ export const LayoutsPhone: React.FC<{ t: number }> = ({ t }) => {
   const split = snapped ? lerp(0.375, 1 / 3, SP(t, LT.snap, 0.3, 0.6)) : lerp(0.6, 0.375, dragU);
   const s0 = lerp(1, split, two);
   const [a, rest, line] = cut(AREA, Math.min(0.9999, s0), true);
-  const [b, c2, line2] = cut(rest, lerp(1, 0.5, third), false);
+  const [bF, cF, lF] = cut(rest, 0.5, false);
+  const mix = (r1: Rect, r2: Rect, u: number): Rect => ({ x: lerp(r1.x, r2.x, u), y: lerp(r1.y, r2.y, u), w: lerp(r1.w, r2.w, u), h: lerp(r1.h, r2.h, u) });
+  const b = mix({ ...rest, h: 0 }, bF, third), c2 = mix(rest, cF, third), line2 = mix({ ...rest, h: GAP }, lF, third);
   const couch = E(t, LT.couch, 0.45);
   const [ca, cr, cline] = cut(AREA, 0.6, true);
   const dragO = E(t, LT.drag[0] - 0.18, 0.15) * (1 - E(t, LT.snap + 0.1, 0.2));

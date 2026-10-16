@@ -41,7 +41,7 @@ export const XcodeWin: React.FC<{ box: Box; front?: boolean; z?: number; status?
 
 /** Final Cut Pro: library, viewer, the timeline with its playhead. `cut` 0..1 opens the blade. */
 export const FcpWin: React.FC<{ box: Box; front?: boolean; z?: number; head?: number; cut?: number; o?: number; s?: number; style?: CSS }> = ({ box, front, z, head = 0.44, cut = 0, o, s, style }) => {
-  const gap = OUT(clamp(cut)) * 0.8;
+  const gap = OUT(clamp(cut)) * 1.6;
   return (
     <Win box={box} front={front} z={z} o={o} s={s} style={{ background: "#1C1C1E", ...style }} barStyle={{ background: "#2A2A2C", borderColor: "#000" }}>
       <div className="fm-fcp">

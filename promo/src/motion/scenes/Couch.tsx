@@ -45,7 +45,7 @@ const QUERY = "quiet coast";
 
 /* ---------- the phone ---------- */
 const RemoteTop: React.FC<{ t: number }> = ({ t }) => {
-  const search = SP(t, CT.search + 0.08, 0.42, 0.9);
+  const search = SP(t, CT.search + 0.08, 0.42, 0.9) * (1 - E(t, CT.ret + 0.75, 0.45, INOUT));
   const n = Math.floor(clamp((t - CT.type0) / (CT.type1 - CT.type0)) * QUERY.length + 0.0001);
   const per = (CT.type1 - CT.type0) / QUERY.length;
   const live = t >= CT.type0 && t < CT.type1;
@@ -77,7 +77,7 @@ const RemoteTop: React.FC<{ t: number }> = ({ t }) => {
 };
 /** The keyboard for Remote's search, over the bottom of the screen. */
 const KBFor: React.FC<{ t: number }> = ({ t }) => {
-  const search = SP(t, CT.search + 0.08, 0.42, 0.9);
+  const search = SP(t, CT.search + 0.08, 0.42, 0.9) * (1 - E(t, CT.ret + 0.75, 0.45, INOUT));
   const n = Math.floor(clamp((t - CT.type0) / (CT.type1 - CT.type0)) * QUERY.length + 0.0001);
   const per = (CT.type1 - CT.type0) / QUERY.length;
   const live = t >= CT.type0 && t < CT.type1;
@@ -93,7 +93,11 @@ const KB: React.FC<{ t: number; p: number; ch: string }> = ({ t, p, ch }) => {
     <div className="fm-kb" style={{ position: "absolute", top: 874 - 300, transform: `translateY(${(1 - p) * 300}px)`, zIndex: 8 }}>
       <div>{[..."QWERTYUIOP"].map(k)}</div><div>{[..."ASDFGHJKL"].map(k)}</div>
       <div><span className="w">⇧</span>{[..."ZXCVBNM"].map(k)}<span className="w">⌫</span></div>
-      <div><span className="w">123</span><span className={`sp${ch === " " ? " hit" : ""}`}>space</span><span className="ret" style={ret ? { background: "#3D9BFF" } : undefined}>search</span></div>
+      <div>
+        <span style={{ width: 88, flex: "none", background: "#3D3D40", fontSize: 15 }}>123</span>
+        <span style={{ width: 196, flex: "none", fontSize: 15, background: ch === " " ? "#8A8A8F" : "#5A5A5E" }}>space</span>
+        <span style={{ width: 88, flex: "none", fontSize: 15, background: ret ? "#3D9BFF" : "#0A84FF" }}>search</span>
+      </div>
     </div>
   );
 };
@@ -180,15 +184,14 @@ export const Couch: React.FC = () => {
   const [lx, ly] = laserAt(laserU);
   const laserO = E(t, CT.laser[0] - 0.1, 0.2) * (1 - E(t, CT.laser[1], 0.2));
   // phone in hand: couch pose to stage pose
-  const ph = { cx: lerp(1325 + 206, 1363 + 201, m), cy: lerp(123 + 430, 144 + 420, m), w: lerp(413, 403, m), tilt: lerp(-5, -4, m) };
-  const present = m > 0.5 ? 1 : 0;
+  const ph = { cx: lerp(1545, 1560, m), cy: lerp(556, 568, m), w: lerp(468, 452, m), tilt: lerp(-5, -4, m) };
+  const pf = clamp((m - 0.3) / 0.35);
   // colours
   const wall = m < 1 ? `rgb(${[43, 41, 37].map((v, i) => Math.round(lerp(v, [218, 214, 207][i], m))).join(",")})` : "#DAD6CF";
   const floor = `rgb(${[35, 33, 30].map((v, i) => Math.round(lerp(v, [201, 195, 185][i], m))).join(",")})`;
-  const exitO = 1 - E(t, D0 - 0.45, 0.45);
   return (
     <div className="fm" style={{ background: wall }}>
-      <div className="fm-world" style={{ opacity: roomIn * exitO, transform: `scale(${lerp(1, 1.02, E(t, P0, 4, INOUT))})`, transformOrigin: "50% 50%" }}>
+      <div className="fm-world" style={{ opacity: roomIn, transform: `scale(${lerp(1, 1.02, E(t, P0, 4, INOUT))})`, transformOrigin: "50% 50%" }}>
         <div className="uc-wall" style={{ background: m < 0.99 ? `radial-gradient(60% 70% at 38% 30%, rgba(58,55,47,${1 - m}), transparent 70%)` : undefined }} />
         <div className="uc-floor" style={{ top: lerp(40, 43, m) * 19.2, background: floor }} />
         <div className="console" style={{ opacity: 1 - m }} />
@@ -215,7 +218,7 @@ export const Couch: React.FC = () => {
               {/* the slides */}
               {m > 0.001 ? (
                 <div className="scr-s" style={{ position: "absolute", inset: 0, opacity: m, boxShadow: "none" }}>
-                  {slideIn < 1 && slide > 0 ? <div className="slide" style={{ opacity: 1 - clamp(slideIn * 3) }}>{SLIDES[slide - 1]}</div> : null}
+                  {slideIn < 1 && slide > 0 ? <div className="slide" style={{ opacity: 1 - clamp(slideIn * 1.8) }}>{SLIDES[slide - 1]}</div> : null}
                   <div className="slide" style={slide > 0 && slideIn < 1 ? { opacity: clamp(slideIn * 1.6 - 0.2), transform: `translateX(${(1 - OUT(slideIn)) * 5}%)` } : undefined}>{SLIDES[slide]}</div>
                   <span className="slaser" style={{ left: `${lx * 100}%`, top: `${ly * 100}%`, opacity: laserO }} />
                   <span className="sl-n">{slide + 1}</span>
@@ -224,8 +227,8 @@ export const Couch: React.FC = () => {
             </div>
           </div>
         </div>
-        <Phone cx={ph.cx} cy={ph.cy} w={ph.w} finish={present ? "light" : "dark"} shadow="hand" tilt={ph.tilt}
-          port={<CouchPhone t={t} present={present} />} />
+        {pf < 1 ? <Phone cx={ph.cx} cy={ph.cy} w={ph.w} finish="dark" shadow="hand" tilt={ph.tilt} port={<CouchPhone t={t} present={0} />} /> : null}
+        {pf > 0 ? <Phone cx={ph.cx} cy={ph.cy} w={ph.w} finish="light" shadow="hand" tilt={ph.tilt} port={<CouchPhone t={t} present={1} />} style={{ opacity: pf }} /> : null}
       </div>
       <Caption text="Remote" color="#BF5AF2" dark p={E(t, R0 + 0.3, 0.6)} q={E(t, CT.morph[0], 0.3)} />
       <Caption text="Present" color="#FF453A" p={E(t, P0 + 0.1, 0.6)} q={E(t, D0 - 0.4, 0.3)} />

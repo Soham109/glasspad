@@ -13,7 +13,7 @@ export const NT = {
   cross: D0 + word("displays", "display") + 0.15,
   hold: D0 + 3.05, menu: D0 + 3.45, fill: D0 + 4.05,
   night: [N0 - 0.95, N0 + 0.1] as const,
-  dot: N0 + 0.25, tick: N0 + word("standby", "clock"),
+  dot: N0 - 0.3, tick: N0 + word("standby", "clock"),
   lamp: N0 + word("standby", "nightstand") - 0.1, red: N0 + word("standby", "nightstand") + 0.35,
 };
 export const NIGHT_CUES = () => ({
@@ -124,7 +124,7 @@ const StandBy: React.FC<{ t: number }> = ({ t }) => {
 export const Night: React.FC = () => {
   const t = useCurrentFrame() / 60;
   const n = E(t, NT.night[0], NT.night[1] - NT.night[0], INOUT); // desk to nightstand
-  const inO = E(t, D0, 0.4);
+  const inO = 1;
   const cross = E(t, NT.cross, 0.7, INOUT);
   const filled = SP(t, NT.fill + 0.05, 0.45, 0.85);
   const dark = E(t, NT.lamp, 0.9, INOUT);
@@ -136,7 +136,7 @@ export const Night: React.FC = () => {
   const sU = ph.w / 21;
   return (
     <div className="fm" style={{ background: bg }}>
-      <div className="fm-world" style={{ opacity: inO }}>
+      <div className="fm-world" style={{ opacity: inO, transform: `scale(${lerp(lerp(1.0, 1.06, E(t, D0 - 0.4, 3.0, INOUT)), 1, n)})`, transformOrigin: "56% 48%" }}>
         {/* the desk */}
         <div style={{ opacity: 1 - clamp(n * 2), position: "absolute", inset: 0 }}>
           <div style={{ position: "absolute", left: 0, right: 0, top: 37 * CQ + OY, bottom: 0, background: "#DEDBD5" }} />

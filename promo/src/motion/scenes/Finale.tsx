@@ -109,7 +109,7 @@ const Arc: React.FC<{ r: number; p: number; cx: number; cy: number }> = ({ r, p,
 
 export const Finale: React.FC = () => {
   const t = useCurrentFrame() / 60;
-  const inP = E(t, P0 - 0.05, 0.45);
+  const inP = 1;
   const aim = E(t, FT.aim[0], FT.aim[1] - FT.aim[0], INOUT);
   const seen = E(t, FT.seen, 0.2);
   const done = E(t, FT.paired, 0.3);
@@ -141,7 +141,7 @@ export const Finale: React.FC = () => {
   return (
     <div className="fm" style={{ background: dark }}>
       {/* pairing and the Wi-Fi mark, folding into the dot */}
-      <div style={{ position: "absolute", inset: 0, opacity: inP * foldO, transform: `translate(${DOT.x}px, ${DOT.y}px) scale(${foldS}) translate(${-DOT.x}px, ${-DOT.y}px)` }}>
+      <div style={{ position: "absolute", inset: 0, opacity: inP * foldO, transform: `translate(${DOT.x}px, ${DOT.y}px) scale(${foldS * lerp(1, 1.06, E(t, FT.back[1], FT.fold[0] - FT.back[1], INOUT))}) translate(${-DOT.x}px, ${-DOT.y}px)` }}>
         <div style={{ position: "absolute", left: 0, top: 0, transform: `translate(${mac.x}px, ${mac.y}px) scale(${mac.s})`, transformOrigin: "0 0" }}>
           <MacBook x={0} y={0} lid={LID} displayStyle={{ background: "linear-gradient(160deg, #D3D8E0, #AEB7C6)" }}>
             <div className="mbx">
