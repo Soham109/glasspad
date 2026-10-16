@@ -240,7 +240,8 @@ private struct FingerDotsArt: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var body: some View {
         // Gentle drift at a decorative frame rate; still with Reduce Motion or a warm phone.
-        let interval = PowerMonitor.shared.policy.decorativeFrameInterval
+        // A slow drift reads the same at 30 frames a second as at 60, for half the work.
+        let interval = PowerMonitor.shared.policy.decorativeFrameInterval.map { max($0, 1.0 / 30) }
         TimelineView(.animation(minimumInterval: interval, paused: reduceMotion || interval == nil)) { context in
             let t = context.date.timeIntervalSinceReferenceDate
             ZStack {
