@@ -51,7 +51,11 @@ public final class ModeRouter {
         self.media = media
         let env = LiveDeckEnvironment(keys: keys, media: media)
         self.deckEnvironment = env
-        self.deck = DeckMode(env: env)
+        let deck = DeckMode(env: env)
+        self.deck = deck
+        MacControlRelay.shared.perform = { [weak deck] action in
+            await deck?.perform(.system(action)) ?? DeckMode.Outcome(ok: false, message: "Glasspad is shutting down.")
+        }
         self.clipboard = ClipboardMode()
         self.present = PresentMode(keys: keys)
         self.macDock = macDock
@@ -86,11 +90,11 @@ public final class ModeRouter {
             if mode == .macros { macros?.handle(.listMacros) }
             if mode == .dock || mode == .deck || mode == .remote { send(.frontmostApp(bundleID: dock.workspace.frontmostBundleID())) }
         case .dockRequest:
-            send(.dockList(apps: dock.currentList()))
+            sendDockList(dock.currentList())
             send(.macDockState(macDock.state))
         case .dockSync(let keys):
             dock.phoneHas(iconKeys: keys)
-            send(.dockList(apps: dock.currentList()))
+            sendDockList(dock.currentList())
             send(.macDockState(macDock.state))
         case .dockOpen(let id):
             dock.open(bundleID: id) { [weak self] outcome in
@@ -104,7 +108,8 @@ public final class ModeRouter {
             }
             scheduleDockPush()
         case .dockCatalogRequest: send(.dockCatalog(apps: dock.catalog()))
-        case .dockIconRequest(let ids): send(.dockIcons(apps: dock.icons(for: ids)))
+        case .dockIconRequest(let ids):
+            for batch in DockMode.iconBatches(dock.icons(for: ids)) { send(.dockIcons(apps: batch)) }
         case .macDockSet(let state): macDock.set(state)
         case .keysText(let text): keys.type(text)
         case .keysKeystroke(let k): keys.press(k)
@@ -173,6 +178,14 @@ public final class ModeRouter {
              .dockIcons, .frontmostApp, .macDockState, .deckLayout, .deckSaveResult, .deckCatalog, .deckImage:
             break
         }
+    }
+
+    /// The Dock list, with icons beyond one message's share following in their own messages,
+    /// so a first sync of a full Dock never becomes one huge message.
+    private func sendDockList(_ apps: [DockApp]) {
+        let (list, later) = DockMode.splitIcons(apps)
+        send(.dockList(apps: list))
+        for batch in DockMode.iconBatches(later) { send(.dockIcons(apps: batch)) }
     }
 
     private func sendDeck() {
@@ -256,7 +269,7 @@ public final class ModeRouter {
             try? await Task.sleep(for: .milliseconds(350))
             guard let self else { return }
             self.dockPushPending = false
-            if self.phoneMode == .dock { self.send(.dockList(apps: self.dock.currentList())) }
+            if self.phoneMode == .dock { self.sendDockList(self.dock.currentList()) }
         }
     }
 

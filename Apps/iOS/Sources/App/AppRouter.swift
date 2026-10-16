@@ -11,6 +11,12 @@ final class AppRouter {
     static let shared = AppRouter()
 
     private(set) var mode: AppMode
+    /// The split-screen layout on screen, if any. While one shows, `mode` is its first pane's.
+    private(set) var layoutID: UUID?
+    /// The layout gallery (templates and the person's own).
+    var showLayouts = false
+    /// The layout editor, opened straight from the mode menu.
+    var layoutDraft: LayoutDraft?
     var showSettings = false
     var showPairing = false
     /// The first-run checklist (also from Settings).
@@ -38,7 +44,19 @@ final class AppRouter {
 
     private init() {
         mode = PhoneSettings.shared.startMode
+        // Opening where it was left: a layout, when one was on screen.
+        if PhoneSettings.shared.launchMode == nil, let id = LayoutStore.shared.activeID,
+           let layout = LayoutStore.shared.layout(id) {
+            layoutID = id
+            mode = layout.shownModes.first ?? .trackpad
+        }
     }
+
+    /// The layout on screen, if any.
+    var layout: ScreenLayout? { layoutID.flatMap { LayoutStore.shared.layout($0) } }
+
+    /// Every mode on screen: the current one, or each open pane of the layout.
+    var screenModes: [AppMode] { layout?.shownModes ?? [mode] }
 
     func show(_ requested: AppMode) {
         // Clipboard and Present are tools unless they were split into modes of their own.
@@ -50,14 +68,45 @@ final class AppRouter {
         showSettings = false
         showPairing = false
         showSetup = false
+        layoutID = nil
+        LayoutStore.shared.activeID = nil
         if mode != newMode {
             mode = newMode
             PhoneSettings.shared.lastMode = newMode
         }
+        screenChanged()
+    }
+
+    /// Shows a layout: several modes on one screen.
+    func show(layout: ScreenLayout) {
+        showSettings = false
+        showPairing = false
+        showSetup = false
+        showLayouts = false
+        layoutID = layout.id
+        LayoutStore.shared.activeID = layout.id
+        mode = layout.shownModes.first ?? .trackpad
+        screenChanged()
+    }
+
+    /// A pane of the layout on screen folded away or came back.
+    func layoutPanesChanged() {
+        guard let layout else { return }
+        mode = layout.shownModes.first ?? .trackpad
+        screenChanged()
+    }
+
+    private func screenChanged() {
         noteActivity()
-        MacSession.shared.modeDidChange(to: newMode)
+        MacSession.shared.modesDidChange(to: screenModes)
         ScreenAwake.update()
         LiveActivityController.shared.refresh()
+    }
+
+    /// Opens the editor on a new layout made from `template`.
+    func newLayout(from template: LayoutTemplate) -> LayoutDraft {
+        let store = LayoutStore.shared
+        return LayoutDraft(layout: template.makeLayout(named: store.uniqueName(template.name)), isNew: true)
     }
 
     /// Opens Clipboard or Present on top of the current mode.
@@ -104,7 +153,7 @@ final class AppRouter {
     /// The full-screen presenter inside Actions is showing.
     var presenting = false
 
-    var dims: Bool { mode == .trackpad || mode == .present || presenting }
+    var dims: Bool { screenModes.contains(.trackpad) || screenModes.contains(.present) || presenting }
 
     /// Called on every touch of a dimming screen. Cheap enough to call per touch sample.
     func noteActivity() {
@@ -130,11 +179,18 @@ final class AppRouter {
     }
 
     private func checkIdle() {
-        guard dims, !showSettings, !showPairing, !showClipboard, !showSetup else { return }
+        guard dims, !showSettings, !showPairing, !showClipboard, !showSetup, !showLayouts, layoutDraft == nil else { return }
         let idle = ProcessInfo.processInfo.systemUptime - lastActivity
         let delay = PhoneSettings.shared.dimDelay
         if !isDimmed, delay > 0, idle >= delay { isDimmed = true }
     }
+}
+
+/// A layout being made or changed in the editor.
+struct LayoutDraft: Identifiable {
+    var layout: ScreenLayout
+    var isNew: Bool
+    var id: UUID { layout.id }
 }
 
 /// Keeps the screen on only while a screen that needs it is visible and the app is active.
@@ -146,9 +202,11 @@ enum ScreenAwake {
         let router = AppRouter.shared
         let wanted = sceneActive && PhoneSettings.shared.hasOnboarded && PhoneSettings.shared.keepScreenAwake && router.dims
             && !router.showSettings && !router.showPairing && !router.showClipboard && !router.showSetup
+            && !router.showLayouts && router.layoutDraft == nil
         // StandBy screens keep the screen on by their own rules (StandByMode.swift), without dimming.
         let standBy = sceneActive && StandByMonitor.shared.power.keepsScreenOn
             && !router.showSettings && !router.showPairing && !router.showClipboard && !router.showSetup
+            && !router.showLayouts && router.layoutDraft == nil
         if UIApplication.shared.isIdleTimerDisabled != (wanted || standBy) {
             UIApplication.shared.isIdleTimerDisabled = wanted || standBy
         }

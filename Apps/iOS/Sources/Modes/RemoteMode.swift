@@ -6,12 +6,15 @@ import GlasspadKit
 /// follow the Mac's frontmost player (`RemoteKeymap`). Always dark and dim, so it does not
 /// light up the room; the screen locks as usual so a long film does not drain the battery.
 struct RemoteMode: View {
+    var settings = PhoneSettings.shared
     /// Set when opened from the mode menu's tools: a close button leads the top row.
     var onClose: (() -> Void)?
 
     var body: some View {
+        // Mono stays black and white here too. Read from the setting, as the full screen
+        // tool is not handed the app's palette.
         RemoteScreen(onClose: onClose)
-            .environment(\.palette, .graphite)
+            .environment(\.palette, settings.theme == .mono ? ThemeChoice.mono.preview(dark: true) : .graphite)
             .environment(\.colorScheme, .dark)
     }
 }
@@ -25,7 +28,7 @@ struct RemoteCover: View {
             .persistentSystemOverlays(.hidden)
         .statusBarHidden(true)
         .onAppear { MacSession.shared.send(.modeSelected(.remote)) }
-        .onDisappear { MacSession.shared.send(.modeSelected(AppRouter.shared.mode.wireMode)) }
+        .onDisappear { MacSession.shared.modesDidChange(to: AppRouter.shared.screenModes) }
     }
 }
 
@@ -35,7 +38,7 @@ private struct RemoteScreen: View {
     var session = MacSession.shared
     var store = MediaStore.shared
     let onClose: (() -> Void)?
-    private let accent = AppMode.remote.accent(.graphite)
+    private var accent: Color { AppMode.remote.accent(palette) }
 
     @State private var searching = false
     @State private var query = ""
@@ -201,7 +204,7 @@ private struct RemoteScreen: View {
         let app = state?.sourceName
         switch (keymap.player, keymap.name, app) {
         case (.browser(let site), let name?, let app?) where site != .other: return "\(name) in \(app)"
-        case (.music, _, let app?): return [state?.artist, app].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " · ")
+        case (.music, _, let app?), (.appleMusic, _, let app?): return [state?.artist, app].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " · ")
         case (_, _, let app?) where store.playback.hasTrack: return app
         case (_, let name?, _): return name
         default: return "Play a film or a song on your Mac."
@@ -244,8 +247,10 @@ private struct RemoteScreen: View {
         TimelineView(.periodic(from: .now, by: 0.5)) { context in
             let playing = store.playback.isPlaying(at: context.date)
             HStack(spacing: 10) {
-                bigButton(keymap.skipsTracks ? "backward.fill" : "gobackward.10",
-                          keymap.skipsTracks ? "Previous" : "Back 10 seconds", size: 26) { run(.back) }
+                if keymap.has(.back, canSeek: canSeek) {
+                    bigButton(keymap.skipsTracks ? "backward.fill" : "gobackward.10",
+                              keymap.skipsTracks ? "Previous" : "Back 10 seconds", size: 26) { run(.back) }
+                }
                 Button {
                     Haptics.shared.play(.click)
                     run(.playPause)
@@ -258,8 +263,10 @@ private struct RemoteScreen: View {
                 }
                 .buttonStyle(KeyCapStyle(cornerRadius: 24))
                 .accessibilityLabel(playing ? "Pause" : "Play")
-                bigButton(keymap.skipsTracks ? "forward.fill" : "goforward.10",
-                          keymap.skipsTracks ? "Next" : "Forward 10 seconds", size: 26) { run(.forward) }
+                if keymap.has(.forward, canSeek: canSeek) {
+                    bigButton(keymap.skipsTracks ? "forward.fill" : "goforward.10",
+                              keymap.skipsTracks ? "Next" : "Forward 10 seconds", size: 26) { run(.forward) }
+                }
             }
         }
     }
@@ -393,16 +400,19 @@ private struct RemoteScreen: View {
         case .media(.nextTrack): store.next()
         case .media(.previousTrack): store.previous()
         default:
-            let now = Date()
-            // Seeking through now playing is only right when the player in front is the one playing.
-            let samePlayer = RemoteKeymap(player: RemoteKeymap.player(bundleID: state?.sourceBundleID,
-                                                                       nowPlaying: [state?.title, state?.artist, state?.album])) == keymap
-            let messages = RemoteKeymap.message(for: output, position: store.playback.position(at: now),
-                                                canSeek: samePlayer && state?.canSeek == true, duration: state?.duration)
+            let messages = RemoteKeymap.message(for: output, position: store.playback.position(at: Date()),
+                                                canSeek: canSeek, duration: state?.duration)
             for message in messages {
                 if case .mediaControl(.seek(let target)) = message { store.seek(to: target) } else { session.send(message) }
             }
         }
+    }
+
+    /// Seeking through now playing is only right when the controls are the playing app's.
+    private var canSeek: Bool {
+        guard state?.canSeek == true else { return false }
+        return RemoteKeymap.player(bundleID: state?.sourceBundleID,
+                                   nowPlaying: [state?.title, state?.artist, state?.album]) == keymap.player
     }
 
     private func skip(_ steps: Int) {

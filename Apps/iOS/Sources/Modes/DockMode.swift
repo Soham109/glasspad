@@ -430,6 +430,8 @@ struct DockIcon: View {
                     .interpolation(.high)
                     .antialiased(true)
                     .aspectRatio(contentMode: .fit)
+                    // Mono has no colour anywhere, app icons included.
+                    .saturation(palette.monochrome ? 0 : 1)
             } else {
                 // macOS icons sit inside a rounded square at about 82% of the canvas.
                 RoundedRectangle(cornerRadius: size * 0.82 * 0.225, style: .continuous)
@@ -457,7 +459,7 @@ private struct DockIconPreview: View {
             Text(app.name).font(.headline).foregroundStyle(palette.inkColor)
         }
         .padding(20)
-        .background(palette.backgroundColor)
+        .background(palette.solidColor)
     }
 }
 
@@ -492,7 +494,7 @@ private struct HiddenAppsSheet: View {
                 .listRowBackground(palette.raisedColor)
             }
             .scrollContentBackground(.hidden)
-            .background(palette.backgroundColor)
+            .background(SurfaceBackground())
             .navigationTitle("Hidden Apps")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

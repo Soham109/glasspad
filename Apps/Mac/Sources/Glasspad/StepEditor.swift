@@ -1,11 +1,13 @@
 import AppKit
+import enum GlasspadKit.DeckSystemAction
+import enum GlasspadKit.DeckSystemGroup
 import GlasspadMacros
 import SwiftUI
 
 /// Every step type, with its title and symbol for the editor.
 enum StepKind: String, CaseIterable, Hashable {
     case keystroke, typeText, click, moveMouse, drag, scroll, wait, waitForApp
-    case openApp, openURL, openFile, runShortcut, runAppleScript, runShell, setClipboard, notify, repeatBlock
+    case openApp, openURL, openFile, runShortcut, runAppleScript, runShell, setClipboard, notify, macControl, repeatBlock
 
     init(_ step: MacroStep) {
         switch step {
@@ -25,6 +27,7 @@ enum StepKind: String, CaseIterable, Hashable {
         case .runShell: self = .runShell
         case .setClipboard: self = .setClipboard
         case .notify: self = .notify
+        case .macControl: self = .macControl
         case .repeatBlock: self = .repeatBlock
         }
     }
@@ -50,6 +53,7 @@ enum StepKind: String, CaseIterable, Hashable {
         case .runShell: "Run Shell Command"
         case .setClipboard: "Set Clipboard"
         case .notify: "Show Notification"
+        case .macControl: "Mac Control"
         case .repeatBlock: "Repeat"
         }
     }
@@ -72,6 +76,7 @@ enum StepKind: String, CaseIterable, Hashable {
         case .runShell: "terminal"
         case .setClipboard: "doc.on.clipboard"
         case .notify: "bell"
+        case .macControl: "macwindow"
         case .repeatBlock: "repeat"
         }
     }
@@ -95,6 +100,7 @@ enum StepKind: String, CaseIterable, Hashable {
         case .runShell: .runShell(command: "", timeoutMs: 30_000)
         case .setClipboard: .setClipboard("")
         case .notify: .notify(title: "", body: "")
+        case .macControl: .macControl(DeckSystemAction.windowSplit.rawValue)
         case .repeatBlock: .repeatBlock(count: 2, steps: [])
         }
     }
@@ -164,6 +170,7 @@ struct StepEditorSheet: View {
         case .runShell(let c, let t): t1 = c; n1 = t
         case .setClipboard(let t): t1 = t
         case .notify(let t, let b): t1 = t; t2 = b
+        case .macControl(let id): t1 = id
         case .repeatBlock(let c, let s): n1 = c; inner = s
         }
         nested = inner
@@ -282,6 +289,16 @@ struct StepEditorSheet: View {
         case .setClipboard:
             TextField("Text", text: $text1, axis: .vertical)
                 .lineLimit(2...6)
+        case .macControl:
+            Picker("Control", selection: $text1) {
+                ForEach(DeckSystemGroup.allCases, id: \.self) { group in
+                    Section(group.title) {
+                        ForEach(DeckSystemAction.allCases.filter { $0.group == group }, id: \.self) { action in
+                            Label(action.title, systemImage: action.symbol).tag(action.rawValue)
+                        }
+                    }
+                }
+            }
         case .notify:
             TextField("Title", text: $text1)
             TextField("Message", text: $text2)
@@ -314,6 +331,7 @@ struct StepEditorSheet: View {
         case .keystroke: "A letter means the key that types it, so shortcuts work on any keyboard layout."
         case .typeText: "New lines and tabs are typed as Return and Tab."
         case .runAppleScript, .runShell: "Runs only when the macro's \"Allow scripts\" is on."
+        case .macControl: "Works like the same button in Actions on your iPhone."
         case .click, .moveMouse, .drag: "Screen points from the top left of the main display, or offsets from a corner of the front window."
         default: nil
         }
@@ -356,6 +374,7 @@ struct StepEditorSheet: View {
         case .runShell: return t1.isEmpty ? nil : .runShell(command: text1, timeoutMs: number1)
         case .setClipboard: return .setClipboard(text1)
         case .notify: return t1.isEmpty ? nil : .notify(title: t1, body: text2)
+        case .macControl: return DeckSystemAction(rawValue: t1) == nil ? nil : .macControl(t1)
         case .repeatBlock: return .repeatBlock(count: number1, steps: nested)
         }
     }

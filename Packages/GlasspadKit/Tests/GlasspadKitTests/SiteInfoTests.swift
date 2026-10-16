@@ -60,6 +60,12 @@ import Testing
         #expect(SiteInfo.webURL("hello world") == nil)
         #expect(SiteInfo.webURL("x-apple.systempreferences:com.apple.wifi") == nil)
         #expect(SiteInfo.webURL("ftp://x.org") == nil)
+        // Other kinds of links stay what they are.
+        #expect(SiteInfo.webURL("mailto:me@example.com") == nil)
+        #expect(SiteInfo.webURL("slack://open?team=a.b") == nil)
+        #expect(SiteInfo.webURL("example.com:8080/x")?.absoluteString == "https://example.com:8080/x")
+        #expect(SiteInfo.webURL("en.wikipedia.org/wiki/Help:Contents") != nil)
+        #expect(SiteInfo.webURL("localhost:3000")?.absoluteString == "https://localhost:3000")
     }
 
     @Test func sizesAttribute() {

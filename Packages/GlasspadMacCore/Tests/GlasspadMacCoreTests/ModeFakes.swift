@@ -168,5 +168,34 @@ final class FakeDeckEnvironment: DeckEnvironment {
     func now() -> Date { clock }
     func phoneImageData(_ url: URL) -> Data? { Data("image:\(url.lastPathComponent)".utf8) }
     func copyImageToClipboard(_ url: URL) -> Bool { copiedToClipboard.append(url); return true }
-    func shortcutNames() async -> [String] { ["Focus On", "Focus Off"] }
+    var shortcuts = ["Focus On", "Focus Off"]
+    func shortcutNames() async -> [String] { shortcuts }
+    var outputMuted: Bool? = false
+    var displayCount = 1
+    var canLockDirectly = true
+    var locks = 0
+    func lockScreen() -> Bool {
+        if canLockDirectly { locks += 1 }
+        return canLockDirectly
+    }
+    /// nil: SkyLight did not work, so AppleScript runs.
+    var darkModeResult: Bool? = true
+    func toggleDarkMode() -> Bool? { darkModeResult }
+    var doNotDisturb: DeckSwitchResult = .on
+    var doNotDisturbCalls = 0
+    func toggleDoNotDisturb() async -> DeckSwitchResult { doNotDisturbCalls += 1; return doNotDisturb }
+    var nightShift: DeckSwitchResult = .on
+    func toggleNightShift() -> DeckSwitchResult { nightShift }
+    var keepAwake = false
+    func toggleKeepAwake() -> DeckSwitchResult { keepAwake.toggle(); return keepAwake ? .on : .off }
+    var notificationCenterOpens = 0
+    var notificationCenterWorks = true
+    func openNotificationCenter() -> Bool { notificationCenterOpens += 1; return notificationCenterWorks }
+    var placed: [WindowPlacement] = []
+    var splits = 0
+    var nextDisplayMoves = 0
+    var windowFailure: String?
+    func placeFrontWindow(_ placement: WindowPlacement) -> String? { placed.append(placement); return windowFailure }
+    func splitFrontWindows() -> String? { splits += 1; return windowFailure }
+    func moveFrontWindowToNextDisplay() -> String? { nextDisplayMoves += 1; return windowFailure }
 }

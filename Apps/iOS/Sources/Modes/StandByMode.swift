@@ -18,6 +18,12 @@ import UIKit
 struct StandByStyle {
     /// Mono: no colour, accents draw in the primary grey.
     let monochrome: Bool
+    private let good: Color
+
+    init(_ palette: Palette) {
+        monochrome = palette.monochrome
+        good = palette.good
+    }
 
     static let backgroundColor = Color(uiColor: .black)
     /// Numerals and titles: a soft grey, never full white.
@@ -31,8 +37,8 @@ struct StandByStyle {
     var hand: Color { monochrome ? primary : Color(uiColor: UIColor(hex: 0xE8900C)) }
     /// The weekday on the calendar, like the Calendar app's red.
     var weekday: Color { monochrome ? primary : Color(uiColor: UIColor(hex: 0xE5483E)) }
-    /// The charging bolt.
-    var charge: Color { monochrome ? secondary : Color(uiColor: UIColor(hex: 0x2FB457)) }
+    /// The charging bolt. Mono's "good" is its ink, which could be black; the grey reads on black.
+    var charge: Color { monochrome ? secondary : good }
 
     /// What night mode multiplies every grey by: StandBy's dim red.
     static let nightRed = Color(uiColor: UIColor(hex: 0xC8261A))
@@ -191,7 +197,7 @@ struct StandByScreen<Content: View>: View {
         // Read here, outside the timeline, so a change redraws at once and not at the next minute.
         let nightMode = settings.nightMode
         let brightness = monitor.power.brightness
-        let style = StandByStyle(monochrome: palette.monochrome)
+        let style = StandByStyle(palette)
         TimelineView(.everyMinute) { context in
             let date = standByTime(context.date)
             let night = nightMode.isActive(at: date)

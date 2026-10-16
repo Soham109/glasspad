@@ -7,6 +7,7 @@ struct PresentMode: View {
     @Environment(\.palette) private var palette
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.verticalSizeClass) private var verticalSize
+    @Environment(\.modeTopClearance) private var topClearance
     @Bindable var settings = PhoneSettings.shared
     var session = MacSession.shared
     private var accent: Color { AppMode.present.accent(palette) }
@@ -18,7 +19,7 @@ struct PresentMode: View {
             if verticalSize == .compact { landscape } else { portrait }
         }
         .overlay {
-            if !session.isConnected { ModeOfflineMessage(mode: .present).background(palette.backgroundColor) }
+            if !session.isConnected { ModeOfflineMessage(mode: .present).background(SurfaceBackground()) }
         }
         .onDisappear { session.laserOff() }
     }
@@ -26,7 +27,7 @@ struct PresentMode: View {
     private var portrait: some View {
         VStack(spacing: 14) {
             timerBar
-                .padding(.top, 64)
+                .padding(.top, topClearance ?? 64)
             laserPad
                 .frame(maxWidth: .infinity)
                 .aspectRatio(16 / 10, contentMode: .fit)
@@ -147,7 +148,7 @@ struct PresentMode: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .buttonStyle(KeyCapStyle(accent: accent, cornerRadius: 26))
+        .buttonStyle(KeyCapStyle(prominent: true, cornerRadius: 26))
         .accessibilityLabel("Next slide")
         .accessibilityHint("Starts the timer on the first press")
     }
@@ -171,7 +172,7 @@ private struct LaserPad: View {
                     .strokeBorder(palette.lineColor)
                 if let point {
                     Circle()
-                        .fill(Color.red)
+                        .fill(palette.monochrome ? palette.inkColor : palette.bad)
                         .frame(width: 18, height: 18)
                         .position(x: point.x * geo.size.width, y: point.y * geo.size.height)
                 } else {
