@@ -48,24 +48,76 @@ final class SnapshotTests: XCTestCase {
         setup.link = .searching
         setup.accessibilityTrusted = false
         setup.automationDenied = ["Spotify"]
+        setup.automation = .denied
         try shoot(PopoverView(), model: setup, width: w, name: "popover-needs-permissions", chrome: .popover)
 
         let pairing = Fixtures.model(macros)
         pairing.link = .searching
         pairing.phones = []
-        pairing.pairingURL = Fixtures.pairingURL
+        pairing.pairing = Fixtures.waiting
         try shoot(PopoverView(), model: pairing, width: w, name: "popover-pairing", chrome: .popover)
+
+        let paired = Fixtures.model(macros)
+        paired.link = .connecting
+        paired.pairing = .paired(phoneName: "Soham's iPhone")
+        try shoot(PopoverView(), model: paired, width: w, name: "popover-pairing-paired", chrome: .popover)
+
+        let expired = Fixtures.model(macros)
+        expired.link = .searching
+        expired.phones = []
+        expired.pairing = .expired
+        try shoot(PopoverView(), model: expired, width: w, name: "popover-pairing-expired", chrome: .popover)
+
+        let failed = Fixtures.model(macros)
+        failed.link = .searching
+        failed.pairing = .failed(message: "This Mac could not save the pairing to the Keychain.")
+        try shoot(PopoverView(), model: failed, width: w, name: "popover-pairing-failed", chrome: .popover)
 
         let firstRun = Fixtures.model(macros)
         firstRun.link = .searching
         firstRun.phones = []
         try shoot(PopoverView(), model: firstRun, width: w, name: "popover-first-run", chrome: .popover)
 
+        // A real first launch: nothing paired and nothing allowed yet.
+        let fresh = Fixtures.model(macros)
+        fresh.link = .searching
+        fresh.phones = []
+        fresh.accessibilityTrusted = false
+        fresh.automation = .notDetermined
+        try shoot(PopoverView(), model: fresh, width: w, name: "popover-first-run-nothing-granted", chrome: .popover)
+
         let paused = Fixtures.model(macros)
         paused.link = .idle
         paused.isPaused = true
         paused.dock.hidden = true
         try shoot(PopoverView(), model: paused, width: w, name: "popover-paused", chrome: .popover)
+    }
+
+    func testWelcome() throws {
+        let macros = try Fixtures.macros()
+        let fresh = Fixtures.model(macros)
+        fresh.link = .searching
+        fresh.phones = []
+        fresh.accessibilityTrusted = false
+        fresh.automation = .notDetermined
+        fresh.pairing = Fixtures.waiting
+        try shoot(WelcomeView(icon: Fixtures.appIcon), model: fresh, width: WelcomeView.size.width,
+                  name: "welcome-nothing-granted", chrome: .window)
+
+        let half = Fixtures.model(macros)
+        half.link = .searching
+        half.phones = []
+        half.automation = .notDetermined
+        half.pairing = Fixtures.waiting
+        try shoot(WelcomeView(icon: Fixtures.appIcon), model: half, width: WelcomeView.size.width,
+                  name: "welcome-accessibility-allowed", chrome: .window)
+
+        let done = Fixtures.model(macros)
+        done.link = .connected(rttMs: 3)
+        done.automation = .granted
+        done.pairing = .paired(phoneName: "Soham's iPhone")
+        try shoot(WelcomeView(icon: Fixtures.appIcon), model: done, width: WelcomeView.size.width,
+                  name: "welcome-paired", chrome: .window)
     }
 
     func testSettingsPanes() throws {
@@ -89,7 +141,8 @@ final class SnapshotTests: XCTestCase {
                   name: "settings-about", chrome: .window)
         // Whole forms, for review: the real panes scroll.
         try shoot(TrackpadPane(), model: model, size: CGSize(width: 520, height: 1000), name: "full-trackpad", chrome: .window)
-        try shoot(AdvancedPane(), model: model, size: CGSize(width: 520, height: 1500), name: "full-advanced", chrome: .window)
+        try shoot(AdvancedPane(diagnosticsExpanded: true), model: model, size: CGSize(width: 520, height: 1500),
+                  name: "full-advanced", chrome: .window)
         try shoot(MacrosSettings(page: .macros), model: model, size: SettingsTab.macros.size,
                   name: "settings-macros", chrome: .window)
         try shoot(MacrosSettings(page: .profiles), model: model, size: SettingsTab.macros.size,
@@ -99,6 +152,7 @@ final class SnapshotTests: XCTestCase {
         needs.link = .searching
         needs.accessibilityTrusted = false
         needs.automationDenied = ["Spotify"]
+        needs.automation = .denied
         needs.launchNeedsApproval = true
         try shoot(GeneralPane(), model: needs, size: SettingsTab.general.size,
                   name: "settings-general-needs-permissions", chrome: .window)
@@ -109,11 +163,17 @@ final class SnapshotTests: XCTestCase {
         try shoot(IPhonePane(), model: empty, size: SettingsTab.iphone.size, name: "settings-iphone-empty", chrome: .window)
 
         let pairing = Fixtures.model(macros)
-        pairing.pairingURL = Fixtures.pairingURL
+        pairing.pairing = Fixtures.waiting
         try shoot(PairingSheet(), model: pairing, width: 360, name: "sheet-pairing", chrome: .window)
+        pairing.pairing = .expired
+        try shoot(PairingSheet(), model: pairing, width: 360, name: "sheet-pairing-expired", chrome: .window)
 
         try shoot(StepEditorSheet(step: .keystroke(KeyCombo("t", [.command, .shift])), isNew: false) { _ in },
                   model: model, width: 440, name: "sheet-step-keystroke", chrome: .window)
+        try shoot(StepEditorSheet(step: .keystroke(KeyCombo(.special(.space), [.command])), isNew: false) { _ in },
+                  model: model, width: 440, name: "sheet-step-keystroke-space", chrome: .window)
+        try shoot(StepEditorSheet(step: .openApp(bundleID: "com.apple.Safari"), isNew: false) { _ in },
+                  model: model, width: 440, name: "sheet-step-open-app", chrome: .window)
         try shoot(StepEditorSheet(step: .click(button: .left, at: .screen(640, 400), count: 2, modifiers: []), isNew: true) { _ in },
                   model: model, width: 440, name: "sheet-step-click", chrome: .window)
         try shoot(RecordingIndicatorView(macros: macros), model: model, width: nil, name: "recording-indicator", chrome: .desktop)
@@ -196,6 +256,7 @@ enum Fixtures {
     static let pairingURL = PairingPayload(macID: UUID(uuidString: "6F1C2A4E-3B5D-4C7E-9F10-2A3B4C5D6E7F")!,
                                            macName: "Soham's MacBook Pro",
                                            pairKey: Data((0..<32).map { UInt8($0 * 7 & 0xFF) })).url
+    static let waiting = PairingPhase.waiting(url: pairingURL, expiresAt: Date(timeIntervalSince1970: 1_900_000_000))
 
     static func model(_ macros: MacroCoordinator) -> AppModel {
         let m = AppModel(macName: "Soham's MacBook Pro", macros: macros,

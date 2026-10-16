@@ -11,6 +11,7 @@ struct SettingsView: View {
 
     @State private var showPair = false
     @State private var macToForget: PairedMac?
+    @State private var debugPage: String?
 
     var body: some View {
         NavigationStack {
@@ -38,6 +39,17 @@ struct SettingsView: View {
                 }
             }
             .sheet(isPresented: $showPair) { PairSheet().presentationDragIndicator(.visible) }
+            #if DEBUG
+            .navigationDestination(isPresented: Binding(get: { debugPage != nil }, set: { if !$0 { debugPage = nil } })) {
+                if debugPage == "setup" { SetupChecklistView(inSettings: true) } else { ConnectionHelpView() }
+            }
+            .onAppear {
+                if let page = DebugLaunch.settingsPage {
+                    DebugLaunch.settingsPage = nil
+                    debugPage = page
+                }
+            }
+            #endif
             .confirmationDialog("Forget this Mac?", isPresented: .init(get: { macToForget != nil },
                                                                       set: { if !$0 { macToForget = nil } }),
                                 titleVisibility: .visible, presenting: macToForget) { mac in
@@ -264,6 +276,26 @@ struct SettingsView: View {
                 }
                 .contextMenu {
                     Button("Forget", systemImage: "trash", role: .destructive) { macToForget = mac }
+                }
+            }
+            if store.selected != nil {
+                NavigationLink {
+                    ConnectionHelpView()
+                } label: {
+                    LabeledContent {
+                        Text(session.macNeedsAccessibility ? "Needs permission" : session.state.isConnectedState ? "Connected" : "Help")
+                    } label: {
+                        Label("Connection", systemImage: "antenna.radiowaves.left.and.right")
+                    }
+                }
+                NavigationLink {
+                    SetupChecklistView(inSettings: true)
+                } label: {
+                    LabeledContent {
+                        Text(settings.setupComplete ? "Done" : "Not finished")
+                    } label: {
+                        Label("Setup Checklist", systemImage: "checklist")
+                    }
                 }
             }
             if !session.isConnected, store.selected?.wakeTarget != nil {

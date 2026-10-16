@@ -59,6 +59,9 @@ public struct KeyModifiers: OptionSet, Codable, Equatable, Sendable, Hashable {
 public enum SpecialKey: String, Codable, Sendable, CaseIterable {
     case returnKey, tab, space, delete, forwardDelete, escape
     case left, right, up, down, home, end, pageUp, pageDown
+    /// Function keys, sent as the real F-key (like "Use F1, F2, etc. keys as standard function
+    /// keys"). Added Oct 2026: a Mac build without them drops the keystroke.
+    case f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12
 }
 
 /// The key part of a keystroke: a named key or a single character (e.g. "c" for cmd+C).

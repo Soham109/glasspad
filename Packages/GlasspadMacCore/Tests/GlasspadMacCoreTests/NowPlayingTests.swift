@@ -430,10 +430,46 @@ private let sep = ScriptablePlayer.separator
         mode.adapterEvent(.snapshot(NowPlayingSnapshot(provider: .mediaRemote, title: "T", isPlaying: true,
                                                        bundleID: "com.spotify.client")))
         // Permission undecided (nil): asking would show the consent prompt, so nothing is asked.
-        #expect(mode.scriptTarget(players: [.spotify], adapterWorks: true, now: Date()) == nil)
+        #expect(mode.scriptTargets(players: [.spotify], adapterWorks: true, now: Date()).isEmpty)
         runner.permissions = ["com.spotify.client": true]
-        #expect(mode.scriptTarget(players: [.spotify], adapterWorks: true, now: Date()) == .spotify)
+        #expect(mode.scriptTargets(players: [.spotify], adapterWorks: true, now: Date()) == [.spotify])
         mode.setActive(false)
+    }
+
+    /// Reliability M5: with Music playing and Spotify open but paused, the fallback showed and
+    /// commanded Spotify (first in the list), so "pause" started Spotify on top of Music.
+    @Test func bothPlayersOpenFollowsTheOneThatPlays() async {
+        let runner = FakeAppleScriptRunner()
+        let spotifyPaused = ["paused", "Old Song", "S", "A", "200000", "5", "", "false", "false", "s1", "50"]
+            .joined(separator: ScriptablePlayer.separator)
+        let musicPlaying = ["playing", "Live Song", "M", "B", "100", "1", "", "false", "off", "m1", "40"]
+            .joined(separator: ScriptablePlayer.separator)
+        // Each status script names only its own player's properties.
+        runner.replies = [("repeating as string", .text(spotifyPaused)), ("song repeat as string", .text(musicPlaying))]
+        runner.permissions = ["com.spotify.client": true, "com.apple.Music": true]
+        let mode = make(runner, players: [.spotify, .music])
+        mode.setActive(true)
+        await settle { mode.current != nil }
+        #expect(mode.current?.title == "Live Song")
+        #expect(mode.current?.sourceBundleID == ScriptablePlayer.music.bundleID)
+        let before = runner.scripts.count
+        mode.send(.pause)
+        await settle { runner.scripts.count > before }
+        let commands = runner.scripts.dropFirst(before).filter { $0.contains(" to pause") }
+        #expect(commands.count == 1)
+        #expect(commands.allSatisfy { $0.contains("com.apple.Music") && !$0.contains("com.spotify.client") })
+        mode.setActive(false)
+    }
+
+    @Test func bothPausedFollowsTheOneLastPlaying() {
+        let mode = make(FakeAppleScriptRunner(), players: [.spotify, .music])
+        let spotify = NowPlayingSnapshot(provider: .spotify, title: "S", isPlaying: false, bundleID: ScriptablePlayer.spotify.bundleID)
+        let musicOn = NowPlayingSnapshot(provider: .music, title: "M", isPlaying: true, bundleID: ScriptablePlayer.music.bundleID)
+        var musicOff = musicOn
+        musicOff.isPlaying = false
+        #expect(mode.pickPlaying([(.spotify, spotify), (.music, musicOn)])?.title == "M")
+        #expect(mode.pickPlaying([(.spotify, spotify), (.music, musicOff)])?.title == "M")   // paused Music stays the target
+        #expect(mode.lastPlayingPlayer == .music)
     }
 
     @Test func musicArtworkIsFetchedOncePerTrack() async {

@@ -58,6 +58,7 @@ struct MediaMode: View {
                     transport.padding(.top, 2)
                     options.padding(.top, 2)
                     volumeSlider.padding(.top, 6)
+                    automationNote.padding(.top, 8)
                     Spacer(minLength: 0)
                 }
                 .frame(maxWidth: 440)
@@ -81,6 +82,9 @@ struct MediaMode: View {
                 Spacer(minLength: 8)
                 options
                     .padding(.horizontal, 22)
+                automationNote
+                    .padding(.horizontal, 30)
+                    .padding(.bottom, 4)
                 sliders
                     .padding(.horizontal, 30)
                     .padding(.top, 8)
@@ -254,6 +258,25 @@ struct MediaMode: View {
                 }
             }
             .frame(maxWidth: 360)
+        }
+    }
+
+    // MARK: Automation
+
+    /// The Mac reports Spotify or Music control refused. Only song details depend on it, so this
+    /// stays a small note (the full card shows instead when nothing is playing).
+    @ViewBuilder private var automationNote: some View {
+        if session.macStatus?.automationMedia == .denied, state.notice?.kind != MediaNotice.automationDenied {
+            Label {
+                Text("Song details from Spotify or Music need permission on your Mac: System Settings > Privacy & Security > Automation > Glasspad.")
+                    .fixedSize(horizontal: false, vertical: true)
+            } icon: {
+                Image(systemName: "hand.raised")
+            }
+            .font(.caption)
+            .foregroundStyle(palette.inkSoftColor)
+            .frame(maxWidth: 360, alignment: .leading)
+            .accessibilityElement(children: .combine)
         }
     }
 

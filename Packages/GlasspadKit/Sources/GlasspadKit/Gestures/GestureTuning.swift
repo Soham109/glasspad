@@ -160,6 +160,11 @@ public enum GestureTuning {
     /// With fingers down and no frame for this long, everything is cancelled and buttons released.
     /// The client resends the last snapshot every 20 ms while fingers are down.
     public static let staleTouchTimeout: TimeInterval = 0.5
+    /// While the left button is held (a drag, a force-click hold, a three-finger drag), a silent
+    /// link freezes the drag instead: the button stays down and nothing moves until the same
+    /// fingers' frames return. Only a real lift, a disconnect, or this much silence releases it.
+    /// Kept under the server's 6 s silence close so the recognizer never outlives the session.
+    public static let staleDragTimeout: TimeInterval = 5
     /// A frame clock that jumps back more than this is treated as a new phone clock.
     public static let clockJumpTolerance: TimeInterval = 1.0
     /// A sequence number this far behind the last one is a sender restart, not a late packet.

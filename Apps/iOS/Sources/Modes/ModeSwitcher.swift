@@ -155,6 +155,10 @@ struct ModeSwitcher: View {
         let modes = AppMode.visible
         let columns = modes.count <= 5 ? max(1, modes.count) : 4
         return VStack(spacing: 6) {
+            if session.macNeedsAccessibility {
+                MacPermissionBanner(compact: true)
+                    .padding(.bottom, 4)
+            }
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: columns), spacing: 6) {
                 ForEach(modes) { mode in
                     let current = mode == router.mode

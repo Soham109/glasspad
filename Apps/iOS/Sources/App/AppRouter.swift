@@ -13,6 +13,8 @@ final class AppRouter {
     private(set) var mode: AppMode
     var showSettings = false
     var showPairing = false
+    /// The first-run checklist (also from Settings).
+    var showSetup = false
     /// Clipboard as a small tool sheet (when it is not a mode of its own).
     var showClipboard = false
     /// Present, full screen, opened as a tool (when it is not a mode of its own).
@@ -45,6 +47,7 @@ final class AppRouter {
         let newMode = requested.shown
         showSettings = false
         showPairing = false
+        showSetup = false
         if mode != newMode {
             mode = newMode
             PhoneSettings.shared.lastMode = newMode
@@ -124,7 +127,7 @@ final class AppRouter {
     }
 
     private func checkIdle() {
-        guard dims, !showSettings, !showPairing, !showClipboard else { return }
+        guard dims, !showSettings, !showPairing, !showClipboard, !showSetup else { return }
         let idle = ProcessInfo.processInfo.systemUptime - lastActivity
         let delay = PhoneSettings.shared.dimDelay
         if !isDimmed, delay > 0, idle >= delay { isDimmed = true }
@@ -139,7 +142,7 @@ enum ScreenAwake {
     static func update() {
         let router = AppRouter.shared
         let wanted = sceneActive && PhoneSettings.shared.hasOnboarded && PhoneSettings.shared.keepScreenAwake && router.dims
-            && !router.showSettings && !router.showPairing && !router.showClipboard
+            && !router.showSettings && !router.showPairing && !router.showClipboard && !router.showSetup
         if UIApplication.shared.isIdleTimerDisabled != wanted {
             UIApplication.shared.isIdleTimerDisabled = wanted
         }

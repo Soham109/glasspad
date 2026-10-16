@@ -14,8 +14,12 @@ public final class GlasspadController: ObservableObject {
     @Published public private(set) var capabilities: SynthCapabilities
     @Published public private(set) var settings: TrackpadSettings
     @Published public private(set) var accessibilityTrusted = false
-    /// The pairing link shown as a QR code, while pairing is open.
+    /// The pairing link shown as a QR code, while pairing is open (the same as `pairingPhase.url`).
     @Published public private(set) var pairingURL: URL?
+    /// Waiting for a scan, paired, expired or failed.
+    @Published public private(set) var pairingPhase: PairingPhase = .idle
+    /// Spotify and Music control (optional).
+    @Published public private(set) var automation: AutomationState = .notDetermined
     @Published public private(set) var lastError: String?
 
     public let pairing: PairingStore
@@ -28,9 +32,16 @@ public final class GlasspadController: ObservableObject {
     private let modes: ModeRouter
     private var statusTimer: Timer?
     private var bridge: LinkBridge?
+    private var flow = PairingFlow()
+    private var reporter = MacStatusReporter()
+    private var deniedWatch: AnyCancellable?
+    private var axMonitor: AccessibilityMonitor
 
-    public init(pairing: PairingStore = PairingStore(), macName: String = Host.current().localizedName ?? "Mac") {
+    /// `accessibilityCheck` reads the Accessibility permission (tests inject their own).
+    public init(pairing: PairingStore = PairingStore(), macName: String = Host.current().localizedName ?? "Mac",
+                accessibilityCheck: @escaping @Sendable () -> Bool = { AXIsProcessTrusted() }) {
         self.pairing = pairing
+        self.axMonitor = AccessibilityMonitor(check: accessibilityCheck)
         self.macName = macName
         let caps = SynthCapabilities.selfCheck()
         let poster = LiveEventPoster()
@@ -50,6 +61,7 @@ public final class GlasspadController: ObservableObject {
             store.storedKey(for: phoneID)
         }
         self.phones = pairing.phones
+        self.accessibilityTrusted = axMonitor.trusted
     }
 
     public func start() {
@@ -74,6 +86,11 @@ public final class GlasspadController: ObservableObject {
             lastError = "Could not start listening: \(error.localizedDescription)"
         }
         refreshAccessibility()
+        deniedWatch = MediaPermissions.shared.$deniedApps
+            .removeDuplicates()
+            .sink { [weak self] _ in
+                MainActor.assumeIsolated { self?.refreshAutomation() }
+            }
         let t = Timer(timeInterval: 1, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated { self?.refreshStatus() }
         }
@@ -91,16 +108,29 @@ public final class GlasspadController: ObservableObject {
 
     // MARK: Pairing
 
+    /// Shows a fresh code (also "Show a New Code" after one expired or failed).
     public func beginPairing() {
         let payload = pairing.beginPairing(macName: macName)
         server.pendingPairKey = payload.pairKey
-        pairingURL = payload.url
+        flow.begin(url: payload.url, now: Date())
+        publishPairing()
     }
 
+    /// Cancel a code on screen, or dismiss the result of the last attempt.
     public func cancelPairing() {
+        disarmPairingKey()
+        flow.reset()
+        publishPairing()
+    }
+
+    private func disarmPairingKey() {
         pairing.cancelPairing()
         server.pendingPairKey = nil
-        pairingURL = nil
+    }
+
+    private func publishPairing() {
+        if pairingPhase != flow.phase { pairingPhase = flow.phase }
+        if pairingURL != flow.phase.url { pairingURL = flow.phase.url }
     }
 
     public func revoke(_ phone: StoredPhone) {
@@ -112,23 +142,57 @@ public final class GlasspadController: ObservableObject {
     private func paired(_ phone: PairedPhone) {
         do {
             try pairing.save(phoneID: phone.phoneID, phoneName: phone.phoneName, pairKey: phone.pairKey)
+            flow.completed(phoneName: phone.phoneName)
         } catch {
-            lastError = "Could not save the pairing to the Keychain"
+            flow.failed("This Mac could not save the pairing to the Keychain.")
         }
-        pairingURL = nil
+        disarmPairingKey()
+        publishPairing()
         phones = pairing.phones
     }
 
     // MARK: Permissions
 
+    /// Re-reads Accessibility both ways (it can be turned off while Glasspad runs) and tells
+    /// the phone when it changed.
     public func refreshAccessibility() {
-        accessibilityTrusted = AXIsProcessTrusted()
+        if let changed = axMonitor.poll() { accessibilityTrusted = changed }
+        reportStatus()
     }
 
     /// Shows the system prompt that adds Glasspad to the Accessibility list.
     public func requestAccessibility() {
         let key = "AXTrustedCheckOptionPrompt" as CFString   // kAXTrustedCheckOptionPrompt
-        accessibilityTrusted = AXIsProcessTrustedWithOptions([key: true] as CFDictionary)
+        let trusted = AXIsProcessTrustedWithOptions([key: true] as CFDictionary)
+        axMonitor.set(trusted)
+        accessibilityTrusted = trusted
+        reportStatus()
+    }
+
+    /// Reads Spotify and Music control without asking.
+    public func refreshAutomation() {
+        let state = AutomationProbe.current(deniedApps: MediaPermissions.shared.deniedApps)
+        if state != automation { automation = state }
+        reportStatus()
+    }
+
+    /// Asks macOS for Spotify and Music control (only a running player can be asked).
+    /// Returns false when neither was running, so nothing was asked.
+    @discardableResult
+    public func requestAutomation() async -> Bool {
+        let result = await AutomationProbe.request()
+        refreshAutomation()
+        return result.askedAny
+    }
+
+    /// What the phone is told about this Mac (`ControlMessage.macStatus`).
+    public var macStatus: MacStatus {
+        MacStatus(accessibilityTrusted: accessibilityTrusted, automationMedia: automation, macName: macName)
+    }
+
+    private func reportStatus(newSession: Bool = false) {
+        guard newSession || server.connectedPhone != nil else { return }
+        if let status = reporter.update(macStatus, newSession: newSession) { server.send(.macStatus(status)) }
     }
 
     public nonisolated static let accessibilitySettingsURL =
@@ -144,6 +208,8 @@ public final class GlasspadController: ObservableObject {
         modes.sessionEnded()
         connectedPhoneName = server.connectedPhone?.phoneName
         server.send(.settings(settings))
+        refreshAutomation()
+        reportStatus(newSession: true)
         macros.sessionStarted()
     }
 
@@ -154,6 +220,7 @@ public final class GlasspadController: ObservableObject {
             connectedPhoneName = server.connectedPhone?.phoneName
         } else {
             connectedPhoneName = nil
+            reporter.sessionEnded()
             if wasConnected {
                 pipeline.cancelAll()
                 modes.sessionEnded()
@@ -206,7 +273,12 @@ public final class GlasspadController: ObservableObject {
 
     private func refreshStatus() {
         stats = server.stats
-        if !accessibilityTrusted { refreshAccessibility() }
+        // Every second, so turning Accessibility off in System Settings reaches the phone too.
+        refreshAccessibility()
+        if flow.tick(now: Date()) {
+            disarmPairingKey()
+            publishPairing()
+        }
     }
 }
 

@@ -55,6 +55,123 @@ func tempURL(_ name: String) -> URL {
     }
 }
 
+/// French AZERTY's letter and digit row as UCKeyTranslate reports it (key codes are US positions).
+let azerty = KeyLayout(
+    plain: ["a": 12, "z": 13, "e": 14, "r": 15, "q": 0, "s": 1, "d": 2, "w": 6, "x": 7, "c": 8, "v": 9,
+            "m": 41, ",": 46, "&": 18, "é": 19, "\"": 20, "'": 21],
+    shifted: ["A": 12, "Q": 0, "1": 18, "2": 19, "3": 20, "4": 21, "?": 46])
+
+@Suite struct KeyboardLayoutTests {
+    /// Reliability C1: on AZERTY the US "a" position types "q", so Select All became Cmd+Q
+    /// (quit) and Undo became Cmd+W (close the window).
+    @Test func azertyShortcutsPressTheKeyThatTypesTheLetter() throws {
+        let selectAll = try #require(KeysMode.keyStroke(for: Keystroke(key: .character("a"), modifiers: [.command]), layout: azerty))
+        #expect(selectAll.keyCode == 12 && selectAll.command && !selectAll.shift)
+        let undo = try #require(KeysMode.keyStroke(for: Keystroke(key: .character("z"), modifiers: [.command]), layout: azerty))
+        #expect(undo.keyCode == 13)
+        let close = try #require(KeysMode.keyStroke(for: Keystroke(key: .character("w"), modifiers: [.command]), layout: azerty))
+        #expect(close.keyCode == 6)
+        let one = try #require(KeysMode.keyStroke(for: Keystroke(key: .character("1")), layout: azerty))
+        #expect(one.keyCode == 18 && one.shift)      // digits are shifted on AZERTY
+        let copy = try #require(KeysMode.keyStroke(for: Keystroke(key: .character("c"), modifiers: [.command]), layout: azerty))
+        #expect(copy.keyCode == 8)
+        // Named keys never move.
+        #expect(KeysMode.keyStroke(for: Keystroke(key: .special(.left)), layout: azerty)?.keyCode == 123)
+        #expect(KeysMode.keyStroke(for: Keystroke(key: .special(.f5)), layout: azerty)?.keyCode == 96)
+    }
+
+    @Test func keysModePostsTheActiveLayoutsKey() {
+        let poster = CapturingEventPoster()
+        KeysMode(poster: poster, source: nil, layout: { azerty }).press(Keystroke(key: .character("a"), modifiers: [.command]))
+        let down = poster.events.first { $0.type == .keyDown }
+        #expect(down?.getIntegerValueField(.keyboardEventKeycode) == 12)
+        #expect(down?.flags.contains(.maskCommand) == true)
+    }
+
+    /// A layout without Latin letters (Russian, Greek): macOS matches Command shortcuts by US
+    /// positions there, but plain typing must not press a US position (it would type Cyrillic).
+    @Test func nonLatinLayoutUsesUSPositionsOnlyForShortcuts() throws {
+        let russian = KeyLayout(plain: ["ф": 0, "с": 8, "й": 12], shifted: ["Ф": 0])
+        let copy = try #require(KeysMode.keyStroke(for: Keystroke(key: .character("c"), modifiers: [.command]), layout: russian))
+        #expect(copy.keyCode == 8)
+        #expect(KeysMode.keyStroke(for: Keystroke(key: .character("c")), layout: russian) == nil)
+        let poster = CapturingEventPoster()
+        KeysMode(poster: poster, source: nil, layout: { russian }).press(Keystroke(key: .character("c")))
+        #expect(KeyboardSynth.unicodeString(of: poster.events[0]) == "c")
+    }
+}
+
+/// A pretend set of input sources: records switches, never touches the real ones.
+final class FakeInputSources: InputSources {
+    var selected: (id: String, composes: Bool)
+    var log: [String] = []
+    init(_ id: String, composes: Bool) { selected = (id, composes) }
+    func current() -> (id: String, composes: Bool)? { selected }
+    func selectASCIICapable() -> Bool {
+        log.append("select ascii")
+        selected = ("com.apple.keylayout.ABC", false)
+        return true
+    }
+    func select(id: String) -> Bool {
+        log.append("select \(id)")
+        selected = (id, true)
+        return true
+    }
+}
+
+/// Posts nothing; notes each key event in the shared log so ordering can be checked.
+final class LoggingPoster: EventPoster {
+    let sources: FakeInputSources
+    init(_ sources: FakeInputSources) { self.sources = sources }
+    func post(_ event: CGEvent, tap: CGEventTapLocation, after delay: TimeInterval) {
+        if event.type == .keyDown { sources.log.append("key \(KeyboardSynth.unicodeString(of: event))") }
+    }
+    func perform(_ action: SystemAction) {}
+}
+
+@Suite struct InputMethodTests {
+    let kana = "com.apple.inputmethod.Kotoeri.RomajiTyping.Japanese"
+
+    /// Reliability M2: with Japanese or Pinyin selected, typed text went into an uncommitted
+    /// composition. Typing now goes through the ASCII layout and the input method comes back after.
+    @Test func typingWithAnInputMethodSwitchesToASCIIThenRestores() {
+        let sources = FakeInputSources(kana, composes: true)
+        var pending: [() -> Void] = []
+        let guardian = InputMethodGuard(sources: sources, restoreDelay: 0.5, after: { _, work in pending.append(work) })
+        let keys = KeysMode(poster: LoggingPoster(sources), source: nil, inputMethods: guardian)
+        keys.type("konnichiwa")
+        keys.type(" sekai")
+        #expect(sources.log == ["select ascii", "key konnichiwa", "key  sekai"])
+        #expect(guardian.switchedFrom == kana)
+        pending.first?()                     // the first burst's timer: superseded, does nothing
+        #expect(sources.log.last == "key  sekai")
+        pending.last?()                      // quiet for restoreDelay: put the input method back
+        #expect(sources.log.last == "select \(kana)")
+        #expect(guardian.switchedFrom == nil)
+        #expect(sources.selected.id == kana)
+    }
+
+    @Test func plainLayoutIsLeftAlone() {
+        let sources = FakeInputSources("com.apple.keylayout.French", composes: false)
+        let guardian = InputMethodGuard(sources: sources, after: { _, _ in })
+        KeysMode(poster: LoggingPoster(sources), source: nil, inputMethods: guardian).type("bonjour")
+        #expect(sources.log == ["key bonjour"])
+    }
+
+    @Test func bareLetterKeystrokeIsGuardedButShortcutsAreNot() {
+        let sources = FakeInputSources(kana, composes: true)
+        let guardian = InputMethodGuard(sources: sources, after: { _, _ in })
+        let keys = KeysMode(poster: LoggingPoster(sources), source: nil, inputMethods: guardian)
+        keys.press(Keystroke(key: .character("c"), modifiers: [.command]))
+        #expect(sources.log.allSatisfy { !$0.hasPrefix("select") })
+        let before = sources.log.count
+        keys.press(Keystroke(key: .character("k")))
+        #expect(sources.log.dropFirst(before).first == "select ascii")
+        guardian.restore()                   // session end puts it back at once
+        #expect(sources.log.last == "select \(kana)")
+    }
+}
+
 @Suite struct PresentTests {
     @Test func laserPointConvertsTopLeftToAppKit() {
         let screen = CGRect(x: 0, y: 0, width: 1000, height: 500)
@@ -126,9 +243,29 @@ func tempURL(_ name: String) -> URL {
         ticker.cancel()
         #expect(mainTurns > 5)
         guard case .imagePNG(let d) = result else { Issue.record("expected image"); return }
-        #expect(d.count <= ClipboardContent.maxImageBytes)
+        // Reliability M1: small enough to arrive inside the phone's silence timeout on slow Wi-Fi.
+        #expect(d.count <= ClipboardLimits.maxImageBytes)
         let out = try #require(NSBitmapImageRep(data: d))
         #expect(out.pixelsWide < side && out.pixelsWide > 0)
+    }
+
+    /// Reliability M1: huge text had no cap; it is refused whole with a reason, never cut.
+    @Test func hugeTextIsRefusedWithAReason() async {
+        let pb = NSPasteboard(name: NSPasteboard.Name("glasspad-test-\(UUID().uuidString)"))
+        defer { pb.releaseGlobally() }
+        let clip = ClipboardMode(pasteboard: pb)
+        let huge = String(repeating: "x", count: ClipboardLimits.maxTextBytes + 1)
+        clip.push(.text(huge))
+        #expect(await clip.pullResult() == .tooLarge(bytes: huge.utf8.count))
+        #expect(await clip.pull() == nil)
+        #expect(clip.lastRefusal?.contains("MB") == true)
+        let fits = String(repeating: "y", count: ClipboardLimits.maxTextBytes)
+        clip.push(.text(fits))
+        #expect(await clip.pull() == .text(fits))
+        #expect(clip.lastRefusal == nil)
+        // Counted in UTF-8 bytes: multi-byte text hits the cap with fewer characters.
+        #expect(ClipboardMode.checkText(String(repeating: "é", count: ClipboardLimits.maxTextBytes / 2 + 1))
+                == .tooLarge(bytes: ClipboardLimits.maxTextBytes + 2))
     }
 }
 

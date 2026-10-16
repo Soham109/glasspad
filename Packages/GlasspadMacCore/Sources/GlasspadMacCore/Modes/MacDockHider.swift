@@ -9,8 +9,10 @@ import GlasspadKit
 /// the Dock never slides in, and restart the Dock. Turning it off writes the saved values back
 /// exactly (deleting keys that were not set) and restarts the Dock again.
 ///
-/// The saved values are written to Glasspad's own preferences before the Dock is touched, so a
-/// crash or force quit is undone on the next launch (`recoverAfterCrash`). Restored on: switch
+/// The saved values are written to Glasspad's own preferences, and flushed to disk, before the
+/// Dock is touched, so a crash, force quit or power loss is undone on the next launch
+/// (`recoverAfterCrash`). Without the flush, cfprefsd could still hold them in memory when the
+/// Mac went down, leaving the 1000 s delay in place with no record of what to restore. Restored on: switch
 /// off, phone disconnect (for the "while connected" option), app quit, and next launch.
 @MainActor
 public final class MacDockHider: ObservableObject {
@@ -29,6 +31,8 @@ public final class MacDockHider: ObservableObject {
     private let dock: DefaultsStore
     private let own: UserDefaults
     private let runner: ProcessRunning
+    /// Writes Glasspad's own preferences to disk now.
+    private let flushOwn: () -> Void
 
     /// The manual switch. Not remembered across launches: a fresh start always shows the Dock.
     public private(set) var manual = false
@@ -40,10 +44,11 @@ public final class MacDockHider: ObservableObject {
     @Published public private(set) var published = MacDockState(hidden: false, hideWhileConnected: false, isHiddenNow: false)
 
     public init(dock: DefaultsStore = CFPreferencesStore(), own: UserDefaults = .standard,
-                runner: ProcessRunning = LiveProcessRunner()) {
+                runner: ProcessRunning = LiveProcessRunner(), flushOwn: (() -> Void)? = nil) {
         self.dock = dock
         self.own = own
         self.runner = runner
+        self.flushOwn = flushOwn ?? { _ = own.synchronize() }
         hideWhileConnected = own.bool(forKey: Self.hideWhileConnectedKey)
         published = state
     }
@@ -117,6 +122,7 @@ public final class MacDockHider: ObservableObject {
         // Remember "what was there" first, including the absent keys (an empty dictionary is
         // still a saved state), so a crash after this line is still undone.
         own.set(saved, forKey: Self.savedKey)
+        flushOwn()
         dock.set(true, forKey: "autohide", domain: Self.domain)
         dock.set(Self.hiddenDelay, forKey: "autohide-delay", domain: Self.domain)
         dock.set(0.0, forKey: "autohide-time-modifier", domain: Self.domain)
@@ -132,6 +138,7 @@ public final class MacDockHider: ObservableObject {
         }
         dock.synchronize(domain: Self.domain)
         own.removeObject(forKey: Self.savedKey)
+        flushOwn()
         restartDock()
         GPLog.log("mac dock: restored \(saved)")
     }

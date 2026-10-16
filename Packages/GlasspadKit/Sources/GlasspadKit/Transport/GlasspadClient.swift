@@ -30,7 +30,22 @@ public final class GlasspadClient: @unchecked Sendable {
     /// Keep-awake heartbeats: set true while the trackpad screen is visible.
     public var heartbeatsEnabled: Bool {
         get { heartbeatsBox.get() }
-        set { heartbeatsBox.set(newValue) }
+        set {
+            heartbeatsBox.set(newValue)
+            if newValue { queue.async { [self] in speedUpKeepalive() } }
+        }
+    }
+    /// Heartbeats stop after this long without a touch. Default
+    /// `GlasspadService.heartbeatIdleTimeout`; the phone cuts it in Low Power Mode.
+    public var heartbeatIdleTimeout: TimeInterval {
+        get { idleBox.get() }
+        set { idleBox.set(max(1, newValue)) }
+    }
+    /// While true the client pings the Mac about once a second and fills `roundTrip` (for a
+    /// diagnostics screen). Off by default: it is extra traffic nothing else needs.
+    public var measuresRoundTrip: Bool {
+        get { measureBox.get() }
+        set { measureBox.set(newValue) }
     }
     /// Datagrams sent (touch frames, resends and heartbeats).
     public var datagramsSent: Int { sentBox.get() }
@@ -42,6 +57,20 @@ public final class GlasspadClient: @unchecked Sendable {
         get { wakeHandler.get() }
         set { wakeHandler.set(newValue) }
     }
+    /// Round trips this phone measured in the current session: it pings the Mac once a
+    /// second and the Mac answers. Empty until connected.
+    public var roundTrip: RoundTripStats { rttBox.get() }
+    /// How the current session reaches the Mac; nil while not connected.
+    public var path: LinkPath? { pathBox.get() }
+    /// Why the client cannot reach the Mac right now, when it can tell (nil when connected or
+    /// when nothing is known). `state` keeps saying `searching`/`connecting` while it retries in
+    /// the background; this says why, so the phone can explain instead of spinning forever.
+    public var issue: LinkIssue? { issueBox.get() }
+    /// Called on the delegate queue whenever `issue` changes (including back to nil).
+    public var onIssueChange: (@Sendable (LinkIssue?) -> Void)? {
+        get { issueHandler.get() }
+        set { issueHandler.set(newValue) }
+    }
 
     private let queue = DispatchQueue(label: "glasspad.client", qos: .userInteractive)
     private let delegateQueue: DispatchQueue
@@ -51,6 +80,17 @@ public final class GlasspadClient: @unchecked Sendable {
     private let sentBox = Locked(0)
     private let wakeBox = Locked<WakeTarget?>(nil)
     private let wakeHandler = Locked<(@Sendable (WakeTarget) -> Void)?>(nil)
+    private let rttBox = Locked(RoundTripStats())
+    private let idleBox = Locked(GlasspadService.heartbeatIdleTimeout)
+    private let measureBox = Locked(false)
+    /// True while the keepalive timer runs at the heartbeat rate (50 Hz); otherwise it ticks once
+    /// a second, for the silence check only.
+    private var keepaliveFast = false
+    private let pathBox = Locked<LinkPath?>(nil)
+    private let issueBox = Locked<LinkIssue?>(nil)
+    private let issueHandler = Locked<(@Sendable (LinkIssue?) -> Void)?>(nil)
+    /// Connections that failed before TCP even opened, in a row (queue-confined).
+    private var connectFailures = ConnectFailureTracker()
 
     private enum Target { case bonjour, direct(host: String, port: UInt16) }
     private enum Phase { case hello(nonce: Data), confirm, connected }
@@ -89,6 +129,10 @@ public final class GlasspadClient: @unchecked Sendable {
     private var lastGateways = ""
     /// True once infrastructure browsing found nothing and AWDL is allowed for this attempt.
     private var usePeerToPeer = false
+    /// The phone's own pings, for `roundTrip`.
+    private var pingID: UInt32 = 0
+    private var pingSent: [UInt32: TimeInterval] = [:]
+    private var lastPing: TimeInterval = 0
     /// Internal so tests can shorten it.
     var silenceTimeout: TimeInterval = GlasspadService.clientSilenceTimeout
 
@@ -167,6 +211,7 @@ public final class GlasspadClient: @unchecked Sendable {
             }
             lastSnapshot = active.isEmpty ? nil : TouchFrame(seq: 0, timestamp: f.timestamp, touches: active, surface: f.surface)
             sendTouches(f)
+            speedUpKeepalive()
         }
     }
 
@@ -184,6 +229,8 @@ public final class GlasspadClient: @unchecked Sendable {
         target = t
         attempt = 0
         usePeerToPeer = false
+        connectFailures = ConnectFailureTracker()
+        setIssue(nil)
         teardown()
         startPathMonitor()
         open()
@@ -195,6 +242,10 @@ public final class GlasspadClient: @unchecked Sendable {
         teardown()
         attempt = 0
         usePeerToPeer = false
+        // A new network (or the app back in front) deserves a fresh look: forget earlier
+        // failures, but keep a Local Network denial until the browser says otherwise.
+        connectFailures = ConnectFailureTracker()
+        if issue == .networkBlocksDevices { setIssue(nil) }
         open()
     }
 
@@ -296,8 +347,20 @@ public final class GlasspadClient: @unchecked Sendable {
         }
         b.stateUpdateHandler = { [weak self] st in
             guard let self, gen == self.generation else { return }
-            if case .failed(let e) = st { self.lost(gen, reason: "browse failed: \(e)") }
             GPLog.log("browser state: \(st)")
+            switch st {
+            case .failed(let e):
+                if LinkIssue.isLocalNetworkDenied(e) { self.setIssue(.localNetworkDenied) }
+                self.lost(gen, reason: "browse failed: \(e)")
+            case .waiting(let e):
+                // A denied Local Network permission parks the browser here for good. It keeps
+                // waiting (it recovers by itself once the user allows access), but say why.
+                if LinkIssue.isLocalNetworkDenied(e) { self.setIssue(.localNetworkDenied) }
+            case .ready:
+                if self.issue == .localNetworkDenied { self.setIssue(nil) }
+            default:
+                break
+            }
         }
         browser = b
         b.start(queue: queue)
@@ -308,9 +371,19 @@ public final class GlasspadClient: @unchecked Sendable {
         setState(.connecting)
         let gen = generation
         let ch = ControlChannel(connection: NWConnection(to: endpoint, using: GlasspadService.tcpParameters(peerToPeer: usePeerToPeer)), queue: queue)
-        ch.onReady = { [weak self] in self?.sendHello() }
+        var opened = false
+        ch.onReady = { [weak self] in
+            opened = true
+            self?.sendHello()
+        }
         ch.onFrame = { [weak self] data in self?.handleFrame(data) }
-        ch.onClosed = { [weak self] reason in self?.lost(gen, reason: reason ?? "closed") }
+        ch.onClosed = { [weak self, weak ch] reason in
+            guard let self else { return }
+            if !opened, gen == self.generation {
+                self.connectFailed(reason: reason, path: ch?.connection.currentPath)
+            }
+            self.lost(gen, reason: reason ?? "closed")
+        }
         channel = ch
         ch.start()
         queue.asyncAfter(deadline: .now() + GlasspadService.handshakeTimeout) { [weak self] in
@@ -357,23 +430,36 @@ public final class GlasspadClient: @unchecked Sendable {
             }
             phase = .connected
             attempt = 0
+            connectFailures = ConnectFailureTracker()
+            setIssue(nil)
+            rttBox.set(RoundTripStats())
+            pingSent = [:]
+            lastPing = uptime()
+            if let conn = channel?.connection {
+                pathBox.set(LinkPath.classify(interface: conn.currentPath?.availableInterfaces.first,
+                                              peerToPeer: usePeerToPeer, endpoint: "\(conn.endpoint)"))
+            }
             openUDP()
             lastTouchActivity = uptime()
             startKeepalive()
             setState(.connected(rttMs: nil))
         case .connected?:
             guard crypto != nil, let plain = try? crypto!.openTCP(data) else { return }
-            guard let msg = try? ControlMessage.from(jsonData: plain) else {
-                if let wake = try? JSONDecoder().decode(WakeAnnouncement.self, from: plain), wake.t == "wake" {
+            guard let msg = try? ControlMessage.from(jsonData: plain) else { return }
+            switch msg {
+            case .unknown(let type):
+                // The transport's own wake details, or a newer Mac's message: never delivered.
+                if type == "wake", let wake = try? JSONDecoder().decode(WakeAnnouncement.self, from: plain) {
                     wakeBox.set(wake.target)
                     let handler = wakeHandler.get()
                     delegateQueue.async { handler?(wake.target) }
                 }
-                return
-            }
-            switch msg {
             case .ping(let id): sendControl(.pong(id: id))
-            case .pong: break
+            case .pong(let id):
+                if let sent = pingSent.removeValue(forKey: id) {
+                    let ms = (uptime() - sent) * 1000
+                    rttBox.mutate { $0.add(ms) }
+                }
             case .bye(let reason) where reason == GlasspadService.replacedReason:
                 // Another connection took over the Mac. Retrying would steal it back, and the
                 // two phones would take turns forever.
@@ -428,6 +514,7 @@ public final class GlasspadClient: @unchecked Sendable {
         browser = nil
         keepalive?.cancel()
         keepalive = nil
+        keepaliveFast = false
         udp?.cancel()
         udp = nil
         let ch = channel
@@ -435,6 +522,8 @@ public final class GlasspadClient: @unchecked Sendable {
         ch?.close(nil)
         phase = nil
         crypto = nil
+        pathBox.set(nil)
+        pingSent = [:]
         lastSnapshot = nil
         liftResends = 0
     }
@@ -473,10 +562,29 @@ public final class GlasspadClient: @unchecked Sendable {
     }
 
     private func startKeepalive() {
+        scheduleKeepalive(fast: needsFastTick(uptime()))
+    }
+
+    /// The 50 Hz tick is needed only while a finger is down (snapshot resends), lift resends are
+    /// pending, or heartbeats are on and the phone was touched recently. Otherwise a 1 s tick
+    /// keeps the silence check and pings going without waking the CPU 50 times a second.
+    private func needsFastTick(_ now: TimeInterval) -> Bool {
+        if lastSnapshot != nil && now - lastAppFrame < Self.maxResendAge { return true }
+        if liftResends > 0 { return true }
+        return heartbeatsEnabled && now - lastTouchActivity < heartbeatIdleTimeout
+    }
+
+    private func speedUpKeepalive() {
+        guard case .connected = phase, !keepaliveFast, needsFastTick(uptime()) else { return }
+        scheduleKeepalive(fast: true)
+    }
+
+    private func scheduleKeepalive(fast: Bool) {
         keepalive?.cancel()
-        let t = DispatchSource.makeTimerSource(flags: .strict, queue: queue)
-        let i = GlasspadService.heartbeatInterval
-        t.schedule(deadline: .now() + i, repeating: i, leeway: .milliseconds(2))
+        keepaliveFast = fast
+        let t = DispatchSource.makeTimerSource(flags: fast ? .strict : [], queue: queue)
+        let i = fast ? GlasspadService.heartbeatInterval : min(1, silenceTimeout / 3)
+        t.schedule(deadline: .now() + i, repeating: i, leeway: fast ? .milliseconds(2) : .milliseconds(100))
         t.setEventHandler { [weak self] in self?.keepaliveTick() }
         t.resume()
         keepalive = t
@@ -492,6 +600,11 @@ public final class GlasspadClient: @unchecked Sendable {
             scheduleReconnect(after: 0)
             return
         }
+        if measuresRoundTrip, now - lastPing >= GlasspadService.pingInterval { sendPing(now) }
+        defer {
+            // Drop to the slow tick once nothing needs the fast one.
+            if case .connected = phase, keepaliveFast, !needsFastTick(now) { scheduleKeepalive(fast: false) }
+        }
         guard now - lastSend >= GlasspadService.heartbeatInterval * 0.9 else { return }
         if var snap = lastSnapshot, now - lastAppFrame < Self.maxResendAge {
             snap.timestamp = now
@@ -500,10 +613,48 @@ public final class GlasspadClient: @unchecked Sendable {
         } else if liftResends > 0 {
             liftResends -= 1
             sendTouches(TouchFrame(seq: 0, timestamp: liftTime, touches: [], surface: liftSurface))
-        } else if heartbeatsEnabled, now - lastTouchActivity < GlasspadService.heartbeatIdleTimeout {
+        } else if heartbeatsEnabled, now - lastTouchActivity < heartbeatIdleTimeout {
             seq &+= 1
             sendDatagram(TouchCodec.heartbeat(seq: seq, timestamp: now))
         }
+    }
+
+    /// One ping on the control channel; the Mac's `pong` gives a round-trip sample. Pings the
+    /// Mac never answers (old ones, lost ones) are dropped after a few seconds.
+    private func sendPing(_ now: TimeInterval) {
+        lastPing = now
+        pingID &+= 1
+        pingSent = pingSent.filter { now - $0.value < 5 }
+        pingSent[pingID] = now
+        sendControl(.ping(id: pingID))
+    }
+
+    /// TCP never opened. After a Bonjour hit that usually means the network keeps devices apart
+    /// (guest Wi-Fi with client isolation, a VPN, a firewall): allow peer-to-peer Wi-Fi for the
+    /// next attempts, and after a few more say why. Retrying goes on in the background.
+    private func connectFailed(reason: String?, path: NWPath?) {
+        if path?.unsatisfiedReason == .localNetworkDenied || LinkIssue.isLocalNetworkDenied(reason: reason) {
+            setIssue(.localNetworkDenied)
+            return
+        }
+        let advice = connectFailures.record()
+        if advice.tryPeerToPeer, case .bonjour? = target, !usePeerToPeer {
+            GPLog.log("tcp: \(connectFailures.failures) failed connects after finding the Mac, allowing peer-to-peer Wi-Fi")
+            usePeerToPeer = true
+        }
+        if advice.report, issue == nil { setIssue(.networkBlocksDevices) }
+    }
+
+    private func setIssue(_ new: LinkIssue?) {
+        let changed = issueBox.mutate { cur -> Bool in
+            guard cur != new else { return false }
+            cur = new
+            return true
+        }
+        guard changed else { return }
+        GPLog.log("issue -> \(new.map { "\($0)" } ?? "none")")
+        let handler = issueHandler.get()
+        delegateQueue.async { handler?(new) }
     }
 
     private func setState(_ new: LinkState) {
@@ -515,5 +666,57 @@ public final class GlasspadClient: @unchecked Sendable {
         guard changed else { return }
         GPLog.log("state -> \(new)")
         delegateQueue.async { [weak self] in self?.delegate?.link(didChangeState: new) }
+    }
+}
+
+/// Why the phone cannot reach its Mac, when the client can tell. Shown next to `LinkState`.
+public enum LinkIssue: Equatable, Sendable {
+    /// iOS Local Network access is off for Glasspad (the user tapped "Don't Allow", or turned
+    /// it off in Settings > Privacy & Security > Local Network). Nothing on the network is
+    /// visible until it is back on.
+    case localNetworkDenied
+    /// The Mac was found but a connection to it never opened, several times in a row: the
+    /// network keeps devices apart (guest or hotel Wi-Fi, a VPN, or a firewall on the Mac).
+    /// Peer-to-peer Wi-Fi has already been tried.
+    case networkBlocksDevices
+
+    /// A sentence for the phone to show.
+    public var message: String {
+        switch self {
+        case .localNetworkDenied:
+            "Glasspad is not allowed to use your local network. Turn on Local Network for Glasspad in Settings > Privacy & Security > Local Network."
+        case .networkBlocksDevices:
+            "Your Mac was found, but this network does not let devices connect to each other (common on guest, hotel and office Wi-Fi, or with a VPN or firewall on). Glasspad keeps trying."
+        }
+    }
+
+    /// kDNSServiceErr_PolicyDenied (dns_sd.h): what a browse or a Bonjour resolve reports when
+    /// Local Network access is denied.
+    static let dnsPolicyDenied: Int32 = -65570
+
+    static func isLocalNetworkDenied(_ error: NWError) -> Bool {
+        if case .dns(let code) = error { return code == dnsPolicyDenied }
+        return false
+    }
+
+    /// The same, from a closed channel's reason text (it carries the NWError's description).
+    static func isLocalNetworkDenied(reason: String?) -> Bool {
+        guard let reason else { return false }
+        return reason.contains("PolicyDenied") || reason.contains("\(dnsPolicyDenied)")
+    }
+}
+
+/// Counts connects that failed before TCP opened and says what to do next.
+struct ConnectFailureTracker: Equatable {
+    /// After this many failures in a row, allow peer-to-peer Wi-Fi (AWDL).
+    static let peerToPeerAfter = 2
+    /// After this many, tell the user why (`LinkIssue.networkBlocksDevices`).
+    static let reportAfter = 4
+
+    private(set) var failures = 0
+
+    mutating func record() -> (tryPeerToPeer: Bool, report: Bool) {
+        failures += 1
+        return (failures >= Self.peerToPeerAfter, failures >= Self.reportAfter)
     }
 }

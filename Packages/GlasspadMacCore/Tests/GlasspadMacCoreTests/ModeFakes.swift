@@ -8,14 +8,17 @@ final class FakeDefaults: DefaultsStore {
     var values: [String: [String: Any]] = [:]
     var writes = 0
     var syncs = 0
+    /// Every write, sync and (through `FakeDockHider`) own-preferences flush, in order.
+    var log: [String] = []
     func value(forKey key: String, domain: String) -> Any? { values[domain]?[key] }
     func set(_ value: Any?, forKey key: String, domain: String) {
         writes += 1
+        log.append("set \(key)")
         var d = values[domain] ?? [:]
         d[key] = value
         values[domain] = d
     }
-    func synchronize(domain: String) { syncs += 1 }
+    func synchronize(domain: String) { syncs += 1; log.append("sync \(domain)") }
 }
 
 final class FakeRunner: ProcessRunning {
@@ -32,7 +35,11 @@ enum FakeDockHider {
         -> (hider: MacDockHider, dock: FakeDefaults, own: UserDefaults, runner: FakeRunner) {
         let own = UserDefaults(suiteName: suite)!
         let runner = FakeRunner()
-        return (MacDockHider(dock: dock, own: own, runner: runner), dock, own, runner)
+        let hider = MacDockHider(dock: dock, own: own, runner: runner, flushOwn: { [weak dock] in
+            _ = own.synchronize()
+            dock?.log.append("flush own")
+        })
+        return (hider, dock, own, runner)
     }
 }
 

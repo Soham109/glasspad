@@ -351,6 +351,61 @@ func int(_ e: CGEvent, _ f: CGEventField) -> Int64 { e.getIntegerValueField(f) }
         #expect(caps.summary.count == SynthGesture.allCases.count)
     }
 
+    /// Reliability H5: a macOS update that breaks the private events left the user with no
+    /// switch. Each gesture can now be pinned to Native or to its keyboard shortcut.
+    @Test func userPreferencesOverrideTheSelfCheck() {
+        var prefs = GesturePreferences()
+        prefs.set(.keyboardShortcut, for: .spaces)
+        prefs.set(.native, for: .magnify)
+        prefs.set(.keyboardShortcut, for: .rotate)       // no shortcut exists: stays automatic
+        #expect(prefs.preference(for: .rotate) == .automatic)
+        let caps = SynthCapabilities.select(probe: { $0 != .magnify }).applying(prefs)
+        #expect(caps.mode(for: .spaces) == .fallback)
+        #expect(caps.mode(for: .magnify) == .native)      // the user says it works on this Mac
+        #expect(caps.mode(for: .missionControl) == .native)
+        #expect(caps.mode(for: .rotate) == .native)
+        #expect(SynthCapabilities.selfCheck(preferences: prefs).mode(for: .spaces) == .fallback)
+        #expect(GesturePreference.options(for: .rotate) == [.automatic])
+        #expect(GesturePreference.options(for: .spaces) == GesturePreference.allCases)
+    }
+
+    @Test func preferencesAreStoredPerGesture() throws {
+        let suite = "glasspad-tests-\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        #expect(GesturePreferences.load(from: defaults) == GesturePreferences())
+        var prefs = GesturePreferences()
+        prefs.set(.keyboardShortcut, for: .missionControl)
+        prefs.set(.native, for: .navigate)
+        prefs.save(to: defaults)
+        #expect(GesturePreferences.load(from: defaults) == prefs)
+        // A newer build's gesture or choice is ignored, not fatal.
+        defaults.set(["spaces": "keyboardShortcut", "teleport": "native", "launchpad": "telepathy"],
+                     forKey: GesturePreferences.defaultsKey)
+        let loaded = GesturePreferences.load(from: defaults)
+        #expect(loaded.preference(for: .spaces) == .keyboardShortcut)
+        #expect(loaded.preference(for: .launchpad) == .automatic)
+        GesturePreferences().save(to: defaults)
+        #expect(defaults.object(forKey: GesturePreferences.defaultsKey) == nil)
+    }
+
+    /// The self-check now also needs every phase to build and, for type-29 gesture events, the
+    /// private fields to survive serialisation (never posted).
+    @Test func selfCheckFailsWhenFieldsDoNotSurviveSerialisation() {
+        for g in SynthGesture.allCases where g.hasNativePath {
+            #expect(SynthCapabilities.probeNative(g, transport: SynthCapabilities.roundTrip), "\(g)")
+        }
+        for g: SynthGesture in [.magnify, .rotate, .smartMagnify, .navigate] {
+            // A transport that keeps the event type but loses the private fields.
+            #expect(!SynthCapabilities.probeNative(g, transport: { e in
+                let copy = CGEvent(source: nil)
+                copy?.type = e.type
+                return copy
+            }), "\(g)")
+            #expect(!SynthCapabilities.probeNative(g, transport: { _ in nil }), "\(g)")
+        }
+    }
+
     @Test func encodedDockTypesMatchKnownConstants() {
         #expect(DockSwipeMotion.horizontal.encoded == 1.401298464324817e-45)
         #expect(DockSwipeMotion.vertical.encoded == 2.802596928649634e-45)

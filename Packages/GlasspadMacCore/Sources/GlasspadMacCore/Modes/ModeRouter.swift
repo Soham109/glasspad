@@ -34,13 +34,17 @@ public final class ModeRouter {
     public private(set) var phoneMode: GlasspadMode?
     private var dockPushPending = false
     private var workspaceObservers: [NSObjectProtocol] = []
-    /// A session ended; the Dock comes back unless a new one starts within this delay (a
-    /// replacement or a quick reconnect should not make it flash).
-    public var disconnectGrace: TimeInterval = 2
+    /// A session ended; the Dock comes back unless a new one starts within this delay. Locking
+    /// the phone ends the session (the app says bye when it goes to the background), so a short
+    /// grace restarted the Dock twice on every lock and unlock: once to show it, once to hide it
+    /// again, closing Mission Control and Launchpad each time. 30 s covers a glance at the lock
+    /// screen; a real goodbye still brings the Dock back.
+    public static let defaultDisconnectGrace: TimeInterval = 30
+    public var disconnectGrace: TimeInterval = ModeRouter.defaultDisconnectGrace
     private var disconnectTask: Task<Void, Never>?
 
     public init(poster: EventPoster, macDock: MacDockHider = .shared, observeWorkspace: Bool = true) {
-        let keys = KeysMode(poster: poster)
+        let keys = KeysMode.live(poster: poster)
         self.keys = keys
         self.dock = DockMode()
         let media = MediaMode(poster: poster)
@@ -175,6 +179,7 @@ public final class ModeRouter {
     /// the Mac's Dock back after a short grace period (unless the manual switch keeps it hidden).
     public func sessionEnded() {
         present.setLaser(on: false)
+        keys.restoreInputMethod()
         stopMediaUpdates()
         dock.resetSession()
         phoneMode = nil
@@ -190,6 +195,7 @@ public final class ModeRouter {
     /// The Mac app is quitting.
     public func appWillTerminate() {
         disconnectTask?.cancel()
+        keys.restoreInputMethod()
         macDock.appWillTerminate()
         present.setLaser(on: false)
     }

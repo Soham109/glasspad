@@ -48,6 +48,9 @@ public struct KeyStroke: Equatable, Sendable, Codable {
 
 /// Builds keyboard CGEvents. Never posts by itself.
 public enum KeyboardSynth {
+    /// kVK_F1 ... kVK_F12.
+    public static let functionKeyCodes: Set<UInt16> = [122, 120, 99, 118, 96, 97, 98, 100, 101, 109, 103, 111]
+
     /// Key down + key up carrying the modifier flags.
     public static func events(for stroke: KeyStroke, source: CGEventSource?) -> [CGEvent] {
         var out: [CGEvent] = []
@@ -57,6 +60,9 @@ public enum KeyboardSynth {
             // Keynote and the Dock's Spaces shortcuts accept either, so we mirror the hardware.
             var flags = stroke.flags
             if (123...126).contains(stroke.keyCode) { flags.insert([.maskNumericPad, .maskSecondaryFn]) }
+            // F1 to F12 carry the function flag on real keyboards too; symbolic hotkeys such as
+            // F11 for Show Desktop are stored with it.
+            if functionKeyCodes.contains(stroke.keyCode) { flags.insert(.maskSecondaryFn) }
             e.flags = flags
             out.append(e)
         }

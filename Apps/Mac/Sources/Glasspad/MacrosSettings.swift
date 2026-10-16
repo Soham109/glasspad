@@ -4,8 +4,8 @@ import GlasspadMacros
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// Settings > Macros: the macro library (record, rename, icon and colour, steps, scripts) and
-/// the per-app profiles that decide which buttons the phone shows.
+/// Settings > Macros: every macro (record, rename, icon and color, steps, scripts) and the
+/// per-app sets that decide what "For <app>" shows in Macros on the iPhone.
 struct MacrosSettings: View {
     @EnvironmentObject private var model: AppModel
     @State private var page: Page
@@ -32,8 +32,8 @@ private struct MacrosSettingsContent: View {
                 Divider()
             }
             Picker("Show", selection: $page) {
-                Text("Macros").tag(MacrosSettings.Page.macros)
-                Text("App Buttons").tag(MacrosSettings.Page.profiles)
+                Text("All Macros").tag(MacrosSettings.Page.macros)
+                Text("For Each App").tag(MacrosSettings.Page.profiles)
             }
             .pickerStyle(.segmented)
             .labelsHidden()
@@ -158,7 +158,7 @@ private struct MacroLibrary: View {
                         .id(macro.id)
                 } else {
                     ContentUnavailableView("No Macro Selected", systemImage: "wand.and.stars",
-                                           description: Text("Pick a macro to edit its steps, icon and colour."))
+                                           description: Text("Pick a macro to edit its steps, icon and color."))
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -175,7 +175,7 @@ private struct MacroLibrary: View {
                 } catch {}
             }
         } message: { _ in
-            Text("The macro is removed from every profile. This cannot be undone.")
+            Text("The macro is removed from every app set. This cannot be undone.")
         }
     }
 
@@ -211,7 +211,7 @@ private struct MacroRow: View {
     }
 }
 
-/// The macro's SF Symbol on its colour, as the phone draws the button.
+/// The macro's SF Symbol on its color, as the phone draws the button.
 struct MacroIcon: View {
     let symbol: String
     let color: String
@@ -257,7 +257,7 @@ private struct MacroEditor: View {
                 LabeledContent("Icon") {
                     SymbolPicker(symbol: $draft.symbol, color: draft.color)
                 }
-                ColorPicker("Colour", selection: colorBinding, supportsOpacity: false)
+                ColorPicker("Color", selection: colorBinding, supportsOpacity: false)
             }
 
             Section {
@@ -270,16 +270,33 @@ private struct MacroEditor: View {
                         .contentShape(Rectangle())
                         .onTapGesture(count: 2) { editing = StepEdit(index: index, step: step) }
                         .contextMenu { stepMenu(index, step) }
+                        // Keyboard: Tab to a step's pencil, or focus the row and press Return.
+                        .focusable()
+                        .onKeyPress(.return) {
+                            editing = StepEdit(index: index, step: step)
+                            return .handled
+                        }
+                        .accessibilityAction(named: "Edit") { editing = StepEdit(index: index, step: step) }
                         .overlay(alignment: .trailing) {
-                            Menu {
-                                stepMenu(index, step)
-                            } label: {
-                                Image(systemName: "ellipsis.circle")
+                            HStack(spacing: 4) {
+                                Button {
+                                    editing = StepEdit(index: index, step: step)
+                                } label: {
+                                    Image(systemName: "pencil")
+                                }
+                                .buttonStyle(.borderless)
+                                .help("Edit this step")
+                                .accessibilityLabel("Edit step \(index + 1)")
+                                Menu {
+                                    stepMenu(index, step)
+                                } label: {
+                                    Image(systemName: "ellipsis.circle")
+                                }
+                                .menuStyle(.borderlessButton)
+                                .menuIndicator(.hidden)
+                                .fixedSize()
+                                .accessibilityLabel("More for step \(index + 1)")
                             }
-                            .menuStyle(.borderlessButton)
-                            .menuIndicator(.hidden)
-                            .fixedSize()
-                            .accessibilityLabel("Step \(index + 1) actions")
                         }
                 }
             } header: {
@@ -297,19 +314,39 @@ private struct MacroEditor: View {
                     }
                     .fixedSize()
                     Spacer()
-                    Text("Double-click a step to edit it.")
+                    Text("Double-click a step, or use its pencil, to edit it.")
                         .foregroundStyle(.secondary)
                         .font(.caption)
                 }
             }
 
             Section {
-                TextField("Phone gestures", text: gestureText, prompt: Text("e.g. fourFingerTap"))
-                LabeledContent("Mac hotkey", value: draft.hotkey?.displayString ?? "None")
+                ForEach(draft.gestureTriggers, id: \.self) { name in
+                    LabeledContent {
+                        Button {
+                            draft.gestureTriggers.removeAll { $0 == name }
+                        } label: {
+                            Image(systemName: "minus.circle")
+                        }
+                        .buttonStyle(.borderless)
+                        .accessibilityLabel("Remove \(GestureNames.title(for: name))")
+                    } label: {
+                        Label(GestureNames.title(for: name), systemImage: "hand.tap")
+                    }
+                }
+                let unused = GestureNames.catalog.filter { !draft.gestureTriggers.contains($0.id) }
+                Menu("Add Gesture") {
+                    ForEach(unused, id: \.id) { g in
+                        Button(g.title) { draft.gestureTriggers.append(g.id) }
+                    }
+                }
+                .disabled(unused.isEmpty)
+                .fixedSize()
+                LabeledContent("Keyboard shortcut on Mac", value: draft.hotkey.map(KeyCaption.caption) ?? "None")
             } header: {
-                Text("Triggers")
+                Text("Run It With")
             } footer: {
-                Text("Separate several gesture names with commas. A gesture runs the macro from the phone's trackpad.")
+                Text("Make the gesture on your iPhone's Trackpad to run this macro.")
                     .foregroundStyle(.secondary)
             }
 
@@ -367,7 +404,7 @@ private struct MacroEditor: View {
                 try? macros.delete(draft.id)
             }
         } message: {
-            Text("The macro is removed from every profile. This cannot be undone.")
+            Text("The macro is removed from every app set. This cannot be undone.")
         }
     }
 
@@ -387,15 +424,6 @@ private struct MacroEditor: View {
     private var colorBinding: Binding<Color> {
         Binding(get: { Color(hex: draft.color) ?? .accentColor },
                 set: { draft.color = $0.hexString ?? draft.color })
-    }
-
-    private var gestureText: Binding<String> {
-        Binding(get: { draft.gestureTriggers.joined(separator: ", ") },
-                set: { text in
-                    draft.gestureTriggers = text.split(separator: ",")
-                        .map { $0.trimmingCharacters(in: .whitespaces) }
-                        .filter { !$0.isEmpty }
-                })
     }
 
     /// Edits save on their own, shortly after the last change.
@@ -438,16 +466,16 @@ private struct StepRow: View {
             Image(systemName: StepKind(step).symbol)
                 .foregroundStyle(.secondary)
                 .frame(width: 18)
-            Text(step.summary)
+            Text(StepText.summary(step, appName: AppInfo.name(for:)))
                 .lineLimit(1)
                 .truncationMode(.middle)
-            Spacer(minLength: 28)
+            Spacer(minLength: 56)
         }
         .accessibilityElement(children: .combine)
     }
 }
 
-// MARK: - Symbols and colours
+// MARK: - Symbols and colors
 
 /// A small grid of SF Symbols that read well on a phone button.
 struct SymbolPicker: View {
@@ -468,6 +496,12 @@ struct SymbolPicker: View {
         "moon.fill", "sun.max.fill", "cup.and.saucer.fill", "gamecontroller.fill", "airplane", "cart.fill",
     ]
 
+    /// "envelope.fill" -> "envelope", for VoiceOver and tooltips.
+    static func spoken(_ symbol: String) -> String {
+        symbol.split(separator: ".").filter { !["fill", "circle", "square", "rectangle"].contains($0) }
+            .joined(separator: " ")
+    }
+
     var body: some View {
         Button {
             open.toggle()
@@ -480,7 +514,7 @@ struct SymbolPicker: View {
             }
         }
         .buttonStyle(.borderless)
-        .accessibilityLabel("Icon, \(symbol)")
+        .accessibilityLabel("Icon, \(Self.spoken(symbol))")
         .popover(isPresented: $open, arrowEdge: .bottom) {
             ScrollView {
                 LazyVGrid(columns: Array(repeating: GridItem(.fixed(32), spacing: 6), count: 6), spacing: 6) {
@@ -496,8 +530,8 @@ struct SymbolPicker: View {
                                             in: .rect(cornerRadius: 6))
                         }
                         .buttonStyle(.plain)
-                        .help(name)
-                        .accessibilityLabel(name)
+                        .help(Self.spoken(name))
+                        .accessibilityLabel(Self.spoken(name))
                     }
                 }
                 .padding(10)
@@ -560,8 +594,8 @@ private struct ProfileLibrary: View {
                 .listStyle(.sidebar)
                 .overlay {
                     if macros.profiles.isEmpty {
-                        ContentUnavailableView("No App Buttons", systemImage: "rectangle.stack",
-                                               description: Text("Without these, your iPhone shows every macro."))
+                        ContentUnavailableView("No App Sets", systemImage: "rectangle.stack",
+                                               description: Text("Without these, Macros on your iPhone shows every macro."))
                     }
                 }
                 Divider()
@@ -571,17 +605,17 @@ private struct ProfileLibrary: View {
                     } label: {
                         Image(systemName: "plus")
                     }
-                    .help("Add a profile")
+                    .help("Add a set for some apps")
                     Button {
                         remove()
                     } label: {
                         Image(systemName: "minus")
                     }
                     .disabled(selection == nil)
-                    .help("Delete the selected profile")
+                    .help("Delete the selected set")
                     Spacer()
                     Menu {
-                        Button("Restore Starter Macros and Profiles…") { confirmRestore = true }
+                        Button("Restore Starter Macros and Sets…") { confirmRestore = true }
                     } label: {
                         Image(systemName: "ellipsis.circle")
                     }
@@ -599,29 +633,29 @@ private struct ProfileLibrary: View {
                         .id(profile.id)
                 } else {
                     ContentUnavailableView("Nothing Selected", systemImage: "rectangle.stack",
-                                           description: Text("Pick a set to choose the buttons your iPhone shows while its apps are in front."))
+                                           description: Text("Pick a set to choose the macros your iPhone shows while its apps are in front."))
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .onAppear { if selection == nil { selection = macros.activeProfile.profileID ?? macros.profiles.first?.id } }
-        .confirmationDialog("Restore the starter macros and profiles?", isPresented: $confirmRestore) {
+        .confirmationDialog("Restore the starter macros and sets?", isPresented: $confirmRestore) {
             Button("Restore") { try? macros.restoreStarters() }
         } message: {
-            Text("Starters you edited or deleted come back as shipped. Your own macros and profiles are not touched.")
+            Text("Starters you edited or deleted come back as shipped. Your own macros and sets are not touched.")
         }
     }
 
-    /// "Everywhere else, 4 buttons" or "2 apps, 6 buttons".
+    /// "Every other app, 4 macros" or "2 apps, 6 macros".
     private func summary(_ p: ContextProfile) -> String {
-        let buttons = p.macroIDs.count == 1 ? "1 button" : "\(p.macroIDs.count) buttons"
-        if p.isFallback { return "Everywhere else, \(buttons)" }
+        let buttons = p.macroIDs.count == 1 ? "1 macro" : "\(p.macroIDs.count) macros"
+        if p.isFallback { return "Every other app, \(buttons)" }
         let apps = p.bundleIDs.isEmpty ? "No apps" : (p.bundleIDs.count == 1 ? "1 app" : "\(p.bundleIDs.count) apps")
         return "\(apps), \(buttons)"
     }
 
     private func add() {
-        let p = ContextProfile(name: "New Profile", symbol: "app.dashed", bundleIDs: [], macroIDs: [])
+        let p = ContextProfile(name: "New Set", symbol: "app.dashed", bundleIDs: [], macroIDs: [])
         try? macros.save(profiles: macros.profiles + [p])
         selection = p.id
     }
@@ -651,10 +685,10 @@ private struct ProfileEditor: View {
                 LabeledContent("Icon") {
                     SymbolPicker(symbol: $draft.symbol, color: "#8E8E93")
                 }
-                Toggle("Use everywhere else", isOn: $draft.isFallback)
+                Toggle("Use for every other app", isOn: $draft.isFallback)
             } footer: {
                 if draft.isFallback {
-                    Text("This profile's buttons show whenever no other profile matches the app in front.")
+                    Text("These macros show whenever no other set matches the app in front.")
                         .foregroundStyle(.secondary)
                 }
             }
@@ -662,7 +696,7 @@ private struct ProfileEditor: View {
             if !draft.isFallback {
                 Section("Apps") {
                     if draft.bundleIDs.isEmpty {
-                        Text("Add the apps this profile is for.")
+                        Text("Add the apps this set is for.")
                             .foregroundStyle(.secondary)
                     }
                     ForEach(draft.bundleIDs, id: \.self) { id in
@@ -671,7 +705,6 @@ private struct ProfileEditor: View {
                                 .resizable()
                                 .frame(width: 18, height: 18)
                             Text(AppInfo.name(for: id))
-                                .help(id)
                             Spacer()
                             Button {
                                 draft.bundleIDs.removeAll { $0 == id }
@@ -688,7 +721,7 @@ private struct ProfileEditor: View {
 
             Section {
                 if draft.macroIDs.isEmpty {
-                    Text("No buttons yet.")
+                    Text("No macros yet.")
                         .foregroundStyle(.secondary)
                 }
                 ForEach(Array(draft.macroIDs.enumerated()), id: \.offset) { index, id in
@@ -708,12 +741,12 @@ private struct ProfileEditor: View {
                             .disabled(index >= draft.macroIDs.count - 1)
                             .accessibilityLabel("Move down")
                         Button { draft.macroIDs.remove(at: index) } label: { Image(systemName: "minus.circle") }
-                            .accessibilityLabel("Remove button")
+                            .accessibilityLabel("Remove from this set")
                     }
                     .buttonStyle(.borderless)
                 }
                 let available = macros.macros.filter { !draft.macroIDs.contains($0.id) }
-                Menu("Add Button") {
+                Menu("Add Macro") {
                     ForEach(available) { m in
                         Button(m.name) { draft.macroIDs.append(m.id) }
                     }
@@ -721,9 +754,9 @@ private struct ProfileEditor: View {
                 .disabled(available.isEmpty)
                 .fixedSize()
             } header: {
-                Text("iPhone Buttons")
+                Text("Macros on iPhone")
             } footer: {
-                Text("In this order on your iPhone.")
+                Text("In this order under For \(draft.name) in Macros on your iPhone.")
                     .foregroundStyle(.secondary)
             }
         }

@@ -4,7 +4,7 @@ import AppIntents
 /// Compiled into the app and the widget extension, as iOS requires for controls that open
 /// the app; the system runs it in the app.
 struct OpenTrackpadIntent: AppIntent {
-    static let title: LocalizedStringResource = "Open Trackpad"
+    static let title: LocalizedStringResource = "Open Glasspad Trackpad"
     static let description = IntentDescription("Opens Glasspad on the trackpad screen.")
     static let openAppWhenRun = true
 

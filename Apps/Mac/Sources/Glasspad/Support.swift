@@ -75,7 +75,11 @@ extension AppModel {
         switch link {
         case .idle: return "Getting ready to listen for your iPhone."
         case .searching:
-            if pairingURL != nil { return "Scan the code below with your iPhone." }
+            switch pairing {
+            case .waiting: return "Scan the code below with your iPhone."
+            case .expired: return "The pairing code expired."
+            default: break
+            }
             return phones.isEmpty
                 ? "Pair your iPhone to use it as a trackpad."
                 : "Open Glasspad on your iPhone to connect."
@@ -166,7 +170,7 @@ struct QRCodeView: View {
         }
         .accessibilityElement()
         .accessibilityLabel("Pairing code")
-        .accessibilityHint("Scan it with the Glasspad app on your iPhone.")
+        .accessibilityHint("Scan it with Glasspad on your iPhone, or use Copy Link below and paste the link on your iPhone.")
     }
 }
 

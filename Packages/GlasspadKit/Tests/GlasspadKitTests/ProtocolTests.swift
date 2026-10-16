@@ -148,11 +148,53 @@ struct ControlMessageTests {
         #expect(bye == .bye(reason: "x"))
     }
 
-    @Test func unknownOrBrokenMessagesThrow() {
-        #expect(throws: (any Error).self) { try ControlMessage.from(jsonData: Data(#"{"t":"nope"}"#.utf8)) }
+    @Test func unknownTypesDecodeAsNoOpButBrokenMessagesThrow() throws {
+        // A newer build's message type: decodes so the receiver can ignore it and stay connected.
+        #expect(try ControlMessage.from(jsonData: Data(#"{"t":"nope"}"#.utf8)) == .unknown(type: "nope"))
+        #expect(try ControlMessage.from(jsonData: Data(#"{"t":"future","x":[1,2],"y":{"z":true}}"#.utf8))
+                == .unknown(type: "future"))
         #expect(throws: (any Error).self) { try ControlMessage.from(jsonData: Data(#"{"t":"ping"}"#.utf8)) }
         #expect(throws: (any Error).self) { try ControlMessage.from(jsonData: Data("not json".utf8)) }
         #expect(throws: (any Error).self) { try ControlMessage.from(jsonData: Data(#"{"id":1}"#.utf8)) }
+    }
+
+    @Test func macStatusRoundTripsWithItsWireShape() throws {
+        let full = ControlMessage.macStatus(MacStatus(accessibilityTrusted: false, automationMedia: .denied,
+                                                      macName: "Soham's MacBook Pro"))
+        let json = String(decoding: try full.jsonData(), as: UTF8.self)
+        #expect(json.contains(#""t":"macStatus""#))
+        #expect(json.contains(#""accessibilityTrusted":false"#))
+        #expect(json.contains(#""automationMedia":"denied""#))
+        #expect(try ControlMessage.from(jsonData: full.jsonData()) == full)
+
+        let bare = ControlMessage.macStatus(MacStatus(accessibilityTrusted: true))
+        #expect(try ControlMessage.from(jsonData: bare.jsonData()) == bare)
+        for state in [AutomationState.granted, .denied, .notDetermined, .notNeeded] {
+            let m = ControlMessage.macStatus(MacStatus(accessibilityTrusted: true, automationMedia: state))
+            #expect(try ControlMessage.from(jsonData: m.jsonData()) == m)
+        }
+    }
+
+    /// A newer Mac may add fields or automation values; this build keeps what it knows.
+    @Test func macStatusToleratesFieldsFromNewerMacs() throws {
+        let json = #"{"t":"macStatus","status":{"accessibilityTrusted":true,"automationMedia":"partly","macName":"Mac","screenRecording":true}}"#
+        let m = try ControlMessage.from(jsonData: Data(json.utf8))
+        #expect(m == .macStatus(MacStatus(accessibilityTrusted: true, automationMedia: nil, macName: "Mac")))
+        // The one required field missing is a broken message.
+        #expect(throws: (any Error).self) {
+            try ControlMessage.from(jsonData: Data(#"{"t":"macStatus","status":{"macName":"Mac"}}"#.utf8))
+        }
+    }
+
+    /// What a build from before macStatus sees: its decoder has no "macStatus" case. Its receive
+    /// path (`try? ControlMessage.from`) dropped any frame that failed to decode and kept the
+    /// session, so the old shape is simulated by decoding the frame with the tag it does not know.
+    @Test func buildsWithoutMacStatusIgnoreIt() throws {
+        let wire = try ControlMessage.macStatus(MacStatus(accessibilityTrusted: false)).jsonData()
+        let renamed = String(decoding: wire, as: UTF8.self).replacingOccurrences(of: "macStatus", with: "zzUnknown")
+        #expect(try ControlMessage.from(jsonData: Data(renamed.utf8)) == .unknown(type: "zzUnknown"))
+        // Older builds still find their messages unchanged after the addition.
+        #expect(try ControlMessage.from(jsonData: Data(#"{"t":"haptic","kind":"snap"}"#.utf8)) == .haptic(.snap))
     }
 
     @Test func everyModeMessageRoundTrips() throws {

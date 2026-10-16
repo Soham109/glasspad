@@ -10,7 +10,9 @@ public enum HapticKind: String, Codable, Sendable {
 
 /// Messages on the sealed TCP control channel. JSON with a `"t"` discriminator:
 /// `{"t":"ping","id":1}`, `{"t":"settings","settings":{..}}`, `{"t":"haptic","kind":"click"}`,
-/// `{"t":"mode","mode":{..}}`, `{"t":"bye","reason":".."}`.
+/// `{"t":"mode","mode":{..}}`, `{"t":"bye","reason":".."}`,
+/// `{"t":"macStatus","status":{"accessibilityTrusted":true,..}}`. An unknown `t` decodes as
+/// `.unknown(type:)`; a known `t` with missing or broken fields still throws.
 public enum ControlMessage: Codable, Equatable, Sendable {
     /// Mac -> phone each second; the transport answers it automatically.
     case ping(id: UInt32)
@@ -26,8 +28,14 @@ public enum ControlMessage: Codable, Equatable, Sendable {
     case mode(ModeMessage)
     /// Either side is closing the session on purpose.
     case bye(reason: String)
+    /// Mac -> phone, right after the handshake and whenever a field changes: Accessibility and
+    /// Automation state (see `MacStatus`). Added Oct 2026; builds without it ignore it.
+    case macStatus(MacStatus)
+    /// A message type this build does not know (sent by a newer build). Decodes instead of
+    /// throwing so receivers can ignore it and keep the session; never sent on purpose.
+    case unknown(type: String)
 
-    private enum Keys: String, CodingKey { case t, id, settings, kind, mode, reason }
+    private enum Keys: String, CodingKey { case t, id, settings, kind, mode, reason, status }
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: Keys.self)
@@ -39,8 +47,8 @@ public enum ControlMessage: Codable, Equatable, Sendable {
         case "haptic": self = .haptic(try c.decode(HapticKind.self, forKey: .kind))
         case "mode": self = .mode(try c.decode(ModeMessage.self, forKey: .mode))
         case "bye": self = .bye(reason: try c.decode(String.self, forKey: .reason))
-        default:
-            throw DecodingError.dataCorruptedError(forKey: .t, in: c, debugDescription: "unknown message type \(t)")
+        case "macStatus": self = .macStatus(try c.decode(MacStatus.self, forKey: .status))
+        default: self = .unknown(type: t)
         }
     }
 
@@ -53,6 +61,8 @@ public enum ControlMessage: Codable, Equatable, Sendable {
         case .haptic(let k): try c.encode("haptic", forKey: .t); try c.encode(k, forKey: .kind)
         case .mode(let m): try c.encode("mode", forKey: .t); try c.encode(m, forKey: .mode)
         case .bye(let r): try c.encode("bye", forKey: .t); try c.encode(r, forKey: .reason)
+        case .macStatus(let s): try c.encode("macStatus", forKey: .t); try c.encode(s, forKey: .status)
+        case .unknown(let t): try c.encode(t, forKey: .t)
         }
     }
 

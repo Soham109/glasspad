@@ -11,7 +11,13 @@ import CoreGraphics
 /// its own uptime even though frames carry the phone's.
 ///
 /// Invariant: whenever no finger is down, the left button is up. Lifts, cancels, stale links
-/// (`staleTouchTimeout`) and `cancelAll()` all release it.
+/// (`staleTouchTimeout`, or `staleDragTimeout` while the button is held) and `cancelAll()` all
+/// release it.
+///
+/// Wi-Fi stalls: with the button down, a silent link freezes the drag (button held, no motion)
+/// and the same fingers pick it up again when their frames return. Without the button, the
+/// session is cancelled after `staleTouchTimeout`; fingers that come back afterwards (same IDs,
+/// not a fresh touch-down) are re-adopted as pointing fingers that can never end as a tap.
 public final class GestureRecognizer {
     public var settings: TrackpadSettings
     /// Fired for clicks (tap, two-finger click, corner click, three-finger Look Up tap), force
@@ -26,6 +32,12 @@ public final class GestureRecognizer {
     /// With fingers down and no frame for this long, cancel everything. Set nil on the phone,
     /// where UIKit sends no frames for resting fingers.
     public var staleTouchTimeout: TimeInterval? = GestureTuning.staleTouchTimeout
+    /// With the left button held, how long a silent link may freeze the drag before it is
+    /// released anyway (see `GestureTuning.staleDragTimeout`). Never shorter than
+    /// `staleTouchTimeout`.
+    public var staleDragTimeout: TimeInterval = GestureTuning.staleDragTimeout
+    /// True while a drag is frozen by a silent link (button held, waiting for frames).
+    public private(set) var isStalled = false
     /// The caller's local clock, used by `process(_:)` to stamp arrivals.
     public var clock: () -> TimeInterval = { ProcessInfo.processInfo.systemUptime }
 
@@ -180,6 +192,10 @@ public final class GestureRecognizer {
     /// A roll hold was let go (no lift came): no new one until the contact stops shrinking.
     private var rollSpent = false
 
+    /// Fingers dropped by the stale guard; if they come back on the next frame (not as a
+    /// fresh touch-down) they are re-adopted instead of starting a session that could tap.
+    private var staleIDs: Set<UInt8> = []
+
     private var lastClick: (t: TimeInterval, p: V, count: Int)?
     private var lastTapEnd: (t: TimeInterval, p: V)?
     private var pendingTwoTap: (t: TimeInterval, fireRight: Bool)?
@@ -214,6 +230,23 @@ public final class GestureRecognizer {
             }
         }
         updateOffset(frameTime: t, local: local)
+        // Whatever this frame brings, the stall memory is only good for the frame right after it.
+        let returningIDs = staleIDs
+        staleIDs = []
+        if isStalled {
+            // Frames are back after a frozen drag. The finger may have moved while nothing got
+            // through; that travel is dropped (the pointer stays where it froze) rather than
+            // posted as one jump. Motion from here on is live again.
+            isStalled = false
+            for tch in frame.touches where touches[tch.id] != nil {
+                let p = V(tch.x, tch.y)
+                touches[tch.id]!.cur = p
+                touches[tch.id]!.restRef = p
+                touches[tch.id]!.restRefTime = t
+            }
+            speedHistory = []
+            lastSpeedSampleTime = nil
+        }
         ev += checkTimers(at: t)
         let dt = lastFrameTime.map { t - $0 } ?? 0
         lastFrameTime = t
@@ -296,7 +329,14 @@ public final class GestureRecognizer {
                 if tch.majorRadius > 0 { tr.radii = [(t, tch.majorRadius)] }
                 touches[tch.id] = tr
             }
-            ev += handleAdd(wasEmpty: wasEmpty, firstOrigin: V(added[0].x, added[0].y), t: t)
+            // The same fingers the stale guard dropped, still mid-touch (not a touch-down): this
+            // is the link coming back, not a new touch, so it must never end as a click.
+            let returning = wasEmpty && added.allSatisfy { returningIDs.contains($0.id) && $0.phase != .began }
+            if returning {
+                ev += readopt(firstOrigin: V(added[0].x, added[0].y), t: t)
+            } else {
+                ev += handleAdd(wasEmpty: wasEmpty, firstOrigin: V(added[0].x, added[0].y), t: t)
+            }
         }
         ev += checkTimers(at: t)
         return ev + enforceInvariant()
@@ -307,11 +347,22 @@ public final class GestureRecognizer {
     public func tick(now: TimeInterval) -> [GestureEvent] {
         guard let offset = clockOffset else { return [] }
         let t = now - offset
-        var ev = checkTimers(at: t)
         if !touches.isEmpty, let lt = lastFrameTime, let limit = staleTouchTimeout, t - lt > limit {
-            ev += cancelSession()
+            if isLeftButtonDown, t - lt <= max(limit, staleDragTimeout) {
+                // Freeze: keep the button down, post nothing, run no timers (a held force click
+                // must not advance a stage on fingers we cannot see).
+                if !isStalled { GPLog.log("gestures: link silent mid-drag, freezing the drag") }
+                isStalled = true
+                return enforceInvariant()
+            }
+            var ev = cancelSession()
+            staleIDs = Set(touches.keys)
             touches = [:]
+            isStalled = false
+            ev += momentumStep(at: t)
+            return ev + enforceInvariant()
         }
+        var ev = checkTimers(at: t)
         ev += momentumStep(at: t)
         return ev + enforceInvariant()
     }
@@ -325,6 +376,8 @@ public final class GestureRecognizer {
         pendingTwoTap = nil
         lastFrameTime = nil
         clockOffset = nil
+        isStalled = false
+        staleIDs = []
         return ev + enforceInvariant()
     }
 
@@ -847,6 +900,20 @@ public final class GestureRecognizer {
         return ev
     }
 
+    /// Fingers dropped by the stale guard are back: track them again as one ongoing touch that
+    /// can point (one finger) or does nothing (several), and can never end as a tap.
+    private func readopt(firstOrigin: V, t: TimeInterval) -> [GestureEvent] {
+        let n = touches.count
+        session = Session(startTime: t, maxFingers: n, tapCandidate: false, tapDragArmed: false, firstOrigin: firstOrigin)
+        state = n == 1 ? .pointing : .consumed
+        fingerSpeed = 0
+        speedHistory = []
+        rollSpent = false
+        dropPointerState()
+        rebase()
+        return []
+    }
+
     private func rebase() {
         for id in touches.keys { touches[id]!.start = touches[id]!.cur }
         if case .holding = state { dropPointerState() }
@@ -1062,6 +1129,7 @@ public final class GestureRecognizer {
         state = .idle
         pendingTwoTap = nil
         dropPointerState()
+        isStalled = false
         return ev
     }
 

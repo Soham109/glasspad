@@ -271,6 +271,20 @@ nonisolated(unsafe) private let sample: [[String: Any]] = [
         #expect(!again.manual)
     }
 
+    /// Reliability M3: the record of what to restore must be on disk before the Dock is changed,
+    /// or a power loss right after leaves the Dock hidden with nothing to restore it from.
+    @Test func savedValuesAreFlushedBeforeTheDockIsTouched() throws {
+        let (hider, dock, own, _) = FakeDockHider.make()
+        hider.setManual(true)
+        let firstDockWrite = try #require(dock.log.firstIndex { $0.hasPrefix("set ") })
+        let flush = try #require(dock.log.firstIndex(of: "flush own"))
+        #expect(flush < firstDockWrite)
+        #expect(own.dictionary(forKey: MacDockHider.savedKey) != nil)
+        dock.log = []
+        hider.setManual(false)
+        #expect(dock.log.last == "flush own")      // the cleared record is flushed too
+    }
+
     @Test func phoneIsToldAboutChanges() {
         let (hider, _, _, _) = FakeDockHider.make()
         var seen: [MacDockState] = []

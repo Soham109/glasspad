@@ -80,6 +80,7 @@ final class TrackpadDriver {
 
     func handle(_ frame: TouchFrame) {
         MacSession.shared.send(frame: frame)
+        SetupGuide.shared.note(frame)
         AppRouter.shared.noteActivity()
         play(recognizer.process(frame))
         scheduleTicks()

@@ -70,3 +70,32 @@ All additive; nothing the phone uses today changed shape.
 - One small additive change outside the trackpad folder: `MacSession.send(control:)` in
   `Apps/iOS/Sources/Link/MacSession.swift`, used to send that message.
 - `HapticKind.dragLock` is new. Code that switches over `HapticKind` must handle it.
+
+## 5. Accessibility-off warning on the phone (from: Mac app and GlasspadKit, to: iPhone app)
+
+The Mac now sends `ControlMessage.macStatus(MacStatus)` right after each handshake and whenever a
+field changes (docs/SPEC.md section 5, "As built"). Requested on the phone:
+
+- Show a banner on Trackpad (and anywhere input is sent) while `accessibilityTrusted == false`:
+  "Glasspad on <macName> needs Accessibility. On your Mac, open System Settings > Privacy &
+  Security > Accessibility and turn on Glasspad." Hide it as soon as a status with `true`
+  arrives. Do not cache it across sessions; a new session always gets a fresh status.
+- Optional: on Media, when `automationMedia == .denied`, say what is playing cannot be shown
+  until Spotify and Music control is allowed on the Mac.
+- `MacSession.received(_:)` currently has `case .bye, .ping, .pong, .macStatus, .unknown: break`
+  (the only iOS change made, so the app compiles). Replace the `.macStatus` part with the
+  handling above. Keep ignoring `.unknown`.
+
+## 6. Typed pairing code for VoiceOver users (from: Mac app, to: GlasspadKit, follow-up)
+
+The Mac now offers Copy Link and Share (AirDrop) under every QR code, so a VoiceOver user can
+pair without the camera: copy on the Mac, then "Paste the Link Instead" on the phone. A short
+code typed by hand (for example 8 characters) is not possible with the current protocol: the
+QR carries a 32-byte pairing key, and a short code would need a new key agreement step
+(for example SPAKE2 or a similar password-authenticated exchange) so a guessable code cannot
+be brute-forced on the network. That is a protocol change beyond additive messages, so it is
+left as a follow-up.
+
+Request 3 above (Copy pairing link) is done: Copy Link and Share… in the Mac popover, the
+Settings pairing sheet and the Welcome window.
+

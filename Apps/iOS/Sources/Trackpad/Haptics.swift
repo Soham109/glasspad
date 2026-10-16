@@ -130,7 +130,9 @@ final class Haptics {
     /// For buttons in the modes: a light tap that follows the same strength and heat rules.
     /// Follows the "Buttons in modes" switch rather than the scroll-step one.
     func tap() {
-        guard !PhoneSettings.shared.hapticsOff.contains(.buttons) else { return }
+        // Low Power Mode: button taps stay silent; clicks on the trackpad still play.
+        guard !PhoneSettings.shared.hapticsOff.contains(.buttons),
+              !ProcessInfo.processInfo.isLowPowerModeEnabled else { return }
         start(.detent)
     }
 

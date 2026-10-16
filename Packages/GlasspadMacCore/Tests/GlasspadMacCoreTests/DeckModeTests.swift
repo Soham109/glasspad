@@ -377,6 +377,27 @@ private extension ModeMessage {
         #expect(!hider.isHidden)
     }
 
+    /// Reliability M3: locking the phone ends the session, and unlocking starts a new one. With
+    /// a 2 s grace that restarted the Dock twice per lock (show, then hide again).
+    @Test func phoneLockAndUnlockDoNotRestartTheDock() async throws {
+        let poster = CapturingEventPoster()
+        let keys = KeysMode(poster: poster, source: nil)
+        let (hider, _, _, runner) = FakeDockHider.make()
+        let r = ModeRouter(keys: keys, dock: DockMode(workspace: FakeWorkspace(), cacheDirectory: nil),
+                           media: MediaMode(poster: poster), deck: DeckMode(env: FakeDeckEnvironment(), url: tempURL("deck.json")),
+                           clipboard: ClipboardMode(), present: PresentMode(keys: keys), macDock: hider)
+        r.handle(.macDockSet(MacDockState(hidden: false, hideWhileConnected: true)))
+        #expect(hider.isHidden)
+        #expect(runner.calls.count == 1)
+        r.sessionEnded()                              // phone locked
+        try await Task.sleep(for: .milliseconds(2500))
+        r.handle(.modeSelected(.trackpad))            // unlocked a few seconds later
+        #expect(hider.isHidden)
+        #expect(runner.calls.count == 1)              // the Dock was never restarted
+        r.appWillTerminate()
+        #expect(!hider.isHidden)
+    }
+
     @Test func deckRequestSendsFlatListAndLayout() {
         let (r, _, _, sent) = router()
         r.handle(.deckRequest)

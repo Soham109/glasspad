@@ -33,6 +33,9 @@ public final class MediaMode {
     private var adapterReportedNothingSince: Date?
     private var inProcessSnapshot: NowPlayingSnapshot?
     private var scriptSnapshot: NowPlayingSnapshot?
+    /// The scriptable player last seen playing, so with Music and Spotify both open and both
+    /// paused, commands go to the one the user was listening to.
+    private(set) var lastPlayingPlayer: ScriptablePlayer?
     private var pollTimer: Timer?
     private var polling = false
     private var builder = MediaWireBuilder()
@@ -270,9 +273,9 @@ public final class MediaMode {
         guard active, !polling else { return }
         let adapterWorks = adapter.isRunning || adapter.status == .starting
         let players = runningPlayers()
-        let target = scriptTarget(players: players, adapterWorks: adapterWorks, now: now)
+        let targets = scriptTargets(players: players, adapterWorks: adapterWorks, now: now)
         let askInProcess = useInProcessRemote && !adapterWorks && adapterSnapshot == nil && !remote.needsAdapter
-        guard target != nil || askInProcess else {
+        guard !targets.isEmpty || askInProcess else {
             if scriptSnapshot != nil {
                 scriptSnapshot = nil
                 changed()
@@ -284,11 +287,12 @@ public final class MediaMode {
             guard let self else { return }
             var inProcess: NowPlayingSnapshot?
             if askInProcess { inProcess = await self.remote.snapshot() }
-            var script: NowPlayingSnapshot?
-            if let target {
-                script = await self.scripts.poll(target, now: now)
+            var polled: [(ScriptablePlayer, NowPlayingSnapshot?)] = []
+            for target in targets {
+                polled.append((target, await self.scripts.poll(target, now: now)))
                 self.scripts.noteDecision(target)
             }
+            let script = self.pickPlaying(polled)
             self.polling = false
             guard self.active else { return }
             if inProcess != self.inProcessSnapshot || script != self.scriptSnapshot {
@@ -302,20 +306,36 @@ public final class MediaMode {
         }
     }
 
-    /// Which scriptable player to ask. With the adapter playing something, only a player that is
-    /// already allowed (so no consent prompt) is asked, for artwork the adapter lacks. Without
-    /// adapter data, the first running player not refused is asked; the first time, macOS shows
-    /// its consent prompt.
-    func scriptTarget(players: [ScriptablePlayer], adapterWorks: Bool, now: Date) -> ScriptablePlayer? {
+    /// Which scriptable players to ask. With the adapter playing something, only that player,
+    /// and only when it is already allowed (so no consent prompt), for artwork the adapter lacks.
+    /// Without adapter data, every running player not refused is asked (the first time, macOS
+    /// shows its consent prompt), so the one actually playing can be found: asking only the first
+    /// showed Spotify while Music played, and "pause" then started Spotify on top of Music.
+    func scriptTargets(players: [ScriptablePlayer], adapterWorks: Bool, now: Date) -> [ScriptablePlayer] {
         if let s = adapterSnapshot {
             guard s.artworkData == nil, let p = ScriptablePlayer(rawValue: s.sourceBundleID ?? ""), players.contains(p),
-                  scripts.isAllowed(p) else { return nil }
-            return p
+                  scripts.isAllowed(p) else { return [] }
+            return [p]
         }
         if !adapterWorks || now.timeIntervalSince(adapterReportedNothingSince ?? now) >= 2 {
-            return players.first { !scripts.isDenied($0) }
+            return players.filter { !scripts.isDenied($0) }
         }
-        return nil
+        return []
+    }
+
+    /// Of the players asked, the one to show and command: the one playing (the most recently
+    /// playing one if several are), else the one last seen playing, else any with a track loaded.
+    func pickPlaying(_ polled: [(ScriptablePlayer, NowPlayingSnapshot?)]) -> NowPlayingSnapshot? {
+        let loaded = polled.compactMap { p, s in s.map { (p, $0) } }
+        let playing = loaded.filter { $0.1.isPlaying }
+        if let pick = playing.first(where: { $0.0 == lastPlayingPlayer }) ?? playing.first {
+            // When both play, keep the one already followed; a newly started one wins next poll
+            // only once the other stops.
+            lastPlayingPlayer = pick.0
+            return pick.1
+        }
+        if let last = lastPlayingPlayer, let s = loaded.first(where: { $0.0 == last }) { return s.1 }
+        return loaded.first?.1
     }
 
     private func refreshSoon() {

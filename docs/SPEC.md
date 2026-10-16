@@ -252,6 +252,22 @@ As built (GlasspadKit):
   `presentLaser(on:)`, `presentLaserPosition(x:y:)` (0...1 of the main display),
   `macro(MacroMessage)` (docs/SPEC-macros.md section 6, plus `recordingFailed(message:)`).
   `GlasspadMode.macros` exists for `modeSelected(.macros)`, which makes the Mac send `macroList`.
+- `ControlMessage.macStatus(MacStatus)` (Oct 2026, additive), Mac -> phone, JSON
+  `{"t":"macStatus","status":{"accessibilityTrusted":false,"automationMedia":"notDetermined","macName":"Soham's MacBook Pro"}}`.
+  `MacStatus` (`Protocol/MacStatus.swift`): `accessibilityTrusted: Bool` (required; when false the
+  Mac drops every touch, so the pointer cannot move), `automationMedia: AutomationState?`
+  (`granted`, `denied`, `notDetermined`, `notNeeded`; Spotify and Music control, optional) and
+  `macName: String?`. The Mac sends it right after each handshake and again whenever a field
+  changes (`GlasspadMacCore` `MacStatusReporter`). Accessibility is re-read every second both
+  ways (`AccessibilityMonitor`), so turning it off in System Settings while connected reaches
+  the phone within a second. Unknown fields and unknown `automationMedia` values are ignored.
+- `ControlMessage.unknown(type:)`: a `t` this build does not know decodes to this no-op instead
+  of throwing, and both ends ignore it without ending the session (a known `t` with broken
+  fields still throws and counts as malformed). Builds from before this change dropped any
+  frame that failed to decode and kept the session, so they ignore `macStatus` too. The
+  transport's own `{"t":"wake"}` frame now arrives as `.unknown("wake")` and is handled inside
+  `GlasspadClient` as before. Tests: `ProtocolTests` (`macStatus*`, `buildsWithoutMacStatusIgnoreIt`,
+  `unknownTypesDecodeAsNoOpButBrokenMessagesThrow`), `ConnectivityTests.macStatusArrivesAndUnknownTypesKeepTheSession`.
 - Measured touch-path latency on loopback (encode + seal + UDP send + receive + open + decode +
   delegate hop), `ConnectivityTests.loopbackTouchLatency`: p50 about 0.1 to 0.2 ms, p95 about
   0.2 to 0.4 ms on an M-series Mac. Wi-Fi adds its own air time on top.
@@ -498,6 +514,19 @@ As built, UX pass (Oct 2026):
   (QR), permissions checklist, which gestures are native vs fallback,
   paired phones (revoke), launch at login (`SMAppService`).
 - Settings sync: watches the trackpad preference domains and pushes changes.
+
+As built (Oct 2026 UX pass):
+- First launch with no phone paired opens a Welcome window (`SetupViews.swift`) with the code
+  already showing, three steps, and the permissions in order: Accessibility (Required), then
+  Spotify and Music (Optional, "Ask" enabled only once Accessibility is allowed).
+- Pairing states (`GlasspadMacCore` `PairingFlow`): waiting (code valid 5 minutes), Paired with
+  the phone's name (closes itself after 2.5 s), Code Expired (Show a New Code), failed (Try
+  Again). Copy Link and Share (AirDrop) sit under every code; the phone pastes the link with
+  "Paste the Link Instead" or opens it as a `glasspad://pair` link.
+- The Mac uses the phone's words: Trackpad, Keyboard, Media, Dock, Actions (Pinned, Library),
+  Macros. Settings > Macros has "All Macros" and "For Each App" (the sets behind "For <app>" in
+  Macros on the iPhone). The macro editor shows gestures, keys and apps by name, never as
+  identifiers. Advanced keeps round trip and packet counts under a Diagnostics disclosure.
 
 ## 11. Definition of done
 

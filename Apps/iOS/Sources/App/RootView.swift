@@ -66,6 +66,19 @@ struct RootView: View {
                 .environment(\.palette, palette)
                 .presentationDragIndicator(.visible)
         }
+        .sheet(isPresented: $router.showSetup, onDismiss: ScreenAwake.update) {
+            SetupChecklistView()
+                .environment(\.palette, palette)
+                .presentationDragIndicator(.visible)
+        }
+        .task(id: canAutoShowSetup) {
+            guard canAutoShowSetup else { return }
+            // Let the pairing sheet or onboarding finish leaving first.
+            try? await Task.sleep(for: .seconds(0.7))
+            guard !Task.isCancelled, canAutoShowSetup else { return }
+            SetupGuide.shared.pendingAutoShow = false
+            router.showSetup = true
+        }
         .sheet(isPresented: $router.showClipboard, onDismiss: ScreenAwake.update) {
             ClipboardSheet()
                 .environment(\.palette, palette)
@@ -93,6 +106,7 @@ struct RootView: View {
                 .transition(.opacity)
             if router.mode == .trackpad && !filmActive {
                 TrackpadStatus()
+                TrackpadNotices()
             }
             if router.mode == .present && router.isDimmed {
                 // Present dims too; the first touch only wakes it.
@@ -116,6 +130,13 @@ struct RootView: View {
         .persistentSystemOverlays(focus ? .hidden : .automatic)
         .defersSystemGestures(on: router.mode == .trackpad ? .all : [])
         .simultaneousGesture(TapGesture().onEnded { router.noteActivity() }, including: router.mode == .present ? .all : .subviews)
+    }
+
+    /// The first-run checklist waits for a new pairing and for nothing else to be on screen.
+    private var canAutoShowSetup: Bool {
+        SetupGuide.shared.pendingAutoShow && settings.hasOnboarded && !settings.setupComplete
+            && !router.showPairing && !router.showSettings && !router.showSetup
+            && !router.showClipboard && !router.showPresenter && router.pairingRequest == nil
     }
 
     /// Debug film scenes (DemoScript.swift) hide the trackpad's connection status.
@@ -188,6 +209,11 @@ extension TrackpadStatus {
     fileprivate var detail: String {
         let name = session.macName ?? "your Mac"
         if session.isReplaced { return "\(name) follows one iPhone at a time." }
+        switch session.linkIssue {
+        case .localNetworkDenied?: return "Turn on Local Network for Glasspad in Settings."
+        case .networkBlocksDevices?: return "\(name) was found, but this Wi-Fi keeps devices apart. Guest Wi-Fi and VPNs often do."
+        case nil: break
+        }
         if case .connecting = session.state { return name }
         return "Keep both on the same Wi-Fi with Glasspad open on \(name)."
     }
@@ -225,6 +251,9 @@ private struct WarmNotice: View {
 ///   -GPDemo <icon folder>               fill the screens with sample Mac data (no Mac needed)
 ///   -GPActionsPage <library|front|folder|clipboard|present>  open that Actions sheet or tool; -GPEdit starts editing
 ///   -GPFilm <trackpad|menu|actions|media>  play a scripted scene for the demo film (DemoScript.swift)
+///   -GPSetup / -GPSetupTest / -GPSetupReset  open the setup checklist, start its trackpad test, or mark it unfinished
+///   -GPSettingsPage <connection|setup>  open Settings on that page
+///   -GPKeysFn / -GPKeysLock             Keyboard with the function row, or with Command locked and Shift latched
 enum DebugLaunch {
     @MainActor static func apply() {
         let args = ProcessInfo.processInfo.arguments
@@ -259,11 +288,27 @@ enum DebugLaunch {
             if page == "present" { AppRouter.shared.openTool(.present) }
         }
         if args.contains("-GPEdit") { demoEditing = true }
+        if args.contains("-GPSetup") { AppRouter.shared.showSetup = true }
+        if args.contains("-GPSetupTest") { SetupGuide.shared.startTest() }
+        if let travel = value("-GPSetupTravel").flatMap(Double.init) {
+            SetupGuide.shared.debugSet(active: true, travel: travel, passed: travel >= SetupGuide.travelNeeded)
+        }
+        if args.contains("-GPSetupReset") { PhoneSettings.shared.setupComplete = false }
+        if args.contains("-GPKeysFn") { PhoneSettings.shared.keysShowsFunctionRow = true }
+        if args.contains("-GPKeysLock") { demoKeysLock = true }
+        if let page = value("-GPSettingsPage") {
+            settingsPage = page
+            AppRouter.shared.showSettings = true
+        }
         if let scene = value("-GPFilm") { FilmDirector.shared.start(scene: scene, iconFolder: value("-GPDemo")) }
     }
     @MainActor static var showMenuAtLaunch = false
     /// `library`, `front` or `folder`: the Actions sheet (or Pinned folder) to open.
     @MainActor static var demoActionsPage: String?
     @MainActor static var demoEditing = false
+    /// `connection` or `setup`: the Settings page to open with -GPSettingsPage.
+    @MainActor static var settingsPage: String?
+    /// Keyboard opens with Command locked and Shift latched.
+    @MainActor static var demoKeysLock = false
 }
 #endif

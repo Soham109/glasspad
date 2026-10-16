@@ -120,75 +120,8 @@ private struct PermissionChecklist: View {
                 .foregroundStyle(.secondary)
                 .accessibilityAddTraits(.isHeader)
             ForEach(model.missingPermissions) { item in
-                PermissionRow(item: item)
+                PermissionRow(kind: item == .accessibility ? .accessibility : .media)
             }
-        }
-    }
-}
-
-private struct PermissionRow: View {
-    @EnvironmentObject private var model: AppModel
-    let item: MissingPermission
-
-    var body: some View {
-        HStack(alignment: .center, spacing: 10) {
-            SettingsIcon(symbol: symbol, color: color, size: 26)
-            VStack(alignment: .leading, spacing: 1) {
-                Text(title)
-                    .font(.body.weight(.medium))
-                Text(detail)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            Spacer(minLength: 6)
-            Button("Allow…", action: fix)
-                .controlSize(.small)
-                .accessibilityLabel("Allow \(title)")
-                .accessibilityHint(hint)
-        }
-        .accessibilityElement(children: .contain)
-    }
-
-    private var symbol: String {
-        switch item {
-        case .accessibility: "hand.raised.fill"
-        case .automation: "music.note"
-        }
-    }
-
-    private var color: Color {
-        switch item {
-        case .accessibility: .blue
-        case .automation: .pink
-        }
-    }
-
-    private var title: String {
-        switch item {
-        case .accessibility: "Accessibility"
-        case .automation(let app): "\(app) Control"
-        }
-    }
-
-    private var detail: String {
-        switch item {
-        case .accessibility: "Lets your iPhone move the pointer and click."
-        case .automation(let app): "Shows what \(app) is playing on your iPhone."
-        }
-    }
-
-    private var hint: String {
-        switch item {
-        case .accessibility: "Opens Privacy and Security, Accessibility in System Settings"
-        case .automation: "Opens Privacy and Security, Automation in System Settings"
-        }
-    }
-
-    private func fix() {
-        switch item {
-        case .accessibility: model.actions.requestAccessibility()
-        case .automation: model.actions.openAutomationSettings()
         }
     }
 }
@@ -199,16 +132,15 @@ private struct PairingSection: View {
     @EnvironmentObject private var model: AppModel
 
     var body: some View {
-        if let url = model.pairingURL {
-            VStack(spacing: 12) {
-                QRCodeView(url: url, size: 216)
-                Text("In Glasspad on your iPhone, tap Pair and point the camera at this code.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-                    .fixedSize(horizontal: false, vertical: true)
-                Button("Cancel") { model.actions.cancelPairing() }
-                    .keyboardShortcut(.cancelAction)
+        if model.pairing.isActive {
+            VStack(spacing: 10) {
+                PairingPanel(qrSize: 216) { model.actions.cancelPairing() }
+                if case .paired = model.pairing {
+                    EmptyView()
+                } else {
+                    Button("Cancel") { model.actions.cancelPairing() }
+                        .keyboardShortcut(.cancelAction)
+                }
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 10)
@@ -217,7 +149,7 @@ private struct PairingSection: View {
             Button {
                 model.actions.beginPairing()
             } label: {
-                PopoverRow(symbol: "qrcode", title: model.phones.isEmpty ? "Pair Your iPhone…" : "Pair New iPhone…")
+                PopoverRow(symbol: "qrcode", title: PairingCopy.menuItem)
             }
             .buttonStyle(PopoverRowButtonStyle())
             .disabled(model.isPaused)
@@ -294,7 +226,7 @@ private struct FooterButtons: View {
         VStack(spacing: 0) {
             SettingsLink {
                 PopoverRow(symbol: "gearshape", title: "Settings…") {
-                    Text("⌘,").foregroundStyle(.tertiary)
+                    Text("⌘,").foregroundStyle(.secondary)
                 }
             }
             .buttonStyle(PopoverRowButtonStyle())
@@ -304,7 +236,7 @@ private struct FooterButtons: View {
                 model.actions.quit()
             } label: {
                 PopoverRow(symbol: "power", title: "Quit Glasspad") {
-                    Text("⌘Q").foregroundStyle(.tertiary)
+                    Text("⌘Q").foregroundStyle(.secondary)
                 }
             }
             .buttonStyle(PopoverRowButtonStyle())

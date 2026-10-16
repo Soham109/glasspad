@@ -136,6 +136,91 @@ struct ConnectivityTests {
         #expect(server.stats.authFailures == 0)
     }
 
+    // MARK: Why the phone cannot connect (reliability H2, H3)
+
+    /// A Mac that is found but never accepts a connection (guest Wi-Fi, VPN, firewall) used to
+    /// leave the phone on "Connecting" forever with no reason. Now the client says why, and
+    /// keeps retrying in the background.
+    @Test func unreachableMacGivesAReasonAndKeepsRetrying() async throws {
+        // A port nobody listens on: every connect fails before TCP opens.
+        let probe = try NWListener(using: .tcp, on: .any)
+        let portBox = Box<UInt16>(0)
+        probe.stateUpdateHandler = { if case .ready = $0 { portBox.value = probe.port?.rawValue ?? 0 } }
+        probe.newConnectionHandler = { $0.cancel() }
+        probe.start(queue: q)
+        #expect(await waitUntil { portBox.value != 0 })
+        let port = portBox.value
+        probe.cancel()
+        try await Task.sleep(nanoseconds: 100_000_000)
+
+        let (client, _) = makeClient()
+        defer { client.disconnect() }
+        let seen = Box<[LinkIssue?]>([])
+        client.onIssueChange = { seen.value.append($0) }
+        client.connect(host: "127.0.0.1", port: port)
+        #expect(await waitUntil(8) { client.issue == .networkBlocksDevices })
+        #expect(await waitUntil { seen.value.contains(.networkBlocksDevices) })
+        #expect(!client.state.isConnected)
+        #expect(client.state.failure == nil)       // not given up: still retrying
+        #expect(LinkIssue.networkBlocksDevices.message.contains("network"))
+    }
+
+    @Test func issueClearsOnceConnected() async throws {
+        let key = self.key
+        let (server, _, port) = try await makeServer { _ in key }
+        defer { server.stop() }
+        let (client, _) = makeClient()
+        defer { client.disconnect() }
+        client.connect(host: "127.0.0.1", port: port)
+        #expect(await waitUntil { client.state.isConnected })
+        #expect(client.issue == nil)
+    }
+
+    @Test func failureTrackerTriesPeerToPeerThenReports() {
+        var t = ConnectFailureTracker()
+        #expect(t.record() == (false, false))
+        #expect(t.record() == (true, false))      // second failure: allow peer-to-peer Wi-Fi
+        #expect(t.record() == (true, false))
+        #expect(t.record() == (true, true))       // fourth: tell the user why
+    }
+
+    /// A denied Local Network permission parks NWBrowser in `.waiting(PolicyDenied)`; it used to
+    /// be ignored, so the phone said "Looking for your Mac" forever.
+    @Test func policyDeniedIsRecognisedAsLocalNetworkDenied() {
+        #expect(LinkIssue.isLocalNetworkDenied(NWError.dns(DNSServiceErrorType(-65570))))
+        #expect(!LinkIssue.isLocalNetworkDenied(NWError.dns(DNSServiceErrorType(-65563))))   // service not running
+        #expect(!LinkIssue.isLocalNetworkDenied(NWError.posix(.ECONNREFUSED)))
+        #expect(LinkIssue.isLocalNetworkDenied(reason: "unreachable: \(NWError.dns(DNSServiceErrorType(-65570)))"))
+        #expect(!LinkIssue.isLocalNetworkDenied(reason: "unreachable: \(NWError.posix(.ECONNREFUSED))"))
+        #expect(LinkIssue.localNetworkDenied.message.contains("Local Network"))
+    }
+
+    // MARK: Mac status
+
+    /// The Mac's status reaches the phone as a message, and a message type from a newer build
+    /// (either way) is ignored without ending the session.
+    @Test func macStatusArrivesAndUnknownTypesKeepTheSession() async throws {
+        let key = self.key
+        let (server, srec, port) = try await makeServer { _ in key }
+        defer { server.stop() }
+        let (client, crec) = makeClient()
+        defer { client.disconnect() }
+        client.connect(host: "127.0.0.1", port: port)
+        #expect(await waitUntil { client.state.isConnected && server.state.isConnected })
+
+        server.send(.unknown(type: "fromTheFuture"))
+        client.send(message: .unknown(type: "fromTheFuture"))
+        let status = MacStatus(accessibilityTrusted: false, automationMedia: .notDetermined, macName: "Test Mac")
+        server.send(.macStatus(status))
+        client.send(message: .haptic(.snap))
+        #expect(await waitUntil { crec.messages.contains(.macStatus(status)) })
+        #expect(await waitUntil { srec.messages.contains(.haptic(.snap)) })
+        #expect(!crec.messages.contains { if case .unknown = $0 { true } else { false } })
+        #expect(!srec.messages.contains { if case .unknown = $0 { true } else { false } })
+        #expect(client.state.isConnected && server.state.isConnected)
+        #expect(server.stats.malformed == 0)
+    }
+
     // MARK: Wake-on-LAN
 
     @Test func macSendsWakeTargetAfterHandshake() async throws {

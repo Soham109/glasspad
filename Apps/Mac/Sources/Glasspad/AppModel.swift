@@ -22,7 +22,12 @@ final class AppModel: ObservableObject {
     @Published var accessibilityTrusted = true
     /// Music apps the user refused Automation for (e.g. "Spotify").
     @Published var automationDenied: [String] = []
-    @Published var pairingURL: URL?
+    /// Spotify and Music control, as the phone is told it.
+    @Published var automation: AutomationState = .notDetermined
+    /// Shown under the Spotify and Music row after asking found no player to ask.
+    @Published var automationHint: String?
+    /// Waiting for a scan, paired, expired or failed.
+    @Published var pairing: PairingPhase = .idle
     @Published var lastError: String?
     @Published var dock = MacDockState(hidden: false, hideWhileConnected: false)
     @Published var launchAtLogin = false
@@ -38,7 +43,12 @@ final class AppModel: ObservableObject {
     /// Everything a button can do. Plain closures so the harness can pass no-ops.
     struct Actions {
         var beginPairing: @MainActor () -> Void = {}
+        /// Cancels a code, or dismisses a pairing result.
         var cancelPairing: @MainActor () -> Void = {}
+        /// Puts the pairing link on the pasteboard (for pasting on the phone, or AirDrop).
+        var copyPairingLink: @MainActor (URL) -> Void = { _ in }
+        /// Asks for Spotify and Music control; sets `automationHint` when nothing could be asked.
+        var requestAutomation: @MainActor () -> Void = {}
         var forget: @MainActor (StoredPhone) -> Void = { _ in }
         var requestAccessibility: @MainActor () -> Void = {}
         var openAutomationSettings: @MainActor () -> Void = {}
@@ -71,11 +81,16 @@ final class AppModel: ObservableObject {
 
     var isConnected: Bool { link.isConnected && !isPaused }
 
+    /// The link in the QR code, while it can be scanned.
+    var pairingURL: URL? { pairing.url }
+
     /// Permissions that stop something from working. Empty when all is well.
     var missingPermissions: [MissingPermission] {
         var out: [MissingPermission] = []
+        // Accessibility first: nothing works without it. Spotify and Music is optional, so it
+        // only shows here once it was refused.
         if !accessibilityTrusted { out.append(.accessibility) }
-        out += automationDenied.map { .automation($0) }
+        if automation == .denied { out.append(.automation) }
         return out
     }
 
@@ -93,14 +108,17 @@ private final class ModelRef {
 
 enum MissingPermission: Hashable, Identifiable {
     case accessibility
-    case automation(String)
+    /// Spotify and Music control (optional).
+    case automation
 
     var id: String {
         switch self {
         case .accessibility: "accessibility"
-        case .automation(let app): "automation.\(app)"
+        case .automation: "automation"
         }
     }
+
+    var isRequired: Bool { self == .accessibility }
 }
 
 // MARK: - Live wiring
@@ -122,6 +140,19 @@ extension AppModel {
             SystemSettings.openAccessibility()
         }
         a.openAutomationSettings = { media.openAutomationSettings() }
+        a.copyPairingLink = { url in
+            let board = NSPasteboard.general
+            board.clearContents()
+            board.writeObjects([url as NSURL])
+            board.setString(url.absoluteString, forType: .string)
+        }
+        a.requestAutomation = {
+            ref.model?.automationHint = nil
+            Task { @MainActor in
+                let asked = await controller.requestAutomation()
+                ref.model?.automationHint = asked ? nil : PermissionCopy.openPlayerFirst
+            }
+        }
         a.recheckPermissions = { controller.refreshAccessibility() }
         a.setDockHidden = { hider.setManual($0) }
         a.setHideDockWhileConnected = { hider.setHideWhileConnected($0) }
@@ -168,6 +199,7 @@ extension AppModel {
         a.openLoginItems = { SystemSettings.openLoginItems() }
         a.refresh = {
             controller.refreshAccessibility()
+            controller.refreshAutomation()
             login.refresh()
             ref.model?.launchAtLogin = login.isEnabled
             ref.model?.launchNeedsApproval = login.needsApproval
@@ -188,7 +220,8 @@ extension AppModel {
         controller.$capabilities.assign(to: &model.$capabilities)
         controller.$settings.assign(to: &model.$settings)
         controller.$accessibilityTrusted.assign(to: &model.$accessibilityTrusted)
-        controller.$pairingURL.assign(to: &model.$pairingURL)
+        controller.$pairingPhase.assign(to: &model.$pairing)
+        controller.$automation.assign(to: &model.$automation)
         controller.$lastError.assign(to: &model.$lastError)
         hider.$published.assign(to: &model.$dock)
         media.$deniedApps.assign(to: &model.$automationDenied)

@@ -686,13 +686,77 @@ struct StuckButtonTests {
         #expect(s.events.last == .button(.left, down: false, clickCount: 1))
     }
 
-    @Test func silentLinkReleasesAfterTimeout() {
+    @Test func silentLinkReleasesADragOnlyAfterTheLongTimeout() {
         let s = startDrag()
-        s.wait(0.3)
+        s.wait(0.7)
         #expect(s.r.isLeftButtonDown)
-        s.wait(0.4)
+        #expect(s.r.isStalled)
+        s.wait(GestureTuning.staleDragTimeout)
         #expect(!s.r.isLeftButtonDown)
         #expect(s.events.last == .button(.left, down: false, clickCount: 1))
+    }
+
+    /// Reliability H1: a Wi-Fi stall over 0.5 s mid-drag used to drop the item where the pointer
+    /// was, and the returning finger then started a new touch that could click.
+    @Test func wifiStallMidDragFreezesThenResumes() {
+        let s = startDrag()
+        _ = s.take()
+        s.wait(0.9)                          // no frames: the stall
+        #expect(s.r.isLeftButtonDown)
+        #expect(s.take().isEmpty)            // frozen: no release, no motion
+        s.fingers[1]!.x += 40                // the finger moved while nothing got through
+        s.advance(0.02)
+        s.send([1: .moved])                  // the same finger's frames are back
+        #expect(s.r.isLeftButtonDown)
+        #expect(!s.r.isStalled)
+        // No jump for the 40 points travelled unseen (at most the few points the touch-down
+        // hysteresis was still holding back from before the stall).
+        #expect(s.drags.map(\.0).reduce(0, +) < 10)
+        s.move([1], dx: 6, dy: 0, steps: 5)
+        #expect(s.drags.contains { $0.0 > 0 })                               // live again
+        #expect(s.buttons.isEmpty)
+        s.up(1)
+        #expect(s.buttons == [.button(.left, down: false, clickCount: 1)])  // released once, on the lift
+    }
+
+    @Test func liftDuringAStallReleasesOnTheReturningFrame() {
+        let s = startDrag()
+        s.wait(0.9)
+        _ = s.take()
+        s.fingers = [:]
+        s.advance(0.02)
+        s.send([:])                          // first frame back: the finger is gone
+        #expect(!s.r.isLeftButtonDown)
+        #expect(s.buttons == [.button(.left, down: false, clickCount: 1)])
+    }
+
+    @Test func stallWhilePointingNeverClicksWhenTheFingerReturns() {
+        let s = Script()
+        s.down(1, 200, 400)
+        s.move([1], dx: 4, dy: 0, steps: 6)
+        s.wait(0.6)                          // stale guard drops the touch
+        #expect(s.r.fingerCount == 0)
+        _ = s.take()
+        s.advance(0.02)
+        s.send([:])                          // same finger, resting resend (not a touch-down)
+        #expect(s.r.fingerCount == 1)
+        s.advance(0.05)
+        s.up(1)                              // a quick lift: would have been a tap
+        #expect(s.buttons.isEmpty)
+    }
+
+    @Test func stallThenAFreshTouchDownStillTaps() {
+        let s = Script()
+        s.down(1, 200, 400)
+        s.move([1], dx: 4, dy: 0, steps: 6)
+        s.wait(0.6)
+        s.fingers = [:]
+        _ = s.take()
+        s.advance(0.3)
+        s.down(1, 220, 410)                  // a real new touch reusing the id
+        s.advance(0.06)
+        s.up(1)
+        #expect(s.buttons == leftClick(1))
     }
 
     @Test func lostEndedPacketHealsOnNextSnapshot() {

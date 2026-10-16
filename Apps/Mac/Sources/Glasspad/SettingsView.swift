@@ -30,7 +30,7 @@ enum SettingsTab: String, CaseIterable, Identifiable {
         case .general: "General"
         case .iphone: "iPhone"
         case .trackpad: "Trackpad"
-        case .macros: "Actions & Macros"
+        case .macros: "Macros"
         case .advanced: "Advanced"
         case .about: "About"
         }
@@ -98,21 +98,6 @@ struct RowLabel: View {
     }
 }
 
-/// "Allowed" with a green check, for permission rows.
-private struct AllowedBadge: View {
-    var text = "Allowed"
-
-    var body: some View {
-        HStack(spacing: 5) {
-            Image(systemName: "checkmark.circle.fill")
-                .foregroundStyle(.green)
-                .accessibilityHidden(true)
-            Text(text)
-                .foregroundStyle(.secondary)
-        }
-    }
-}
-
 // MARK: - General
 
 struct GeneralPane: View {
@@ -154,32 +139,8 @@ struct GeneralPane: View {
             }
 
             Section {
-                LabeledContent {
-                    if model.accessibilityTrusted {
-                        AllowedBadge()
-                    } else {
-                        Button("Allow…") { model.actions.requestAccessibility() }
-                            .accessibilityLabel("Allow Accessibility")
-                    }
-                } label: {
-                    RowLabel(title: "Accessibility", detail: "Lets your iPhone move the pointer and click.",
-                             symbol: "hand.raised.fill", color: .blue)
-                }
-                LabeledContent {
-                    if model.automationDenied.isEmpty {
-                        Text("Asked when needed")
-                            .foregroundStyle(.secondary)
-                    } else {
-                        Button("Allow…") { model.actions.openAutomationSettings() }
-                            .accessibilityLabel("Allow Automation")
-                    }
-                } label: {
-                    RowLabel(title: "Music and Spotify",
-                             detail: model.automationDenied.isEmpty
-                                ? "Shows what is playing on your iPhone."
-                                : "Not allowed for \(model.automationDenied.formatted(.list(type: .and))).",
-                             symbol: "music.note", color: .pink)
-                }
+                PermissionRow(kind: .accessibility, iconSize: 20)
+                PermissionRow(kind: .media, iconSize: 20)
             } header: {
                 Text("Permissions")
             }
@@ -203,7 +164,8 @@ struct IPhonePane: View {
                         VStack(spacing: 6) {
                             Image(systemName: "iphone.gen3")
                                 .font(.system(size: 28, weight: .light))
-                                .foregroundStyle(.tertiary)
+                                .foregroundStyle(.secondary)
+                                .accessibilityHidden(true)
                             Text("No iPhones Paired")
                                 .font(.headline)
                             Text("Pair your iPhone to use it as a trackpad and remote.")
@@ -229,7 +191,7 @@ struct IPhonePane: View {
             } footer: {
                 HStack {
                     Spacer()
-                    Button(model.phones.isEmpty ? "Pair Your iPhone…" : "Pair New iPhone…") {
+                    Button(PairingCopy.menuItem) {
                         model.actions.beginPairing()
                     }
                     .disabled(model.isPaused)
@@ -246,7 +208,7 @@ struct IPhonePane: View {
             }
         }
         .formStyle(.grouped)
-        .sheet(isPresented: Binding(get: { model.pairingURL != nil },
+        .sheet(isPresented: Binding(get: { model.pairing.isActive },
                                     set: { if !$0 { model.actions.cancelPairing() } })) {
             PairingSheet()
         }
@@ -277,21 +239,21 @@ struct PairingSheet: View {
 
     var body: some View {
         VStack(spacing: 16) {
-            VStack(spacing: 4) {
-                Text("Pair New iPhone")
+            if model.pairing.url != nil {
+                Text(PairingCopy.title)
                     .font(.title3.weight(.semibold))
-                Text("In Glasspad on your iPhone, tap Pair and point the camera at this code.")
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityAddTraits(.isHeader)
             }
-            if let url = model.pairingURL {
-                QRCodeView(url: url, size: 240)
-            }
+            PairingPanel(qrSize: 240) { model.actions.cancelPairing() }
             HStack {
                 Spacer()
-                Button("Cancel") { model.actions.cancelPairing() }
-                    .keyboardShortcut(.cancelAction)
+                if case .paired = model.pairing {
+                    Button("Done") { model.actions.cancelPairing() }
+                        .keyboardShortcut(.defaultAction)
+                } else {
+                    Button("Cancel") { model.actions.cancelPairing() }
+                        .keyboardShortcut(.cancelAction)
+                }
             }
         }
         .padding(20)
@@ -362,6 +324,12 @@ struct TrackpadPane: View {
 
 struct AdvancedPane: View {
     @EnvironmentObject private var model: AppModel
+    @State private var showDiagnostics: Bool
+
+    /// The harness opens Diagnostics to draw it; the app starts with it closed.
+    init(diagnosticsExpanded: Bool = false) {
+        _showDiagnostics = State(initialValue: diagnosticsExpanded)
+    }
 
     var body: some View {
         let stats = model.stats
@@ -369,11 +337,13 @@ struct AdvancedPane: View {
             Section {
                 LabeledContent("Status", value: model.statusTitle)
                 LabeledContent("Signal", value: model.signal?.title ?? "Not connected")
-                LabeledContent("Round trip, typical", value: formatMilliseconds(stats.rttMedianMs))
-                LabeledContent("Round trip, slowest 5%", value: formatMilliseconds(stats.rttP95Ms))
-                LabeledContent("Touch updates received", value: stats.framesReceived.formatted())
-                LabeledContent("Rejected packets", value: rejected(stats).formatted())
-                    .help("Packets that failed the encryption check, arrived twice, or could not be read. A few are normal on busy networks.")
+                DisclosureGroup("Diagnostics", isExpanded: $showDiagnostics) {
+                    LabeledContent("Round trip, typical", value: formatMilliseconds(stats.rttMedianMs))
+                    LabeledContent("Round trip, slowest 5%", value: formatMilliseconds(stats.rttP95Ms))
+                    LabeledContent("Touch updates received", value: stats.framesReceived.formatted())
+                    LabeledContent("Rejected packets", value: rejected(stats).formatted())
+                        .help("Packets that failed the encryption check, arrived twice, or could not be read. A few are normal on busy networks.")
+                }
             } header: {
                 Text("Connection")
             }
@@ -392,10 +362,10 @@ struct AdvancedPane: View {
 
             Section {
                 Toggle(isOn: Binding(get: { model.allowShellButtons }, set: { model.actions.setAllowShellButtons($0) })) {
-                    Text("Allow shell command buttons")
+                    Text("Allow shell command buttons in Actions")
                     Text("Commands run with your user account. Leave this off unless you wrote them yourself.")
                 }
-                LabeledContent("Button layout file") {
+                LabeledContent("Pinned and Library file") {
                     Button("Show in Finder") { model.actions.showActionsFile() }
                 }
                 LabeledContent("Macros folder") {
@@ -458,7 +428,7 @@ struct AboutPane: View {
             .padding(.top, 10)
             Text("MIT License")
                 .font(.caption)
-                .foregroundStyle(.tertiary)
+                .foregroundStyle(.secondary)
                 .padding(.top, 14)
         }
         .padding(28)

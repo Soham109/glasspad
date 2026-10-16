@@ -21,11 +21,31 @@ final class MacSession {
     private(set) var hasMacSettings: Bool
     /// `thermalState >= .serious`: haptics and heartbeats are off until the phone cools.
     private(set) var isWarm = false
+    /// Low Power Mode: keep-awake heartbeats stop after 10 s without a touch instead of 2 min,
+    /// and button-tap haptics are skipped. Pointer traffic and click haptics are unchanged.
+    private(set) var isLowPower = false
+    /// What the Mac last said it can do (Accessibility, Automation). nil until a Mac that
+    /// reports it connects; older Mac builds never send it.
+    private(set) var macStatus: MacStatus?
+    /// Why the link cannot come up, when the client can tell (Local Network off, or a network
+    /// that keeps devices apart).
+    private(set) var linkIssue: LinkIssue?
+    /// When the current session reached `connected` (to tell "not reported yet" from "an older
+    /// Mac that never reports").
+    private(set) var connectedAt: Date?
 
     var isConnected: Bool { if case .connected = state { true } else { false } }
     /// Another iPhone took this Mac. The link waits for the user instead of retrying.
     var isReplaced: Bool { state.isReplaced }
     var macName: String? { PairingStore.shared.selected?.name }
+    /// Connected, and the Mac says Accessibility is off: touches arrive but cannot move anything.
+    var macNeedsAccessibility: Bool { isConnected && macStatus?.accessibilityTrusted == false }
+
+    /// Round trips measured in this session (only while `setDiagnosticsVisible(true)`). Not
+    /// observed: read it on a timer.
+    var roundTrip: RoundTripStats { client?.roundTrip ?? RoundTripStats() }
+    /// How this session reaches the Mac. Not observed: read it on a timer.
+    var linkPath: LinkPath? { client?.path }
 
     // MARK: Mode data
 
@@ -75,6 +95,8 @@ final class MacSession {
     @ObservationIgnored private var stateWaiters: [UUID: CheckedContinuation<Bool, Never>] = [:]
     @ObservationIgnored private var laserOn = false
     @ObservationIgnored private var thermalObserver: NSObjectProtocol?
+    @ObservationIgnored private var powerObserver: NSObjectProtocol?
+    @ObservationIgnored private var diagnosticsVisible = 0
 
     private static let settingsKey = "lastMacSettings"
     private static let deckCacheKey = "deckButtonsCache"
@@ -109,6 +131,11 @@ final class MacSession {
         ) { _ in
             MainActor.assumeIsolated { MacSession.shared.updateThermal() }
         }
+        powerObserver = NotificationCenter.default.addObserver(
+            forName: .NSProcessInfoPowerStateDidChange, object: nil, queue: .main
+        ) { _ in
+            MainActor.assumeIsolated { MacSession.shared.updateThermal() }
+        }
         updateThermal()
         refreshHapticStrength()
     }
@@ -133,6 +160,13 @@ final class MacSession {
         if visible { Haptics.shared.warmUp() } else { Haptics.shared.coolDown() }
     }
 
+    /// A diagnostics screen (Connection, the setup checklist) appeared or disappeared. While one
+    /// shows, the phone measures round trips, with heartbeats on so the numbers match the trackpad.
+    func setDiagnosticsVisible(_ visible: Bool) {
+        diagnosticsVisible = max(0, diagnosticsVisible + (visible ? 1 : -1))
+        applyHeartbeats()
+    }
+
     func select(_ mac: PairedMac) {
         guard connector?.activeMacID != mac.macID || client == nil else { return }
         PairingStore.shared.select(mac.macID)
@@ -143,6 +177,7 @@ final class MacSession {
     /// A code was just scanned. Always starts a fresh session: even for a Mac paired before,
     /// the key is new.
     func didPair(_ mac: PairedMac) {
+        SetupGuide.shared.paired()
         PairingStore.shared.select(mac.macID)
         resetModeData()
         reconnect()
@@ -217,6 +252,10 @@ final class MacSession {
         new.client?.onWakeTarget = { target in
             MainActor.assumeIsolated { PairingStore.shared.setWakeTarget(target, for: macID) }
         }
+        new.client?.onIssueChange = { issue in
+            MainActor.assumeIsolated { MacSession.shared.linkIssue = issue }
+        }
+        linkIssue = new.client?.issue
         applyHeartbeats()
     }
 
@@ -225,6 +264,7 @@ final class MacSession {
         connector?.delegate = nil
         connector?.disconnect()
         connector = nil
+        linkIssue = nil
         setState(.idle)
     }
 
@@ -332,11 +372,15 @@ final class MacSession {
         let warm = ProcessInfo.processInfo.thermalState.rawValue >= ProcessInfo.ThermalState.serious.rawValue
         isWarm = warm
         Haptics.shared.suspendedForHeat = warm
+        isLowPower = ProcessInfo.processInfo.isLowPowerModeEnabled
         applyHeartbeats()
     }
 
     private func applyHeartbeats() {
-        client?.heartbeatsEnabled = trackpadVisible && !isWarm
+        guard let client else { return }
+        client.heartbeatIdleTimeout = isLowPower ? 10 : GlasspadService.heartbeatIdleTimeout
+        client.measuresRoundTrip = diagnosticsVisible > 0
+        client.heartbeatsEnabled = (trackpadVisible || diagnosticsVisible > 0) && !isWarm
     }
 
     // MARK: Receiving
@@ -344,6 +388,7 @@ final class MacSession {
     fileprivate func linkStateChanged(_ new: LinkState) {
         setState(new)
         if case .connected = new {
+            connectedAt = Date()
             // The connector marked this Mac as last used; show it.
             PairingStore.shared.reload()
             send(.modeSelected(AppRouter.shared.mode.wireMode))
@@ -377,8 +422,21 @@ final class MacSession {
             Haptics.shared.play(HapticCue(kind))
         case .mode(let mode):
             received(mode)
-        case .bye, .ping, .pong:
+        case .macStatus(let status):
+            receivedStatus(status)
+        case .bye, .ping, .pong, .unknown:
             break
+        }
+    }
+
+    private func receivedStatus(_ status: MacStatus) {
+        let wasBlocked = macStatus?.accessibilityTrusted == false
+        macStatus = status
+        if wasBlocked && status.accessibilityTrusted {
+            Haptics.shared.play(.snap)
+            UIAccessibility.post(notification: .announcement, argument: "Your Mac allows Glasspad now.")
+        } else if !wasBlocked && !status.accessibilityTrusted {
+            UIAccessibility.post(notification: .announcement, argument: "Your Mac needs one permission. Turn on Glasspad in Accessibility settings on the Mac.")
         }
     }
 
@@ -588,6 +646,7 @@ final class MacSession {
     }
 
     private func resetModeData() {
+        macStatus = nil
         dockApps = []
         dockCatalog = []
         macDockState = nil
@@ -617,6 +676,7 @@ final class MacSession {
         #endif
         guard state != new else { return }
         state = new
+        if case .connected = new {} else { connectedAt = nil }
         switch new {
         case .connected:
             resumeWaiters(true)
@@ -727,6 +787,8 @@ private final class LinkBridge: GlasspadLinkDelegate {
 }
 
 extension LinkState {
+    var isConnectedState: Bool { if case .connected = self { true } else { false } }
+
     var isReplaced: Bool {
         if case .failed(let reason) = self { reason == GlasspadService.replacedFailure } else { false }
     }

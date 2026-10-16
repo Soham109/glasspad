@@ -1,3 +1,4 @@
+import AppKit
 import GlasspadMacros
 import SwiftUI
 
@@ -115,6 +116,8 @@ struct StepEditorSheet: View {
     @State private var point2: PointFields
     @State private var modifiers: KeyModifiers
     @State private var button: MouseButton
+    /// Keystroke steps: "char" (the letter in `text1`), a SpecialKey raw value, or "code:N".
+    @State private var keyTag: String
 
     struct PointFields: Equatable {
         var x: Double = 0
@@ -137,10 +140,15 @@ struct StepEditorSheet: View {
         kind = StepKind(step)
         var t1 = "", t2 = "", n1 = 0, n2 = 0
         var p1 = PointFields(.screen(0, 0)), p2 = PointFields(.screen(0, 0))
-        var mods: KeyModifiers = [], btn = MouseButton.left
+        var mods: KeyModifiers = [], btn = MouseButton.left, tag = "char"
         var inner: [MacroStep] = []
         switch step {
-        case .keystroke(let k): t1 = k.key.jsonName; mods = k.modifiers
+        case .keystroke(let k):
+            mods = k.modifiers
+            switch k.key {
+            case .character(let c): t1 = c.uppercased()
+            case .special, .code: tag = k.key.jsonName
+            }
         case .typeText(let t): t1 = t
         case .click(let b, let p, let c, let m): btn = b; p1 = PointFields(p); n1 = c; mods = m
         case .moveMouse(let p): p1 = PointFields(p)
@@ -167,6 +175,7 @@ struct StepEditorSheet: View {
         _point2 = State(initialValue: p2)
         _modifiers = State(initialValue: mods)
         _button = State(initialValue: btn)
+        _keyTag = State(initialValue: tag)
     }
 
     var body: some View {
@@ -209,8 +218,22 @@ struct StepEditorSheet: View {
     private var fields: some View {
         switch kind {
         case .keystroke:
-            TextField("Key", text: $text1, prompt: Text("c, return, f5, left, code:93"))
+            Picker("Key", selection: $keyTag) {
+                Text("Letter, Number or Symbol").tag("char")
+                Divider()
+                ForEach(SpecialKey.allCases, id: \.self) { key in
+                    Text(KeyCaption.name(key)).tag(key.rawValue)
+                }
+                if keyTag.hasPrefix("code:") {
+                    Divider()
+                    Text("Recorded Key").tag(keyTag)
+                }
+            }
+            if keyTag == "char" {
+                TextField("Character", text: $text1, prompt: Text("T"))
+            }
             ModifierToggles(modifiers: $modifiers)
+            LabeledContent("Shortcut", value: keyCombo.map(KeyCaption.caption) ?? "Choose a key")
         case .typeText:
             TextField("Text", text: $text1, axis: .vertical)
                 .lineLimit(3...8)
@@ -236,11 +259,10 @@ struct StepEditorSheet: View {
         case .wait:
             TextField("Milliseconds", value: $number1, format: .number)
         case .waitForApp:
-            TextField("App bundle ID", text: $text1, prompt: Text("com.apple.Safari"))
-            TextField("Give up after (ms)", value: $number1, format: .number)
+            AppChooser(bundleID: $text1)
+            TextField("Give up after (milliseconds)", value: $number1, format: .number)
         case .openApp:
-            TextField("App bundle ID", text: $text1, prompt: Text("com.apple.Safari"))
-            if !text1.isEmpty { LabeledContent("App", value: AppInfo.name(for: text1)) }
+            AppChooser(bundleID: $text1)
         case .openURL:
             TextField("URL", text: $text1, prompt: Text("https://example.com"))
         case .openFile:
@@ -269,6 +291,17 @@ struct StepEditorSheet: View {
         }
     }
 
+    /// The keystroke being edited, or nil until a key is chosen.
+    private var keyCombo: KeyCombo? {
+        let key: MacroKey?
+        if keyTag == "char" {
+            key = text1.count == 1 ? MacroKey(jsonName: text1) : nil
+        } else {
+            key = MacroKey(jsonName: keyTag)
+        }
+        return key.map { KeyCombo($0, modifiers) }
+    }
+
     @ViewBuilder
     private var buttonOptions: some View {
         Text("Left").tag(MouseButton.left)
@@ -278,7 +311,7 @@ struct StepEditorSheet: View {
 
     private var hint: String? {
         switch kind {
-        case .keystroke: "A single character means the key that types it, so shortcuts work on any keyboard layout."
+        case .keystroke: "A letter means the key that types it, so shortcuts work on any keyboard layout."
         case .typeText: "New lines and tabs are typed as Return and Tab."
         case .runAppleScript, .runShell: "Runs only when the macro's \"Allow scripts\" is on."
         case .click, .moveMouse, .drag: "Screen points from the top left of the main display, or offsets from a corner of the front window."
@@ -288,8 +321,8 @@ struct StepEditorSheet: View {
 
     private var problem: String? {
         switch kind {
-        case .keystroke where MacroKey(jsonName: text1.trimmingCharacters(in: .whitespaces)) == nil && !text1.isEmpty:
-            "Not a key. Use one character, a name like return or f5, or code:NN."
+        case .keystroke where keyTag == "char" && text1.count > 1:
+            "Type one letter, number or symbol, or pick a key from the list."
         case .openURL where !text1.isEmpty && URL(string: text1)?.scheme == nil:
             "A URL needs a scheme, like https://."
         case .wait where number1 < 0, .waitForApp where number1 < 0, .drag where number1 < 0, .runShell where number1 <= 0:
@@ -306,8 +339,7 @@ struct StepEditorSheet: View {
         let t1 = text1.trimmingCharacters(in: .whitespacesAndNewlines)
         switch kind {
         case .keystroke:
-            guard let key = MacroKey(jsonName: t1) else { return nil }
-            return .keystroke(KeyCombo(key, modifiers))
+            return keyCombo.map { .keystroke($0) }
         case .typeText: return text1.isEmpty ? nil : .typeText(text1)
         case .click: return .click(button: button, at: point1.point, count: number1, modifiers: modifiers)
         case .moveMouse: return .moveMouse(to: point1.point)
@@ -368,7 +400,7 @@ private struct PointEditor: View {
                     Text("Window, top right").tag(WindowAnchor?.some(.topRight))
                     Text("Window, bottom left").tag(WindowAnchor?.some(.bottomLeft))
                     Text("Window, bottom right").tag(WindowAnchor?.some(.bottomRight))
-                    Text("Window, centre").tag(WindowAnchor?.some(.center))
+                    Text("Window, center").tag(WindowAnchor?.some(.center))
                 }
                 .labelsHidden()
                 .fixedSize()
@@ -388,5 +420,55 @@ private struct PointEditor: View {
                 .frame(width: 58)
                 .accessibilityLabel("\(title) \(axis)")
         }
+    }
+}
+
+/// Picks an app by name and icon: the running apps, or any app from Applications. The bundle
+/// ID it stores never shows.
+private struct AppChooser: View {
+    @Binding var bundleID: String
+
+    var body: some View {
+        LabeledContent("App") {
+            HStack(spacing: 8) {
+                if !bundleID.isEmpty {
+                    Image(nsImage: AppInfo.icon(for: bundleID))
+                        .resizable()
+                        .frame(width: 18, height: 18)
+                        .accessibilityHidden(true)
+                }
+                Menu(bundleID.isEmpty ? "Choose an App" : AppInfo.name(for: bundleID)) {
+                    let running = Self.runningApps()
+                    if !running.isEmpty {
+                        Section("Open Now") {
+                            ForEach(running, id: \.id) { app in
+                                Button(app.name) { bundleID = app.id }
+                            }
+                        }
+                    }
+                    Divider()
+                    Button("Other App…") { chooseFromDisk() }
+                }
+                .fixedSize()
+            }
+        }
+    }
+
+    static func runningApps() -> [(id: String, name: String)] {
+        let apps = NSWorkspace.shared.runningApplications.filter { $0.activationPolicy == .regular }
+        let pairs: [(id: String, name: String)] = apps.compactMap { app in
+            guard let id = app.bundleIdentifier, id != Bundle.main.bundleIdentifier else { return nil }
+            return (id, app.localizedName ?? AppInfo.name(for: id))
+        }
+        return pairs.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+    }
+
+    private func chooseFromDisk() {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.application]
+        panel.directoryURL = URL(fileURLWithPath: "/Applications")
+        panel.prompt = "Choose"
+        guard panel.runModal() == .OK, let url = panel.url, let id = Bundle(url: url)?.bundleIdentifier else { return }
+        bundleID = id
     }
 }

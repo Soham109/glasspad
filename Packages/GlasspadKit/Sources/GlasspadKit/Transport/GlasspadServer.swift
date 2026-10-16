@@ -406,6 +406,7 @@ public final class GlasspadServer: @unchecked Sendable {
                 return
             }
             switch msg {
+            case .unknown: return      // a newer phone's message: ignore it, keep the session
             case .pong(let id): handlePong(id)
             case .ping(let id): send(.pong(id: id), on: s)
             case .bye:
