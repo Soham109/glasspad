@@ -8,6 +8,7 @@ import { Film as Film2 } from "./v2/Film";
 import { Teaser as Teaser2 } from "./v2/Teaser";
 import { CUT_LEN, Warped } from "./v2/warp";
 import { Thumb1, Thumb2, Thumb3, Thumb4, Thumb5, Thumb6 } from "./v2/Thumbs";
+import { OGBlue, OGGraphite, OGPaper } from "./v2/OG";
 import { loadFonts as loadFonts2 } from "./v2/system";
 
 loadFonts();
@@ -25,5 +26,8 @@ export const Root: React.FC = () => (
     {[Thumb1, Thumb2, Thumb3, Thumb4, Thumb5, Thumb6].map((T, i) => (
       <Still key={i} id={`GlasspadThumb${i + 1}`} component={T} width={1920} height={1080} />
     ))}
+    <Still id="GlasspadOGPaper" component={OGPaper} width={1200} height={630} />
+    <Still id="GlasspadOGGraphite" component={OGGraphite} width={1200} height={630} />
+    <Still id="GlasspadOGBlue" component={OGBlue} width={1200} height={630} />
   </>
 );
