@@ -18,7 +18,19 @@ final class FakeWindow: MovableWindow {
     var maximumWidth: CGFloat = .infinity
     /// Reads before a change shows.
     var lag = 0
-    var isFullScreen = false
+    var fullScreen = false
+    var isFullScreen: Bool {
+        guard fullScreen else { return false }
+        if fullScreenReadsLeft > 0 {
+            fullScreenReadsLeft -= 1
+            if fullScreenReadsLeft == 0 { fullScreen = false }
+            return true
+        }
+        return true
+    }
+    /// Reads that still say full screen after being asked to leave (the animation).
+    var fullScreenReadsLeft = 0
+    var staysFullScreen = false
     var refuses = false
     var closed = false
     /// Visible areas: a new size never goes past the one the window is on.
@@ -30,6 +42,13 @@ final class FakeWindow: MovableWindow {
         actual = frame
         shown = frame
         self.displays = displays
+    }
+
+    func exitFullScreen() -> Bool {
+        log.append("exit full screen")
+        if staysFullScreen { return false }
+        fullScreenReadsLeft = 3
+        return true
     }
 
     var frame: CGRect? {
@@ -101,11 +120,11 @@ final class FakeWindow: MovableWindow {
         #expect(SplitScreen.choose([], displays: [Self.laptop.frame]) == .failure(.noWindow))
     }
 
-    @Test func aWindowInFullScreenIsRefusedByName() {
-        let windows = [SplitScreen.Candidate(app: "Safari", frame: CGRect(x: 0, y: 0, width: 1512, height: 982), isFullScreen: true),
+    @Test func aWindowInFullScreenIsStillChosen() {
+        let windows = [SplitScreen.Candidate(app: "Terminal", frame: CGRect(x: 0, y: 0, width: 1512, height: 982), isFullScreen: true),
                        SplitScreen.Candidate(app: "Notes", frame: CGRect(x: 300, y: 100, width: 700, height: 600))]
-        #expect(SplitScreen.choose(windows, displays: [Self.laptop.frame]) == .failure(.fullScreen("Safari")))
-        #expect(WindowFailure.fullScreen("Safari").message == "Safari is in full screen. Exit full screen first.")
+        #expect(SplitScreen.choose(windows, displays: [Self.laptop.frame]) == .success(SplitScreen.Choice(left: 0, right: 1, display: 0)))
+        #expect(WindowFailure.fullScreen("Terminal").message == "Terminal would not leave full screen. Try again in a moment.")
     }
 
     // MARK: Halves
@@ -244,7 +263,14 @@ final class FakeWindow: MovableWindow {
         b.closed = true
         #expect(arranger(screens).split(left: a, right: b, in: Self.laptop.visible, gap: 8, displayName: "") == .closed)
         b.closed = false
-        b.isFullScreen = true
+        // In full screen: taken out of it first, then split.
+        b.fullScreen = true
+        #expect(arranger(screens).split(left: a, right: b, in: Self.laptop.visible, gap: 8, displayName: "") == nil)
+        #expect(b.log.first == "exit full screen")
+        #expect(!b.isFullScreen)
+        // One that will not leave full screen is named.
+        b.fullScreen = true
+        b.staysFullScreen = true
         #expect(arranger(screens).split(left: a, right: b, in: Self.laptop.visible, gap: 8, displayName: "") == .fullScreen("Finder"))
     }
 

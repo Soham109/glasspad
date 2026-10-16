@@ -25,7 +25,7 @@ public enum WindowFailure: Error, Equatable, Sendable {
         case .noSecondWindow: "Open a second window to split the screen."
         case .oneScreen: "Only one display is connected"
         case .closed: "That window has closed."
-        case .fullScreen(let app): "\(app) is in full screen. Exit full screen first."
+        case .fullScreen(let app): "\(app) would not leave full screen. Try again in a moment."
         case .refused(let app): "\(app) won't let Glasspad move its window. Try again, or drag it into place."
         case .tooWide(let app): "\(app) can't be resized that small. Try a wider display."
         case .bothTooWide(let a, let b, let display):
@@ -60,14 +60,13 @@ public enum SplitScreen {
     }
 
     /// The front window on the left and the one behind it on the right, on the front window's
-    /// display. Minimized windows are skipped; a window in full screen is refused, since macOS
-    /// keeps it in a space of its own.
+    /// display. Minimized windows are skipped; a window in full screen is taken out of it when
+    /// the split runs.
     public static func choose(_ windows: [Candidate], displays: [CGRect]) -> Result<Choice, WindowFailure> {
         let usable = windows.indices.filter { !windows[$0].isMinimized }
         guard let left = usable.first else { return .failure(.noWindow) }
         guard usable.count > 1 else { return .failure(.noSecondWindow) }
         let right = usable[1]
-        for i in [left, right] where windows[i].isFullScreen { return .failure(.fullScreen(windows[i].app)) }
         guard let display = DisplayGeometry.displayIndex(for: windows[left].frame, in: displays) else { return .failure(.noWindow) }
         return .success(Choice(left: left, right: right, display: display))
     }
@@ -122,6 +121,8 @@ public protocol MovableWindow: AnyObject {
     /// nil once the window has gone.
     var frame: CGRect? { get }
     var isFullScreen: Bool { get }
+    /// Asks the window to leave full screen. False when it refuses.
+    @discardableResult func exitFullScreen() -> Bool
     @discardableResult func setPosition(_ origin: CGPoint) -> Bool
     @discardableResult func setSize(_ size: CGSize) -> Bool
 }
@@ -190,7 +191,7 @@ public struct WindowArranger {
     /// gets the rest. nil when it worked.
     public func split(left: MovableWindow, right: MovableWindow, in visible: CGRect, gap: CGFloat,
                       displayName: String) -> WindowFailure? {
-        for w in [left, right] where w.isFullScreen { return .fullScreen(w.appName) }
+        for w in [left, right] where !leaveFullScreen(w) { return .fullScreen(w.appName) }
         var leftMinimum: CGFloat = 0, rightMinimum: CGFloat = 0
         // Each pass can learn one more minimum width; three passes settle any pair.
         for _ in 0..<3 {
@@ -209,6 +210,26 @@ public struct WindowArranger {
         }
         return SplitScreen.tooWide(left: left.appName, right: right.appName, leftMinimum: leftMinimum,
                                    rightMinimum: rightMinimum, display: displayName)
+    }
+
+    /// How long macOS gets to play its leave-full-screen animation, and the pause after it
+    /// before the window takes new frames.
+    public static let fullScreenExitTime: TimeInterval = 2.0
+    public static let afterFullScreen: TimeInterval = 0.35
+
+    /// Takes the window out of full screen, as macOS does when you tile a full-screen window,
+    /// and waits until it is back on the desktop. True when it is not in full screen.
+    public func leaveFullScreen(_ w: MovableWindow) -> Bool {
+        guard w.isFullScreen else { return true }
+        guard w.exitFullScreen() else { return false }
+        var waited: TimeInterval = 0
+        while w.isFullScreen && waited < Self.fullScreenExitTime {
+            pause(Self.readInterval)
+            waited += Self.readInterval
+        }
+        guard !w.isFullScreen else { return false }
+        pause(Self.afterFullScreen)
+        return true
     }
 
     /// Reads the frame until `done` or the settle time is up (some apps land a move later).

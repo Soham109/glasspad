@@ -162,6 +162,7 @@ final class AXMovableWindow: MovableWindow {
     var frame: CGRect? { AXUI.frame(window) }
     var isFullScreen: Bool { AXUI.bool(window, "AXFullScreen") == true }
     var isMinimized: Bool { AXUI.bool(window, kAXMinimizedAttribute) == true }
+    func exitFullScreen() -> Bool { AXUI.set(window, "AXFullScreen", false) }
     func setPosition(_ origin: CGPoint) -> Bool { AXUI.setPosition(window, origin) }
     func setSize(_ size: CGSize) -> Bool { AXUI.setSize(window, size) }
 }
@@ -194,8 +195,8 @@ enum WindowMover {
         guard AXIsProcessTrusted() else { return .failure(.noPermission) }
         guard let (app, window) = frontWindow() else { return .failure(.noWindow) }
         let w = AXMovableWindow(app: app, window: window)
-        if w.isFullScreen { return .failure(.fullScreen(w.appName)) }
         let all = screens()
+        if !arranger(all).leaveFullScreen(w) { return .failure(.fullScreen(w.appName)) }
         guard let current = w.frame, let i = WindowTiling.screenIndex(for: current, in: all) else { return .failure(.noWindow) }
         let target = WindowTiling.frame(placement, window: current, in: all[i].visible, gap: gap())
         if set(window, app: app, to: target) { return .success(()) }
@@ -217,7 +218,9 @@ enum WindowMover {
         case .failure(let f): return .failure(f)
         }
         let first = windows[choice.left], second = windows[choice.right], screen = all[choice.display]
-        let sameDisplay = WindowTiling.screenIndex(for: candidates[choice.right].frame, in: all) == choice.display
+        // Out of full screen first, as macOS does when a full-screen window is tiled.
+        for w in [first, second] where !arranger(all).leaveFullScreen(w) { return .failure(.fullScreen(w.appName)) }
+        let sameDisplay = WindowTiling.screenIndex(for: second.frame ?? candidates[choice.right].frame, in: all) == choice.display
         if sameDisplay, pressLeftAndRight(app: first.app), nativeSplitLanded(first, second, in: screen.visible) {
             return .success(())
         }
@@ -236,7 +239,7 @@ enum WindowMover {
         guard all.count > 1 else { return .failure(.oneScreen) }
         guard let (app, window) = frontWindow() else { return .failure(.noWindow) }
         let w = AXMovableWindow(app: app, window: window)
-        if w.isFullScreen { return .failure(.fullScreen(w.appName)) }
+        if !arranger(all).leaveFullScreen(w) { return .failure(.fullScreen(w.appName)) }
         guard let current = w.frame, let i = WindowTiling.screenIndex(for: current, in: all),
               let next = WindowTiling.nextScreenIndex(after: i, in: all) else { return .failure(.noWindow) }
         let target = WindowTiling.moved(current, from: all[i].visible, to: all[next].visible)
