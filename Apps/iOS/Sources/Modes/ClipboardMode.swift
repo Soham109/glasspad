@@ -6,6 +6,7 @@ import GlasspadKit
 /// Sending uses the system Paste button, so iOS never shows a "paste from" prompt.
 struct ClipboardMode: View {
     @Environment(\.palette) private var palette
+    @Environment(\.modeTopClearance) private var topClearance
     var session = MacSession.shared
     /// Shown as a page inside Actions (no room needed for the mode pill).
     var embedded = false
@@ -23,7 +24,7 @@ struct ClipboardMode: View {
                 pullCard
             }
             .padding(.horizontal, 16)
-            .padding(.top, embedded ? 14 : 76)
+            .padding(.top, embedded ? 14 : topClearance ?? 76)
             .padding(.bottom, 32)
         }
         .onReceive(NotificationCenter.default.publisher(for: UIPasteboard.changedNotification)) { _ in refreshPasteboard() }

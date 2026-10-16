@@ -2,7 +2,7 @@ import AppKit
 import GlasspadKit
 
 /// Dock mode: the Mac's Dock apps (com.apple.dock `persistent-apps`), then other running regular
-/// apps, then recently used ones. Icons are rendered at `DockApp.iconPixels` (256 px, 3x the
+/// apps, then recently used ones. Icons are rendered at `DockApp.iconPixels` (384 px, 3x the
 /// largest tile the phone draws), cached on disk by bundle id + app modification date, and sent
 /// to the phone once: the phone lists the icon keys it already has (`dockSync`).
 @MainActor
@@ -59,8 +59,13 @@ public final class DockMode {
     }
 
     public nonisolated static func defaultCacheDirectory() -> URL? {
-        FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first?
-            .appendingPathComponent("com.soham109.glasspad/icons-\(DockApp.iconPixels)", isDirectory: true)
+        guard let base = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first?
+            .appendingPathComponent("com.soham109.glasspad", isDirectory: true) else { return nil }
+        // Icons drawn at an older size are never used again.
+        for old in [64, 256] where old != DockApp.iconPixels {
+            try? FileManager.default.removeItem(at: base.appendingPathComponent("icons-\(old)"))
+        }
+        return base.appendingPathComponent("icons-\(DockApp.iconPixels)", isDirectory: true)
     }
 
     /// Forget which icons the phone has (new session).
@@ -116,9 +121,51 @@ public final class DockMode {
         return out
     }
 
-    /// `bundleID@seconds`: changes when the app is updated, so a new icon is fetched then.
+    /// `bundleID@seconds-pixels`: changes when the app is updated (or icons are drawn at a new
+    /// size), so the phone fetches the new icon then.
     public nonisolated static func iconKey(bundleID: String, modified: Date?) -> String {
-        "\(bundleID)@\(Int((modified ?? .distantPast).timeIntervalSince1970))"
+        "\(bundleID)@\(Int((modified ?? .distantPast).timeIntervalSince1970))-\(DockApp.iconPixels)"
+    }
+
+    /// Icon bytes per message. A full Dock of sharp icons is a few megabytes; in pieces of
+    /// this size the list arrives at once and the icons right after, without one huge message.
+    public nonisolated static let iconBudget = 1_500_000
+
+    /// The list with icons kept up to `budget` bytes, and the apps whose icons move to
+    /// follow-up `dockIcons` messages.
+    public nonisolated static func splitIcons(_ apps: [DockApp], budget: Int = iconBudget) -> (list: [DockApp], later: [DockApp]) {
+        var used = 0
+        var later: [DockApp] = []
+        let list = apps.map { app -> DockApp in
+            guard let png = app.iconPNG else { return app }
+            if used + png.count <= budget || used == 0 {
+                used += png.count
+                return app
+            }
+            later.append(app)
+            var a = app
+            a.iconPNG = nil
+            return a
+        }
+        return (list, later)
+    }
+
+    /// Apps with icons in groups of at most `budget` bytes (one icon per group at least).
+    public nonisolated static func iconBatches(_ apps: [DockApp], budget: Int = iconBudget) -> [[DockApp]] {
+        var batches: [[DockApp]] = []
+        var current: [DockApp] = [], used = 0
+        for app in apps where app.iconPNG != nil {
+            let size = app.iconPNG?.count ?? 0
+            if !current.isEmpty, used + size > budget {
+                batches.append(current)
+                current = []
+                used = 0
+            }
+            current.append(app)
+            used += size
+        }
+        if !current.isEmpty { batches.append(current) }
+        return batches
     }
 
     // MARK: Lists

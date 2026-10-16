@@ -81,6 +81,7 @@ struct ModeSwitcher: View {
             scheduleHide()
         }
         .onChange(of: router.mode) { reveal() }
+        .onChange(of: router.layoutID) { reveal() }
         .onChange(of: voiceOver) { reveal() }
     }
 
@@ -88,14 +89,17 @@ struct ModeSwitcher: View {
 
     private var pill: some View {
         let mode = router.mode
+        let layout = router.layout
+        let title = layout?.name ?? mode.title
         return HStack(spacing: 8) {
-            Image(systemName: mode.symbol)
+            Image(systemName: layout?.symbol(landscape: isLandscape) ?? mode.symbol)
                 .font(.subheadline.weight(.semibold))
-                .foregroundStyle(mode.accent(palette))
+                .foregroundStyle(layout == nil ? mode.accent(palette) : palette.inkColor)
                 .contentTransition(.symbolEffect(.replace))
-            Text(mode.title)
+            Text(title)
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(palette.inkColor)
+                .lineLimit(1)
             ConnectionDot(state: session.state)
         }
         .padding(.horizontal, 16)
@@ -114,7 +118,7 @@ struct ModeSwitcher: View {
             ScreenAwake.update()
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(mode.title) mode, \(session.state.statusText)")
+        .accessibilityLabel(layout == nil ? "\(mode.title) mode, \(session.state.statusText)" : "\(title) layout, \(session.state.statusText)")
         .accessibilityHint("Double tap to switch modes")
         .accessibilityAddTraits(.isButton)
         .accessibilityAction(named: "Settings") {
@@ -130,7 +134,7 @@ struct ModeSwitcher: View {
     /// Until the pill has been tapped once, a line under it says what it does, and it stays.
     private var showsHint: Bool {
         // Only over the trackpad: every other mode has content right under the pill.
-        guard !expanded, router.mode == .trackpad, !settings.seenTips.contains(Self.hintID),
+        guard !expanded, router.mode == .trackpad, router.layoutID == nil, !settings.seenTips.contains(Self.hintID),
               settings.hasOnboarded else { return false }
         #if DEBUG
         if FilmDirector.shared.active || session.isDemo { return false }
@@ -163,7 +167,7 @@ struct ModeSwitcher: View {
             }
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: columns), spacing: 6) {
                 ForEach(modes) { mode in
-                    let current = mode == router.mode
+                    let current = mode == router.mode && router.layoutID == nil
                     Button {
                         Haptics.shared.tap()
                         router.show(mode)
@@ -195,6 +199,7 @@ struct ModeSwitcher: View {
                     .accessibilityAddTraits(current ? .isSelected : [])
                 }
             }
+            LayoutMenuRow(close: close)
             Divider().padding(.horizontal, 8).padding(.vertical, 2)
             let tools = [AppMode.clipboard, .present, .remote].filter { !modes.contains($0) }
             if !tools.isEmpty {
@@ -290,6 +295,10 @@ struct ModeSwitcher: View {
         .accessibilityLabel("Mac")
         .accessibilityValue(store.selected?.name ?? "None")
     }
+
+    /// The pill's layout symbol follows the way the screen splits now.
+    @Environment(\.verticalSizeClass) private var verticalSize
+    private var isLandscape: Bool { verticalSize == .compact }
 
     // MARK: Timing
 

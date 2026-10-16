@@ -32,19 +32,22 @@ public enum PinnedDeck {
     /// Above this many Pinned tiles, Actions suggests tidying up once.
     public static let tidyThreshold = 12
 
-    /// What Pinned starts with on a new setup, and what "Reset to Defaults" puts back: six
-    /// everyday Mac controls. Everything else is one tap away in the Library. Fresh ids each time.
+    /// What Pinned starts with on a new setup, and what "Reset to Defaults" puts back: six Mac
+    /// controls people use every day that have no easy shortcut of their own (Do Not Disturb and
+    /// Split Screen have none at all, Dark Mode lives in System Settings). Everything else is one
+    /// tap away in the Library. Fresh ids each time.
     public static func essentials() -> [DeckButton] {
-        func b(_ t: String, _ s: String, _ a: DeckAction, _ c: String) -> DeckButton {
-            DeckButton(title: t, symbol: s, action: a, color: c)
+        func system(_ a: DeckSystemAction) -> DeckButton {
+            DeckButton(title: a.title, symbol: a.symbol, action: .system(a), color: a.color)
         }
         return [
-            b("Screenshot", "camera.viewfinder", .screenshot(DeckScreenshot(area: .fullScreen)), "#0A84FF"),
-            b("Lock Screen", "lock.fill", .system(.lockScreen), "#8E8E93"),
-            b("Mute", "speaker.slash.fill", .system(.mute), "#FF9F0A"),
-            b("Dark Mode", "circle.lefthalf.filled", .system(.toggleDarkMode), "#636366"),
-            b("Mission Control", "rectangle.3.group", .system(.missionControl), "#30B0C7"),
-            b("Show Desktop", "menubar.dock.rectangle", .system(.showDesktop), "#30B0C7"),
+            DeckButton(title: "Screenshot", symbol: "camera.viewfinder", action: .screenshot(DeckScreenshot(area: .fullScreen)),
+                       color: "#0A84FF"),
+            system(.doNotDisturb),
+            system(.windowSplit),
+            system(.lockScreen),
+            system(.mute),
+            system(.toggleDarkMode),
         ]
     }
 

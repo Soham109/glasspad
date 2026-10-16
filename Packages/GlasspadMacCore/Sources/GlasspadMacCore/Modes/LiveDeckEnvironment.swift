@@ -64,8 +64,14 @@ public final class LiveDeckEnvironment: DeckEnvironment {
         let p = Process()
         p.executableURL = URL(fileURLWithPath: executable)
         p.arguments = arguments
+        // An open pipe as input: `screencapture -v` records until it reads a character, and a
+        // menu bar app's own input is empty, which would end the recording at once.
+        let input = Pipe()
+        p.standardInput = input
+        p.standardOutput = FileHandle.nullDevice
+        p.standardError = FileHandle.nullDevice
         do { try p.run() } catch { return nil }
-        return LiveDeckProcess(p)
+        return LiveDeckProcess(p, input: input)
     }
 
     public func press(_ keystroke: Keystroke) { keys.press(keystroke) }
@@ -180,6 +186,31 @@ public final class LiveDeckEnvironment: DeckEnvironment {
         return NSPasteboard.general.writeObjects([image])
     }
 
+    public var outputMuted: Bool? { AudioOutput.isMuted() }
+    public var displayCount: Int { max(1, NSScreen.screens.count) }
+
+    public func lockScreen() -> Bool { MacSystem.lockScreen() }
+    public func toggleDarkMode() -> Bool? { MacSystem.toggleDarkMode() }
+    public func toggleDoNotDisturb() async -> DeckSwitchResult { await ControlCenterFocus.toggleDoNotDisturb() }
+    public func toggleNightShift() -> DeckSwitchResult { NightShift.toggle() }
+    public func toggleKeepAwake() -> DeckSwitchResult { KeepAwake.shared.toggle() }
+    public func openNotificationCenter() -> Bool { ControlCenterFocus.openNotificationCenter() }
+
+    public func placeFrontWindow(_ placement: WindowPlacement) -> String? {
+        if case .failure(let f) = WindowMover.place(placement) { return f.message }
+        return nil
+    }
+
+    public func splitFrontWindows() -> String? {
+        if case .failure(let f) = WindowMover.split() { return f.message }
+        return nil
+    }
+
+    public func moveFrontWindowToNextDisplay() -> String? {
+        if case .failure(let f) = WindowMover.toNextScreen() { return f.message }
+        return nil
+    }
+
     public func shortcutNames() async -> [String] {
         let r = await run(executable: "/usr/bin/shortcuts", arguments: ["list"], timeout: 10)
         guard r.ok else { return [] }
@@ -212,9 +243,22 @@ private final class ResumeOnce: @unchecked Sendable {
 @MainActor
 private final class LiveDeckProcess: DeckProcess {
     private let process: Process
-    init(_ p: Process) { process = p }
+    private let input: Pipe
+    init(_ p: Process, input: Pipe) {
+        process = p
+        self.input = input
+    }
     var isRunning: Bool { process.isRunning }
-    func interrupt() { process.interrupt() }
+
+    /// "Type any character to stop": a newline finishes and saves the recording. ctrl+C (SIGINT)
+    /// does the same, and follows if it is still running a moment later.
+    func interrupt() {
+        try? input.fileHandleForWriting.write(contentsOf: Data("\n".utf8))
+        let p = process
+        DispatchQueue.global().asyncAfter(deadline: .now() + 1.5) {
+            if p.isRunning { p.interrupt() }
+        }
+    }
 }
 
 /// Default input device mute and volume (CoreAudio, public).
@@ -279,9 +323,20 @@ enum AudioDevices {
         var ids = [AudioObjectID](repeating: 0, count: Int(size) / MemoryLayout<AudioObjectID>.size)
         guard AudioObjectGetPropertyData(system, &addr, 0, nil, &size, &ids) == noErr else { return [] }
         return ids.compactMap { id in
-            guard hasOutput(id), let name = name(id) else { return nil }
+            guard hasOutput(id), canBeDefault(id), let name = name(id) else { return nil }
             return Device(id: id, name: name)
         }
+    }
+
+    /// Leaves out hidden helper devices (aggregate and capture devices apps create) that the
+    /// Sound menu does not offer either.
+    private static func canBeDefault(_ id: AudioObjectID) -> Bool {
+        var addr = AudioObjectPropertyAddress(mSelector: kAudioDevicePropertyDeviceCanBeDefaultDevice,
+                                              mScope: kAudioDevicePropertyScopeOutput, mElement: kAudioObjectPropertyElementMain)
+        var v = UInt32(1)
+        var size = UInt32(MemoryLayout<UInt32>.size)
+        guard AudioObjectGetPropertyData(id, &addr, 0, nil, &size, &v) == noErr else { return true }
+        return v != 0
     }
 
     private static func hasOutput(_ id: AudioObjectID) -> Bool {

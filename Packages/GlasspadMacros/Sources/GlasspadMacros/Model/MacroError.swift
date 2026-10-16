@@ -23,6 +23,8 @@ public enum MacroError: Error, Equatable, Sendable, CustomStringConvertible {
     case macroNotFound(UUID)
     case hotkeyUnavailable(String)
     case outputFailed(String)
+    /// A Mac control step did not work; the message says why.
+    case macControlFailed(String)
 
     public var description: String {
         switch self {
@@ -50,6 +52,7 @@ public enum MacroError: Error, Equatable, Sendable, CustomStringConvertible {
         case .macroNotFound(let id): "No macro with id \(id)."
         case .hotkeyUnavailable(let k): "The hotkey \(k) is taken by another app."
         case .outputFailed(let m): "Could not post the event: \(m)"
+        case .macControlFailed(let m): m
         }
     }
 }

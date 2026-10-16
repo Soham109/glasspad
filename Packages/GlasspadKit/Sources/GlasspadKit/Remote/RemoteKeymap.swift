@@ -29,8 +29,10 @@ public enum RemoteOutput: Equatable, Sendable {
 public enum RemotePlayer: Equatable, Sendable {
     case browser(RemoteSite)
     case appleTV, quickTime, iina, vlc, infuse
-    /// Spotify, Music, Podcasts: songs, so left and right change the song.
+    /// Spotify, Podcasts and other music apps: songs, so left and right change the song.
     case music
+    /// Apple Music: songs, as `music`, plus its Full Screen Player.
+    case appleMusic
     /// Anything else: the standard full screen shortcut and seeking through now playing.
     case other
 }
@@ -41,8 +43,15 @@ public enum RemoteSite: String, Equatable, Sendable, CaseIterable {
 
 public struct RemoteKeymap: Equatable, Sendable {
     public let player: RemotePlayer
+    /// Whether keystrokes reach the player: they go to the Mac's frontmost app, so they only
+    /// do when the player is in front. When it plays behind another app, the remote sticks to
+    /// now playing (play, pause, songs, seeking) and leaves out the keys.
+    public let keysReachPlayer: Bool
 
-    public init(player: RemotePlayer) { self.player = player }
+    public init(player: RemotePlayer, keysReachPlayer: Bool = true) {
+        self.player = player
+        self.keysReachPlayer = keysReachPlayer
+    }
 
     /// The keymap for what the person is watching. A video app in front decides (keys go to
     /// the frontmost app). Otherwise the app playing does: a browser left in front while
@@ -53,7 +62,12 @@ public struct RemoteKeymap: Equatable, Sendable {
         let playingPlayer = RemoteKeymap.player(bundleID: playing, nowPlaying: nowPlaying)
         switch front {
         case .appleTV, .quickTime, .iina, .vlc, .infuse: self.init(player: front)
-        default: self.init(player: playing != nil && playingPlayer != .other ? playingPlayer : front)
+        default:
+            if playing != nil, playingPlayer != .other {
+                self.init(player: playingPlayer, keysReachPlayer: playing == frontmost)
+            } else {
+                self.init(player: front)
+            }
         }
     }
 
@@ -65,7 +79,7 @@ public struct RemoteKeymap: Equatable, Sendable {
         "com.vivaldi.Vivaldi", "com.operasoftware.Opera", "app.zen-browser.zen", "com.kagi.kagimacOS",
     ]
     public static let musicApps: Set<String> = [
-        "com.spotify.client", "com.apple.Music", "com.apple.podcasts", "com.tidal.desktop", "com.amazon.music",
+        "com.spotify.client", "com.apple.podcasts", "com.tidal.desktop", "com.amazon.music",
     ]
 
     public static func player(bundleID: String?, nowPlaying: [String?] = []) -> RemotePlayer {
@@ -73,6 +87,7 @@ public struct RemoteKeymap: Equatable, Sendable {
         if browsers.contains(id) { return .browser(site(nowPlaying)) }
         if musicApps.contains(id) { return .music }
         switch id {
+        case "com.apple.Music": return .appleMusic
         case "com.apple.TV": return .appleTV
         case "com.apple.QuickTimePlayerX": return .quickTime
         case "com.colliderli.iina": return .iina
@@ -105,7 +120,7 @@ public struct RemoteKeymap: Equatable, Sendable {
         case .iina: "IINA"
         case .vlc: "VLC"
         case .infuse: "Infuse"
-        case .music: nil
+        case .music, .appleMusic: nil
         case .other: nil
         }
     }
@@ -113,7 +128,7 @@ public struct RemoteKeymap: Equatable, Sendable {
     // MARK: The table
 
     /// Left and right step through songs instead of seconds.
-    public var skipsTracks: Bool { player == .music }
+    public var skipsTracks: Bool { player == .music || player == .appleMusic }
 
     /// How far back and forward jump, in seconds, when it is known (YouTube's arrows are 5 s).
     public var seekStep: TimeInterval { 10 }
@@ -126,16 +141,26 @@ public struct RemoteKeymap: Equatable, Sendable {
         case .forward: return skipsTracks ? .media(.nextTrack) : seek(1)
         case .previous: return previous
         case .next: return next
-        case .fullScreen: return fullScreen.map(RemoteOutput.keystroke)
-        case .subtitles: return subtitles.map(RemoteOutput.keystroke)
-        case .skipIntro: return player == .browser(.netflix) ? .keystroke(Self.key("s")) : nil
+        case .fullScreen: return keysReachPlayer ? fullScreen.map(RemoteOutput.keystroke) : nil
+        case .subtitles: return keysReachPlayer ? subtitles.map(RemoteOutput.keystroke) : nil
+        case .skipIntro: return keysReachPlayer && player == .browser(.netflix) ? .keystroke(Self.key("s")) : nil
         }
     }
 
     public func has(_ action: RemoteAction) -> Bool { output(action) != nil }
 
+    /// Whether `action` does anything right now: a jump with no key to fall back on needs a
+    /// player that can seek (the button hides otherwise).
+    public func has(_ action: RemoteAction, canSeek: Bool) -> Bool {
+        guard let output = output(action) else { return false }
+        if case .seek(_, nil) = output { return canSeek }
+        return true
+    }
+
     private func seek(_ direction: Double) -> RemoteOutput {
         let left = Self.special(.left), right = Self.special(.right)
+        // Keys would go to another app: only now playing can jump.
+        guard keysReachPlayer else { return .seek(direction * seekStep, fallback: nil) }
         switch player {
         case .browser(.youtube):
             // j and l jump 10 s; the arrows only 5.
@@ -144,27 +169,29 @@ public struct RemoteKeymap: Equatable, Sendable {
             // Netflix, Prime Video and Disney+ jump 10 s on the arrows; most other sites too.
             return .keystroke(direction < 0 ? left : right)
         case .vlc:
-            let k = Keystroke(key: .special(direction < 0 ? .left : .right), modifiers: [.command, .option])
+            // VLC's short jump (10 s).
+            let k = Keystroke(key: .special(direction < 0 ? .left : .right), modifiers: [.command, .control])
             return .seek(direction * seekStep, fallback: k)
-        case .appleTV, .infuse, .iina, .quickTime, .other:
+        case .appleTV, .infuse, .iina, .other:
             return .seek(direction * seekStep, fallback: direction < 0 ? left : right)
-        case .music:
+        case .quickTime, .music, .appleMusic:
+            // QuickTime's arrows step frames, not seconds: only now playing can jump.
             return .seek(direction * seekStep, fallback: nil)
         }
     }
 
     private var previous: RemoteOutput? {
         switch player {
-        case .browser(.youtube): .keystroke(Keystroke(key: .character("p"), modifiers: [.shift]))
-        case .music: .media(.previousTrack)
+        case .browser(.youtube) where keysReachPlayer: .keystroke(Keystroke(key: .character("p"), modifiers: [.shift]))
+        case .music, .appleMusic: .media(.previousTrack)
         default: nil
         }
     }
 
     private var next: RemoteOutput? {
         switch player {
-        case .browser(.youtube): .keystroke(Keystroke(key: .character("n"), modifiers: [.shift]))
-        case .music: .media(.nextTrack)
+        case .browser(.youtube) where keysReachPlayer: .keystroke(Keystroke(key: .character("n"), modifiers: [.shift]))
+        case .music, .appleMusic: .media(.nextTrack)
         default: nil
         }
     }
@@ -172,18 +199,20 @@ public struct RemoteKeymap: Equatable, Sendable {
     private var fullScreen: Keystroke? {
         switch player {
         case .browser: Self.key("f")
-        case .vlc: Keystroke(key: .character("f"), modifiers: [.command])
+        case .vlc, .quickTime: Keystroke(key: .character("f"), modifiers: [.command])
+        // Music's Full Screen Player.
+        case .appleMusic: Keystroke(key: .character("f"), modifiers: [.command, .shift])
         case .music: nil
         // The standard Enter Full Screen shortcut (View menu) in every other Mac app.
-        case .appleTV, .quickTime, .iina, .infuse, .other: Keystroke(key: .character("f"), modifiers: [.command, .control])
+        case .appleTV, .iina, .infuse, .other: Keystroke(key: .character("f"), modifiers: [.command, .control])
         }
     }
 
     private var subtitles: Keystroke? {
         switch player {
-        // YouTube and most other web players. Netflix, Prime Video, Disney+ and the Mac apps
+        // YouTube, Prime Video and most other web players. Netflix, Disney+ and the Mac apps
         // have no single key for it, so the button hides there.
-        case .browser(.youtube), .browser(.other): Self.key("c")
+        case .browser(.youtube), .browser(.primeVideo), .browser(.other): Self.key("c")
         default: nil
         }
     }
@@ -191,7 +220,7 @@ public struct RemoteKeymap: Equatable, Sendable {
     /// Pressed before typing a search: "/" puts YouTube's cursor in its search box. Other sites
     /// need the box clicked first.
     public var searchPrefix: [Keystroke] {
-        player == .browser(.youtube) ? [Self.key("/")] : []
+        player == .browser(.youtube) && keysReachPlayer ? [Self.key("/")] : []
     }
 
     // MARK: Resolving

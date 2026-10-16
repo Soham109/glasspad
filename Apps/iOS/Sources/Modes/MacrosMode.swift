@@ -11,6 +11,7 @@ struct MacrosMode: View {
     @State private var showAll = false
 
     @Environment(\.verticalSizeClass) private var verticalSize
+    @Environment(\.modeTopClearance) private var topClearance
 
     /// Three across in portrait; sideways, as many as fit so a profile usually sits in one row.
     private var columns: [GridItem] {
@@ -61,7 +62,7 @@ struct MacrosMode: View {
                 }
             }
             .padding(.horizontal, 16)
-            .padding(.top, 76)
+            .padding(.top, topClearance ?? 76)
             .padding(.bottom, 24)
         }
         .refreshable { session.send(.macro(.listMacros)) }
