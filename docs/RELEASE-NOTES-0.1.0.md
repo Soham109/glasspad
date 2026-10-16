@@ -44,7 +44,7 @@ It waits for you wherever Apple needs a click, and it is safe to run again: fini
 
 ## Requirements
 
-- A Mac on macOS 14 or later, with Xcode (free on the App Store).
+- A Mac on macOS 14 or later, with Xcode 26 or later (free on the App Store).
 - An iPhone on iOS 18 or later, and a cable for the first install.
 - A free Apple ID.
 - With a free Apple ID, apps you install yourself stop opening after 7 days. Your Mac renews Glasspad over Wi-Fi when the install is 5 days old.
@@ -62,7 +62,9 @@ It waits for you wherever Apple needs a click, and it is safe to run again: fini
 
 ## Verified on real hardware
 
-To be filled in after the live checks.
+- Checked on an iPhone 18 Pro (iOS 27) with a MacBook Pro (macOS 27): Trackpad with haptics, Keyboard, Media, Dock and Actions, plus installing and renewing over Wi-Fi.
+- Covered by automated tests only so far, including a real encrypted phone and Mac session on one machine: Do Not Disturb, Night Shift, Keep Awake, window tiling, Displays, Remote keys per player, Layouts, StandBy and the pairing camera.
+- To check those on your own Mac, run `scripts/live-check.sh --install`. It walks through each one, asks before every step and puts everything back. Results go to `~/Library/Logs/Glasspad/`.
 
 ## Links
 
