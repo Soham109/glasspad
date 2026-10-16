@@ -160,6 +160,9 @@ struct PairFlow: View {
         self.onFinish = onFinish
         _step = State(initialValue: start ?? Self.firstStep)
         _mac = State(initialValue: mac)
+        #if DEBUG
+        _showPaste = State(initialValue: PairingDemo.pasteOpen)
+        #endif
     }
 
     /// Only what still needs explaining: iOS asks for each permission once.
@@ -248,7 +251,7 @@ struct ConnectedView: View {
         SetupPage(title: title, detail: detail, primary: "Continue", primaryAction: onContinue) {
             MacBookArt(width: 280) {
                 ZStack {
-                    LinearGradient(colors: [palette.raisedColor, palette.raisedPressedColor], startPoint: .topLeading, endPoint: .bottomTrailing)
+                    ScreenWallpaper()
                     if let pattern = PatternCache.pattern(for: mac.payload.url.absoluteString) {
                         PatternCanvas(pattern: pattern, time: 0, motion: 0, gather: 1, ink: palette.inkColor, success: palette.good)
                             .frame(width: 104, height: 104)

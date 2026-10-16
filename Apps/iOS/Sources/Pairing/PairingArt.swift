@@ -121,39 +121,16 @@ struct MacBookArt<Screen: View>: View {
     }
 }
 
-/// A Mac desktop: a soft wallpaper and the menu bar.
-struct MacDesktop<Content: View>: View {
+/// What a display shows behind everything: the theme's surface, softly lit. Starts from the
+/// plain surface colour, so the translucent glass themes do not show the black bezel through.
+struct ScreenWallpaper: View {
     @Environment(\.palette) private var palette
-    var menuBarItems = true
-    @ViewBuilder var content: Content
 
     var body: some View {
-        GeometryReader { geo in
-            let w = geo.size.width
-            ZStack(alignment: .top) {
-                LinearGradient(colors: wallpaper, startPoint: .topLeading, endPoint: .bottomTrailing)
-                content
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                if menuBarItems {
-                    HStack(spacing: w * 0.035) {
-                        Image(systemName: "apple.logo")
-                        Spacer()
-                        Image(systemName: "wifi")
-                        Image(systemName: "battery.75percent")
-                    }
-                    .font(.system(size: w * 0.04, weight: .medium))
-                    .foregroundStyle(palette.inkColor.opacity(0.85))
-                    .padding(.horizontal, w * 0.04)
-                    .frame(height: w * 0.065)
-                    .background(palette.raisedColor.opacity(0.55))
-                }
-            }
+        ZStack {
+            palette.solidColor
+            LinearGradient(colors: [palette.raisedColor, palette.raisedPressedColor], startPoint: .topLeading, endPoint: .bottomTrailing)
         }
-    }
-
-    private var wallpaper: [Color] {
-        // The theme's own surfaces, so the picture belongs to the screen it is on.
-        [palette.raisedColor, palette.raisedPressedColor]
     }
 }
 
@@ -227,7 +204,7 @@ struct MacMenuArt: View {
             GeometryReader { geo in
                 let w = geo.size.width
                 ZStack(alignment: .topTrailing) {
-                    LinearGradient(colors: [palette.raisedColor, palette.raisedPressedColor], startPoint: .topLeading, endPoint: .bottomTrailing)
+                    ScreenWallpaper()
                     // Menu bar, with Glasspad's icon highlighted.
                     HStack(spacing: w * 0.035) {
                         Image(systemName: "apple.logo")

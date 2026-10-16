@@ -67,6 +67,8 @@ struct OnboardingView: View {
 /// videos in the simulator (which has no camera; the viewfinder shows a stand-in Mac).
 ///   -GPOnboarding -GPPairStep <hello|mac|network|camera|scan|connected>
 ///   -GPPairAuto        the stand-in code is "seen" two seconds in, so the lock-on plays
+///   -GPPairDenied      the viewfinder with camera access turned off
+///   -GPPairPaste       the paste sheet open
 /// -GPPairSheet (RootView) opens Pair a Mac; -GPPairStep applies there too.
 enum PairingDemo {
     static var args: [String] { ProcessInfo.processInfo.arguments }
@@ -88,6 +90,12 @@ enum PairingDemo {
     static var pairStep: PairFlow.Step? { step.flatMap(PairFlow.Step.init(rawValue:)) }
 
     static var autoScan: Bool { args.contains("-GPPairAuto") }
+
+    /// -GPPairDenied: the viewfinder as it is when camera access was turned off.
+    static var cameraDenied: Bool { args.contains("-GPPairDenied") }
+
+    /// -GPPairPaste: the paste sheet open over the flow.
+    static var pasteOpen: Bool { args.contains("-GPPairPaste") }
 
     /// The Mac on the Connected screen, without pairing anything.
     static var mac: PairedMac? {

@@ -31,30 +31,36 @@ struct PairingViewfinder: View {
     static var handOver: Double { settle + PairingPattern.gatherDuration + 0.45 }
 
     var body: some View {
-        GeometryReader { geo in
-            let size = geo.size
-            let idle = Self.idleFrame(in: size, safe: geo.safeAreaInsets)
-            let target = lock.map { Self.square($0.rect, in: size) } ?? idle
-            ZStack {
-                camera(idle: idle)
-                Scrim(cutout: target, cornerRadius: target.width * 0.16)
-                    .animation(.spring(duration: 0.5, bounce: 0.28), value: lock)
-                    .allowsHitTesting(false)
-                ViewfinderFrame(cornerRadius: target.width * 0.16, locked: lock != nil)
-                    .frame(width: target.width, height: target.height)
-                    .position(x: target.midX, y: target.midY)
-                    .modifier(Shake(amount: shake))
-                    .animation(.spring(duration: 0.5, bounce: 0.28), value: lock)
-                    .allowsHitTesting(false)
-                if let lock {
-                    LockedDots(lock: lock, rect: target, success: palette.good)
-                        .allowsHitTesting(false)
+        // The safe area is read outside; the picture itself fills the whole screen.
+        GeometryReader { outer in
+            let safe = outer.safeAreaInsets
+            GeometryReader { geo in
+                let size = geo.size
+                let idle = Self.idleFrame(in: size, safe: safe)
+                let target = lock.map { Self.square($0.rect, in: size) } ?? idle
+                ZStack {
+                    camera(idle: idle)
+                    if !cameraDenied {
+                        Scrim(cutout: target, cornerRadius: target.width * 0.16)
+                            .animation(.spring(duration: 0.5, bounce: 0.28), value: lock)
+                            .allowsHitTesting(false)
+                        ViewfinderFrame(cornerRadius: target.width * 0.16, locked: lock != nil)
+                            .frame(width: target.width, height: target.height)
+                            .position(x: target.midX, y: target.midY)
+                            .modifier(Shake(amount: shake))
+                            .animation(.spring(duration: 0.5, bounce: 0.28), value: lock)
+                            .allowsHitTesting(false)
+                    }
+                    if let lock {
+                        LockedDots(lock: lock, rect: target, success: palette.good)
+                            .allowsHitTesting(false)
+                    }
+                    chrome(size: size, frame: idle, safe: safe)
                 }
-                chrome(size: size, frame: idle, safe: geo.safeAreaInsets)
+                .frame(width: size.width, height: size.height)
             }
-            .frame(width: size.width, height: size.height)
+            .ignoresSafeArea()
         }
-        .ignoresSafeArea()
         .environment(\.colorScheme, .dark)
         .task {
             if cameraStatus == .notDetermined, CameraAccess.hasCamera {
@@ -84,10 +90,14 @@ struct PairingViewfinder: View {
 
     @ViewBuilder private func camera(idle: CGRect) -> some View {
         #if targetEnvironment(simulator)
-        SimulatedCamera(codeRect: Self.simulatedCode(idle), hidden: lock != nil)
+        if cameraDenied {
+            Hardware.glass
+        } else {
+            SimulatedCamera(codeRect: Self.simulatedCode(idle), hidden: lock != nil)
             #if DEBUG
-            .onTapGesture { simulateScan() }
+                .onTapGesture { simulateScan() }
             #endif
+        }
         #else
         if !CameraAccess.hasCamera {
             Hardware.glass
@@ -163,7 +173,7 @@ struct PairingViewfinder: View {
             .frame(maxWidth: landscape ? max(200, frame.minX - safe.leading - 56) : 340,
                    alignment: landscape ? .leading : .center)
             .position(x: landscape ? safe.leading + 28 + max(200, frame.minX - safe.leading - 56) / 2 : size.width / 2,
-                      y: landscape ? size.height / 2 : max(safe.top + 70, frame.minY / 2 + safe.top / 2))
+                      y: landscape || denied ? size.height / 2 : max(safe.top + 70, frame.minY / 2 + safe.top / 2))
             .accessibilityElement(children: .combine)
             .accessibilityAddTraits(.isHeader)
 
@@ -201,11 +211,22 @@ struct PairingViewfinder: View {
     }
 
     private var cameraDenied: Bool {
-        #if targetEnvironment(simulator)
-        false
-        #else
-        !CameraAccess.hasCamera || cameraStatus == .denied || cameraStatus == .restricted
+        #if DEBUG
+        if PairingDemo.cameraDenied { return true }
         #endif
+        #if targetEnvironment(simulator)
+        return false
+        #else
+        return !CameraAccess.hasCamera || cameraStatus == .denied || cameraStatus == .restricted
+        #endif
+    }
+
+    /// A phone always has a camera; only the simulator (and a debug run) gets here without one.
+    private var hasCamera: Bool {
+        #if DEBUG
+        if PairingDemo.cameraDenied { return true }
+        #endif
+        return CameraAccess.hasCamera
     }
 
     private var deniedMessage: some View {
@@ -213,15 +234,15 @@ struct PairingViewfinder: View {
             Image(systemName: "camera.fill")
                 .font(.system(size: 40, weight: .regular))
                 .foregroundStyle(.secondary)
-            Text(CameraAccess.hasCamera ? "Allow Camera Access" : "No Camera")
+            Text(hasCamera ? "Allow Camera Access" : "No Camera")
                 .font(.title2.weight(.semibold))
-            Text(CameraAccess.hasCamera
+            Text(hasCamera
                  ? "Glasspad uses the camera only to read the pairing code on your Mac. Turn on Camera for Glasspad in Settings."
                  : "Paste the pairing link from your Mac instead.")
                 .font(.body)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
-            if CameraAccess.hasCamera {
+            if hasCamera {
                 Button("Open Settings") { openAppSettings() }
                     .font(.headline)
                     .padding(.horizontal, 22)
@@ -231,7 +252,6 @@ struct PairingViewfinder: View {
             }
         }
         .multilineTextAlignment(.center)
-        .shadow(color: .clear, radius: 0)
     }
 
     // MARK: Geometry
