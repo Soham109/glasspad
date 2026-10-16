@@ -232,16 +232,14 @@ final class LoggingPoster: EventPoster {
         #expect(big.count > ClipboardContent.maxImageBytes)
         pb.clearContents()
         pb.setData(big, forType: .png)
-        // The shrinking runs off the main thread: the main actor keeps running meanwhile.
-        let clip = ClipboardMode(pasteboard: pb)
-        let pull = Task { await clip.pull() }
-        var mainTurns = 0
-        let ticker = Task { @MainActor in
-            while !Task.isCancelled { mainTurns += 1; try? await Task.sleep(for: .milliseconds(5)) }
-        }
-        let result = await pull.value
-        ticker.cancel()
-        #expect(mainTurns > 5)
+        // The shrinking runs off the main thread, so the pointer never freezes. Checked directly
+        // rather than by counting main-thread turns, which depends on the machine's speed.
+        let probe = OffMainProbe()
+        ClipboardMode.offMainProbe = { probe.record($0) }
+        defer { ClipboardMode.offMainProbe = nil }
+        let result = await ClipboardMode(pasteboard: pb).pull()
+        #expect(probe.calls > 0)
+        #expect(probe.ranOnMain == false)
         guard case .imagePNG(let d) = result else { Issue.record("expected image"); return }
         // Reliability M1: small enough to arrive inside the phone's silence timeout on slow Wi-Fi.
         #expect(d.count <= ClipboardLimits.maxImageBytes)
@@ -347,4 +345,15 @@ final class LoggingPoster: EventPoster {
         let store = PairingStore(store: InMemorySecretStore())
         #expect(try store.completePairing(phoneID: "x", phoneName: "y") == nil)
     }
+}
+
+
+/// Thread-safe record of where `ClipboardMode.offMain` ran its work.
+private final class OffMainProbe: @unchecked Sendable {
+    private let lock = NSLock()
+    private var _calls = 0
+    private var _ranOnMain = false
+    func record(_ onMain: Bool) { lock.lock(); _calls += 1; if onMain { _ranOnMain = true }; lock.unlock() }
+    var calls: Int { lock.lock(); defer { lock.unlock() }; return _calls }
+    var ranOnMain: Bool { lock.lock(); defer { lock.unlock() }; return _ranOnMain }
 }

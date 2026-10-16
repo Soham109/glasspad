@@ -128,9 +128,15 @@ public final class ClipboardMode {
         return bytes > ClipboardLimits.maxTextBytes ? .tooLarge(bytes: bytes) : .content(.text(s))
     }
 
+    /// Tests only: told whether each piece of image work ran on the main thread.
+    nonisolated(unsafe) static var offMainProbe: (@Sendable (_ onMainThread: Bool) -> Void)?
+
     nonisolated static func offMain<T: Sendable>(_ work: @escaping @Sendable () -> T) async -> T {
         await withCheckedContinuation { continuation in
-            DispatchQueue.global(qos: .userInitiated).async { continuation.resume(returning: work()) }
+            DispatchQueue.global(qos: .userInitiated).async {
+                offMainProbe?(Thread.isMainThread)
+                continuation.resume(returning: work())
+            }
         }
     }
 
