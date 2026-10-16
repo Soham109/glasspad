@@ -58,7 +58,7 @@ struct CalendarMode: View {
             }
         case .notAsked:
             VStack(alignment: .leading, spacing: titleSize * 0.7) {
-                Text("See what is next on your calendar.")
+                Text("See your next events here.")
                     .font(.system(size: titleSize * 0.84, weight: .medium))
                     .foregroundStyle(style.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -66,7 +66,7 @@ struct CalendarMode: View {
             }
         case .denied:
             VStack(alignment: .leading, spacing: titleSize * 0.7) {
-                Text("Glasspad cannot read your calendar. You can allow it in Settings.")
+                Text("To see your events here, allow Glasspad to read your calendar in Settings.")
                     .font(.system(size: titleSize * 0.84, weight: .medium))
                     .foregroundStyle(style.secondary)
                     .fixedSize(horizontal: false, vertical: true)

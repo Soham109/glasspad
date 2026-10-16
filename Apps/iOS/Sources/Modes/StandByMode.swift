@@ -278,9 +278,15 @@ struct StandBySettingsSections: View {
             }
             Toggle("Stay On When Unplugged", isOn: $settings.keepOnUnplugged)
         } footer: {
-            Text("Night mode turns Clock, Now Playing and Calendar a dim red from 10 PM to 7 AM. While the iPhone charges they keep the screen on; turn on Stay On When Unplugged to keep it on with the battery too, except in Low Power Mode.")
+            Text("At Night turns Clock, Now Playing and Calendar a dim red from \(Self.hour(NightMode.startHour)) to \(Self.hour(NightMode.endHour)). They keep the screen on while the iPhone charges. Stay On When Unplugged keeps it on with the battery too, except in Low Power Mode.")
         }
         .listRowBackground(palette.raisedColor)
+    }
+
+    /// "10 PM", or "22:00" on a 24 hour phone.
+    private static func hour(_ h: Int) -> String {
+        let date = Calendar.current.date(bySettingHour: h, minute: 0, second: 0, of: Date()) ?? Date()
+        return date.formatted(.dateTime.hour())
     }
 }
 
