@@ -362,7 +362,7 @@ struct WelcomeView: View {
     }
 }
 
-/// A page's picture, title and one sentence, centred as the Mac's setup screens set them.
+/// A page's picture, title and one sentence, centered as the Mac's setup screens set them.
 private struct PageHeader<Art: View>: View {
     let title: String
     let detail: String

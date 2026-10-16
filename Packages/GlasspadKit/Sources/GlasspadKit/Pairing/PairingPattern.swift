@@ -22,7 +22,7 @@ public struct PairingPattern: Sendable, Equatable {
 
     /// One dark module drawn as a dot.
     public struct Dot: Sendable, Equatable {
-        /// The centre of its cell, in modules.
+        /// The center of its cell, in modules.
         public let home: CGPoint
         /// Random but fixed per dot, so the motion looks organic and every frame is repeatable.
         public let seed: SIMD4<Double>
@@ -36,7 +36,7 @@ public struct PairingPattern: Sendable, Equatable {
         public var radius: CGFloat
         /// 0...1, multiplied with the ink.
         public var alpha: CGFloat
-        /// 0 is the ink, 1 the success colour.
+        /// 0 is the ink, 1 the success color.
         public var success: CGFloat
     }
 
@@ -167,7 +167,7 @@ public struct PairingPattern: Sendable, Equatable {
         }
     }
 
-    /// A finder square as a rounded ring and a rounded centre, both on the module grid.
+    /// A finder square as a rounded ring and a rounded center, both on the module grid.
     public static func finderPaths(origin: CGPoint, module m: CGFloat) -> [CGPath] {
         let outer = CGRect(x: origin.x, y: origin.y, width: 7 * m, height: 7 * m)
         let ring = CGMutablePath()
@@ -221,7 +221,7 @@ public struct PairingPattern: Sendable, Equatable {
         return (n, modules)
     }
 
-    /// The checkmark the dots gather into: a short stroke down and a long one up, centred.
+    /// The checkmark the dots gather into: a short stroke down and a long one up, centered.
     /// Points along it in modules, evenly spaced.
     static func checkmark(size: Int, count: Int) -> [CGPoint] {
         let n = CGFloat(size)
