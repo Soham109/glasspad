@@ -66,7 +66,7 @@ GLYPH["logo.github"] = '<circle cx="12" cy="12" r="9.5" fill="#1A1A1A" stroke="n
 GLYPH["logo.netflix"] = '<rect x="3.5" y="3.5" width="17" height="17" rx="4" fill="#E50914" stroke="none"/><path d="M9.2 17V7l5.6 10V7" stroke="#fff" stroke-width="2.2"/>';
 GLYPH["logo.spotify"] = '<circle cx="12" cy="12" r="9.5" fill="#1DB954" stroke="none"/><path d="M7.2 10.2c3.2-1 6.600-.7 9.600 1M7.700 13c2.700-.7 5.300-.5 7.700.9M8.300 15.600c2.100-.5 4-.3 5.800.7" stroke="#fff" stroke-width="1.500"/>';
 
-/** Pinned starts with everyday Mac controls and a couple of websites (colours from the app's Library). */
+/** Pinned starts with everyday Mac controls and a couple of websites (colors from the app's Library). */
 export const PINNED: [string, string, string][] = [
   ["Do Not Disturb", "moon.fill", "#5E5CE6"],
   ["Split Screen", "square.split.2x1", "#30B0C7"],
@@ -103,3 +103,17 @@ GLYPH["dot.radiowaves"] = '<circle class="f" cx="12" cy="12" r="1.8"/><path d="M
 GLYPH["chevron.left"] = '<path d="m14.5 5-7 7 7 7"/>';
 GLYPH["sun.max.fill"] = '<circle class="f" cx="12" cy="12" r="4"/><path d="M12 3v2.2M12 18.8V21M3 12h2.2M18.8 12H21M5.6 5.6l1.6 1.6M16.8 16.8l1.6 1.6M18.4 5.6l-1.6 1.6M7.2 16.8l-1.6 1.6"/>';
 GLYPH["pause.fill"] = '<rect class="f" x="6.5" y="5" width="4" height="14" rx="1.2"/><rect class="f" x="13.5" y="5" width="4" height="14" rx="1.2"/>';
+GLYPH["xmark"] = '<path d="m6.5 6.5 11 11M17.5 6.5l-11 11"/>';
+GLYPH["slider.horizontal.3"] = '<path d="M4 7h9M17 7h3M4 12h3M11 12h9M4 17h11M19 17h1"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="17" r="2"/>';
+GLYPH["rectangle.tophalf.filled"] = '<rect x="3.5" y="5.5" width="17" height="13" rx="2.5"/><path class="f" d="M6 5.5h12A2.5 2.5 0 0 1 20.5 8v4h-17V8A2.5 2.5 0 0 1 6 5.5Z"/>';
+GLYPH["rectangle.inset.filled"] = '<rect x="3.5" y="5.5" width="17" height="13" rx="2.5"/><rect class="f" x="6" y="8" width="12" height="8" rx="1"/>';
+GLYPH["rectangle.center.inset.filled"] = '<rect x="3.5" y="5.5" width="17" height="13" rx="2.5"/><rect class="f" x="8.5" y="9" width="7" height="6" rx="1"/>';
+GLYPH["rectangle.split.2x1"] = '<rect x="3.5" y="5.5" width="17" height="13" rx="2.5"/><path d="M12 5.5v13"/>';
+GLYPH["sun.min"] = '<circle cx="12" cy="12" r="3"/><path d="M12 6.5v.5M12 17v.5M6.5 12h.5M17 12h.5M8.1 8.1l.4.4M15.5 15.5l.4.4M15.9 8.1l-.4.4M8.5 15.5l-.4.4"/>';
+GLYPH["bolt.fill"] = '<path class="f" d="M13.5 3 6 13.5h5.5L10.5 21 18 10.5h-5.5Z"/>';
+GLYPH["rectangle.bottomhalf.filled"] = '<rect x="3.5" y="5.5" width="17" height="13" rx="2.5"/><path class="f" d="M3.5 12h17v4A2.5 2.5 0 0 1 18 18.5H6A2.5 2.5 0 0 1 3.5 16Z"/>';
+GLYPH["iphone"] = '<rect x="7" y="3" width="10" height="18" rx="2.6"/><path d="M10.5 5.5h3"/>';
+GLYPH["qrcode"] = '<rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><path d="M14 14h2v2M20 14v.01M14 20h.01M17 17v3h3"/>';
+GLYPH["folder"] = '<path d="M4 7.5A1.5 1.5 0 0 1 5.5 6h4l2 2h7A1.5 1.5 0 0 1 20 9.5v8a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 17.5Z"/>';
+GLYPH["eye.slash.circle"] = '<circle cx="12" cy="12" r="8.5"/><path d="M7 12s2-3 5-3 5 3 5 3-2 3-5 3-5-3-5-3Z"/><path d="m7.5 16.5 9-9"/>';
+GLYPH["hand.raised.fill"] = '<path class="f" d="M8 13V6.5a1.5 1.5 0 0 1 3 0V11h.5V5a1.5 1.5 0 0 1 3 0v6h.5V6.5a1.5 1.5 0 0 1 3 0V14a6 6 0 0 1-6 6h-.5a5 5 0 0 1-4.2-2.3L4.5 14.5a1.4 1.4 0 0 1 2.2-1.7Z"/>';

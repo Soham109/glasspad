@@ -690,6 +690,10 @@ struct ActionsMode: View {
             folderPath.append(button.id)
             return
         }
+        if !button.action.isSupported {
+            session.deckNeedsUpdate()
+            return
+        }
         if button.needsConfirmation {
             Haptics.shared.tap()
             confirming = button

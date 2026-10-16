@@ -137,6 +137,30 @@ nonisolated(unsafe) let observedGlobal: [String: Any] = [
         #expect(watcher.settings.tapToClick == value.tapToClick)
     }
 
+    /// With no phone the prefs are read every 5 s; a phone connecting gets a fresh read at
+    /// once and the usual 2 s after that.
+    @Test @MainActor func watcherSlowsDownWithoutAPhone() {
+        var value = TrackpadSettings.macDefault
+        let watcher = TrackpadPrefsWatcher(read: { value })
+        var seen: [TrackpadSettings] = []
+        watcher.onChange = { seen.append($0) }
+        watcher.start()
+        defer { watcher.stop() }
+        #expect(watcher.scheduledInterval == 5)
+        value.tapToClick.toggle()
+        watcher.setPhoneConnected(true)
+        #expect(seen.count == 1)
+        #expect(watcher.scheduledInterval == 2)
+        watcher.setPhoneConnected(false)
+        #expect(watcher.scheduledInterval == 5 && watcher.currentInterval == 5)
+    }
+
+    @Test func statusChecksSlowDownWithoutAPhoneOrCode() {
+        #expect(GlasspadController.statusInterval(phoneConnected: true, pairing: false) == 1)
+        #expect(GlasspadController.statusInterval(phoneConnected: false, pairing: true) == 1)
+        #expect(GlasspadController.statusInterval(phoneConnected: false, pairing: false) == 5)
+    }
+
     @Test func liveReadDoesNotCrash() {
         // Reads (never writes) the real domains on this Mac.
         let s = TrackpadPrefsReader.read()

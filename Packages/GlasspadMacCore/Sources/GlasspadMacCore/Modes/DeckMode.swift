@@ -33,6 +33,29 @@ public struct DeckConfig: Codable, Equatable, Sendable {
         self.columns = columns
     }
 
+    enum CodingKeys: String, CodingKey { case version, allowShellCommands, buttons, pages, columns }
+
+    /// One button this build cannot read costs that button, not the whole file (which would
+    /// bring back the starter set).
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        version = try c.decode(Int.self, forKey: .version)
+        allowShellCommands = try c.decode(Bool.self, forKey: .allowShellCommands)
+        buttons = try c.decode([LenientButton].self, forKey: .buttons).compactMap(\.value)
+        pages = try c.decodeIfPresent([LenientPage].self, forKey: .pages)?.compactMap(\.value)
+        columns = try c.decodeIfPresent(Int.self, forKey: .columns)
+    }
+
+    private struct LenientButton: Decodable {
+        let value: DeckButton?
+        init(from decoder: Decoder) throws { value = try? DeckButton(from: decoder) }
+    }
+
+    private struct LenientPage: Decodable {
+        let value: DeckPage?
+        init(from decoder: Decoder) throws { value = try? DeckPage(from: decoder) }
+    }
+
     public init(layout: DeckLayout, allowShellCommands: Bool) {
         self.init(version: Self.currentVersion, allowShellCommands: allowShellCommands,
                   buttons: layout.allButtons.filter { $0.action != .folder },
@@ -169,6 +192,11 @@ public struct DeckConfig: Codable, Equatable, Sendable {
             if case .shellScript = button.action, existing[button.id]?.action != button.action {
                 return .failure(.shellFromPhone)
             }
+            // An action newer than this Mac cannot be checked, so the phone may only keep one
+            // that was already here (saved by a newer Mac), never add or change one.
+            if !button.action.isSupported, existing[button.id]?.action != button.action {
+                return .failure(.newerThanMac)
+            }
             if button.action == .folder, (button.children ?? []).flattenedDeck.count > 200 {
                 return .failure(.tooLarge)
             }
@@ -183,12 +211,13 @@ public struct DeckConfig: Codable, Equatable, Sendable {
 }
 
 public enum DeckEditError: Error, Equatable, Sendable {
-    case shellFromPhone, tooLarge
+    case shellFromPhone, tooLarge, newerThanMac
 
     public var message: String {
         switch self {
         case .shellFromPhone: "Shell script buttons can only be added on the Mac."
         case .tooLarge: "That Deck is too large."
+        case .newerThanMac: "This Deck has a button your Mac does not know yet. Update Glasspad on your Mac, then try again."
         }
     }
 }
@@ -281,6 +310,8 @@ public final class DeckMode {
 
     public static let missionControlPath = "/System/Applications/Mission Control.app/Contents/MacOS/Mission Control"
     public static let osascript = "/usr/bin/osascript"
+    /// Running a button from a newer Glasspad.
+    public static let updateToUse = "Update Glasspad on your Mac to use this button."
     public static let automationHint = "Allow Glasspad in System Settings > Privacy & Security > Automation."
 
     public init(env: DeckEnvironment, url: URL = DeckConfig.defaultURL()) {
@@ -402,6 +433,8 @@ public final class DeckMode {
             return env.setAudioOutput(name: name) ? .done : .fail("No sound output named \u{201C}\(name)\u{201D} is connected")
         case .folder:
             return .fail("Folders open on the phone")
+        case .unsupported:
+            return .fail(Self.updateToUse)
         }
     }
 

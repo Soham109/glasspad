@@ -53,3 +53,4 @@
   .g-cmd { padding-right: 20px; padding-bottom: 60px; }
   .g-cmd .copy { top: auto; bottom: 12px; transform: none; }
 }
+.g-fig.hud { align-self: center; } .g-fig.hud img { border-radius: 22px; }

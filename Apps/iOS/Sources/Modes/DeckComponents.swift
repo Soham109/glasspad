@@ -339,10 +339,14 @@ extension DeckButton {
         }
     }
 
+    /// The face of a button from a newer Glasspad, which cannot run here.
+    static let newerSymbol = "arrow.down.app"
+
     /// The tile face: the app's icon for Open App, the site's logo for a website, otherwise
     /// the symbol in the button's colour.
     @MainActor
     func face(icons: IconCache) -> TileFace {
+        guard action.isSupported else { return TileFace(symbol: Self.newerSymbol, tint: Color(uiColor: .systemGray)) }
         var face = TileFace(symbol: symbol, tint: tint)
         if case .openApp(let id) = action { face.appIcon = icons.image(for: id) }
         face.website = action.websiteLink

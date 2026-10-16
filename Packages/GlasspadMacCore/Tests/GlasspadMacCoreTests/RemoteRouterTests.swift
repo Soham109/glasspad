@@ -47,4 +47,17 @@ import Testing
         #expect(env.runs.count == runs)
         r.appWillTerminate()
     }
+
+    /// A switch run from the Remote reports its new state, as a Deck button does.
+    @Test func remoteSwitchesSayTheirNewState() async throws {
+        let (r, env, sent) = router()
+        env.doNotDisturb = .on
+        let id = UUID()
+        r.handle(.remoteSystem(id: id, action: .doNotDisturb))
+        for _ in 0..<50 where !sent().contains(where: { if case .deckResult = $0 { true } else { false } }) {
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        #expect(sent().contains(.deckResult(id: id, ok: true, message: "Do Not Disturb is on")))
+        r.appWillTerminate()
+    }
 }

@@ -232,4 +232,15 @@ import Testing
         #expect(!LayoutWirePlan(modes: [.present, .trackpad]).refreshesDock)
         #expect(!LayoutWirePlan(modes: []).refreshesDock)
     }
+
+    /// Every pane is named for newer Macs, once each, and only when there is more than one.
+    /// A Remote pane beside Present still gets now playing.
+    @Test func namesEveryPaneAndAsksForNowPlayingForARemotePane() {
+        #expect(LayoutWirePlan(modes: [.dock]).shown == nil)
+        #expect(LayoutWirePlan(modes: [.dock, .dock]).shown == nil)
+        #expect(LayoutWirePlan(modes: [.present, .deck, .present]).shown == [.present, .deck])
+        let presenter = LayoutWirePlan(modes: [.present, .remote])
+        #expect(presenter.primary == .present && presenter.requestsMedia)
+        #expect(!LayoutWirePlan(modes: [.remote, .keys]).requestsMedia)
+    }
 }

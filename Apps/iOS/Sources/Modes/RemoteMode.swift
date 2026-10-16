@@ -47,7 +47,7 @@ private struct RemoteScreen: View {
     @State private var localVolume: Double?
     @State private var localVolumeUntil = Date.distantPast
     @State private var systemRun: UUID?
-    @State private var notice: String?
+    @State private var notice: RemoteNotice?
 
     private var state: MediaState? { store.state }
 
@@ -94,8 +94,13 @@ private struct RemoteScreen: View {
             session.send(.mediaRequest)
         }
         .onChange(of: systemRun.flatMap { session.deckOutcomes[$0] }) { _, outcome in
-            guard let outcome, !outcome.ok else { return }
-            show(notice: outcome.message ?? "Your Mac did not do that.")
+            guard let outcome else { return }
+            if outcome.ok {
+                // A switch says its new state ("Do Not Disturb is on"), briefly.
+                if let message = outcome.message { show(RemoteNotice(text: message, ok: true)) }
+            } else {
+                show(RemoteNotice(text: outcome.message ?? "Your Mac did not do that.", ok: false))
+            }
         }
     }
 
@@ -233,8 +238,8 @@ private struct RemoteScreen: View {
         .accessibilityLabel("More")
     }
 
-    private func noticeLine(_ text: String) -> some View {
-        Label(text, systemImage: "exclamationmark.circle")
+    private func noticeLine(_ notice: RemoteNotice) -> some View {
+        Label(notice.text, systemImage: notice.ok ? "checkmark.circle" : "exclamationmark.circle")
             .font(.footnote)
             .foregroundStyle(palette.inkSoftColor)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -446,13 +451,20 @@ private struct RemoteScreen: View {
         session.send(.remoteSystem(id: id, action: action))
     }
 
-    private func show(notice text: String) {
-        withAnimation { notice = text }
+    private func show(_ new: RemoteNotice) {
+        withAnimation { notice = new }
         Task {
-            try? await Task.sleep(for: .seconds(3))
-            if notice == text { withAnimation { notice = nil } }
+            try? await Task.sleep(for: .seconds(new.ok ? 2 : 3))
+            if notice == new { withAnimation { notice = nil } }
         }
     }
+}
+
+/// A line under the header: what a Mac control did, or why it did not.
+private struct RemoteNotice: Equatable {
+    let id = UUID()
+    let text: String
+    let ok: Bool
 }
 
 /// The big touch surface. Tap plays or pauses; sideways swipes skip (one step per swipe, more
