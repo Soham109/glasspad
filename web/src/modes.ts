@@ -147,12 +147,12 @@ const MODES: Mode[] = [
   },
   {
     key: "dock", title: "Dock", icon: "i-dock", accent: "#0A84FF",
-    text: "Your Mac's Dock, full size. Tap to open, hold to quit, and hide the Mac's own Dock to free the screen.",
+    text: "Your Mac's Dock, full size. Tap to open, hold to hide or quit, and hide the Mac's own Dock, always or while connected.",
     phone: () => `<div class="pt"><span class="status-dot"></span><div class="u-apps">
       <div class="hd"><b>Dock</b><span class="sub">Your Mac · <span class="n">5</span> open</span><span class="more">${ic(G2.more)}</span></div>
       <div class="grid">${DOCK.map(([k, r]) => `<div class="at" data-app="${k}">${tile(k)}<i class="run ${r ? "on" : ""} ${k === "web" ? "act" : ""}"></i><span>${APPS[k][0]}</span></div>`).join("")}</div>
-      <div class="ctx"><span>${ic(G2.hide)}Hide</span><span>${ic(G2.keep)}Keep in Phone Dock</span><span class="q">${ic(G2.quit)}Quit</span></div>
-      <div class="dim"></div><div class="u-menu"><span>${glyph("square.grid.2x2")}Edit Dock</span><span class="hm">${glyph("menubar.dock.rectangle")}Hide Mac Dock</span><span>${glyph("link")}Hide Mac Dock While Connected</span></div></div></div>`,
+      <div class="ctx"><span>${ic(G2.hide)}Hide</span><span>${glyph("folder")}Show in Finder</span><span>${glyph("eye.slash.circle")}Hide on iPhone</span><span class="q">${ic(G2.quit)}Quit</span></div>
+      <div class="dim"></div><div class="u-menu"><span>${glyph("square.grid.2x2")}Edit Dock</span><i></i><small>Hide Mac Dock</small><span class="opt on">${glyph("checkmark")}Never</span><span class="opt">${glyph("checkmark")}While Connected</span><span class="opt hm">${glyph("checkmark")}Always</span></div></div></div>`,
     mac: () => `${win("w-a", docLines, true, "left:8%;top:10%;width:54%;height:58%")}<div class="md-win w-new mm-notes" data-for="notes"><div class="wb"><i></i><i></i><i></i></div><div class="note"><i></i><i></i><i style="width:80%"></i><i style="width:90%"></i><i style="width:60%"></i></div></div>${menuBar("Notes", ["File", "Edit", "Format", "View", "Window"])}<div class="md-dock">${MAC_DOCK.map(k => `<div class="app-slot" data-app="${k}">${tile(k)}<i class="md-run ${DOCK.find(d => d[0] === k)?.[1] ? "on" : ""}"></i></div>`).join("")}</div>`,
     async run(s) {
       const n = s.q(".n"), ctx = s.q(".ctx"), dim = s.q(".dim");
@@ -184,9 +184,10 @@ const MODES: Mode[] = [
       const menu = s.q(".u-menu"), mdock = s.m(".md-dock");
       await s.tap(s.q(".more"), () => menu.classList.add("on"));
       await s.wait(600);
-      await s.tap(s.q(".u-menu .hm"), () => { menu.classList.remove("on"); mdock.classList.add("hidden"); });
+      await s.tap(s.q(".u-menu .hm"), () => { s.q(".u-menu .opt.on").classList.remove("on"); s.q(".u-menu .hm").classList.add("on"); menu.classList.remove("on"); mdock.classList.add("hidden"); });
       await s.wait(1800);
       mdock.classList.remove("hidden");
+      s.q(".u-menu .opt.on")?.classList.remove("on"); s.q(".u-menu .opt")?.classList.add("on");
       // put things back quietly
       await s.tween(300, e => { notes.style.opacity = String(1 - e); });
       notes.style.transform = "scale(0.6)";
@@ -197,15 +198,15 @@ const MODES: Mode[] = [
   },
   {
     key: "clipboard", title: "Clipboard", icon: "i-clipboard", accent: "#34C759",
-    text: "Text and images, both ways. Copy on one, paste on the other.",
+    text: "Text and images, both ways. Send to Mac, or get what the Mac has copied.",
     phone: () => `<div class="pt"><span class="status-dot"></span><div class="u-clip">
       <h4>Clipboard</h4>
-      <div class="cc to"><div class="ch">${glyph("square.and.arrow.up")}<div><b>To your Mac</b><span>Text or an image copied on this iPhone.</span></div></div>
+      <div class="cc to"><div class="ch">${glyph("square.and.arrow.up")}<div><b>Send to Mac</b><span>Text or an image you copied on this iPhone.</span></div></div>
         <div class="pv">See you at the station at nine</div>
         <div class="crow"><span class="cbtn paste">${glyph("doc.on.clipboard")}Paste</span><span class="ok">${glyph("checkmark")}Sent</span></div></div>
-      <div class="cc from"><div class="ch">${glyph("square.and.arrow.down")}<div><b>From your Mac</b><span>Copies what is on the Mac clipboard to this iPhone.</span></div></div>
+      <div class="cc from"><div class="ch">${glyph("square.and.arrow.down")}<div><b>Get from Mac</b><span>Whatever is copied on your Mac, copied here too.</span></div></div>
         <div class="img"><i class="a1"></i><i class="a2"></i><i class="a3"></i></div>
-        <div class="crow"><span class="cbtn get">${glyph("square.and.arrow.down")}Get Mac Clipboard</span><span class="ok">${glyph("checkmark")}Copied to iPhone</span></div></div>
+        <div class="crow"><span class="cbtn get">${glyph("square.and.arrow.down")}Get Clipboard</span><span class="ok">${glyph("checkmark")}Copied to iPhone</span></div></div>
     </div></div>`,
     mac: () => `${win("w-a mm-cnote", '<div class="mm-type"><span class="txt"></span><span class="caret"></span></div>', true, "left:5%;top:12%;width:50%;height:58%")}${win("w-b mm-cphoto", '<div class="ph"><i class="a1"></i><i class="a2"></i><i class="a3"></i></div>', false, "left:47%;top:24%;width:47%;height:58%")}${menuBar("Notes", ["File", "Edit", "Format", "View", "Window"])}<div class="mm-toast">Copied</div>`,
     async run(s) {
@@ -224,36 +225,6 @@ const MODES: Mode[] = [
       await s.wait(900); toast.classList.remove("on");
       await s.tap(s.q(".get"), () => from.classList.add("done"));
       await s.wait(2000);
-    },
-  },
-  {
-    key: "macros", title: "Macros", icon: "i-macros", accent: "#30B0C7",
-    text: "Record the steps once on your Mac. Replay them with one tap.",
-    phone: () => `<div class="pt"><span class="status-dot"></span><div class="u-mac">
-      <div class="hd"><span class="ai">${tile("finder")}</span><b>Finder</b><span class="sg"><span class="on">This app</span><span>All</span></span></div>
-      <div class="mg">${tl("Clean Desktop", "wand.and.stars", "#30B0C7")}${tl("Zip Folder", "wand.and.stars", "#30B0C7")}${tl("Rename Photos", "wand.and.stars", "#30B0C7")}${tl("New Invoices Folder", "wand.and.stars", "#30B0C7")}</div>
-      <div class="recrow"><span class="rb">${glyph("record.circle")}Record</span></div>
-      <div class="recbar"><i></i><div><b>Recording on your Mac</b><span>Do the steps on the Mac, then stop.</span></div><span class="stop">Stop</span></div>
-    </div></div>`,
-    mac: () => `${win("w-a mm-mfinder", '<div class="fside"><i></i><i></i><i></i><i></i></div><div class="fg"><span class="fold"></span><span class="fold"></span><span class="fold"></span><span class="fold nf"><b>Invoices</b></span></div>', true, "left:10%;top:13%;width:66%;height:62%")}${menuBar("Finder", ["File", "Edit", "View", "Go", "Window"])}<div class="mm-recdot"></div>${cursorSVG}`,
-    async run(s) {
-      const nt = s.q('.bt[data-b="New Invoices Folder"]'), rec = s.q(".recbar"), nf = s.m(".nf"), dot = s.m(".mm-recdot"), cur = s.m<SVGElement>(".md-cursor");
-      const W = s.mac.clientWidth, H = s.mac.clientHeight;
-      const curAt = (x: number, y: number) => { cur.style.transform = `translate(${x * W}px, ${y * H}px)`; };
-      nt.classList.remove("in"); nf.classList.remove("in", "run"); rec.classList.remove("on"); dot.classList.remove("on"); curAt(0.8, 0.8);
-      await s.wait(800);
-      await s.tap(s.q(".rb"), () => { rec.classList.add("on"); dot.classList.add("on"); });
-      // the steps, done on the Mac while it records
-      await s.tween(700, e => curAt(lerp(0.8, 0.62, e), lerp(0.8, 0.62, e)));
-      cur.classList.add("press"); await s.wait(120); cur.classList.remove("press");
-      nf.classList.add("in"); await s.wait(900);
-      await s.tap(s.q(".stop"), () => { rec.classList.remove("on"); dot.classList.remove("on"); nt.classList.add("in"); });
-      await s.wait(900);
-      // undo it quietly, then replay from the phone
-      nf.classList.remove("in"); await s.wait(700);
-      await s.tap(nt, () => { nt.classList.add("busy"); });
-      await s.wait(500); nf.classList.add("in", "run"); nt.classList.remove("busy");
-      await s.wait(1800);
     },
   },
 ];

@@ -45,7 +45,7 @@ export class Scene {
     const t0 = performance.now();
     for (;;) { const t = await nextFrame(); this.check(); const u = Math.min(1, (t - t0) / ms); fn(ease(u), u); if (u >= 1) return; }
   }
-  /** Centre of an element in its screen's own points. */
+  /** Center of an element in its screen's own points. */
   at(el: HTMLElement): [number, number] {
     let x = el.offsetWidth / 2, y = el.offsetHeight / 2, n: HTMLElement | null = el;
     while (n && !n.classList.contains("pt")) { x += n.offsetLeft; y += n.offsetTop; n = n.offsetParent as HTMLElement | null; }

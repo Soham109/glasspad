@@ -16,14 +16,16 @@ const PANES: Record<string, { name: string; dark?: boolean; html: () => string }
     <div class="ag">${tl("New Tab", "plus.square.on.square", "#0A84FF")}${tl("Reopen Tab", "arrow.uturn.backward", "#0A84FF")}${tl("Reader", "doc.plaintext", "#30B0C7")}${tl("Split Screen", "square.split.2x1", "#30B0C7")}${tl("Do Not Disturb", "moon.fill", "#5E5CE6")}${tl("Screenshot", "camera.viewfinder", "#0A84FF")}</div></div>` },
   media: { name: "Media", html: () => `<div class="pz-md"><div class="src"><i></i>SPOTIFY</div><b>Slow Light</b><span>Paper Rooms</span><div class="ctl">${glyph("backward.fill")}<span class="pp">${glyph("pause.fill")}</span>${glyph("forward.fill")}</div></div>` },
   remote: { name: "Remote", dark: true, html: () => `<div class="pz-rm"><div class="pad"><b>Tap to play or pause</b><span>Swipe sideways to skip</span></div></div>` },
+  clock: { name: "Clock", dark: true, html: () => `<div class="pz-clk"><span>Fri, 16 Oct</span><b>10</b><b>09</b></div>` },
+  nowPlaying: { name: "Now Playing", dark: true, html: () => `<div class="pz-np"><span class="art"><i class="s1"></i><i class="s2"></i><i class="s3"></i></span><b>Slow Light</b><small>Paper Rooms</small></div>` },
   present: { name: "Present", html: () => `<div class="pz-pr"><div class="time">4:12</div><div class="bn"><span class="b">${glyph("chevron.left")}Back</span><span class="n">${glyph("chevron.right")}Next</span></div></div>` },
 };
 /* A few of the gallery's templates (LayoutTemplates.swift) */
 const TEMPLATES = [
-  { name: "Trackpad and Actions", panes: ["trackpad", "actions"], split: 0.6, inner: 0.5 },
-  { name: "Desk", panes: ["trackpad", "media", "actions"], split: 0.5, inner: 0.36 },
-  { name: "Couch", panes: ["remote", "media"], split: 0.5, inner: 0.5 },
-  { name: "Presenter", panes: ["present", "trackpad"], split: 0.5, inner: 0.5 },
+  { name: "Desk", panes: ["trackpad", "actions"], split: 0.6, inner: 0.5 },
+  { name: "Studio", panes: ["trackpad", "media", "actions"], split: 0.5, inner: 0.36 },
+  { name: "Couch", panes: ["remote", "trackpad"], split: 0.6, inner: 0.5 },
+  { name: "StandBy", panes: ["clock", "nowPlaying"], split: 0.5, inner: 0.5 },
 ];
 
 type Rect = { x: number; y: number; w: number; h: number };
