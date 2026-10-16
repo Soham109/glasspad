@@ -32,12 +32,12 @@ struct EngineTests {
         try rig.engine.start()
         #expect(rig.engine.macros.count == StarterLibrary.macros.count)
         #expect(infos.get().last?.name == "Finder")
-        #expect(infos.get().last?.macros.first?.name == "New Window")
+        #expect(infos.get().last?.macros.first?.name == "Hidden Files")
         rig.observer.activate("com.apple.Safari")
         let safari = try #require(infos.get().last)
         #expect(safari.name == "Safari")
         #expect(safari.bundleID == "com.apple.Safari")
-        #expect(safari.macros.map(\.name).prefix(3) == ["New Tab", "Reopen Closed Tab", "Show All Tabs"])
+        #expect(safari.macros.map(\.name).prefix(3) == ["Reopen Closed Tab", "Show All Tabs", "Reader"])
     }
 
     @Test func deckRunReportsProgressAndFinish() async throws {

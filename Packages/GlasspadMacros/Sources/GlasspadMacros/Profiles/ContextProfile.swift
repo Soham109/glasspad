@@ -108,18 +108,33 @@ public final class ProfileStore: @unchecked Sendable {
     }
 }
 
-/// Writes the starter macros and profiles once, and restores them on request.
+/// Writes the starter macros and profiles once, brings them up to date when Glasspad ships
+/// better ones, and restores them on request.
 public enum StarterSeeder {
+    /// Written by the first release: starters version 1 were seeded.
     static let markerName = ".starters-seeded-v1"
+    /// Holds the starters version this Mac has, as text ("2").
+    static let versionFileName = ".starters-version"
 
-    /// On first launch writes every starter. Afterwards does nothing, so a
-    /// starter the user deleted stays deleted.
+    /// First launch: writes every starter. After an update that ships new starters: upgrades
+    /// (see `upgrade`). Otherwise does nothing, so a starter the user deleted stays deleted.
+    /// Returns true when anything was written.
     @discardableResult
     public static func seedIfNeeded(macros: MacroStore, profiles: ProfileStore) throws -> Bool {
-        let marker = macros.directory.deletingLastPathComponent().appendingPathComponent(markerName)
-        guard !FileManager.default.fileExists(atPath: marker.path) else { return false }
-        try restoreStarters(macros: macros, profiles: profiles)
-        try Data().write(to: marker)
+        let base = macros.directory.deletingLastPathComponent()
+        let versionFile = base.appendingPathComponent(versionFileName)
+        let stored = (try? String(contentsOf: versionFile, encoding: .utf8))
+            .flatMap { Int($0.trimmingCharacters(in: .whitespacesAndNewlines)) }
+        let seededV1 = FileManager.default.fileExists(atPath: base.appendingPathComponent(markerName).path)
+        let have = stored ?? (seededV1 ? 1 : nil)
+        if let have, have >= StarterLibrary.version { return false }
+        if let have {
+            try upgrade(from: have, macros: macros, profiles: profiles)
+        } else {
+            try restoreStarters(macros: macros, profiles: profiles)
+        }
+        try FileManager.default.createDirectory(at: base, withIntermediateDirectories: true)
+        try Data("\(StarterLibrary.version)".utf8).write(to: versionFile, options: .atomic)
         return true
     }
 
@@ -132,5 +147,73 @@ public enum StarterSeeder {
         let starterIDs = Set(starters.map(\.id))
         current.removeAll { starterIDs.contains($0.id) }
         try profiles.save(starters + current)
+    }
+
+    /// Moves starters from an older version to this one without losing anything the user did:
+    /// - a starter still exactly as shipped is updated (or removed if it was dropped);
+    /// - a starter the user edited is kept as they left it;
+    /// - a starter the user deleted stays deleted;
+    /// - starters new in this version are added, and profiles for new apps appear;
+    /// - a starter profile the user changed keeps their changes and gets the new buttons at the end.
+    public static func upgrade(from version: Int, macros: MacroStore, profiles: ProfileStore) throws {
+        guard let oldDefinitions = StarterLibrary.definitions(version: version) else {
+            // Unknown history: only add what is missing.
+            return try addMissing(macros: macros, profiles: profiles)
+        }
+        let oldMacros = Dictionary(uniqueKeysWithValues: StarterLibrary.macros(from: oldDefinitions).map { ($0.id, $0) })
+        let oldProfiles = Dictionary(uniqueKeysWithValues: StarterLibrary.profiles(from: oldDefinitions).map { ($0.id, $0) })
+        let newMacros = StarterLibrary.macros
+        let newIDs = Set(newMacros.map(\.id))
+        let onDisk = Dictionary(macros.loadAll().macros.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+        var current = try profiles.load() ?? []
+
+        // Macros.
+        for m in newMacros {
+            if let disk = onDisk[m.id] {
+                if disk == oldMacros[m.id] { try macros.save(m) }   // untouched: update
+            } else if oldMacros[m.id] == nil {
+                try macros.save(m)                                  // new in this version
+            }                                                       // else the user deleted it
+        }
+        let usedByUser = Set(current.filter { $0.origin != .starter || oldProfiles[$0.id] == nil }.flatMap(\.macroIDs))
+        var removed = Set<UUID>()
+        for (id, old) in oldMacros where !newIDs.contains(id) {
+            guard let disk = onDisk[id], disk == old, !usedByUser.contains(id) else { continue }
+            try macros.delete(id: id)
+            removed.insert(id)
+        }
+        let gone = Set(oldMacros.keys).subtracting(newIDs).union(removed)
+            .union(oldMacros.keys.filter { onDisk[$0] == nil })
+
+        // Profiles.
+        for p in StarterLibrary.profiles {
+            if let i = current.firstIndex(where: { $0.id == p.id }) {
+                if current[i] == oldProfiles[p.id] {
+                    current[i] = p
+                } else {
+                    let old = Set(oldProfiles[p.id]?.macroIDs ?? [])
+                    var edited = current[i]
+                    edited.macroIDs.removeAll { removed.contains($0) }
+                    let have = Set(edited.macroIDs)
+                    edited.macroIDs += p.macroIDs.filter { !old.contains($0) && !have.contains($0) && !gone.contains($0) }
+                    current[i] = edited
+                }
+            } else if oldProfiles[p.id] == nil {
+                current.append(p)
+            }
+        }
+        // Starter profiles that were dropped, if untouched.
+        let newProfileIDs = Set(StarterLibrary.profiles.map(\.id))
+        current.removeAll { p in !newProfileIDs.contains(p.id) && oldProfiles[p.id] != nil && p == oldProfiles[p.id] }
+        try profiles.save(current)
+    }
+
+    private static func addMissing(macros: MacroStore, profiles: ProfileStore) throws {
+        let have = Set(macros.loadAll().macros.map(\.id))
+        for m in StarterLibrary.macros where !have.contains(m.id) { try macros.save(m) }
+        var current = try profiles.load() ?? []
+        let ids = Set(current.map(\.id))
+        current += StarterLibrary.profiles.filter { !ids.contains($0.id) }
+        try profiles.save(current)
     }
 }

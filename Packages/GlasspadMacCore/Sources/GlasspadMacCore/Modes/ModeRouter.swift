@@ -51,7 +51,11 @@ public final class ModeRouter {
         self.media = media
         let env = LiveDeckEnvironment(keys: keys, media: media)
         self.deckEnvironment = env
-        self.deck = DeckMode(env: env)
+        let deck = DeckMode(env: env)
+        self.deck = deck
+        MacControlRelay.shared.perform = { [weak deck] action in
+            await deck?.perform(.system(action)) ?? DeckMode.Outcome(ok: false, message: "Glasspad is shutting down.")
+        }
         self.clipboard = ClipboardMode()
         self.present = PresentMode(keys: keys)
         self.macDock = macDock

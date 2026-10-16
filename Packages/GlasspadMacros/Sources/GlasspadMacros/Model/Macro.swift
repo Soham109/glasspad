@@ -186,15 +186,23 @@ public indirect enum MacroStep: Hashable, Sendable {
     }
 }
 
-/// A readable name for a Mac control id: "doNotDisturb" is "Do Not Disturb".
+/// The name of a Mac control, as the Actions Library shows it (GlasspadKit's
+/// `DeckSystemAction.title`; a test keeps the two the same).
 public enum MacControlName {
-    public static func title(_ id: String) -> String {
-        var words: [String] = []
-        for ch in id {
-            if ch.isUppercase || words.isEmpty { words.append(String(ch).uppercased()) } else { words[words.count - 1].append(ch) }
-        }
-        return words.joined(separator: " ")
-    }
+    static let titles: [String: String] = [
+        "lockScreen": "Lock Screen", "sleepDisplay": "Sleep Display", "sleepMac": "Sleep Mac",
+        "toggleDarkMode": "Dark Mode", "volumeUp": "Volume Up", "volumeDown": "Volume Down", "mute": "Mute",
+        "micMute": "Mute Microphone", "brightnessUp": "Brightness Up", "brightnessDown": "Brightness Down",
+        "playPause": "Play or Pause", "nextTrack": "Next Track", "previousTrack": "Previous Track",
+        "showDesktop": "Show Desktop", "missionControl": "Mission Control", "appExpose": "App Windows",
+        "launchpad": "Apps", "emptyTrash": "Empty Trash", "ejectAll": "Eject All", "doNotDisturb": "Do Not Disturb",
+        "nightShift": "Night Shift", "keepAwake": "Keep Awake", "notificationCenter": "Notifications",
+        "windowLeft": "Left Half", "windowRight": "Right Half", "windowTop": "Top Half", "windowBottom": "Bottom Half",
+        "windowFill": "Fill Screen", "windowCenter": "Center Window", "windowSplit": "Split Screen",
+        "windowNextDisplay": "Next Display",
+    ]
+
+    public static func title(_ id: String) -> String { titles[id] ?? id }
 }
 
 extension MacroPoint {
