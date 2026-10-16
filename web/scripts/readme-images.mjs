@@ -5,19 +5,22 @@
 //
 // <raw folder> holds simulator screenshots (iPhone 18 Pro, 1206 x 2622), named after what they show.
 // They come from the app's demo launch arguments (DebugLaunch in Apps/iOS/Sources/App/RootView.swift):
-//   actions, actions-mono, actions-midnight, actions-sand   -GPMode actions -GPTheme <theme>
-//   dock, media                                             -GPMode dock / media
+//   actions, dock, media                                    -GPMode actions / dock / media
+//   theme-glass, theme-glassdark, theme-midnight, theme-mono  a mode in each theme (-GPTheme <theme>)
+//   displays                                                Displays, from the mode menu
+//   standby (landscape)                                     the StandBy layout, sideways
 //   present, clipboard                                      -GPActionsPage present / clipboard
 //   library, folder, website                                -GPActionsPage library / folder, and a new Website button
 //   remote                                                  -GPMode remote
 //   themes, menu                                            -GPSettings / -GPMenu
 //   trackpad (landscape)                                    -GPFilm trackpad -GPOrientation landscape
-// Keyboard, Macros, Displays and Layouts are taken from the website's drawn screens for now.
+// Keyboard and Layouts are taken from the website's drawn screens. macros-hud is the Mac's
+// recording indicator (a Mac screenshot), copied as it is.
 //
 // Output: ../docs/img/screens/<name>.png, one framed phone each on a clear background (the guide shows these),
 //         ../docs/img/{hero,modes,themes,layouts}.png, a few phones together for the README.
 import { chromium } from "playwright";
-import { mkdirSync, readFileSync, existsSync } from "node:fs";
+import { mkdirSync, readFileSync, existsSync, copyFileSync } from "node:fs";
 import { join } from "node:path";
 
 const [raw, url = "http://localhost:4173/"] = process.argv.slice(2);
@@ -41,16 +44,14 @@ async function grab(name, sel, land, before) {
   shots[name] = { src: `data:image/png;base64,${png.toString("base64")}`, land };
 }
 await grab("keyboard", "#modeIphone .ip-screen", false, () => site.click("#tab-keys"));
-await grab("macros", "#modeIphone .ip-screen", false, () => site.click("#tab-macros"));
-await grab("displays", "#dpStage .ip-screen", true);
-await grab("layouts", "#lpStage .ip-screen", true, () => site.getByRole("radio", { name: "Desk" }).click());
+await grab("layouts", "#lpStage .ip-screen", true, () => site.getByRole("radio", { name: "Studio" }).click());
 
 /* 2. Every screen in the same drawn iPhone (web/src/device.css) */
-const REAL = ["actions", "actions-mono", "actions-midnight", "actions-sand", "dock", "media", "present", "clipboard", "library", "folder", "website", "remote", "themes", "menu", "trackpad"];
+const REAL = ["actions", "theme-glass", "theme-glassdark", "theme-midnight", "theme-mono", "dock", "media", "present", "clipboard", "displays", "library", "folder", "website", "remote", "themes", "menu", "trackpad", "standby"];
 for (const n of REAL) {
   const f = join(raw, n + ".png");
   if (!existsSync(f)) { console.warn("missing", f); continue; }
-  shots[n] = { src: `data:image/png;base64,${readFileSync(f).toString("base64")}`, land: n === "trackpad" };
+  shots[n] = { src: `data:image/png;base64,${readFileSync(f).toString("base64")}`, land: n === "trackpad" || n === "standby" };
 }
 
 const page = await (await browser.newContext({ viewport: { width: 1600, height: 1000 }, deviceScaleFactor: 2 })).newPage();
@@ -59,8 +60,9 @@ const phoneHTML = (s, w) => `<div class="iphone" data-orient="${s.land ? "landsc
   <div class="ip-body"><div class="ip-bezel"></div><div class="ip-screen"><img src="${s.src}" style="display:block;width:100%;height:100%;object-fit:cover"></div><div class="ip-island"></div></div></div>`;
 const html = (body, bg = PAPER) => `<!doctype html><style>${deviceCSS} body{margin:0;background:${bg}} .row{display:flex;align-items:center;justify-content:center}</style><body>${body}</body>`;
 
-// the guide shows one of each; the theme variants only appear together in the README
-const GUIDE = ["trackpad", "keyboard", "media", "dock", "actions", "remote", "present", "clipboard", "macros", "displays", "layouts", "library", "website", "folder", "themes", "menu"];
+// the guide shows one of each; the theme samples only appear together in the README
+const GUIDE = ["trackpad", "keyboard", "media", "dock", "actions", "remote", "present", "clipboard", "displays", "layouts", "standby", "library", "website", "folder", "themes", "menu"];
+if (existsSync(join(raw, "macros-hud.png"))) copyFileSync(join(raw, "macros-hud.png"), join(screens, "macros-hud.png"));
 for (const n of GUIDE) {
   const s = shots[n]; if (!s) continue;
   await page.setContent(html(`<div id="o" style="padding:40px;display:inline-block">${phoneHTML(s, s.land ? 560 : 270)}</div>`, "transparent"));
@@ -75,9 +77,9 @@ async function compose(name, names, { gap = 72, w = 300 } = {}) {
   await page.locator("#o").screenshot({ path: join(root, name + ".png") });
 }
 await compose("hero", ["remote", "actions", "media"]);
-await compose("modes", ["dock", "present", "clipboard", "library"], { gap: 56, w: 260 });
-await compose("themes", ["actions", "actions-mono", "actions-sand", "actions-midnight"], { gap: 56, w: 260 });
-await compose("layouts", ["layouts", "displays"]);
+await compose("modes", ["dock", "present", "clipboard", "displays"], { gap: 56, w: 260 });
+await compose("themes", ["theme-glass", "theme-glassdark", "theme-midnight", "theme-mono"], { gap: 56, w: 260 });
+await compose("layouts", ["layouts", "standby"]);
 
 await browser.close();
 console.log("wrote", root);

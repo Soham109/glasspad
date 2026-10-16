@@ -46,11 +46,8 @@
   <nav class="nav-links" aria-label="Sections" id="navLinks">
     <span class="nav-ind" id="navInd" aria-hidden="true"></span>
     <a href="#setups">Setups</a>
-    <a href="#trackpad">Trackpad</a>
     <a href="#modes">Modes</a>
-    <a href="#displays">Displays</a>
     <a href="#layouts">Layouts</a>
-    <a href="#yours">Actions</a>
     <a href="#get">Install</a>
     <a href="/guide">Guide</a>
   </nav>
@@ -61,11 +58,8 @@
 </header>
 <nav class="nav-sheet" id="navSheet" aria-label="Sections">
   <a href="#setups">Setups</a>
-  <a href="#trackpad">Trackpad</a>
   <a href="#modes">Modes</a>
-  <a href="#displays">Displays</a>
   <a href="#layouts">Layouts</a>
-  <a href="#yours">Actions</a>
   <a href="#get">Install</a>
   <a href="/guide">Guide</a>
   <a href="https://github.com/Soham109/glasspad">GitHub</a>
@@ -138,7 +132,7 @@
 
       <div class="mac-col">
         <div class="mac" id="mac" aria-hidden="true">
-          <div class="mac-bar"><span class="mac-apple"></span><span class="mac-menu"></span><span class="mac-menu short"></span></div>
+          <div class="mac-bar"><svg class="mac-apple" viewBox="0 0 14 17" aria-hidden="true"><path d="M11.6 9c0-2 1.6-2.9 1.7-3-1-1.4-2.4-1.6-2.9-1.6-1.2-.1-2.4.7-3 .7-.6 0-1.6-.7-2.6-.7C3.4 4.4 2.1 5.2 1.4 6.5 0 9 1 12.7 2.4 14.7c.7 1 1.5 2 2.5 2 1 0 1.4-.6 2.6-.6s1.5.6 2.6.6c1.1 0 1.8-1 2.4-2 .8-1.1 1.1-2.2 1.1-2.3 0 0-2-.8-2-3.4ZM9.7 3c.5-.7.9-1.6.8-2.5-.8 0-1.8.5-2.3 1.2-.5.6-1 1.5-.8 2.4.9.1 1.8-.5 2.3-1.1Z"/></svg><b>Safari</b><span>File</span><span>Edit</span><span>View</span><span>History</span><span class="mac-clock">Fri 9:41</span></div>
           <div class="mac-viewport">
             <div class="spaces" id="spaces">
               <div class="space">
@@ -175,7 +169,7 @@
   <div class="wrap">
     <div class="section-head center">
       <h2 id="modes-title" class="reveal">Everything else, one touch away.</h2>
-      <p class="lede reveal">Switch modes from the pill at the top of the screen.</p>
+      <p class="lede reveal">Switch modes with the button at the top of the screen.</p>
     </div>
   </div>
   <div class="modes-scroll" id="modesScroll">
@@ -206,7 +200,7 @@
   <div class="wrap">
     <div class="section-head center">
       <h2 id="dp-title" class="reveal">Every display, every window.</h2>
-      <p class="lede reveal">Your screens laid out as in System Settings. Tap a window to bring it forward, drag it to another display, and set each screen&rsquo;s brightness.</p>
+      <p class="lede reveal">Your displays as in System Settings, with every window on them. Drag a window to another display, touch and hold to tile it, and set brightness, resolution and Night Shift.</p>
     </div>
     <div class="dp-stage" id="dpStage" aria-hidden="true"></div>
   </div>
@@ -243,19 +237,7 @@
       <p class="lede reveal">Pair once with a QR code. Everything is encrypted and stays on your Wi-Fi.</p>
     </div>
 
-    <div class="net" aria-hidden="true">
-      <svg viewBox="0 0 720 220" id="net">
-        <rect x="1" y="1" width="718" height="218" rx="28" fill="none" stroke="currentColor" stroke-opacity="0.16" stroke-dasharray="2 7" stroke-linecap="round"/>
-        <text x="28" y="40" class="net-label">Your Wi-Fi</text>
-        <rect x="118" y="62" width="64" height="122" rx="16" fill="none" stroke="currentColor" stroke-opacity="0.7" stroke-width="2"/>
-        <rect x="508" y="74" width="112" height="76" rx="8" fill="none" stroke="currentColor" stroke-opacity="0.7" stroke-width="2"/>
-        <path d="M494 168h140" stroke="currentColor" stroke-opacity="0.7" stroke-width="2" stroke-linecap="round"/>
-        <path id="netPath" d="M196 123 H494" stroke="currentColor" stroke-opacity="0.18" stroke-width="2" stroke-linecap="round" fill="none"/>
-        <g id="netPackets"></g>
-        <text x="150" y="208" text-anchor="middle" class="net-cap">iPhone</text>
-        <text x="564" y="208" text-anchor="middle" class="net-cap">Mac</text>
-      </svg>
-    </div>
+    <div class="pair-stage" id="pairStage" aria-hidden="true"></div>
 
   </div>
 </section>
@@ -391,7 +373,7 @@
     <a href="https://github.com/Soham109/glasspad">GitHub</a>
     <a href="#get">Install</a>
     <a href="/guide">Guide</a>
-    <a href="https://github.com/Soham109/glasspad/blob/main/LICENSE">MIT licence</a>
+    <a href="https://github.com/Soham109/glasspad/blob/main/LICENSE">MIT License</a>
     <a class="foot-by" href="https://sohamaggarwal.com">Made by Soham Aggarwal</a>
   </nav>
   <div class="foot-mark" aria-hidden="true"><span id="footMark">Glasspad</span></div>

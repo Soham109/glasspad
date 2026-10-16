@@ -1,4 +1,4 @@
-/* Flat app tiles: one colour, one simple glyph. Stand-ins for real Mac app icons. */
+/* Flat app tiles: one color, one simple glyph. Stand-ins for real Mac app icons. */
 export const APPS: Record<string, [name: string, glyph: string]> = {
   finder: ["Finder", '<path d="M12 4v16M8 9v2M16 9v2M8.5 15.5c2 1.3 5 1.3 7 0"/>'],
   web: ["Safari", '<circle cx="12" cy="12" r="7.5"/><path d="m15 9-4.2 1.8L9 15l4.2-1.8Z"/>'],
