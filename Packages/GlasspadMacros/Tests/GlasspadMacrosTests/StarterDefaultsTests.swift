@@ -44,11 +44,20 @@ import Testing
             for b in p.buttons {
                 #expect(!b.name.isEmpty)
                 #expect(Self.symbolExists(b.symbol), "\(p.name) \(b.name): no SF Symbol \(b.symbol)")
-                #expect(b.combo.key.ansiKeyCode != nil, "\(p.name) \(b.name): no key code for \(b.combo.key)")
-                // Characters are stored unshifted and lowercase, as recording does.
-                if case .character(let c) = b.combo.key {
-                    #expect(c.count == 1 && c == c.lowercased(), "\(p.name) \(b.name): \(c)")
-                    #expect(ANSIKeyMap.charToCode[c] != nil, "\(p.name) \(b.name): \(c) is not on the keyboard unshifted")
+                #expect(b.color.map(Self.isColor) ?? true, "\(p.name) \(b.name)")
+                switch b.step {
+                case .keystroke(let combo):
+                    #expect(combo.key.ansiKeyCode != nil, "\(p.name) \(b.name): no key code for \(combo.key)")
+                    // Characters are stored unshifted and lowercase, as recording does.
+                    if case .character(let c) = combo.key {
+                        #expect(c.count == 1 && c == c.lowercased(), "\(p.name) \(b.name): \(c)")
+                        #expect(ANSIKeyMap.charToCode[c] != nil, "\(p.name) \(b.name): \(c) is not on the keyboard unshifted")
+                    }
+                case .macControl(let id):
+                    // Checked against the Mac's own list in GlasspadMacCore (MacControlCatalogTests).
+                    #expect(!id.isEmpty, "\(p.name) \(b.name)")
+                default:
+                    Issue.record("\(p.name) \(b.name): a starter is one key or one Mac control, not \(b.step)")
                 }
             }
         }
@@ -59,7 +68,9 @@ import Testing
         let ids = Set(macros.map(\.id))
         #expect(ids.count == macros.count)
         #expect(macros.allSatisfy { $0.origin == .starter && $0.steps.count == 1 && !$0.needsScriptPermission })
-        #expect(macros.allSatisfy { if case .keystroke = $0.steps.first { true } else { false } })
+        #expect(macros.allSatisfy {
+            switch $0.steps.first { case .keystroke?, .macControl?: true; default: false }
+        })
         let profiles = StarterLibrary.profiles
         #expect(Set(profiles.map(\.id)).count == profiles.count)
         for p in profiles {
@@ -70,12 +81,12 @@ import Testing
         #expect(Set(profiles.map(\.id)).isDisjoint(with: ids))
     }
 
-    /// The ids are what lets "Restore starters" overwrite the copies on disk. Changing the
-    /// recipe would leave every user with two of each button.
-    @Test func starterIDsNeverChange() throws {
-        let newTab = try #require(StarterLibrary.macros.first { $0.name == "New Tab" && $0.color == "#0A84FF" })
-        #expect(newTab.id == UUID(uuidString: "E68C3402-77F2-5BBE-A13C-31BD87615079"))
-        #expect(StarterLibrary.profiles.first { $0.name == "Safari" }?.id == UUID(uuidString: "218450F3-FCB2-57DE-9B90-4FA7D06D233F"))
+    /// The ids are what lets "Restore starters" and upgrades find the copies on disk. Changing
+    /// the recipe would leave every user with two of each button.
+    @Test func starterIDsNeverChange() {
+        #expect(StarterLibrary.stableID("safari.New Tab") == UUID(uuidString: "E68C3402-77F2-5BBE-A13C-31BD87615079"))
+        #expect(StarterLibrary.stableID("profile.safari") == UUID(uuidString: "218450F3-FCB2-57DE-9B90-4FA7D06D233F"))
+        #expect(StarterLibrary.profiles.first { $0.name == "Safari" }?.id == StarterLibrary.stableID("profile.safari"))
     }
 
     @Test func roundTripsThroughTheFileFormat() throws {
@@ -92,9 +103,9 @@ import Testing
         let profiles = ProfileStore(file: dir.appendingPathComponent("profiles.json"))
         try FileManager.default.createDirectory(at: store.directory, withIntermediateDirectories: true)
 
-        let newTab = "E68C3402-77F2-5BBE-A13C-31BD87615079"
+        let newTab = StarterLibrary.stableID("safari.Reader").uuidString
         let oldStarter = #"""
-        {"formatVersion":1,"macro":{"id":"\#(newTab)","name":"New Tab","symbol":"plus","steps":[{"type":"keystroke","key":"t","modifiers":["command"]}],"origin":"starter"}}
+        {"formatVersion":1,"macro":{"id":"\#(newTab)","name":"Reader","symbol":"plus","steps":[{"type":"keystroke","key":"r","modifiers":["shift","command"]}],"origin":"starter"}}
         """#
         try Data(oldStarter.utf8).write(to: store.directory.appendingPathComponent("\(newTab).json"))
         let mine = UUID()
@@ -116,8 +127,8 @@ import Testing
         let after = store.loadAll()
         #expect(after.failures.isEmpty)
         #expect(after.macros.count == StarterLibrary.macros.count + 1)
-        #expect(after.macros.filter { $0.name == "New Tab" && $0.color == "#0A84FF" }.count == 1)
-        #expect(after.macros.first { $0.id.uuidString == newTab }?.symbol == "plus.square.on.square")
+        #expect(after.macros.filter { $0.id.uuidString == newTab }.count == 1)
+        #expect(after.macros.first { $0.id.uuidString == newTab }?.symbol == "doc.plaintext")
         let restored = try #require(try profiles.load())
         #expect(restored.count == StarterLibrary.profiles.count + 1)
         #expect(restored.contains { $0.name == "My Safari" })

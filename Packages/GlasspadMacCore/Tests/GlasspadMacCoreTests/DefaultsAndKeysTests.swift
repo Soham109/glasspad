@@ -71,6 +71,45 @@ private let dashes = CharacterSet(charactersIn: "\u{2013}\u{2014}")
     }
 }
 
+/// Every starter button (a key or a Mac control) runs to the end on a pretend Mac, through
+/// the same coordinator the phone's Macros and Actions buttons use.
+@Suite(.serialized) @MainActor struct StarterButtonsRunTests {
+    @Test func everyStarterMacControlIsOneTheMacHasAndNeverAsksFirst() {
+        for m in StarterLibrary.macros {
+            for step in m.steps {
+                guard case .macControl(let id) = step else { continue }
+                let action = DeckSystemAction(rawValue: id)
+                #expect(action != nil, "\(m.name): no Mac control \(id)")
+                #expect(action?.needsConfirmation == false, "\(m.name) would \(id) without asking")
+            }
+        }
+    }
+
+    @Test func everyStarterRunsToTheEnd() async throws {
+        let env = FakeDeckEnvironment()
+        let deck = DeckMode(env: env, url: tempURL("deck.json"))
+        let relay = MacControlRelay()
+        relay.perform = { await deck.perform(.system($0)) }
+        let h = try MacroHarness(seed: true, controls: relay)
+        #expect(h.coordinator.macros.count == StarterLibrary.macros.count)
+        var failures: [String] = []
+        for m in StarterLibrary.macros {
+            let before = h.poster.events.count
+            let result = await h.coordinator.run(m.id, trigger: .deck)
+            guard case .completed = result.outcome else {
+                failures.append("\(m.name): \(result.outcome)")
+                continue
+            }
+            if case .keystroke? = m.steps.first {
+                // A key down and up, at least (modifiers add their own).
+                if h.poster.events.count - before < 2 { failures.append("\(m.name): no key events") }
+            }
+        }
+        #expect(failures.isEmpty, "\(failures)")
+        #expect(!env.runs.contains { $0.0 == "/usr/bin/shortcuts" })
+    }
+}
+
 /// The phone's Library lists every Mac control from DeckSystemCatalog.
 @Suite struct MacControlCatalogTests {
     @Test func everyControlHasATitleSymbolColourAndGroup() {

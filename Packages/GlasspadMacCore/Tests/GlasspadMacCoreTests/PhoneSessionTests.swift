@@ -104,7 +104,11 @@ final class PhoneSession {
                             deck: DeckMode(env: env, url: tempURL("deck.json")), clipboard: ClipboardMode(pasteboard: pasteboard),
                             present: present, macDock: hider.hider)
         router.disconnectGrace = 0
-        macros = seedMacros ? try MacroHarness(seed: true) : nil
+        // Mac control steps in macros run through this Deck, as the app's router sets up.
+        let relay = MacControlRelay()
+        let deck = router.deck
+        relay.perform = { await deck.perform(.system($0)) }
+        macros = seedMacros ? try MacroHarness(seed: true, controls: relay) : nil
         router.macros = macros?.coordinator
 
         let key = PairingPayload.generateKey()
@@ -125,9 +129,6 @@ final class PhoneSession {
         #expect(await eventually { self.client.state == .connected(rttMs: nil) && server.connectedPhone != nil })
     }
 
-    /// An app id no Mac has, for the round trip in `send`.
-    static let flushID = "qa.flush"
-
     func close() {
         router.sessionEnded()
         router.appWillTerminate()
@@ -144,9 +145,9 @@ final class PhoneSession {
         guard let match else {
             // No answer expected: a request that is always answered, sent after it, comes back
             // once the Mac has handled it (one TCP stream, handled in order on the main queue).
-            client.send(message: .mode(.dockIconRequest(bundleIDs: [Self.flushID])))
+            client.send(message: .mode(.dockCatalogRequest))
             _ = await eventually(timeout) {
-                self.inbox.messages.dropFirst(start).contains { if case .dockIcons = $0 { true } else { false } }
+                self.inbox.messages.dropFirst(start).contains { if case .dockCatalog = $0 { true } else { false } }
             }
             return nil
         }
@@ -686,7 +687,7 @@ func isCase(_ m: ModeMessage, _ tag: String) -> Bool { m.tag == tag }
         ]
         for m in echoes { await s.send(m) }
         // Only the Dock state the first message of a session announces; nothing answers the echoes.
-        let answers = s.inbox.messages.filter { !isCase($0, "macDockState") && !isCase($0, "dockIcons") }
+        let answers = s.inbox.messages.filter { !isCase($0, "macDockState") && !isCase($0, "dockCatalog") }
         #expect(answers.isEmpty, "\(answers.map(\.tag))")
         #expect(s.env.runs.isEmpty && s.env.opened.isEmpty)
         #expect(s.dockDefaults.writes == 0)
