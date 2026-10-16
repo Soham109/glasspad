@@ -13,12 +13,9 @@ import GlasspadMacros
 enum PairingCopy {
     static let menuItem = "Pair Your iPhone…"
     static let title = "Pair Your iPhone"
-    static let instruction = "Open Glasspad on your iPhone and tap Pair a Mac, then point the camera at this code."
-    static let waiting = "Waiting for your iPhone"
-    static var lifetime: String {
-        let minutes = Int(PairingFlow.codeLifetime / 60)
-        return "This code works for \(minutes) minutes."
-    }
+    static let instruction = "On your iPhone, open Glasspad, tap Pair a Mac and hold it over this code."
+    static let showText = "Show Code as Text"
+    static let showCode = "Show Code"
     static let linkHelp = "No camera? Copy the link, then on your iPhone tap Paste the Link Instead."
     static let copyLink = "Copy Link"
     static let copied = "Copied"
@@ -29,7 +26,7 @@ enum PairingCopy {
     static func heading(_ phase: PairingPhase) -> String {
         switch phase {
         case .idle, .waiting: title
-        case .paired: "Paired"
+        case .paired(let name): "Paired with \(name)"
         case .expired: "Code Expired"
         case .failed: "Pairing Did Not Finish"
         }
@@ -38,11 +35,30 @@ enum PairingCopy {
     static func detail(_ phase: PairingPhase) -> String {
         switch phase {
         case .idle, .waiting: instruction
-        case .paired(let name): "Glasspad on \(name) now controls this Mac."
+        case .paired: "Your iPhone now controls this Mac. Glasspad stays in the menu bar."
         case .expired: "Codes work for \(Int(PairingFlow.codeLifetime / 60)) minutes. Show a new one to pair."
         case .failed(let message): "\(message) Try again, and keep both on the same Wi-Fi."
         }
     }
+}
+
+// MARK: - Welcome
+
+/// The first-run window (SetupViews.swift).
+enum WelcomeCopy {
+    static let helloTitle = "Welcome to Glasspad"
+    static let helloDetail = "Use your iPhone as a trackpad, keyboard and remote for this Mac."
+    static let permissionsTitle = "Let Your iPhone Control This Mac"
+    static let permissionsDetail = "macOS asks you once. Glasspad only acts on what you do on your iPhone."
+    static let permissionsFooter = "In System Settings, turn on Glasspad. This step finishes by itself."
+    static let openSettings = "Open System Settings…"
+    static let getIPhoneApp = "Get Glasspad for iPhone"
+    static let iPhoneAppURL = URL(string: "https://github.com/Soham109/glasspad#install")!
+    static let continueTitle = "Continue"
+    static let back = "Back"
+    static let skip = "Skip for Now"
+    static let later = "Later"
+    static let done = "Done"
 }
 
 // MARK: - Permissions
