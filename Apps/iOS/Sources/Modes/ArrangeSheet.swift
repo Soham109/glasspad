@@ -2,9 +2,9 @@ import SwiftUI
 import GlasspadKit
 
 /// Arrange, seen before it happens: the arrangements macOS offers in Window > Move & Resize
-/// (and Split View in full screen) as a row of glyphs, then the display in miniature with each
-/// window in its place. Tap a place for another window, swap or turn them, pick the display
-/// when there are several, then the one button that says what will happen.
+/// (and Split View in full screen) as a row of glyphs, the chosen one named once as the title,
+/// then the display in miniature with each window in its place. Tap a place for another
+/// window, swap or turn them, pick the display when there are several, then one short verb.
 struct ArrangeSheet: View {
     /// The window to start with in the first place (Displays' Split With); the front one when nil.
     let startFirst: UInt32?
@@ -18,6 +18,9 @@ struct ArrangeSheet: View {
 
     @State private var selection: ArrangeSelection?
     @State private var fellBack = false
+    /// The place just picked, outlined in the accent colour for a moment.
+    @State private var lit: Int?
+    @State private var litTask: Task<Void, Never>?
 
     private var accent: Color { AppMode.displays.accent(palette) }
     private let change = Animation.snappy(duration: 0.28)
@@ -32,7 +35,7 @@ struct ArrangeSheet: View {
                     .frame(width: geo.size.width, height: geo.size.height, alignment: .top)
             }
             .background(SurfaceBackground())
-            .navigationTitle("Arrange")
+            .navigationTitle(selection?.arrangement.title ?? "Arrange")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -61,12 +64,12 @@ struct ArrangeSheet: View {
     @ViewBuilder private func content(size: CGSize) -> some View {
         if let state = store.state, let selection, let display = state.display(selection.display) {
             if size.width > size.height * 1.3 {
-                HStack(alignment: .center, spacing: 20) {
+                HStack(alignment: .center, spacing: 24) {
                     preview(state, selection, display)
                     VStack(spacing: 16) {
                         if state.sheetArrangements.count > 1 { arrangements(state, selection) }
-                        Spacer(minLength: 0)
                         if state.shownDisplays.count > 1 { displayPicker(state, selection) }
+                        Spacer(minLength: 0)
                         if !state.canArrangeWindows { MacPermissionBanner(compact: true) }
                         primaryButton(state, selection)
                     }
@@ -75,8 +78,8 @@ struct ArrangeSheet: View {
             } else {
                 VStack(spacing: 16) {
                     if state.sheetArrangements.count > 1 { arrangements(state, selection) }
-                    if state.shownDisplays.count > 1 { displayPicker(state, selection) }
                     preview(state, selection, display)
+                    if state.shownDisplays.count > 1 { displayPicker(state, selection) }
                     if !state.canArrangeWindows { MacPermissionBanner(compact: true) }
                     primaryButton(state, selection)
                 }
@@ -93,7 +96,7 @@ struct ArrangeSheet: View {
 
     /// The row of arrangements, drawn the way the Move & Resize menu draws them.
     private func arrangements(_ state: DisplaysState, _ s: ArrangeSelection) -> some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 8) {
             ForEach(state.sheetArrangements, id: \.self) { a in
                 let next = a == s.arrangement ? s : state.switching(s, to: a)
                 ArrangementOption(arrangement: a, selected: a == s.arrangement, accent: accent) {
@@ -107,19 +110,35 @@ struct ArrangeSheet: View {
         .frame(maxWidth: .infinity)
     }
 
+    /// Which display, as one quiet line under the picture: the name and a chevron.
     private func displayPicker(_ state: DisplaysState, _ s: ArrangeSelection) -> some View {
-        Picker("Display", selection: Binding(get: { s.display }, set: { id in
-            Haptics.shared.tap()
-            var next = s
-            next.display = id
-            next.displayPicked = true
-            withAnimation(change) { selection = next }
-        })) {
-            ForEach(state.shownDisplays) { d in
-                Text(d.isBuiltIn ? "Built-in" : d.name).tag(d.id)
+        Menu {
+            Picker("Display", selection: Binding(get: { s.display }, set: { id in
+                Haptics.shared.tap()
+                var next = s
+                next.display = id
+                next.displayPicked = true
+                withAnimation(change) { selection = next }
+            })) {
+                ForEach(state.shownDisplays) { d in
+                    Label(d.name, systemImage: d.isBuiltIn ? "laptopcomputer" : "display").tag(d.id)
+                }
             }
+        } label: {
+            HStack(spacing: 4) {
+                Text(state.display(s.display)?.shortName ?? "")
+                Image(systemName: "chevron.down")
+                    .font(.caption.weight(.semibold))
+                    .accessibilityHidden(true)
+            }
+            .font(.subheadline.weight(.medium))
+            .foregroundStyle(palette.inkSoftColor)
+            .padding(.horizontal, 16)
+            .frame(minHeight: 44)
+            .contentShape(Rectangle())
         }
-        .pickerStyle(.segmented)
+        .accessibilityLabel("Display")
+        .accessibilityValue(state.display(s.display)?.name ?? "")
     }
 
     private func primaryButton(_ state: DisplaysState, _ s: ArrangeSelection) -> some View {
@@ -132,6 +151,7 @@ struct ArrangeSheet: View {
         }
         .glassButton(prominent: true, accent: accent)
         .controlSize(.large)
+        .accessibilityLabel("\(s.arrangement.actionTitle), \(s.arrangement.title)")
         .disabled(!state.canArrangeWindows || state.commands(for: s) == nil)
     }
 
@@ -152,7 +172,7 @@ struct ArrangeSheet: View {
                     // Between the places; for two stacked ones at the side, clear of their names.
                     let all = places.reduce(CGRect.null) { $0.union($1) }
                     let stacked = s.arrangement == .topAndBottom || s.arrangement == .bottomAndTop
-                    turnButton(s).position(x: stacked ? all.maxX - 29 : all.midX, y: all.midY)
+                    turnButton(s).position(x: stacked ? all.maxX - 32 : all.midX, y: all.midY)
                 }
             }
             .frame(width: geo.size.width, height: geo.size.height, alignment: .topLeading)
@@ -169,43 +189,46 @@ struct ArrangeSheet: View {
         let id = s.windows.indices.contains(i) ? s.windows[i] : nil
         let window = id.flatMap(state.window)
         let choices = state.arrangeChoices(for: i, in: s)
+        let others = s.windows.compactMap(state.window)
         let card = WindowPlaceCard(window: window, icon: window?.bundleID.flatMap { session.icons.image(for: $0) },
-                                   size: rect.size, scale: scale, fullScreen: s.arrangement == .fullScreen)
+                                   detail: window.flatMap(state.distinction(of:)),
+                                   reservesDetail: others.contains { state.distinction(of: $0) != nil },
+                                   size: rect.size, scale: scale, fullScreen: s.arrangement == .fullScreen,
+                                   lit: lit == i, accent: accent, choosable: !choices.isEmpty)
         Group {
             if choices.isEmpty {
                 card
             } else {
                 Menu {
-                    Picker(s.arrangement.placeName(i), selection: Binding(get: { id ?? 0 }, set: { new in
-                        Haptics.shared.tap()
-                        withAnimation(change) { selection = state.choosing(new, place: i, in: s) }
-                    })) {
-                        ForEach(choices) { w in
-                            Label {
-                                Text(w.appName)
-                                if let title = w.title, !title.isEmpty, title != w.appName { Text(title) }
-                            } icon: {
-                                if let icon = w.bundleID.flatMap({ session.icons.image(for: $0) }) {
-                                    Image(uiImage: icon)
-                                } else {
-                                    Image(systemName: "macwindow")
-                                }
+                    // Toggles, not a picker: a menu item shows a second line (which window) only this way.
+                    ForEach(choices) { w in
+                        Toggle(isOn: Binding(get: { id == w.id }, set: { on in
+                            guard on, id != w.id else { return }
+                            Haptics.shared.tap()
+                            withAnimation(change) { selection = state.choosing(w.id, place: i, in: s) }
+                            light(place: i, window: w)
+                        })) {
+                            Text(w.appName)
+                            if let detail = state.distinction(of: w) { Text(detail) }
+                            if let icon = w.bundleID.flatMap({ session.icons.image(for: $0) }) {
+                                Image(uiImage: icon)
+                            } else {
+                                Image(systemName: "macwindow")
                             }
-                            .tag(w.id)
                         }
                     }
-                    .pickerStyle(.inline)
                 } label: {
                     card
                 }
                 .buttonStyle(TileStyle())
+                // Opening the list shows which window sits here now, on the Mac too.
+                .simultaneousGesture(TapGesture().onEnded { if let window { light(place: i, window: window) } })
             }
         }
         .frame(width: rect.width, height: rect.height)
         .position(x: rect.midX, y: rect.midY)
         .accessibilityLabel(s.arrangement.placeName(i))
-        .accessibilityValue(window.map { w in w.title.map { $0.isEmpty || $0 == w.appName ? w.appName : "\(w.appName), \($0)" } ?? w.appName }
-                            ?? "Empty")
+        .accessibilityValue(window.map(state.spokenName(of:)) ?? "Empty")
         .accessibilityHint(choices.isEmpty ? "" : "Double tap to choose another window.")
     }
 
@@ -223,15 +246,28 @@ struct ArrangeSheet: View {
             Image(systemName: symbol)
                 .font(.footnote.weight(.semibold))
                 .foregroundStyle(palette.inkColor)
-                .frame(width: 34, height: 34)
+                .frame(width: 36, height: 36)
                 .background(Circle().fill(palette.solidColor))
                 .background(Circle().fill(palette.raisedColor))
-                .overlay(Circle().strokeBorder(palette.lineColor, lineWidth: 1))
-                .shadow(color: (palette.isDark ? palette.solidColor : palette.inkColor).opacity(0.18), radius: 4, y: 1)
+                .shadow(color: (palette.isDark ? palette.solidColor : palette.inkColor).opacity(0.2), radius: 6, y: 2)
+                .frame(width: 44, height: 44)
                 .contentShape(Circle())
         }
         .buttonStyle(TileStyle())
-        .accessibilityLabel(s.windows.count == 2 ? "Swap" : "Turn")
+        .dynamicTypeSize(...DynamicTypeSize.xxLarge)
+        .accessibilityLabel(s.windows.count == 2 ? "Swap Windows" : "Turn Windows")
+    }
+
+    /// Outlines a place here and its window on the Mac for a moment.
+    private func light(place: Int, window: MacWindow) {
+        store.highlight(window)
+        withAnimation(.snappy(duration: 0.2)) { lit = place }
+        litTask?.cancel()
+        litTask = Task { @MainActor in
+            try? await Task.sleep(for: .seconds(1.2))
+            guard !Task.isCancelled else { return }
+            withAnimation(.easeOut(duration: 0.3)) { lit = nil }
+        }
     }
 
     // MARK: State
@@ -242,7 +278,7 @@ struct ArrangeSheet: View {
         guard let state = store.state, let s = selection, let d = state.display(s.display), d.frame.height > 0 else { return 420 }
         let picture = width * d.frame.height / d.frame.width
         let row: CGFloat = state.sheetArrangements.count > 1 ? ArrangementOption.height + 16 : 0
-        let picker: CGFloat = state.shownDisplays.count > 1 ? 32 + 16 : 0
+        let picker: CGFloat = state.shownDisplays.count > 1 ? 44 + 16 : 0
         let banner: CGFloat = state.canArrangeWindows ? 0 : 76
         return 56 + 8 + row + picker + picture + 16 + banner + 50 + 16 + 4
     }
@@ -271,7 +307,8 @@ struct ArrangeSheet: View {
 
 // MARK: - Arrangement row
 
-/// One arrangement to choose: its glyph and its name, as macOS words it.
+/// One arrangement to choose: its glyph alone (the chosen one is named in the title), with
+/// the name for VoiceOver.
 private struct ArrangementOption: View {
     @Environment(\.palette) private var palette
     @Environment(\.isEnabled) private var isEnabled
@@ -280,30 +317,19 @@ private struct ArrangementOption: View {
     let accent: Color
     let action: () -> Void
 
-    static let height: CGFloat = 62
+    static let height: CGFloat = 52
 
     var body: some View {
-        let shape = RoundedRectangle(cornerRadius: 12, style: .continuous)
+        let shape = RoundedRectangle(cornerRadius: DisplaysMetrics.innerCorner, style: .continuous)
         Button(action: action) {
-            VStack(spacing: 5) {
-                ArrangementGlyph(arrangement: arrangement, fill: selected ? accent : palette.inkSoftColor.opacity(0.55),
-                                 outline: selected ? palette.inkColor : palette.inkSoftColor)
-                    .frame(width: 40, height: 28)
-                Text(arrangement.title)
-                    .font(.caption2.weight(selected ? .semibold : .regular))
-                    .foregroundStyle(selected ? palette.inkColor : palette.inkSoftColor)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
-            }
-            .frame(maxWidth: .infinity)
-            .frame(height: Self.height)
-            .background {
-                if selected {
-                    shape.fill(palette.raisedColor).overlay(shape.strokeBorder(palette.lineColor, lineWidth: 1))
-                }
-            }
-            .contentShape(shape)
-            .opacity(isEnabled ? 1 : 0.35)
+            ArrangementGlyph(arrangement: arrangement, fill: selected ? accent : palette.inkSoftColor.opacity(0.45),
+                             outline: selected ? palette.inkColor : palette.inkSoftColor)
+                .frame(width: 40, height: 28)
+                .frame(maxWidth: .infinity)
+                .frame(height: Self.height)
+                .background { if selected { shape.fill(palette.raisedColor) } }
+                .contentShape(shape)
+                .opacity(isEnabled ? 1 : 0.35)
         }
         .buttonStyle(TileStyle())
         .accessibilityLabel(arrangement.title)
@@ -354,14 +380,24 @@ private extension CGRect {
 // MARK: - Window card
 
 /// A window in its place: the frame and title bar macOS draws (none in full screen), the app's
-/// icon, name and title. An empty place is a dashed outline.
+/// icon large and its name small. Which window it is shows only when the app has others here.
+/// An empty place is a dashed outline.
 private struct WindowPlaceCard: View {
     @Environment(\.palette) private var palette
     let window: MacWindow?
     let icon: UIImage?
+    /// Title (and display) when the app has other windows; nil otherwise.
+    let detail: String?
+    /// Another place shows a detail line: keep a line here too, so the places line up.
+    let reservesDetail: Bool
     let size: CGSize
     let scale: CGFloat
     let fullScreen: Bool
+    /// Just picked: an accent outline.
+    let lit: Bool
+    let accent: Color
+    /// Tap for the list of windows: a chevron after the name says so.
+    let choosable: Bool
 
     var body: some View {
         let corner = fullScreen ? 0 : min(max(4, 16 * scale), min(size.width, size.height) / 4)
@@ -382,12 +418,13 @@ private struct WindowPlaceCard: View {
                     lights(bar)
                 }
                 label
-                    .padding(.horizontal, 6)
+                    .padding(.horizontal, 8)
                     .padding(.top, bar)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
             .clipShape(shape)
             .overlay(shape.strokeBorder(palette.inkColor.opacity(fullScreen ? 0.3 : 0.18), lineWidth: 0.75))
+            .overlay { if lit { shape.strokeBorder(accent, lineWidth: 2) } }
             .frame(width: size.width, height: size.height)
             .shadow(color: shade.opacity(fullScreen ? 0 : 0.18), radius: 3, y: 1)
             .contentShape(shape)
@@ -407,9 +444,9 @@ private struct WindowPlaceCard: View {
     }
 
     private var label: some View {
-        let side = min(min(size.width, size.height) * 0.3, 52)
+        let side = min(min(size.width, size.height) * 0.4, 64)
         let roomy = size.height > 96
-        return VStack(spacing: roomy ? 6 : 3) {
+        return VStack(spacing: roomy ? 8 : 4) {
             Group {
                 if let icon {
                     Image(uiImage: icon).resizable().interpolation(.high)
@@ -419,24 +456,30 @@ private struct WindowPlaceCard: View {
             }
             .frame(width: side, height: side)
             if let window {
-                VStack(spacing: 1) {
-                    HStack(spacing: 3) {
+                VStack(spacing: 2) {
+                    HStack(spacing: 4) {
                         Text(window.appName)
-                            .font((roomy ? Font.subheadline : .caption).weight(.semibold))
+                            .font((roomy ? Font.footnote : .caption2).weight(.medium))
                             .foregroundStyle(palette.inkColor)
-                        Image(systemName: "chevron.up.chevron.down")
-                            .font(.caption2.weight(.semibold))
-                            .foregroundStyle(palette.inkSoftColor)
+                        if choosable {
+                            Image(systemName: "chevron.down")
+                                .font(.caption2.weight(.semibold))
+                                .foregroundStyle(palette.inkSoftColor)
+                                .accessibilityHidden(true)
+                        }
                     }
-                    // Always a line for the title, so the places line up.
-                    let title = window.title.flatMap { $0.isEmpty || $0 == window.appName ? nil : $0 }
-                    Text(title ?? " ")
-                        .font(roomy ? .caption : .caption2)
-                        .foregroundStyle(palette.inkSoftColor)
-                        .accessibilityHidden(title == nil)
+                    if detail != nil || reservesDetail {
+                        Text(detail ?? " ")
+                            .font(.caption2)
+                            .foregroundStyle(palette.inkSoftColor)
+                            .truncationMode(.middle)
+                            .accessibilityHidden(detail == nil)
+                    }
                 }
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
+                // A place is a picture of fixed size: its words grow only so far.
+                .dynamicTypeSize(...DynamicTypeSize.xxLarge)
             }
         }
     }

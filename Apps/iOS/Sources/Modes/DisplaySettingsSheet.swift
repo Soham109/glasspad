@@ -74,7 +74,7 @@ struct DisplaySettingsSheet: View {
     private func picker(_ state: DisplaysState) -> some View {
         Picker("Display", selection: $displayID) {
             ForEach(state.displays) { d in
-                Text(d.isBuiltIn ? "Built-in" : d.name).tag(d.id)
+                Text(d.shortName).tag(d.id)
             }
         }
         .pickerStyle(.segmented)
@@ -83,19 +83,14 @@ struct DisplaySettingsSheet: View {
     @ViewBuilder private func sections(_ d: MacDisplay) -> some View {
         if let master = d.mirrorOf.flatMap({ state?.display($0) }) {
             card {
-                row(symbol: "rectangle.on.rectangle", title: "Mirroring \(master.name)",
-                    detail: "This display shows the same picture.") {
+                row(symbol: "rectangle.on.rectangle", title: "Mirroring \(master.name)") {
                     Button("Stop") { run(.mirror(display: d.id, of: nil)) }
                         .glassButton()
                 }
             }
         } else {
             if d.brightness != nil {
-                card(spacing: 6) {
-                    Text("Brightness")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(palette.inkColor)
-                        .accessibilityHidden(true)
+                card {
                     LevelSlider(value: $brightness, low: "sun.min.fill", high: "sun.max.fill", label: "Brightness", enabled: true) { editing in
                         editingBrightness = editing
                         if !editing { heldUntil = Date().addingTimeInterval(0.8) }
@@ -129,12 +124,12 @@ struct DisplaySettingsSheet: View {
         return card(spacing: 0) {
             if d.mirrorOf == nil {
                 if d.isMain {
-                    row(symbol: "menubar.rectangle", title: "Main Display", detail: "It has the menu bar.") {
+                    row(symbol: "menubar.rectangle", title: "Main Display") {
                         Image(systemName: "checkmark").font(.body.weight(.semibold)).foregroundStyle(accent)
                     }
                 } else {
                     Button { run(.makeMain(display: d.id)) } label: {
-                        row(symbol: "menubar.rectangle", title: "Use as Main Display", detail: "Moves the menu bar here.") { EmptyView() }
+                        row(symbol: "menubar.rectangle", title: "Use as Main Display") { EmptyView() }
                     }
                     .buttonStyle(.plain)
                 }
@@ -144,14 +139,15 @@ struct DisplaySettingsSheet: View {
                 Toggle(isOn: Binding(get: { d.mirrorOf != nil }, set: { on in
                     run(.mirror(display: d.id, of: on ? main.id : nil))
                 })) {
-                    rowLabel(symbol: "rectangle.on.rectangle", title: "Mirror \(main.name)", detail: "Show the same picture on both.")
+                    rowLabel(symbol: "rectangle.on.rectangle", title: "Mirror \(main.name)")
                 }
                 .tint(accent)
-                .padding(.vertical, 10)
+                .frame(minHeight: 44)
+                .padding(.vertical, 4)
                 divider
             }
             Button { arranging = true } label: {
-                row(symbol: "rectangle.3.group", title: "Arrange Displays", detail: "Match how they sit on your desk.") {
+                row(symbol: "rectangle.3.group", title: "Arrange Displays") {
                     Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(palette.inkSoftColor)
                 }
             }
@@ -167,33 +163,29 @@ struct DisplaySettingsSheet: View {
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(RoundedRectangle(cornerRadius: 22, style: .continuous).fill(palette.raisedColor))
-            .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).strokeBorder(palette.lineColor, lineWidth: 1))
+            .background(RoundedRectangle(cornerRadius: DisplaysMetrics.corner, style: .continuous).fill(palette.raisedColor))
     }
 
-    private var divider: some View { Rectangle().fill(palette.lineColor).frame(height: 1) }
+    private var divider: some View { Rectangle().fill(palette.lineColor).frame(height: 0.5).padding(.leading, 40) }
 
-    private func rowLabel(symbol: String, title: String, detail: String) -> some View {
+    private func rowLabel(symbol: String, title: String) -> some View {
         HStack(spacing: 12) {
             Image(systemName: symbol)
                 .font(.body)
                 .foregroundStyle(palette.inkSoftColor)
-                .frame(width: 26)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(.body).foregroundStyle(palette.inkColor)
-                Text(detail).font(.footnote).foregroundStyle(palette.inkSoftColor)
-            }
+                .frame(width: 28)
+            Text(title).font(.body).foregroundStyle(palette.inkColor)
         }
     }
 
-    private func row<Trailing: View>(symbol: String, title: String, detail: String,
-                                     @ViewBuilder trailing: () -> Trailing) -> some View {
+    private func row<Trailing: View>(symbol: String, title: String, @ViewBuilder trailing: () -> Trailing) -> some View {
         HStack(spacing: 12) {
-            rowLabel(symbol: symbol, title: title, detail: detail)
+            rowLabel(symbol: symbol, title: title)
             Spacer(minLength: 8)
             trailing()
         }
-        .padding(.vertical, 10)
+        .frame(minHeight: 44)
+        .padding(.vertical, 4)
         .contentShape(Rectangle())
     }
 
@@ -311,8 +303,7 @@ private struct ArrangeDisplaysView: View {
                 }
                 .frame(width: geo.size.width, height: geo.size.height, alignment: .topLeading)
             }
-            .background(RoundedRectangle(cornerRadius: 22, style: .continuous).fill(palette.raisedColor))
-            .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).strokeBorder(palette.lineColor, lineWidth: 1))
+            .background(RoundedRectangle(cornerRadius: DisplaysMetrics.corner, style: .continuous).fill(palette.raisedColor))
             Text("Drag displays to match how they sit on your desk.")
                 .font(.footnote)
                 .foregroundStyle(palette.inkSoftColor)
