@@ -7,6 +7,10 @@ import GlasspadKit
 /// a favicon service, so no one else learns which sites are pinned). Each site is asked once:
 /// the logo is kept in the Caches folder by host, and a site with no usable logo is not asked
 /// again for a week.
+///
+/// Every logo is redrawn as a plain sRGB bitmap and checked before it is kept, and read back
+/// with ImageIO. UIKit's own decoder refused some of them ("Error -17102 decompressing image"):
+/// grey PNGs and the PNGs `UIImage.pngData()` writes for a scaled-down `.ico` frame.
 @MainActor
 @Observable
 final class WebsiteIcons {
@@ -42,6 +46,11 @@ final class WebsiteIcons {
             "Accept-Language": Locale.preferredLanguages.prefix(2).joined(separator: ","),
         ]
         session = URLSession(configuration: config)
+        // Logos come back from disk on demand, so memory can go first when it is short.
+        NotificationCenter.default.addObserver(forName: UIApplication.didReceiveMemoryWarningNotification,
+                                               object: nil, queue: .main) { _ in
+            MainActor.assumeIsolated { WebsiteIcons.shared.images.removeAll() }
+        }
     }
 
     /// The logo already on hand for a Website button's link (memory or disk), without asking
@@ -116,9 +125,13 @@ final class WebsiteIcons {
             }
             return nil
         }
-        let stored = UIImage(cgImage: best)
-        if let png = stored.pngData(), let file = file(key) { try? png.write(to: file, options: .atomic) }
-        return stored
+        // A logo that does not survive being stored is not kept, and asked for again later.
+        guard let clean = LogoImage.plainBitmap(best), let png = LogoImage.png(clean), LogoImage.decode(png) != nil else {
+            unreachable[key] = Date().addingTimeInterval(60)
+            return nil
+        }
+        if let file = file(key) { try? png.write(to: file, options: .atomic) }
+        return UIImage(cgImage: clean)
     }
 
     /// Plain http links are asked over https (the phone allows only secure loads).
@@ -174,7 +187,12 @@ final class WebsiteIcons {
 
     private func fromDisk(_ key: String) -> UIImage? {
         guard let url = file(key), let data = try? Data(contentsOf: url) else { return nil }
-        return UIImage(data: data)?.preparingForDisplay()
+        // Kept by an older build as it came, or damaged: dropped, so it is fetched again.
+        guard let image = LogoImage.decode(data), LogoImage.isPlain(image) else {
+            try? FileManager.default.removeItem(at: url)
+            return nil
+        }
+        return UIImage(cgImage: image)
     }
 
     private func recentlyMissing(_ key: String) -> Bool {
