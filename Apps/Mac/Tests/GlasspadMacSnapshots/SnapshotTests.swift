@@ -199,6 +199,21 @@ final class SnapshotTests: XCTestCase {
         try shoot(GeneralPane(), model: needs, size: SettingsTab.general.size,
                   name: "settings-general-needs-permissions", chrome: .window)
 
+        // Settings > iPhone with the install's renewal: looking after itself, a failed run,
+        // and never set up (the main shot above has no install recorded, so no section).
+        let installed = Date(timeIntervalSince1970: 1_789_394_400)   // a fixed day, never "today"
+        let renewing = Fixtures.model(macros)
+        renewing.phoneInstall = PhoneInstallStatus(installedAt: installed, renewsByItself: true,
+                                                   lastCheck: .init(checkedAt: installed + 3 * 3600 + 42 * 60, result: .tooEarly))
+        try shoot(IPhonePane(), model: renewing, size: SettingsTab.iphone.size, name: "settings-iphone-renews", chrome: .window)
+        let failed = Fixtures.model(macros)
+        failed.phoneInstall = PhoneInstallStatus(installedAt: installed, renewsByItself: true,
+                                                 lastCheck: .init(checkedAt: installed + 5 * 86_400 + 600, result: .notReachable))
+        try shoot(IPhonePane(), model: failed, size: SettingsTab.iphone.size, name: "settings-iphone-renew-failed", chrome: .window)
+        let manual = Fixtures.model(macros)
+        manual.phoneInstall = PhoneInstallStatus(installedAt: installed, renewsByItself: false)
+        try shoot(IPhonePane(), model: manual, size: SettingsTab.iphone.size, name: "settings-iphone-renew-off", chrome: .window)
+
         let empty = Fixtures.model(macros)
         empty.link = .searching
         empty.phones = []

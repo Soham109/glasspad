@@ -56,6 +56,38 @@ final class WordingTests: XCTestCase {
                                         appName: name), "Double-click right button holding ⌘ at 5, 6")
     }
 
+    /// Settings > iPhone, iPhone App: the state in words, the problem first when there is one.
+    func testRenewalWords() {
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = .current
+        let installed = cal.date(from: DateComponents(year: 2026, month: 10, day: 16, hour: 9))!
+        let day = RenewalCopy.day(installed)
+        let until = RenewalCopy.day(installed + 7 * 86_400)
+        var s = PhoneInstallStatus(installedAt: installed, renewsByItself: true)
+        XCTAssertEqual(RenewalCopy.title(s), "Installed \(day). Renews by itself.")
+        XCTAssertNil(RenewalCopy.detail(s))
+
+        let checked = installed + 3600 + 42 * 60
+        s.lastCheck = .init(checkedAt: checked, result: .tooEarly)
+        let sameDay = RenewalCopy.detail(s, now: checked + 60)
+        XCTAssertEqual(sameDay, "Last checked \(checked.formatted(date: .omitted, time: .shortened)).")
+        let later = RenewalCopy.detail(s, now: checked + 2 * 86_400)
+        XCTAssertTrue(later?.hasPrefix("Last checked \(day)") == true, later ?? "")
+
+        s.lastCheck?.result = .waitingInUse
+        XCTAssertTrue(RenewalCopy.detail(s)?.hasPrefix("Waiting until Glasspad is not in use on the iPhone. Last checked") == true)
+        s.lastCheck?.result = .notReachable
+        XCTAssertEqual(RenewalCopy.title(s), "Could not renew: the iPhone was not on this Wi-Fi.")
+        XCTAssertTrue(RenewalCopy.detail(s)?.hasPrefix("Works until \(until). Last checked") == true)
+        s.lastCheck?.result = .failed
+        XCTAssertEqual(RenewalCopy.title(s), "Could not renew: the install did not finish.")
+
+        s.renewsByItself = false
+        s.lastCheck = nil
+        XCTAssertEqual(RenewalCopy.title(s), "Installed \(day). Works until \(until).")
+        XCTAssertEqual(RenewalCopy.detail(s), "Renew by running scripts/setup-autorefresh.sh once.")
+    }
+
     func testPairingWordsMatchThePhone() {
         // The phone's Settings button is "Pair a Mac"; its onboarding says "choose Pair Your iPhone".
         XCTAssertTrue(PairingCopy.instruction.contains("Pair a Mac"))
