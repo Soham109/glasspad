@@ -109,6 +109,22 @@ targets:
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
 
+  # Debug only, branch feat/redditmedia: drives the real app in the simulator for the Reddit clips.
+  Glasspad iOS UITests:
+    type: bundle.ui-testing
+    platform: iOS
+    deploymentTarget: "18.0"
+    sources:
+      - path: Apps/iOS/UITests
+    dependencies:
+      - target: Glasspad iOS
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.soham109.glasspad.ios.uitests
+        TARGETED_DEVICE_FAMILY: "1"
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_TARGET_NAME: Glasspad iOS
+
   # Menu bar Mac app. Sources are owned by the Mac side; this file only references them.
   Glasspad Mac:
     type: application
@@ -150,8 +166,13 @@ schemes:
       targets:
         Glasspad iOS: all
         Glasspad Widgets: all
+        Glasspad iOS UITests: [test]
     run:
       config: Debug
+    test:
+      config: Debug
+      targets:
+        - Glasspad iOS UITests
     archive:
       config: Release
   Glasspad Mac:
