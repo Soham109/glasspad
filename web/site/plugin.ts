@@ -137,9 +137,19 @@ function pictures(html: string, pub: string): string {
   });
 }
 
+/** Real app screenshots each page shows, for Google Images (home: the four on its first screen). */
+const sitemapImages = (p: Page): string[] => {
+  if (p === pages[0]) return ["trackpad", "actions", "remote", "media"].map(s => `${SITE}/img/screens/${s}.png`);
+  const img = pageImage(p);
+  return img ? [`${SITE}/img/screens/${img.name}.png`] : [];
+};
+
 function sitemap(): string {
-  const rows = pages.map(p => `  <url>\n    <loc>${url(p)}</loc>\n    <lastmod>${p.lastmod}</lastmod>\n  </url>`);
-  return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${rows.join("\n")}\n</urlset>\n`;
+  const rows = pages.map(p => {
+    const images = sitemapImages(p).map(i => `\n    <image:image><image:loc>${i}</image:loc></image:image>`).join("");
+    return `  <url>\n    <loc>${url(p)}</loc>\n    <lastmod>${p.lastmod}</lastmod>${images}\n  </url>`;
+  });
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">\n${rows.join("\n")}\n</urlset>\n`;
 }
 
 const facts = () => [
