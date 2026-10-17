@@ -1,0 +1,14 @@
+# Normalize text to LF line endings.
+* text=auto eol=lf
+
+# Binary files: never touch line endings or show text diffs.
+*.png binary
+*.jpg binary
+*.icns binary
+*.mp3 binary
+*.woff2 binary
+*.ico binary
+
+# Keep generated and vendored files out of GitHub's language stats and diffs.
+web/package-lock.json linguist-generated
+promo/voice/cache/** linguist-generated

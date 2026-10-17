@@ -1,0 +1,50 @@
+name: Bug report
+description: Something does not work as expected.
+labels: ["bug", "needs triage"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you saw, and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open Remote on the iPhone
+        2. Tap Play
+        3. Nothing plays on the Mac
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Glasspad version
+      description: Mac Settings > About, or iPhone Settings > About.
+      placeholder: "0.2.1 (1)"
+    validations:
+      required: true
+  - type: input
+    id: iphone
+    attributes:
+      label: iPhone and iOS
+      placeholder: "iPhone 15 Pro, iOS 26.0"
+    validations:
+      required: true
+  - type: input
+    id: mac
+    attributes:
+      label: Mac and macOS
+      placeholder: "MacBook Air M2, macOS 15.5"
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs and screenshots
+      description: For install or renewal problems, attach the files in ~/Library/Logs/Glasspad. A screenshot or short screen recording helps too.
+    validations:
+      required: false
