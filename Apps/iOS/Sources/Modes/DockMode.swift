@@ -609,7 +609,7 @@ final class IconCache {
             guard !drop.isEmpty else { return }
             for url in drop { try? FileManager.default.removeItem(at: url) }
             let names = Set(drop.map(\.lastPathComponent))
-            Task { @MainActor [weak self] in self?.forget(files: names) }
+            Task { @MainActor in self.forget(files: names) }
         }
     }
 
