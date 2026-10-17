@@ -1,3 +1,4 @@
+# shellcheck shell=bash disable=SC2034  # GP_* variables are read by the scripts that source this file
 # Shared toolchain detection for scripts/test.sh and scripts/build-mac.sh. Source it, do not run it.
 # Sets GP_SWIFT_FLAGS: extra swift flags needed when the active developer dir is the
 # command line tools (swift-testing lives in a framework folder that is not on the default path).

@@ -252,6 +252,7 @@ expect_status() {
   local got at now; now="$(date +%s)"
   got="$(plutil -extract result raw -o - "$(STATUS)" 2>/dev/null)"
   at="$(plutil -extract checkedAt raw -o - "$(STATUS)" 2>/dev/null)"
+  # shellcheck disable=SC1090 # the state file is made by the run under test
   if [ "$got" = "$1" ] && [ -n "$at" ] && [ $(( now - at )) -lt 60 ] \
      && [ "$(plutil -extract installedAt raw -o - "$(STATUS)")" = "$( set +u; . "$(STATE_FILE)"; echo "$GLASSPAD_INSTALLED_AT")" ]; then
     pass "status $1"; else bad "status \"$got\" at \"$at\", wanted $1"; fi
@@ -275,6 +276,7 @@ expect_out "renewing ${REV:0:7}"
 expect_call "xcrun devicectl device install app --device 00008000-0000000000000001"
 expect_call "osascript -e display notification \"Renewed on your iPhone"
 expect_status renewed
+# shellcheck disable=SC1090 # the state file is made by the run under test
 installed="$( set +u; . "$(STATE_FILE)"; echo "$GLASSPAD_INSTALLED_AT")"
 if [ $(( $(date +%s) - installed )) -lt 60 ]; then pass "install time moved on"; else bad "install time $installed"; fi
 

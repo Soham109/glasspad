@@ -72,6 +72,8 @@ final class WebsiteIcons {
             return disk
         }
         if let task = loading[key] { return await task.value }
+        // Without the parentheses the compiler warns that the trailing closure looks like the guard body.
+        // swift-format-ignore: NoParensAroundConditions
         guard !recentlyMissing(key), (unreachable[key].map { Date() > $0 } ?? true) else { return nil }
         // A moment's wait, so an address being typed is not fetched at every letter (the
         // caller's task is cancelled when the link changes).

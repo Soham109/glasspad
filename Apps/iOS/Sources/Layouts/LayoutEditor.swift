@@ -139,7 +139,7 @@ struct LayoutEditor: View {
                     Button {
                         Haptics.shared.tap()
                         withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) {
-                            layout.addPane(candidates: AppMode.paneChoices.map(\.rawValue))
+                            _ = layout.addPane(candidates: AppMode.paneChoices.map(\.rawValue))
                         }
                     } label: {
                         actionLabel("Add Pane", symbol: "plus.rectangle")

@@ -154,8 +154,6 @@ enum NightShift {
         return c
     }()
 
-    static var isAvailable: Bool { client != nil }
-
     static func isOn() -> Bool? {
         guard let client else { return nil }
         let sel = NSSelectorFromString("getBlueLightStatus:")
