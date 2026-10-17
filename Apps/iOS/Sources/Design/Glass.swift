@@ -1,3 +1,4 @@
+import GlasspadKit
 import SwiftUI
 
 /// Liquid Glass on iOS 26 and later, the closest system material before that.
@@ -68,14 +69,12 @@ private struct GlassButtonStyle: ViewModifier {
     }
 
     /// White on dark accents, near black on light ones (bright teal, yellow, mint), whichever
-    /// reads at 4.5:1 or better.
+    /// reads better (`RGBA.labelOnFill`, checked in ThemeContrastTests).
     static func label(on accent: Color) -> Color {
         var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
         UIColor(accent).resolvedColor(with: UITraitCollection.current).getRed(&r, green: &g, blue: &b, alpha: &a)
-        func linear(_ c: CGFloat) -> CGFloat { c <= 0.04045 ? c / 12.92 : pow((c + 0.055) / 1.055, 2.4) }
-        let luminance = 0.2126 * linear(r) + 0.7152 * linear(g) + 0.0722 * linear(b)
-        // Contrast with white is 1.05 / (L + 0.05); below 4.5 when L is above about 0.183.
-        return luminance > 0.183 ? Color(white: 0.05) : .white
+        let label = RGBA(r: Double(r), g: Double(g), b: Double(b)).labelOnFill
+        return Color(red: label.r, green: label.g, blue: label.b)
     }
 
     @ViewBuilder private func styled(_ content: Content) -> some View {

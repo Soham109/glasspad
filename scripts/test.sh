@@ -18,6 +18,11 @@ done
 # The installer scripts, against fake Apple tools (no iPhone or Apple account needed).
 echo "== installer"
 if ! /bin/bash scripts/tests/installer-test.sh; then failed+=("installer"); fi
+# No call that can block on the main thread (the menu bar icon froze once that way).
+echo "== main thread"
+if ! python3 -I scripts/check-main-thread.py --self-test || ! python3 -I scripts/check-main-thread.py; then
+  failed+=("main-thread")
+fi
 if [ ${#failed[@]} -gt 0 ]; then
   echo "FAILED: ${failed[*]}"
   exit 1

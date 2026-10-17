@@ -1,0 +1,93 @@
+# Screens for scripts/visual-check.sh, one per line:
+#   name | allowed change | launch arguments
+# The allowed change is the share of pixels that may differ (blank: the default, 0.3%). Screens
+# with motion that never settles (the analog second hand, the cycling phone on the first
+# onboarding page) get more. Every screen is taken in Paper, Graphite and Mono; lines starting
+# with "landscape" also run turned. -GPDemo, -GPTheme and a fixed clock are added by the script.
+
+# Modes
+trackpad        |      | -GPMode trackpad
+keys            |      | -GPMode keys
+keys-fn         |      | -GPMode keys -GPKeysFn
+keys-lock       |      | -GPMode keys -GPKeysLock
+media           |      | -GPMode media -GPMediaDemo music
+media-movie     |      | -GPMode media -GPMediaDemo movie
+dock            |      | -GPMode dock
+actions         |      | -GPMode actions
+deck            |      | -GPMode deck
+macros          |      | -GPMode macros
+clipboard       |      | -GPMode clipboard
+present         |      | -GPMode present
+remote          |      | -GPMode remote -GPMediaDemo movie
+remote-search   |      | -GPMode remote -GPMediaDemo movie -GPRemoteSearch
+displays        |      | -GPMode displays -GPDisplaysDemo two
+displays-one    |      | -GPMode displays -GPDisplaysDemo one
+displays-pending|      | -GPMode displays -GPDisplaysDemo two -GPDisplaysPending
+displays-sheet  |      | -GPMode displays -GPDisplaysDemo two -GPDisplaysSheet main
+arrange         |      | -GPMode displays -GPDisplaysDemo two -GPDisplaysArrange
+split-sheet     |      | -GPMode displays -GPDisplaysDemo two -GPDisplaysSplit leftAndRight
+menu            |      | -GPMode trackpad -GPMenu
+
+# Actions pages
+actions-edit    |      | -GPMode actions -GPEdit
+actions-library |      | -GPMode actions -GPActionsPage library
+actions-front   |      | -GPMode actions -GPActionsPage front
+actions-split   |      | -GPMode actions -GPActionsPage split
+actions-editor  |      | -GPMode actions -GPActionsPage editor
+actions-website |      | -GPMode actions -GPActionsPage website
+actions-newsite |      | -GPMode actions -GPActionsPage newsite
+actions-folder  |      | -GPMode actions -GPActionsPage folder
+tool-clipboard  |      | -GPMode actions -GPActionsPage clipboard
+tool-present    |      | -GPMode actions -GPActionsPage present
+tool-remote     |      | -GPMode actions -GPActionsPage remote -GPMediaDemo movie
+tool-displays   |      | -GPMode actions -GPActionsPage displays -GPDisplaysDemo two
+
+# Layouts
+layouts-gallery |      | -GPMode trackpad -GPLayouts
+layout-editor   |      | -GPMode trackpad -GPLayoutEdit desk
+layout-desk     |      | -GPLayout desk -GPMediaDemo music
+layout-studio   |      | -GPLayout studio -GPMediaDemo music
+layout-couch    |      | -GPLayout couch -GPMediaDemo movie
+layout-presenter|      | -GPLayout presenter
+
+# StandBy
+standby-clock   |      | -GPMode clock -GPStandByFace digital
+standby-analog  | 2    | -GPMode clock -GPStandByFace analog
+standby-night   |      | -GPMode clock -GPStandByFace digital -GPStandByNight always
+standby-charging|      | -GPMode clock -GPStandByFace digital -GPStandByCharging 80
+now-playing     |      | -GPMode nowPlaying -GPMediaDemo music
+calendar        |      | -GPMode calendar -GPStandByDemo
+
+# Settings
+settings        |      | -GPMode trackpad -GPSettings
+settings-theme  |      | -GPMode trackpad -GPSettingsPage theme
+settings-connect|      | -GPMode trackpad -GPSettingsPage connection
+settings-setup  |      | -GPMode trackpad -GPSettingsPage setup
+settings-advanced|     | -GPMode trackpad -GPSettingsPage advanced
+settings-haptics|      | -GPMode trackpad -GPSettingsPage haptics
+settings-pointer|      | -GPMode trackpad -GPSettingsPage pointer
+settings-dock   |      | -GPMode trackpad -GPSettingsPage dock
+setup           |      | -GPMode trackpad -GPSetup
+setup-test      |      | -GPMode trackpad -GPSetup -GPSetupTest -GPSetupTravel 0.4
+
+# Onboarding and pairing
+onboarding-hello| 25   | -GPOnboarding -GPPairStep hello
+onboarding-mac  |      | -GPOnboarding -GPPairStep mac
+pair-network    |      | -GPOnboarding -GPPairStep network
+pair-camera     |      | -GPOnboarding -GPPairStep camera
+pair-scan       | 2    | -GPOnboarding -GPPairStep scan
+pair-denied     |      | -GPOnboarding -GPPairStep scan -GPPairDenied
+pair-paste      |      | -GPOnboarding -GPPairStep scan -GPPairPaste
+pair-connected  |      | -GPOnboarding -GPPairStep connected
+pair-sheet      |      | -GPMode trackpad -GPPairSheet
+
+# Landscape sample
+landscape-trackpad|    | -GPMode trackpad -GPOrientation landscape
+landscape-keys  |      | -GPMode keys -GPOrientation landscape
+landscape-media |      | -GPMode media -GPMediaDemo music -GPOrientation landscape
+landscape-actions|     | -GPMode actions -GPOrientation landscape
+landscape-remote|      | -GPMode remote -GPMediaDemo movie -GPOrientation landscape
+landscape-displays|    | -GPMode displays -GPDisplaysDemo two -GPOrientation landscape
+landscape-clock |      | -GPMode clock -GPStandByFace digital -GPOrientation landscape
+landscape-layout|      | -GPLayout desk -GPMediaDemo music -GPOrientation landscape
+landscape-settings|    | -GPMode trackpad -GPSettings -GPOrientation landscape

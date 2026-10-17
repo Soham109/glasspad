@@ -180,6 +180,31 @@ import Testing
         #expect(tone.tokens.meetsContrast())
     }
 
+    /// Filled buttons in a colour (Split, Keep, Open in Dock, Clipboard's Send) put their label in
+    /// white or near black, whichever reads: white text on bright teal or yellow did not.
+    @Test func labelsOnColouredButtonsRead() {
+        for (theme, dark) in ThemeContrastTests.cases {
+            let where_ = "\(theme.title) \(dark ? "dark" : "light")"
+            let t = theme.tokens(dark: dark)
+            let fills = SystemHue.allCases.map { t.readable($0.value(dark: dark)) } + [t.accent, t.good, t.caution, t.bad]
+            for fill in fills {
+                let label = fill.labelOnFill
+                let chosen = label.contrast(with: fill)
+                let other = (label == .white ? RGBA.nearBlack : .white).contrast(with: fill)
+                // The better of the two whenever that one reaches body text level, and never
+                // below the 4.3 the crossover point gives.
+                #expect(chosen >= ContrastLevel.text.rawValue || other < ContrastLevel.text.rawValue,
+                        "\(where_) label on \(fill): \(chosen) where \(other) was possible")
+                #expect(chosen >= 4.3, "\(where_) label on \(fill): \(chosen)")
+            }
+        }
+        // The colours from the report get dark labels, a deep one keeps white.
+        for hue in [SystemHue.teal, .mint, .yellow, .cyan] {
+            #expect(hue.value(dark: false).labelOnFill == .nearBlack && hue.value(dark: true).labelOnFill == .nearBlack, "\(hue)")
+        }
+        #expect(SystemHue.indigo.value(dark: false).labelOnFill == .white)
+    }
+
     @Test func catalogThemesPassTheSameCheck() {
         for (theme, dark) in ThemeContrastTests.cases {
             #expect(theme.tokens(dark: dark).meetsContrast(text: theme.isHighContrast ? 7 : 4.5), "\(theme.title)")

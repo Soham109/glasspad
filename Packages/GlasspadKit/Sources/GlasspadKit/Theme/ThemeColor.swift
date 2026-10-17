@@ -54,6 +54,17 @@ public struct RGBA: Hashable, Sendable {
         return (max(l1, l2) + 0.05) / (min(l1, l2) + 0.05)
     }
 
+    /// The label for a button filled with this colour: white while white reads at 4.5:1, else
+    /// near black (bright teal, yellow, mint), or white again if that still reads better.
+    public var labelOnFill: RGBA {
+        let white = RGBA.white.contrast(with: self)
+        if white >= ContrastLevel.text.rawValue { return .white }
+        return RGBA.nearBlack.contrast(with: self) >= white ? .nearBlack : .white
+    }
+
+    /// The dark label colour, a little off pure black like the system's.
+    public static let nearBlack = RGBA(white: 0.05)
+
     /// The lowest contrast of this colour (drawn over each surface) against those surfaces.
     public func worstContrast(on surfaces: [RGBA]) -> Double {
         surfaces.map { over($0).contrast(with: $0) }.min() ?? 21
