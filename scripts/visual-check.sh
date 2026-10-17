@@ -8,19 +8,25 @@
 # with a baseline (scripts/visual-diff.py) and lists every screen that changed, with side by
 # side pictures.
 #
-#   scripts/visual-check.sh --baseline DIR [--record] [--out DIR] [--sim NAME] [--app PATH]
-#                           [--icons DIR] [--only REGEX] [--themes "paper graphite mono monoBlue:dark grain"]
+# Usage: scripts/visual-check.sh --baseline DIR [--record] [--resume] [--out DIR] [--sim NAME]
+#                                [--app PATH] [--icons DIR] [--only REGEX] [--themes LIST]
 #
-#   --record      take the screens into the baseline folder instead of comparing
-#   --app PATH    use a built Glasspad.app instead of building
-#   --icons DIR   folder of sample app icons with a list.json (GLASSPAD_DEMO_ICONS); optional
-#   --only REGEX  only screens whose name matches
-#   --sim NAME    simulator to use (default GP-guard); it is booted and shut down again
-#   --resume      keep the screens already taken in this folder and take only the missing ones
+#   --baseline DIR  folder of baseline pictures (needed, or GLASSPAD_VISUAL_BASELINE)
+#   --out DIR       where the pictures, diffs and report.md go. Default: build/visual/now
+#   --themes LIST   themes to take, `name:dark` for dark.
+#                   Default: "paper graphite mono monoBlue:dark grain"
+#   --record        take the screens into the baseline folder instead of comparing
+#   --app PATH      use a built Glasspad.app instead of building
+#   --icons DIR     folder of sample app icons with a list.json (GLASSPAD_DEMO_ICONS); optional
+#   --only REGEX    only screens whose name matches
+#   --sim NAME      simulator to use (default GP-guard); it is booted and shut down again
+#   --resume        keep the screens already taken in this folder and take only the missing ones
 # GLASSPAD_MAX_LOAD=<n>: before each launch, wait while the Mac's 5 minute load average is over n
+# GLASSPAD_VISUAL_WAIT=<s>: seconds to wait after each launch before the screenshot. Default: 3
+# GLASSPAD_DEMO_ICONS=DIR: the same as --icons DIR
 #
 # Exit 0 when nothing changed beyond its allowance, 1 when something did, 2 on a setup error.
-# Never touches a real iPhone or this Mac's screen.
+# Never touches a real iPhone or this Mac's screen. Needs Xcode, xcodegen and Pillow for python3.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 ROOT="$(pwd)"
@@ -38,7 +44,8 @@ while [ $# -gt 0 ]; do
     --only) ONLY="$2"; shift 2 ;;
     --themes) THEMES="$2"; shift 2 ;;
     --resume) RESUME=1; shift ;;
-    *) echo "unknown option $1" >&2; exit 2 ;;
+    -h|--help) awk 'NR>1 && /^#/ {sub(/^# ?/, ""); print; next} NR>1 {exit}' "$0"; exit 0 ;;
+    *) echo "unknown option $1 (try --help)" >&2; exit 2 ;;
   esac
 done
 [ -n "$BASELINE" ] || { echo "--baseline DIR is needed" >&2; exit 2; }

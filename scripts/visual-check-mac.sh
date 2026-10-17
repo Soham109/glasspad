@@ -3,9 +3,15 @@
 # Check), in light and dark. Draws them off screen with the snapshot harness in
 # Apps/Mac/Tests (no window is shown, nothing is clicked) and compares them with a baseline.
 #
-#   scripts/visual-check-mac.sh --baseline DIR [--record] [--out DIR]
+# Usage: scripts/visual-check-mac.sh --baseline DIR [--record] [--out DIR]
 #
-# Exit 0 when nothing changed beyond its allowance (0.3% of its pixels unless named below), 1 when something did, 2 on an error.
+#   --baseline DIR  folder of baseline pictures (needed)
+#   --record        draw the windows into the baseline folder instead of comparing
+#   --out DIR       where the pictures, diffs and report.md go. Default: build/visual-mac/now
+#
+# Exit 0 when nothing changed beyond its allowance (0.3% of its pixels; the pairing code and the
+# finished Live Check, which differ every run, get more), 1 when something did, 2 on an error.
+# Needs Pillow for python3 (scripts/visual-diff.py).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 ROOT="$(pwd)"
@@ -18,7 +24,8 @@ while [ $# -gt 0 ]; do
     --baseline) BASELINE="$2"; shift 2 ;;
     --record) RECORD=1; shift ;;
     --out) OUT="$2"; shift 2 ;;
-    *) echo "unknown option $1" >&2; exit 2 ;;
+    -h|--help) awk 'NR>1 && /^#/ {sub(/^# ?/, ""); print; next} NR>1 {exit}' "$0"; exit 0 ;;
+    *) echo "unknown option $1 (try --help)" >&2; exit 2 ;;
   esac
 done
 [ -n "$BASELINE" ] || { echo "--baseline DIR is needed" >&2; exit 2; }

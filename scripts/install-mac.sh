@@ -1,9 +1,15 @@
 #!/usr/bin/env bash
 # Build the Mac app, install it to /Applications and sign it with your Apple Development
 # certificate, so macOS keeps its Accessibility permission across updates. Restarts the app.
+# Quits a running Glasspad and replaces /Applications/Glasspad.app. With no certificate it
+# signs ad hoc (macOS then asks for Accessibility again after each update).
+#
+# Usage: scripts/install-mac.sh
 #   GLASSPAD_SIGN_IDENTITY  SHA-1 of the certificate to sign with (install.sh passes it).
 #   GLASSPAD_TEAM           Otherwise: the first Apple Development certificate of this team.
+#                           Neither set: the first Apple Development certificate found.
 set -euo pipefail
+case "${1:-}" in -h|--help) awk 'NR>1 && /^#/ {sub(/^# ?/, ""); print; next} NR>1 {exit}' "$0"; exit 0 ;; esac
 cd "$(dirname "$0")/.."
 ROOT="$PWD"
 STATE_DIR="${HOME}/Library/Application Support/Glasspad"

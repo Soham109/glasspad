@@ -2,10 +2,17 @@
 # Build Glasspad and install it on your iPhone (USB or Wi-Fi). With a free Apple account the
 # install lasts 7 days; run scripts/setup-autorefresh.sh once and your Mac renews it for you.
 #
+# Builds from a clean copy of the revision in ~/Library/Caches/glasspad-phone (a git worktree
+# this script owns and replaces each run), with Xcode's build in ~/Library/Caches/glasspad-dd-phone,
+# and records what it installed in ~/Library/Application Support/Glasspad/phone-install.env.
+#
 # Usage: scripts/install-phone.sh [device id]
-#   GLASSPAD_TEAM  Apple team ID. Default: read from your "Apple Development" certificate.
-#   GLASSPAD_REV   Git revision to build. Default: HEAD.
+#   device id        The iPhone's UDID. Default: the first paired iPhone (xcrun devicectl list devices).
+#   GLASSPAD_TEAM    Apple team ID. Default: read from your "Apple Development" certificate.
+#   GLASSPAD_REV     Git revision to build. Default: HEAD.
+#   GLASSPAD_CONFIG  Release (default) or Debug.
 set -euo pipefail
+case "${1:-}" in -h|--help) awk 'NR>1 && /^#/ {sub(/^# ?/, ""); print; next} NR>1 {exit}' "$0"; exit 0 ;; esac
 cd "$(dirname "$0")/.."
 REPO="$PWD"
 STATE_DIR="${HOME}/Library/Application Support/Glasspad"

@@ -2,6 +2,7 @@
 # Sets GP_SWIFT_FLAGS: extra swift flags needed when the active developer dir is the
 # command line tools (swift-testing lives in a framework folder that is not on the default path).
 # An existing DEVELOPER_DIR always wins over xcode-select.
+# No `set -euo pipefail` here: a sourced file would change the options of the script sourcing it.
 GP_DEV_DIR="${DEVELOPER_DIR:-$(xcode-select -p 2>/dev/null || true)}"
 GP_SWIFT_FLAGS=()
 case "$GP_DEV_DIR" in
