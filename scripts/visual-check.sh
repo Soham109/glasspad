@@ -16,6 +16,8 @@
 #   --icons DIR   folder of sample app icons with a list.json (GLASSPAD_DEMO_ICONS); optional
 #   --only REGEX  only screens whose name matches
 #   --sim NAME    simulator to use (default GP-guard); it is booted and shut down again
+#   --resume      keep the screens already taken in this folder and take only the missing ones
+# GLASSPAD_MAX_LOAD=<n>: before each launch, wait while the Mac's 5 minute load average is over n
 #
 # Exit 0 when nothing changed beyond its allowance, 1 when something did, 2 on a setup error.
 # Never touches a real iPhone or this Mac's screen.
@@ -23,7 +25,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 ROOT="$(pwd)"
 
-SIM="GP-guard"; BASELINE="${GLASSPAD_VISUAL_BASELINE:-}"; OUT="$ROOT/build/visual/now"; APP=""; RECORD=0
+RESUME=0; SIM="GP-guard"; BASELINE="${GLASSPAD_VISUAL_BASELINE:-}"; OUT="$ROOT/build/visual/now"; APP=""; RECORD=0
 ICONS="${GLASSPAD_DEMO_ICONS:-}"; ONLY=""; THEMES="paper graphite mono monoBlue:dark grain"; WAIT="${GLASSPAD_VISUAL_WAIT:-3}"
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -35,6 +37,7 @@ while [ $# -gt 0 ]; do
     --icons) ICONS="$2"; shift 2 ;;
     --only) ONLY="$2"; shift 2 ;;
     --themes) THEMES="$2"; shift 2 ;;
+    --resume) RESUME=1; shift ;;
     *) echo "unknown option $1" >&2; exit 2 ;;
   esac
 done
@@ -55,7 +58,12 @@ fi
 
 SHOTS="$OUT/shots"
 [ "$RECORD" = 1 ] && SHOTS="$BASELINE"
-rm -rf "$SHOTS"; mkdir -p "$SHOTS" "$OUT"
+[ "$RESUME" = 1 ] || rm -rf "$SHOTS"
+mkdir -p "$SHOTS" "$OUT"
+calm() {
+  [ -n "${GLASSPAD_MAX_LOAD:-}" ] || return 0
+  while [ "$(sysctl -n vm.loadavg | awk '{print int($2)}')" -gt "$GLASSPAD_MAX_LOAD" ]; do sleep 30; done
+}
 
 echo "== simulator $SIM ($UDID)"
 xcrun simctl boot "$UDID" 2>/dev/null || true
@@ -92,6 +100,8 @@ while IFS='|' read -r name allow args; do
     theme="${spec%%:*}"; look=light
     [ "$spec" != "$theme" ] && look="${spec#*:}"
     file="$SHOTS/$name@${spec/:/-}.png"
+    [ "$RESUME" = 1 ] && [ -s "$file" ] && continue
+    calm
     if [ "$look" != "$current_look" ]; then xcrun simctl ui "$UDID" appearance "$look"; current_look=$look; fi
     fresh_start
     # shellcheck disable=SC2086
