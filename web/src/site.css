@@ -342,3 +342,8 @@ html.gn-locked, html.gn-locked body { overflow: hidden; }
 .pg-install .pg-next { text-align: center; padding-top: clamp(40px, 5vw, 64px); padding-bottom: clamp(88px, 10vw, 136px); }
 .pg-next-tx { margin: 12px auto 0; color: var(--ink-2); font-size: 17px; }
 .pg-next-tx a { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
+
+/* Home page links inside sentences: they read as plain text, so the page looks as it did; the
+   underline shows on hover and keyboard focus. */
+a.ql { color: inherit; text-decoration: none; }
+a.ql:hover, a.ql:focus-visible { text-decoration: underline; text-underline-offset: 3px; }
