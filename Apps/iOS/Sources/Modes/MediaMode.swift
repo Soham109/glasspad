@@ -10,6 +10,9 @@ struct MediaMode: View {
     @Environment(\.verticalSizeClass) private var verticalSize
     @Environment(\.inLayoutPane) private var inPane
     @Environment(\.modeTopClearance) private var topClearance
+    @Environment(\.displayScale) private var displayScale
+    /// The progress bar's width, so it redraws only when it moves a pixel.
+    @State private var barWidth: CGFloat = 0
     var session = MacSession.shared
     var store = MediaStore.shared
     private var accent: Color { AppMode.media.accent(palette) }
@@ -238,12 +241,20 @@ struct MediaMode: View {
 
     @ViewBuilder private var progress: some View {
         if playback.hasTrack, let duration = state.duration, duration > 0 {
-            // Ticks only while the song plays; paused, the bar and clock hold still.
-            let tick = playback.isPlaying(at: Date()) ? PowerMonitor.shared.policy.progressInterval : 3600
-            TimelineView(.periodic(from: .now, by: tick)) { context in
+            // Ticks only while the song plays; paused, the bar and clock hold still. Playing, it
+            // ticks once the bar has moved a pixel, on the song's seconds (`ProgressTicks`).
+            let now = Date()
+            let playing = playback.isPlaying(at: now)
+            let tick = playing
+                ? ProgressTicks.interval(duration: duration, barPixels: Double(barWidth * displayScale),
+                                         fastest: PowerMonitor.shared.policy.progressInterval)
+                : 3600
+            let from = playing ? ProgressTicks.start(now: now, position: playback.position(at: now) ?? 0, interval: tick) : now
+            TimelineView(.periodic(from: from, by: tick)) { context in
                 ScrubBar(duration: duration, position: playback.position(at: context.date) ?? 0,
                          enabled: state.canSeek ?? false) { store.seek(to: $0) }
             }
+            .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { barWidth = $0 }
         } else {
             Color.clear.frame(height: playback.hasTrack ? 50 : 8)
         }

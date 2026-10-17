@@ -24,7 +24,9 @@ struct MarqueeText: View {
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var textWidth: CGFloat = 0
-    @State private var start = Date()
+    /// When the text began its current move; nil while it waits at its start, when nothing
+    /// needs to redraw.
+    @State private var moveStart: Date?
     @State private var resting = false
     private var power: PowerPolicy { PowerMonitor.shared.policy }
 
@@ -47,7 +49,7 @@ struct MarqueeText: View {
                             .truncationMode(.tail)
                             .frame(width: geo.size.width, alignment: alignment == .leading ? .leading : .center)
                     } else {
-                        TimelineView(.animation(minimumInterval: power.decorativeFrameInterval)) { context in
+                        TimelineView(.animation(minimumInterval: power.decorativeFrameInterval, paused: moveStart == nil)) { context in
                             let x = offset(at: context.date)
                             HStack(spacing: gap) {
                                 label.fixedSize()
@@ -68,11 +70,21 @@ struct MarqueeText: View {
                     .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { textWidth = $0 }
             }
             .task(id: TaskKey(text: text, width: textWidth, passes: power.marqueePasses)) {
-                // Scroll by a few times, then rest at the start until the text changes.
-                start = Date()
+                // Scroll by a few times, then rest at the start until the text changes. Each
+                // pass waits at the start, then moves one text width along; frames are drawn
+                // only while it moves.
+                moveStart = nil
                 resting = false
-                let cycle = pause + TimeInterval((textWidth + gap) / speed)
-                try? await Task.sleep(for: .seconds(cycle * Double(power.marqueePasses) + pause / 2))
+                let travel = TimeInterval((textWidth + gap) / speed)
+                for _ in 0..<power.marqueePasses {
+                    try? await Task.sleep(for: .seconds(pause))
+                    guard !Task.isCancelled else { return }
+                    moveStart = Date()
+                    try? await Task.sleep(for: .seconds(travel))
+                    guard !Task.isCancelled else { return }
+                    moveStart = nil
+                }
+                try? await Task.sleep(for: .seconds(pause / 2))
                 if !Task.isCancelled { resting = true }
             }
             .accessibilityElement(children: .ignore)
@@ -101,11 +113,12 @@ struct MarqueeText: View {
         let passes: Int
     }
 
+    /// Where the text is: at its start while it waits, then moving left until the second
+    /// copy sits where the first began (which looks the same as the start).
     private func offset(at date: Date) -> CGFloat {
-        let distance = textWidth + gap
-        let travel = TimeInterval(distance / speed)
-        let t = date.timeIntervalSince(start).truncatingRemainder(dividingBy: pause + travel)
-        return t < pause ? 0 : -CGFloat(t - pause) * speed
+        guard let moveStart else { return 0 }
+        let moved = CGFloat(max(0, date.timeIntervalSince(moveStart))) * speed
+        return -min(textWidth + gap, moved)
     }
 }
 

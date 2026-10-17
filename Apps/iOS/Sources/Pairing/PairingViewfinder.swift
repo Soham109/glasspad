@@ -291,14 +291,23 @@ private struct LockedDots: View {
     let lock: PairingViewfinder.Lock
     let rect: CGRect
     let success: Color
+    /// The check mark has formed: the last frame stays and nothing redraws.
+    @State private var formed = false
+
+    /// Seconds from the lock until the dots are a still check mark.
+    private var formsAfter: Double {
+        reduceMotion ? 0.3 : PairingViewfinder.settle + PairingPattern.gatherDuration
+    }
 
     var body: some View {
         if let pattern = PatternCache.pattern(for: lock.payload.url.absoluteString) {
-            TimelineView(.animation) { context in
-                let t = context.date.timeIntervalSince(lock.at)
+            TimelineView(.animation(minimumInterval: nil, paused: formed)) { context in
+                // Once formed, drawn as at the moment it formed, whatever date a still timeline hands over.
+                let date = formed ? max(context.date, lock.at.addingTimeInterval(formsAfter)) : context.date
+                let t = date.timeIntervalSince(lock.at)
                 let appear = min(1, t / PairingViewfinder.settle)
                 let gather = reduceMotion ? 1 : (t - PairingViewfinder.settle) / PairingPattern.gatherDuration
-                PatternCanvas(pattern: pattern, time: context.date.timeIntervalSinceReferenceDate,
+                PatternCanvas(pattern: pattern, time: date.timeIntervalSinceReferenceDate,
                               motion: reduceMotion ? 0 : 1, gather: max(0, gather), ink: .white, success: success)
                     .padding(rect.width * 0.08)
                     .frame(width: rect.width, height: rect.height)
@@ -306,6 +315,12 @@ private struct LockedDots: View {
                     .scaleEffect(reduceMotion ? 1 : 0.94 + 0.06 * appear)
                     .shadow(color: success.opacity(0.6 * max(0, min(1, gather))), radius: 12)
                     .position(x: rect.midX, y: rect.midY)
+            }
+            .task(id: lock) {
+                formed = false
+                let left = formsAfter - Date().timeIntervalSince(lock.at)
+                if left > 0 { try? await Task.sleep(for: .seconds(left)) }
+                if !Task.isCancelled { formed = true }
             }
         }
     }

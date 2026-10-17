@@ -12,9 +12,9 @@ import UIKit
 final class PhotoBackdrop: @unchecked Sendable {
     static let shared = PhotoBackdrop()
 
+    /// What is kept while the app runs: small. The full-size tile (about 5 MB) is made by
+    /// `tile()` only for the window palette while the Photo theme is on screen, and goes with it.
     struct Current {
-        /// The blurred, veiled tile.
-        let tile: UIImage
         /// The part of the tile a screen shows, small, for the theme's preview.
         let preview: UIImage
         let tone: PhotoTone
@@ -25,6 +25,10 @@ final class PhotoBackdrop: @unchecked Sendable {
     private let lock = NSLock()
     private var stored: Current?
     private var loaded = false
+    /// The tile of a photo just picked, until the window palette takes it (so the first one
+    /// is drawn from the blur itself, not from its JPEG on disk). Both places that pick a
+    /// photo switch to the Photo theme straight after, which takes it.
+    private var fresh: (version: Int, tile: UIImage)?
 
     /// The photo in use, read from disk the first time it is asked for. Nil until one is picked.
     var current: Current? {
@@ -33,10 +37,25 @@ final class PhotoBackdrop: @unchecked Sendable {
         if !loaded {
             loaded = true
             if let data = try? Data(contentsOf: Self.fileURL), let blurred = UIImage(data: data) {
-                stored = Self.finish(blurred, version: 1)
+                stored = Self.finish(blurred, version: 1).current
             }
         }
         return stored
+    }
+
+    /// The blurred, veiled tile at full size, read back from disk. Not kept here: the Photo
+    /// theme's window palette holds it while that theme is on screen.
+    func tile() -> UIImage? {
+        guard let now = current else { return nil }
+        let taken: UIImage? = lock.withLock {
+            defer { fresh = nil }
+            return fresh?.version == now.version ? fresh?.tile : nil
+        }
+        if let taken { return taken }
+        let tone = now.tone
+        guard let data = try? Data(contentsOf: Self.fileURL),
+              let blurred = UIImage(data: data) else { return nil }
+        return Self.veiled(blurred, tone: tone)
     }
 
     private static var fileURL: URL {
@@ -57,7 +76,10 @@ final class PhotoBackdrop: @unchecked Sendable {
         }
         let version = (current?.version ?? 0) + 1
         let finished = Self.finish(blurred, version: version)
-        lock.withLock { stored = finished }
+        lock.withLock {
+            stored = finished.current
+            fresh = (version, finished.tile)
+        }
         await MainActor.run { PhoneSettings.shared.photoVersion = version }
         return true
     }
@@ -127,22 +149,31 @@ final class PhotoBackdrop: @unchecked Sendable {
         return UIImage(cgImage: cg)
     }
 
-    /// Works out the tone from colours across the blurred photo and draws the veil over it.
-    private static func finish(_ blurred: UIImage, version: Int) -> Current {
+    /// Works out the tone from colours across the blurred photo and makes the small preview
+    /// from the veiled tile. The tile is handed back for a caller that needs it now.
+    private static func finish(_ blurred: UIImage, version: Int) -> (current: Current, tile: UIImage) {
         let tone = PhotoTone.fit(samples: samples(blurred))
+        let tile = veiled(blurred, tone: tone)
         let format = UIGraphicsImageRendererFormat()
         format.scale = 1
         format.opaque = true
-        let tile = UIGraphicsImageRenderer(size: blurred.size, format: format).image { ctx in
-            blurred.draw(at: .zero)
-            UIColor(tone.veilColor.alpha(tone.veil)).setFill()
-            ctx.fill(CGRect(origin: .zero, size: blurred.size), blendMode: .normal)
-        }
         let shown = blurred.size.width * Backdrop.shown
         let preview = UIGraphicsImageRenderer(size: CGSize(width: 160, height: 160), format: format).image { _ in
             tile.draw(in: CGRect(x: 0, y: 0, width: blurred.size.width * 160 / shown, height: blurred.size.height * 160 / shown))
         }
-        return Current(tile: tile, preview: preview, tone: tone, version: version)
+        return (Current(preview: preview, tone: tone, version: version), tile)
+    }
+
+    /// The blurred photo with the veil drawn over it, so text reads on it.
+    private static func veiled(_ blurred: UIImage, tone: PhotoTone) -> UIImage {
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        format.opaque = true
+        return UIGraphicsImageRenderer(size: blurred.size, format: format).image { ctx in
+            blurred.draw(at: .zero)
+            UIColor(tone.veilColor.alpha(tone.veil)).setFill()
+            ctx.fill(CGRect(origin: .zero, size: blurred.size), blendMode: .normal)
+        }
     }
 
     /// Colours on an 8 by 8 grid over the part of the tile a screen can show.

@@ -132,7 +132,10 @@ final class WebsiteIcons {
             unreachable[key] = Date().addingTimeInterval(60)
             return nil
         }
-        if let file = file(key) { try? png.write(to: file, options: .atomic) }
+        if let file = file(key), let folder {
+            try? png.write(to: file, options: .atomic)
+            Task.detached(priority: .utility) { Self.trimDisk(folder) }
+        }
         return UIImage(cgImage: clean)
     }
 
@@ -179,7 +182,25 @@ final class WebsiteIcons {
             try? FileManager.default.removeItem(at: url)
             return nil
         }
+        // In use again: newest for `diskLimit`, so pinned sites outlast ones only typed once.
+        try? FileManager.default.setAttributes([.modificationDate: Date()], ofItemAtPath: url.path)
         return UIImage(cgImage: image)
+    }
+
+    /// Logos on disk: the 200 last fetched or shown, and no more than 20 MB (a stored logo is
+    /// at most 256 px, well under 200 KB). Every address typed into a Website button can add one.
+    nonisolated static let diskLimit = DiskCacheLimit(maxFiles: 200, maxBytes: 20_000_000)
+
+    /// Deletes the logos past `diskLimit`, oldest first. One still on screen stays in memory;
+    /// it is fetched again only after the app next starts.
+    private nonisolated static func trimDisk(_ folder: URL) {
+        let keys: Set<URLResourceKey> = [.contentModificationDateKey, .fileSizeKey]
+        guard let urls = try? FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: Array(keys)) else { return }
+        let files = urls.filter { $0.pathExtension == "png" }.map { url in
+            let values = try? url.resourceValues(forKeys: keys)
+            return DiskCacheLimit.File(id: url, modified: values?.contentModificationDate ?? .distantPast, bytes: values?.fileSize ?? 0)
+        }
+        for url in diskLimit.overflow(files) { try? FileManager.default.removeItem(at: url) }
     }
 
     private func recentlyMissing(_ key: String) -> Bool {

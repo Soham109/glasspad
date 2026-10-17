@@ -993,10 +993,9 @@ final class MacSession {
             let decoded = await Task.detached(priority: .userInitiated) {
                 incoming.map { app, png in (app, png, IconCache.decode(png)) }
             }.value
-            for (app, png, image) in decoded {
-                guard let image else { continue }
-                self.icons.store(png, decoded: image, key: app.iconKey ?? app.bundleID, bundleID: app.bundleID)
-            }
+            self.icons.store(decoded.compactMap { app, png, image in
+                image.map { IconCache.Incoming(png: png, image: $0, key: app.iconKey ?? app.bundleID, bundleID: app.bundleID) }
+            })
             // Another Mac was chosen meanwhile: this list is not its.
             if self.modeDataEpoch == epoch { then(list) }
         }
@@ -1125,7 +1124,9 @@ final class MacSession {
     func applyDemo(_ demo: DemoData) {
         isDemo = true
         state = .connected(rttMs: 3)
-        for (id, png) in demo.icons { icons.store(png, key: "\(id)@demo", bundleID: id) }
+        icons.store(demo.icons.compactMap { id, png in
+            IconCache.decode(png).map { IconCache.Incoming(png: png, image: $0, key: "\(id)@demo", bundleID: id) }
+        })
         dockApps = demo.dockApps
         dockCatalog = demo.catalog
         frontmostBundleID = demo.frontmost
