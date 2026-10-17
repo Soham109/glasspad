@@ -39,6 +39,8 @@ final class LiveActivityController {
     /// `active` is false only once the app is in the background.
     func sceneChanged(active: Bool) {
         foreground = active
+        // Back in the app, which shows the connection itself: the last press's trouble is old news.
+        if active { problem = nil }
         refresh()
     }
 
@@ -58,6 +60,9 @@ final class LiveActivityController {
         }
         if let dismissed, dismissed != wanted.kind { self.dismissed = nil }
         if let activity {
+            // Launched again in the background for a press, the app may think another screen
+            // was open: never turn Present's controls into Remote's (or back) from there.
+            if !foreground, let shown, shown.kind != wanted.kind { return }
             update(activity, wanted)
         } else if foreground, dismissed == nil {
             start(wanted)
