@@ -316,7 +316,7 @@ struct SetupChecklistView: View {
                 .foregroundStyle(allDone ? palette.good : palette.inkColor)
                 .contentTransition(.symbolEffect(.replace))
                 .accessibilityHidden(true)
-            Text(allDone ? "You're all set" : "Four quick checks")
+            Text(allDone ? "You're all set" : "Quick checks")
                 .font(.title2.bold())
                 .foregroundStyle(palette.inkColor)
             Text(allDone ? "Glasspad can move and click on \(macName)." : "So the first touch on the trackpad works on \(macName).")
