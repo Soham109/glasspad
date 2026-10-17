@@ -88,7 +88,7 @@ struct PairingFlowTests {
     }
 
     /// Accessibility turned off (or back on) while running is noticed on the next poll, and the
-    /// phone gets a new status for it (docs/review/reliability.md item 5).
+    /// phone gets a new status for it (docs/archive/review/reliability.md item 5).
     @Test func accessibilityRevokedWhileRunningIsReported() {
         final class Flag: @unchecked Sendable { var on = true }
         let flag = Flag()

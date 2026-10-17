@@ -196,7 +196,7 @@ enum SystemSettings {
 @MainActor
 enum AppInfoText {
     static var version: String {
-        let v = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.1.0"
+        let v = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0"
         let b = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "1"
         return "Version \(v) (\(b))"
     }
