@@ -6,40 +6,40 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ### Changed
 
-- Next, Previous or Play or Pause tapped again while the phone reconnects counts once, so a slide is not skipped and play does not undo itself.
+- Tapping Next, Previous, or Play or Pause again while the iPhone reconnects now counts once, so a slide is not skipped and playback does not undo itself.
 
 ### Removed
 
-- The phone's own low battery note at 20% and 10%. iOS already shows its Low Battery alert at those levels. The Mac still shows the iPhone's battery.
+- The iPhone's own low-battery notice at 20% and 10%. iOS already shows its Low Battery alert at those levels. The Mac still shows the iPhone's battery level.
 
 ## [0.2.0] - 2026-10-16
 
 ### Added
 
 - **Themes:** 39 in all, including Grain (Grain, Grain Dark, Risograph, Film) and Tinted themes where everything takes one color.
-- **Present:** a laser pointer on the slides' display, a talk clock with a tap at 5 and 1 minute left, and the screen stays on during a talk (until it is left alone for 30 minutes).
+- **Present:** a laser pointer on the slides' display, a talk timer that taps you at 5 minutes and at 1 minute left, and a screen that stays on during a talk (until the iPhone is left alone for 30 minutes).
 - **Lock Screen controls:** the Live Activity shows Remote's Back 10, Play or Pause and Forward 10 with what is playing, or Present's Back, Next and the running timer.
 - **Siri and Shortcuts:** Open Glasspad Mode and Open Glasspad Layout. Mission Control from Siri works and says what happened.
-- **Mode menu:** swipe the pill sideways to flip back to the previous mode or layout.
+- **Mode menu:** swipe the mode button sideways to go back to the previous mode or layout.
 - **Keyboard:** Glasspad draws its own Mac keyboard, sized to fit, with the Mac's letters.
 - **Window highlight:** pick a window on the phone and the Mac outlines it for a second.
-- **Battery:** the Mac shows the iPhone's battery, and the phone mentions it once at 20% and 10%.
+- **Battery:** the Mac shows the iPhone's battery level, and the iPhone mentions it once at 20% and 10%.
 - **Remote:** the More menu lists the Mac's sound outputs.
 - **Renewal:** iPhone Settings > About shows when the app needs renewing. Mac Settings > iPhone shows the last renewal and any problem in plain words.
 - **Website:** Features and Compare menus, six feature pages and three comparisons, one footer everywhere, and Install as the main button.
 
 ### Changed
 
-- The connection to the Mac recovers faster. Taps wait briefly for a quick reconnect, and the phone says why the Mac is away: asleep, Glasspad off, locked, or this iPhone forgotten.
+- The connection to the Mac recovers faster. Taps wait briefly for a quick reconnect, and the iPhone says why the Mac is away: asleep, Glasspad turned off, locked, or this iPhone forgotten.
 - Displays and Arrange are calmer, with less text.
 - Clipboard moved out of the mode menu. It opens from the end of Keyboard's shortcut row, or from the Library.
 - The Live Activity shows Remote, Media and Present controls instead of the trackpad's connection status.
 - Siri's Open Mission Control waits for the Mac's answer and never sends a second try that could close it again.
-- iPhone installs are optimized builds, lighter on battery.
+- The installer now builds an optimized iPhone app, which is lighter on battery.
 
 ### Fixed
 
-- Leaving Keyboard no longer leaves memory behind, and trying themes holds far less memory.
+- Leaving Keyboard no longer holds on to memory, and trying themes uses far less memory.
 - Lower idle cost on the Mac and the iPhone: fewer redraws, no needless checks, timers only when needed.
 - A macro stopped right after a step reports the right step.
 
@@ -59,7 +59,7 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 - Eject All could freeze the menu bar icon while a disk was busy.
 - Brightness buttons now reach the laptop screen when an external display is the main one.
 - Displays moves full-screen windows and brings background windows forward.
-- When paste access is denied in macOS, getting the Mac's clipboard says why instead of coming back empty.
+- When macOS denies paste access, Get from Mac now says why instead of coming back empty.
 - Labels on bright buttons are dark so they stay readable.
 
 ## [0.1.1] - 2026-10-16
@@ -89,8 +89,8 @@ The first release. Changed and Fixed compare it with the test builds made before
 - **StandBy screens:** Clock (Digital, Analog and Minimal faces), Now Playing and Calendar, for a desk or a nightstand. Always black, moved a few points each minute against burn in, dim red at night, and on only while charging unless you choose otherwise.
 - **Layouts:** up to three modes on one screen. The divider rests on thirds and the middle and folds a pane away when pulled to the edge. Desk, Type, Listen and Couch come ready; more are in the gallery, and your own sit in the mode menu.
 - **Themes:** 28 themes in four groups: Classic, Glass, Color, and Photo, which blurs a picture of yours behind everything. Every theme is checked for readable contrast.
-- **Mode menu:** one piece of glass that grows out of the pill, with Clipboard, Present, Remote and Displays as tools and a Layouts row.
-- **Pairing:** a living pairing code on the Mac (soft dots that still read as a QR code, valid for 5 minutes), a viewfinder on the iPhone that locks onto it and gathers the dots into a check, and Copy Link and Share for a phone that cannot scan.
+- **Mode menu:** one piece of glass that grows out of the mode button, with Clipboard, Present, Remote and Displays as tools and a Layouts row.
+- **Pairing:** a living pairing code on the Mac (soft dots that still read as a QR code, valid for 5 minutes), a viewfinder on the iPhone that locks onto it and gathers the dots into a check mark, and Copy Link and Share for an iPhone that cannot scan.
 - **Setup:** first-run pages on the iPhone in Apple's style, a setup checklist and connection help. On the Mac, a first-run assistant whose permission steps tick themselves off.
 - **Mac app:** a menu bar window laid out like the system's own, and Settings with General, iPhone, Trackpad, Macros, Advanced and About. For each gesture you can choose the trackpad gesture or a keyboard shortcut.
 - Several Macs per iPhone, reconnecting by itself, and Wake-on-LAN for a sleeping Mac.
@@ -103,7 +103,7 @@ The first release. Changed and Fixed compare it with the test builds made before
 
 - The Apps mode is called Dock again and shows only the Mac's Dock. Search over every installed app moved to Actions > + > Apps.
 - The Toggle Focus button, which did not work, is now Do Not Disturb. Saved buttons are moved over.
-- Older Decks move into Pinned once, without losing anything. A new Deck starts with six essentials: Screenshot, Do Not Disturb, Split Screen, Lock Screen, Mute and Dark Mode.
+- Buttons from the older Deck move into Pinned once, without losing anything. A new Pinned starts with six essentials: Screenshot, Do Not Disturb, Split Screen, Lock Screen, Mute and Dark Mode.
 - Starter buttons are version 2. Starters you never touched update; ones you edited or deleted stay as you left them.
 - Dock icons are sharper (384 px) and arrive in smaller messages.
 - Keep Screen On holds the screen only while a Mac is connected, and lets the phone lock after it is left alone.
@@ -118,10 +118,16 @@ The first release. Changed and Fixed compare it with the test builds made before
 - Lock Screen locks directly. Dark Mode switches without asking for Automation permission. Screen recording no longer stops right after it starts. A full screen screenshot saves one file per display. A shortcut that does not exist is named as missing.
 - Remote sends keys only when they reach the player, with corrected keys for VLC, QuickTime Player, Music and Prime Video.
 - Starter buttons: Things Complete, Lightroom Before and After, Sketch Frame, and the symbol for Final Cut Pro Snapping. Keys that no app maker documents are gone; Warp has Command Search.
-- Buttons made by a newer Glasspad are kept when you save the Deck, shown as "Update Glasspad to use this", and never run.
+- Buttons made by a newer Glasspad are kept when you save your buttons, shown as "Update Glasspad to use this", and never run.
 - When one trackpad pane replaces another (switching layouts, for example), the iPhone keeps its Wi-Fi awake for the pointer instead of letting it doze.
-- Key repeat stops when a touch is cancelled.
+- Key repeat stops when a touch is canceled.
 - A drag to reorder buttons that ends outside a drop target ends on the next tap.
-- When now playing cannot work on a Mac, Glasspad now reads why and stops retrying.
-- Website logos use less memory and are let go when the iPhone runs low.
-- Setup text no longer cuts off sideways, and the Mac's menu bar window never clips.
+- When a Mac cannot report what is playing, Glasspad now shows why and stops retrying.
+- Website logos use less memory and are released when the iPhone runs low on memory.
+- Setup text is no longer cut off at the sides, and the Mac's menu bar window no longer clips.
+
+[0.2.1]: https://github.com/Soham109/glasspad/compare/v0.2.0...v0.2.1
+[0.2.0]: https://github.com/Soham109/glasspad/compare/v0.1.2...v0.2.0
+[0.1.2]: https://github.com/Soham109/glasspad/compare/v0.1.1...v0.1.2
+[0.1.1]: https://github.com/Soham109/glasspad/compare/v0.1.0...v0.1.1
+[0.1.0]: https://github.com/Soham109/glasspad/releases/tag/v0.1.0
