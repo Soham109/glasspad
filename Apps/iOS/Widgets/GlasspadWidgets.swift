@@ -1,5 +1,6 @@
 import ActivityKit
 import AppIntents
+import GlasspadKit
 import SwiftUI
 import WidgetKit
 
@@ -8,7 +9,7 @@ struct GlasspadWidgets: WidgetBundle {
     var body: some Widget {
         TrackpadControl()
         TrackpadLockScreenWidget()
-        TrackpadLiveActivity()
+        ControlsLiveActivity()
     }
 }
 
@@ -90,98 +91,210 @@ private struct LockScreenView: View {
 
 // MARK: - Live Activity
 
-/// Connection state while the trackpad is in use: on the Lock Screen and in the Dynamic Island.
-struct TrackpadLiveActivity: Widget {
+/// Remote's or Present's buttons on the Lock Screen and in the Dynamic Island. Each button is
+/// an intent that iOS runs in the app, which sends it to the Mac.
+struct ControlsLiveActivity: Widget {
     var body: some WidgetConfiguration {
-        ActivityConfiguration(for: TrackpadActivityAttributes.self) { context in
-            LiveLockScreenView(state: context.state)
+        ActivityConfiguration(for: ControlsActivityAttributes.self) { context in
+            LiveLockScreenView(controls: context.state, isStale: context.isStale)
                 .activityBackgroundTint(nil)
-                .widgetURL(GlasspadLink.trackpad)
         } dynamicIsland: { context in
-            DynamicIsland {
+            let controls = context.state
+            return DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
-                    Image(systemName: "hand.point.up.left.fill")
+                    KindIcon(kind: controls.kind)
                         .font(.title2)
-                        .foregroundStyle(.white)
                         .padding(.leading, 4)
                 }
                 DynamicIslandExpandedRegion(.trailing) {
-                    StatusDot(status: context.state.status, size: 10)
-                        .padding(.trailing, 6)
-                }
-                DynamicIslandExpandedRegion(.center) {
-                    VStack(spacing: 2) {
-                        Text(context.state.macName).font(.headline).lineLimit(1)
-                        Text(context.state.title).font(.subheadline).foregroundStyle(.secondary)
+                    if let present = controls.present {
+                        TalkClock(present: present, isStale: context.isStale)
+                            .font(.title2.weight(.semibold).monospacedDigit())
+                            .padding(.trailing, 4)
                     }
                 }
+                DynamicIslandExpandedRegion(.center) {
+                    Headline(controls: controls)
+                }
                 DynamicIslandExpandedRegion(.bottom) {
-                    Text(context.state.detail)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
+                    LiveButtons(controls: controls, size: 44)
+                        .padding(.top, 4)
                 }
             } compactLeading: {
-                Image(systemName: "hand.point.up.left.fill")
-                    .foregroundStyle(.white)
+                KindIcon(kind: controls.kind)
             } compactTrailing: {
-                StatusDot(status: context.state.status, size: 8)
+                CompactState(controls: controls, isStale: context.isStale)
             } minimal: {
-                StatusDot(status: context.state.status, size: 8)
+                CompactState(controls: controls, isStale: context.isStale)
             }
-            .widgetURL(GlasspadLink.trackpad)
         }
     }
 }
 
 private struct LiveLockScreenView: View {
-    let state: TrackpadActivityAttributes.ContentState
+    let controls: LiveControls
+    let isStale: Bool
 
     var body: some View {
-        HStack(spacing: 14) {
-            ZStack {
-                Circle().fill(.quaternary)
-                Image(systemName: "hand.point.up.left.fill")
+        VStack(spacing: 12) {
+            HStack(spacing: 12) {
+                KindIcon(kind: controls.kind)
                     .font(.title3)
+                    .frame(width: 40, height: 40)
+                    .background(Circle().fill(.quaternary))
+                Headline(controls: controls, leading: true)
+                Spacer(minLength: 4)
+                if let present = controls.present {
+                    TalkClock(present: present, isStale: isStale)
+                        .font(.title.weight(.semibold).monospacedDigit())
+                }
             }
-            .frame(width: 44, height: 44)
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Glasspad")
-                    .font(.headline)
-                Text(state.detail)
+            LiveButtons(controls: controls, size: 48)
+        }
+        .padding(16)
+    }
+}
+
+/// What plays and where, or which Mac the slides are on. A press that failed says why instead.
+private struct Headline: View {
+    let controls: LiveControls
+    var leading = false
+
+    var body: some View {
+        VStack(alignment: leading ? .leading : .center, spacing: 2) {
+            Text(title)
+                .font(.headline)
+                .lineLimit(1)
+            if let problem = controls.problem {
+                Label(problem, systemImage: "exclamationmark.circle")
+                    .font(.subheadline)
+                    .foregroundStyle(.orange)
+                    .lineLimit(1)
+            } else {
+                Text(detail)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
             }
-            Spacer(minLength: 8)
-            HStack(spacing: 6) {
-                StatusDot(status: state.status, size: 8)
-                Text(state.title)
-                    .font(.subheadline.weight(.medium))
-            }
         }
-        .padding(16)
         .accessibilityElement(children: .combine)
+    }
+
+    private var title: String {
+        controls.remote?.title ?? "Presenting"
+    }
+
+    private var detail: String {
+        if let detail = controls.remote?.detail { return "\(detail) on \(controls.macName)" }
+        return "On \(controls.macName)"
     }
 }
 
-private struct StatusDot: View {
-    let status: TrackpadActivityAttributes.ContentState.Status
+private struct KindIcon: View {
+    let kind: LiveControls.Kind
+
+    var body: some View {
+        Image(systemName: kind == .remote ? "appletvremote.gen4.fill" : "play.rectangle.fill")
+            .accessibilityHidden(true)
+    }
+}
+
+/// Remote: Back, Play or Pause, Forward. Present: Back and Next, Next the wider one, as in the app.
+private struct LiveButtons: View {
+    let controls: LiveControls
     let size: CGFloat
 
     var body: some View {
-        Circle()
-            .fill(color)
-            .frame(width: size, height: size)
-            .accessibilityLabel(Text(status.rawValue))
+        HStack(spacing: 10) {
+            if let remote = controls.remote {
+                if remote.hasBack {
+                    LiveButton(intent: LiveSkipBackIntent(), symbol: remote.backSymbol,
+                               label: remote.backLabel, size: size)
+                }
+                LiveButton(intent: LivePlayPauseIntent(), symbol: remote.isPlaying ? "pause.fill" : "play.fill",
+                           label: remote.isPlaying ? "Pause" : "Play", size: size, prominent: true)
+                if remote.hasForward {
+                    LiveButton(intent: LiveSkipForwardIntent(), symbol: remote.forwardSymbol,
+                               label: remote.forwardLabel, size: size)
+                }
+            } else {
+                LiveButton(intent: LivePreviousSlideIntent(), symbol: "chevron.left", label: "Previous slide",
+                           size: size, title: "Back")
+                    .frame(width: 112)
+                LiveButton(intent: LiveNextSlideIntent(), symbol: "chevron.right", label: "Next slide",
+                           size: size, prominent: true, title: "Next")
+            }
+        }
     }
+}
 
-    private var color: Color {
-        switch status {
-        case .connected: .green
-        case .connecting: .orange
-        case .paused: .gray
-        case .offline: .red
+private struct LiveButton<Intent: LiveActivityIntent>: View {
+    let intent: Intent
+    let symbol: String
+    let label: String
+    let size: CGFloat
+    var prominent = false
+    var title: String?
+
+    var body: some View {
+        Button(intent: intent) {
+            HStack(spacing: 6) {
+                Image(systemName: symbol)
+                    .font(.system(size: size * 0.42, weight: .semibold))
+                if let title {
+                    Text(title).font(.headline)
+                }
+            }
+            .frame(maxWidth: .infinity, minHeight: size)
+            .background(Capsule().fill(prominent ? AnyShapeStyle(.tertiary) : AnyShapeStyle(.quaternary)))
+            .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(label)
+    }
+}
+
+/// The talk timer: counts up, or down to the talk length and then the time over in red. The
+/// system draws it from dates, so the app sends nothing while it counts.
+private struct TalkClock: View {
+    let present: LiveControls.Present
+    let isStale: Bool
+
+    var body: some View {
+        Group {
+            if let start = present.countingFrom {
+                if let end = present.endsAt {
+                    if isStale {
+                        // Past the length: the time over, counting up from the end.
+                        Text("+\(Text(end, style: .timer))").foregroundStyle(.red)
+                    } else {
+                        Text(timerInterval: start...end, countsDown: true)
+                    }
+                } else {
+                    Text(start, style: .timer)
+                }
+            } else {
+                Text(present.pausedText).foregroundStyle(.secondary)
+            }
+        }
+        .multilineTextAlignment(.trailing)
+        .lineLimit(1)
+    }
+}
+
+/// The compact Dynamic Island's right side: the timer, or whether it plays.
+private struct CompactState: View {
+    let controls: LiveControls
+    let isStale: Bool
+
+    var body: some View {
+        if let present = controls.present {
+            TalkClock(present: present, isStale: isStale)
+                .font(.caption.weight(.semibold).monospacedDigit())
+                .frame(maxWidth: 52)
+        } else if let remote = controls.remote {
+            Image(systemName: remote.isPlaying ? "pause.fill" : "play.fill")
+                .accessibilityLabel(remote.isPlaying ? "Playing" : "Paused")
         }
     }
 }

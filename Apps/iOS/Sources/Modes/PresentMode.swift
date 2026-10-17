@@ -22,6 +22,10 @@ struct PresentMode: View {
             if !session.isConnected { ModeOfflineMessage(mode: .present).background(SurfaceBackground()) }
         }
         .onDisappear { session.laserOff() }
+        // The Lock Screen shows the same timer.
+        .onChange(of: timer, initial: true) { _, timer in
+            LivePresentTimer.shared.report(isRunning: timer.isRunning, elapsed: timer.elapsed(at: .now))
+        }
     }
 
     private var portrait: some View {
@@ -212,7 +216,7 @@ private struct LaserPad: View {
 }
 
 /// Elapsed time that survives pausing.
-struct PresentTimer {
+struct PresentTimer: Equatable {
     private(set) var isRunning = false
     private var startedAt: Date?
     private var accumulated: TimeInterval = 0
