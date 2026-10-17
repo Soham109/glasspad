@@ -1,10 +1,10 @@
 cff-version: 1.2.0
 message: "If you use Glasspad, please cite it as below."
 title: "Glasspad"
-abstract: "Glasspad is a free, open source (MIT) app that turns an iPhone into a trackpad, keyboard, media remote and customizable button deck for a Mac, over the local Wi-Fi network."
+abstract: "Glasspad is a free, open source (MIT) app that turns an iPhone into a trackpad, keyboard, media remote and customizable button deck for a Mac. An iPhone app and a Mac menu bar app talk over the local Wi-Fi network, paired by QR code and encrypted, with no account and no cloud."
 type: software
-version: 0.1.2
-date-released: 2026-10-16
+version: 0.2.1
+date-released: 2026-10-17
 license: MIT
 url: "https://glasspad.sohamaggarwal.com"
 repository-code: "https://github.com/Soham109/glasspad"
@@ -21,3 +21,9 @@ keywords:
   - open source
   - Swift
   - SwiftUI
+  - iOS
+  - menu bar app
+  - keyboard
+  - media remote
+  - presentation remote
+  - macros

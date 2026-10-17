@@ -1,5 +1,8 @@
 blank_issues_enabled: false
 contact_links:
-  - name: Install help and guide
+  - name: Install help
+    url: https://glasspad.sohamaggarwal.com/install
+    about: The one-line installer, step by step, and what to do when a step fails.
+  - name: Guide
     url: https://glasspad.sohamaggarwal.com/guide
-    about: Step by step setup and fixes for common problems.
+    about: Every mode, Layouts, and fixes for common problems.
