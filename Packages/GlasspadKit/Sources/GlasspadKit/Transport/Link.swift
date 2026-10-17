@@ -57,8 +57,8 @@ public struct PairedPhone: Equatable, Sendable {
 public enum GlasspadService {
     public static let bonjourType = "_glasspad._tcp"
     public static let protocolVersion = 1
-    /// Reconnect delays in seconds; the last one repeats.
-    public static let backoff: [TimeInterval] = [0.2, 0.5, 1, 2]
+    /// Reconnect delays in seconds; the last one repeats (jittered by `ReconnectBackoff`).
+    public static var backoff: [TimeInterval] { ReconnectBackoff.steps }
     /// Keep-awake heartbeat interval.
     public static let heartbeatInterval: TimeInterval = 0.02
     /// Heartbeats stop after this long without touches.
@@ -84,7 +84,7 @@ public enum GlasspadService {
     public static let serverSilenceTimeout: TimeInterval = 6
 
     /// How long the phone browses on the shared Wi-Fi network before it also looks over
-    /// peer-to-peer Wi-Fi (AWDL).
+    /// peer-to-peer Wi-Fi (AWDL), for `PeerToPeerWindow.length` at most.
     public static let peerToPeerFallbackDelay: TimeInterval = 3
 
     /// TCP control parameters. `peerToPeer` allows AWDL (Apple's peer-to-peer Wi-Fi). The phone

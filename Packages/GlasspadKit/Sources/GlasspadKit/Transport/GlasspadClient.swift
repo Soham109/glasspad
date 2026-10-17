@@ -10,9 +10,12 @@ import Network
 /// resends the last snapshot (phases set to stationary, fresh timestamp) every 20 ms, so the
 /// Mac never mistakes a resting finger for a dead link and a lost "ended" packet heals fast.
 ///
-/// Staying connected: the client reconnects with backoff after any drop, at once when the
+/// Staying connected: the client reconnects with backoff after any drop (`ReconnectBackoff`:
+/// fast at first, then 5, 10 and 30 s with jitter), at once when the
 /// network changes (Wi-Fi switch, wake from sleep) or when the Mac goes silent for
-/// `GlasspadService.clientSilenceTimeout` (the Mac pings every second). Call `reconnectNow()`
+/// `GlasspadService.clientSilenceTimeout` (the Mac pings every second). A fresh start tries the
+/// address the Mac last answered on alongside the Bonjour browse, so coming back after the
+/// phone was locked does not wait for Bonjour to look the Mac up again. Call `reconnectNow()`
 /// when the app returns to the foreground. It stops retrying only after `disconnect()`, a
 /// refusal from the Mac, or when another phone takes over the Mac (`failed(replacedFailure)`).
 ///
@@ -123,16 +126,45 @@ public final class GlasspadClient: @unchecked Sendable {
     private var keepalive: DispatchSourceTimer?
     private var attempt = 0
     private var reconnectWork: DispatchWorkItem?
+    /// A quiet shared-network Bonjour browse kept open during a long backoff wait, so a Mac
+    /// that comes back is tried at once instead of at the end of the wait.
+    private var watcher: NWBrowser?
+    private var watchAnswers = 0
+    /// The current attempt opened TCP to the Mac (it is there, only busy or restarting).
+    private var reachedMac = false
     private var lastReceived: TimeInterval = 0
     private var pathMonitor: NWPathMonitor?
     private var lastPathSignature: String?
     private var lastGateways = ""
-    /// True once infrastructure browsing found nothing and AWDL is allowed for this attempt.
-    private var usePeerToPeer = false
+    /// When AWDL may be used: it opens after the shared network found nothing (or connects to a
+    /// found Mac kept failing) and closes again after `PeerToPeerWindow.length`.
+    private var peerToPeer = PeerToPeerWindow()
+    private var usePeerToPeer: Bool { peerToPeer.isOpen(now: uptime()) }
+    /// Whether the channel being opened (and its session's UDP) may use AWDL.
+    private var channelPeerToPeer = false
+    /// A connection to the Mac's last address, racing the Bonjour browse on a fresh start.
+    private var probe: ControlChannel?
+    /// The open channel came from the last address rather than from Bonjour.
+    private var channelFromLastAddress = false
+    /// Tests only: the session now connected came from the last address.
+    var connectedViaLastAddress: Bool { viaLastAddressBox.get() }
+    private let viaLastAddressBox = Locked(false)
+
+    /// Where each Mac last answered over the shared network, and on which network.
+    static let lastAddresses = Locked(LastAddressBook())
+    /// A fresh start came before the first network report: try the last address once it arrives.
+    private var probeWhenPathKnown = false
+    /// A last address that has not opened TCP by then is given up (Bonjour carries on).
+    static let probeTimeout: TimeInterval = 1.5
+    /// The handshake on a last address must finish this fast, or Bonjour takes over.
+    static let probeHandshakeTimeout: TimeInterval = 1.5
     /// The phone's own pings, for `roundTrip`.
     private var pingID: UInt32 = 0
     private var pingSent: [UInt32: TimeInterval] = [:]
     private var lastPing: TimeInterval = 0
+    /// Tests only: holds the Bonjour browse back this long while a last address is tried, as a
+    /// lookup on a real network takes longer than on this Mac's own cache.
+    var slowBonjourForTesting: TimeInterval = 0
     /// Internal so tests can shorten it.
     var silenceTimeout: TimeInterval = GlasspadService.clientSilenceTimeout
 
@@ -148,6 +180,8 @@ public final class GlasspadClient: @unchecked Sendable {
 
     deinit {
         pathMonitor?.cancel()
+        watcher?.cancel()
+        probe?.connection.cancel()
         browser?.cancel()
         keepalive?.cancel()
         udp?.cancel()
@@ -237,7 +271,7 @@ public final class GlasspadClient: @unchecked Sendable {
     private func start(_ t: Target) {
         target = t
         attempt = 0
-        usePeerToPeer = false
+        peerToPeer = PeerToPeerWindow()
         connectFailures = ConnectFailureTracker()
         setIssue(nil)
         teardown()
@@ -250,7 +284,7 @@ public final class GlasspadClient: @unchecked Sendable {
         guard target != nil else { return }
         teardown()
         attempt = 0
-        usePeerToPeer = false
+        peerToPeer = PeerToPeerWindow()
         // A new network (or the app back in front) deserves a fresh look: forget earlier
         // failures, but keep a Local Network denial until the browser says otherwise.
         connectFailures = ConnectFailureTracker()
@@ -285,13 +319,20 @@ public final class GlasspadClient: @unchecked Sendable {
         let names = Set(path.availableInterfaces.map(\.name))
         let gateways = path.gateways.map { "\($0)" }.sorted().joined(separator: ",")
         let signature = "\(satisfied)|" + names.sorted().joined(separator: ",") + "|" + gateways
-        defer {
-            lastPathSignature = signature
-            lastGateways = gateways
+        let previous = lastPathSignature, previousGateways = lastGateways
+        lastPathSignature = signature
+        lastGateways = gateways
+        guard let previous else {
+            if probeWhenPathKnown {
+                probeWhenPathKnown = false
+                if attempt == 0, channel == nil, probe == nil, case .bonjour? = target { probeLastAddressIfKnown() }
+            }
+            return
         }
-        guard let previous = lastPathSignature, previous != signature else { return }
+        guard previous != signature else { return }
         // Joining another Wi-Fi network keeps the interface name (en0) but changes the router.
-        let switched = previous.hasPrefix("false|") || (!lastGateways.isEmpty && lastGateways != gateways)
+        let switched = previous.hasPrefix("false|") || (!previousGateways.isEmpty && previousGateways != gateways)
+        if switched { Self.lastAddresses.mutate { $0.networkSwitched(to: gateways) } }
         networkChanged(satisfied: satisfied, interfaceNames: names, networkSwitched: switched)
     }
 
@@ -311,8 +352,23 @@ public final class GlasspadClient: @unchecked Sendable {
 
     private func open() {
         generation += 1
+        reachedMac = false
         switch target {
-        case .bonjour?: browse()
+        case .bonjour?:
+            // First try of a fresh start: also knock on the address the Mac last used.
+            let probing = attempt == 0 && !usePeerToPeer && Self.lastAddresses.get().knows(pairing.macID)
+            if probing {
+                if lastPathSignature == nil { probeWhenPathKnown = true } else { probeLastAddressIfKnown() }
+            }
+            if probing, slowBonjourForTesting > 0 {
+                let gen = generation
+                queue.asyncAfter(deadline: .now() + slowBonjourForTesting) { [weak self] in
+                    guard let self, gen == self.generation, self.channel == nil else { return }
+                    self.browse()
+                }
+            } else {
+                browse()
+            }
         case .direct(let host, let port)?:
             guard let p = NWEndpoint.Port(rawValue: port) else { return setState(.failed("bad port")) }
             openTCP(.hostPort(host: NWEndpoint.Host(host), port: p))
@@ -321,21 +377,33 @@ public final class GlasspadClient: @unchecked Sendable {
     }
 
     /// Browses on the shared network first. Only if the Mac is not found there within
-    /// `peerToPeerFallbackDelay` does it browse again with peer-to-peer Wi-Fi (AWDL) allowed.
+    /// `peerToPeerFallbackDelay` does it browse again with peer-to-peer Wi-Fi (AWDL) allowed,
+    /// and only for `PeerToPeerWindow.length`: then it goes back to the shared network alone,
+    /// so a Mac that is asleep or away does not keep AWDL on (and the radio hopping) for good.
     private func browse() {
         setState(.searching)
         let gen = generation
-        let p2p = usePeerToPeer
+        let now = uptime()
+        let p2p = peerToPeer.isOpen(now: now)
         let params = NWParameters()
         params.includePeerToPeer = p2p
         params.prohibitedInterfaceTypes = [.cellular]
-        if !p2p {
+        if peerToPeer.closesAt == nil {
             queue.asyncAfter(deadline: .now() + GlasspadService.peerToPeerFallbackDelay) { [weak self] in
-                guard let self, gen == self.generation, self.browser != nil, !self.usePeerToPeer else { return }
+                guard let self, gen == self.generation, self.browser != nil, self.peerToPeer.closesAt == nil else { return }
                 GPLog.log("browse: not found on the shared network, also trying peer-to-peer Wi-Fi")
                 self.browser?.cancel()
                 self.browser = nil
-                self.usePeerToPeer = true
+                self.peerToPeer.open(now: uptime())
+                self.generation += 1
+                self.browse()
+            }
+        } else if p2p, let left = peerToPeer.remaining(now: now) {
+            queue.asyncAfter(deadline: .now() + left) { [weak self] in
+                guard let self, gen == self.generation, self.browser != nil else { return }
+                GPLog.log("browse: not found over peer-to-peer Wi-Fi either, back to the shared network only")
+                self.browser?.cancel()
+                self.browser = nil
                 self.generation += 1
                 self.browse()
             }
@@ -377,31 +445,111 @@ public final class GlasspadClient: @unchecked Sendable {
 
     private func openTCP(_ endpoint: NWEndpoint) {
         GPLog.log("tcp: opening \(endpoint)")
+        dropProbe()
         setState(.connecting)
         let gen = generation
-        let ch = ControlChannel(connection: NWConnection(to: endpoint, using: GlasspadService.tcpParameters(peerToPeer: usePeerToPeer)), queue: queue)
+        channelPeerToPeer = usePeerToPeer
+        channelFromLastAddress = false
+        let ch = ControlChannel(connection: NWConnection(to: endpoint, using: GlasspadService.tcpParameters(peerToPeer: channelPeerToPeer)), queue: queue)
         var opened = false
         ch.onReady = { [weak self] in
             opened = true
+            self?.reachedMac = true
             self?.sendHello()
         }
-        ch.onFrame = { [weak self] data in self?.handleFrame(data) }
-        // Part of a large message (a clipboard image on slow Wi-Fi) counts as hearing the Mac.
-        ch.onBytes = { [weak self] in self?.lastReceived = uptime() }
-        ch.onClosed = { [weak self, weak ch] reason in
+        attach(ch, gen: gen) { [weak self, weak ch] reason in
             guard let self else { return }
             if !opened, gen == self.generation {
                 self.connectFailed(reason: reason, path: ch?.connection.currentPath)
             }
-            self.lost(gen, reason: reason ?? "closed")
         }
-        channel = ch
         ch.start()
         queue.asyncAfter(deadline: .now() + GlasspadService.handshakeTimeout) { [weak self] in
             guard let self, gen == self.generation else { return }
             if case .connected = self.phase { return }
             self.channel?.close("handshake timeout")
         }
+    }
+
+    /// Makes `ch` the session's channel: frames, liveness and loss go through the client.
+    private func attach(_ ch: ControlChannel, gen: Int, beforeLost: @escaping (String?) -> Void = { _ in }) {
+        ch.onFrame = { [weak self] data in self?.handleFrame(data) }
+        // Part of a large message (a clipboard image on slow Wi-Fi) counts as hearing the Mac.
+        ch.onBytes = { [weak self] in self?.lastReceived = uptime() }
+        ch.onClosed = { [weak self] reason in
+            guard let self else { return }
+            beforeLost(reason)
+            self.lost(gen, reason: reason ?? "closed")
+        }
+        channel = ch
+    }
+
+    /// Races the browse: TCP straight to where the Mac last answered. The first to reach the
+    /// Mac wins. If this one opens first the browse stops and the handshake runs on it; the
+    /// handshake proves it is the right Mac, as it does for a Bonjour result. A last address
+    /// that does not open is left to the browse; one that opens on something that does not
+    /// finish the handshake quickly is forgotten and the browse starts again.
+    /// Knocks on the Mac's last address, if it was learned on the network the phone is on now.
+    private func probeLastAddressIfKnown() {
+        guard let last = Self.lastAddresses.get().address(for: pairing.macID, network: lastGateways) else { return }
+        probeLastAddress(last)
+    }
+
+    private func probeLastAddress(_ endpoint: NWEndpoint) {
+        let gen = generation
+        GPLog.log("tcp: also trying the last address \(endpoint)")
+        let ch = ControlChannel(connection: NWConnection(to: endpoint, using: GlasspadService.tcpParameters()), queue: queue)
+        let macID = pairing.macID
+        ch.onReady = { [weak self, weak ch] in
+            guard let self, let ch, gen == self.generation, self.probe === ch, self.channel == nil else {
+                ch?.close(nil)
+                return
+            }
+            GPLog.log("tcp: the last address answered first, Bonjour not needed")
+            self.probe = nil
+            self.browser?.cancel()
+            self.browser = nil
+            setState(.connecting)
+            self.channelPeerToPeer = false
+            self.channelFromLastAddress = true
+            self.reachedMac = true
+            self.attach(ch, gen: gen) { [weak self] _ in
+                // Closed before the session was up: that address is not the Mac any more.
+                guard let self, gen == self.generation else { return }
+                if case .connected = self.phase { return }
+                Self.lastAddresses.mutate { $0.forget(macID) }
+            }
+            self.sendHello()
+            self.queue.asyncAfter(deadline: .now() + Self.probeHandshakeTimeout) { [weak self] in
+                guard let self, gen == self.generation, self.channelFromLastAddress else { return }
+                if case .connected = self.phase { return }
+                GPLog.log("tcp: no handshake on the last address, looking the Mac up instead")
+                self.retryWithoutLastAddress()
+            }
+        }
+        ch.onClosed = { [weak self, weak ch] reason in
+            guard let self, let ch, self.probe === ch else { return }
+            // Kept: right after unlocking, Wi-Fi may simply not be back yet. A session found by
+            // Bonjour replaces it.
+            self.probe = nil
+            GPLog.log("tcp: last address did not answer (\(reason ?? "closed")), Bonjour carries on")
+        }
+        probe = ch
+        ch.start()
+        queue.asyncAfter(deadline: .now() + Self.probeTimeout) { [weak ch] in ch?.close("timed out") }
+    }
+
+    private func dropProbe() {
+        let p = probe
+        probe = nil
+        p?.close(nil)
+    }
+
+    /// The last address led somewhere wrong: forget it and look the Mac up with Bonjour now.
+    private func retryWithoutLastAddress() {
+        Self.lastAddresses.mutate { $0.forget(pairing.macID) }
+        teardown()
+        open()
     }
 
     private func sendHello() {
@@ -421,6 +569,12 @@ public final class GlasspadClient: @unchecked Sendable {
             }
             if tag.t == "reject" {
                 let reason = (try? JSONDecoder().decode(HandshakeReject.self, from: data))?.reason ?? "rejected"
+                if channelFromLastAddress {
+                    // Something else lives at that address now (another Mac). Not a refusal
+                    // from this Mac: look it up properly.
+                    GPLog.log("tcp: the last address refused (\(reason)), looking the Mac up instead")
+                    return retryWithoutLastAddress()
+                }
                 target = nil                       // do not retry a refusal
                 teardown()
                 setState(.failed(reason))
@@ -448,8 +602,15 @@ public final class GlasspadClient: @unchecked Sendable {
             lastPing = uptime()
             if let conn = channel?.connection {
                 pathBox.set(LinkPath.classify(interface: conn.currentPath?.availableInterfaces.first,
-                                              peerToPeer: usePeerToPeer, endpoint: "\(conn.endpoint)"))
+                                              peerToPeer: channelPeerToPeer, endpoint: "\(conn.endpoint)"))
+                // Remember where the Mac answered, for the next fresh start (shared network only).
+                if case .bonjour? = target, !channelPeerToPeer, let remote = conn.currentPath?.remoteEndpoint,
+                   case .hostPort = remote {
+                    let network = lastGateways
+                    Self.lastAddresses.mutate { $0.learn(remote, network: network, for: pairing.macID) }
+                }
             }
+            viaLastAddressBox.set(channelFromLastAddress)
             openUDP()
             lastTouchActivity = uptime()
             startKeepalive()
@@ -492,7 +653,7 @@ public final class GlasspadClient: @unchecked Sendable {
         if host == nil, case .direct(let h, _)? = target { host = NWEndpoint.Host(h) }
         guard let host, let port = NWEndpoint.Port(rawValue: udpPort) else { GPLog.log("udp: no host (\(String(describing: host))) or port \(udpPort)"); return }
         GPLog.log("udp: sending to \(host):\(port)")
-        let c = NWConnection(host: host, port: port, using: GlasspadService.udpParameters(peerToPeer: usePeerToPeer))
+        let c = NWConnection(host: host, port: port, using: GlasspadService.udpParameters(peerToPeer: channelPeerToPeer))
         c.stateUpdateHandler = { st in GPLog.log("udp state: \(st)") }
         c.start(queue: queue)
         udp = c
@@ -502,7 +663,7 @@ public final class GlasspadClient: @unchecked Sendable {
         GPLog.log("lost (gen \(gen) vs \(generation)): \(reason)")
         guard gen == generation else { return }
         teardown()
-        scheduleReconnect(after: GlasspadService.backoff[min(attempt, GlasspadService.backoff.count - 1)])
+        scheduleReconnect(after: ReconnectBackoff.delay(attempt: attempt, reachedMac: reachedMac))
     }
 
     private func scheduleReconnect(after delay: TimeInterval) {
@@ -511,16 +672,57 @@ public final class GlasspadClient: @unchecked Sendable {
         if case .bonjour? = target { setState(.searching) } else { setState(.connecting) }
         let work = DispatchWorkItem { [weak self] in
             guard let self, self.target != nil, self.channel == nil, self.browser == nil else { return }
+            self.stopWatching()
             self.open()
         }
         reconnectWork = work
         queue.asyncAfter(deadline: .now() + delay, execute: work)
+        if delay >= ReconnectBackoff.watchFrom, case .bonjour? = target { watchForMac() }
+    }
+
+    /// During a long wait: a shared-network browse (cheap, the system's mDNS does the work)
+    /// that tries again at once when the Mac's service appears or changes, as it does when the
+    /// Mac wakes or its app restarts. The first answer within a second is what the system
+    /// already knew (the record the last try failed with), so it does not count.
+    private func watchForMac() {
+        stopWatching()
+        let gen = generation
+        let started = uptime()
+        let params = NWParameters()
+        params.includePeerToPeer = false
+        params.prohibitedInterfaceTypes = [.cellular]
+        let b = NWBrowser(for: .bonjourWithTXTRecord(type: GlasspadService.bonjourType, domain: nil), using: params)
+        let wanted = pairing.macID.uuidString.uppercased()
+        watchAnswers = 0
+        b.browseResultsChangedHandler = { [weak self] _, changes in
+            guard let self, gen == self.generation, self.watcher != nil else { return }
+            self.watchAnswers += 1
+            if self.watchAnswers == 1, uptime() - started < 1 { return }
+            guard BrowseChange.mentions(wanted, in: changes) else { return }
+            GPLog.log("watch: the Mac's service came back, trying now")
+            self.stopWatching()
+            self.reconnectWork?.cancel()
+            self.reconnectWork = nil
+            guard self.target != nil, self.channel == nil, self.browser == nil else { return }
+            self.open()
+        }
+        watcher = b
+        b.start(queue: queue)
+    }
+
+    private func stopWatching() {
+        watcher?.cancel()
+        watcher = nil
     }
 
     private func teardown() {
         generation += 1
         reconnectWork?.cancel()
         reconnectWork = nil
+        stopWatching()
+        dropProbe()
+        probeWhenPathKnown = false
+        channelFromLastAddress = false
         browser?.cancel()
         browser = nil
         keepalive?.cancel()
@@ -656,9 +858,9 @@ public final class GlasspadClient: @unchecked Sendable {
             return
         }
         let advice = connectFailures.record()
-        if advice.tryPeerToPeer, case .bonjour? = target, !usePeerToPeer {
+        if advice.tryPeerToPeer, case .bonjour? = target, peerToPeer.closesAt == nil {
             GPLog.log("tcp: \(connectFailures.failures) failed connects after finding the Mac, allowing peer-to-peer Wi-Fi")
-            usePeerToPeer = true
+            peerToPeer.open(now: uptime())
         }
         if advice.report, issue == nil { setIssue(.networkBlocksDevices) }
     }
@@ -736,5 +938,24 @@ struct ConnectFailureTracker: Equatable {
     mutating func record() -> (tryPeerToPeer: Bool, report: Bool) {
         failures += 1
         return (failures >= Self.peerToPeerAfter, failures >= Self.reportAfter)
+    }
+}
+
+/// Reading NWBrowser's change lists.
+enum BrowseChange {
+    /// Whether any change adds or alters the service of the Mac with this ID (TXT `id`, upper case).
+    static func mentions(_ macID: String, in changes: Set<NWBrowser.Result.Change>) -> Bool {
+        changes.contains { change in
+            switch change {
+            case .added(let r): return id(of: r) == macID
+            case .changed(_, let new, _): return id(of: new) == macID
+            default: return false
+            }
+        }
+    }
+
+    static func id(of result: NWBrowser.Result) -> String? {
+        if case .bonjour(let txt) = result.metadata { return txt["id"]?.uppercased() }
+        return nil
     }
 }
