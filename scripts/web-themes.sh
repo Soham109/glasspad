@@ -1,7 +1,11 @@
 #!/usr/bin/env bash
 # Rewrites the theme list in web/src/themes.ts from the app's theme catalog
 # (Packages/GlasspadKit/Sources/GlasspadKit/Theme). Run it after adding or changing a theme.
+# Needs swiftc (Xcode or the command line tools). Changes only web/src/themes.ts.
+#
+# Usage: scripts/web-themes.sh
 set -euo pipefail
+case "${1:-}" in -h|--help) awk 'NR>1 && /^#/ {sub(/^# ?/, ""); print; next} NR>1 {exit}' "$0"; exit 0 ;; esac
 cd "$(dirname "$0")/.."
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT

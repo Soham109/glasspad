@@ -1,8 +1,14 @@
 #!/usr/bin/env bash
-# Run every package's tests. Works with Xcode or with only the command line tools.
-# Honours an existing DEVELOPER_DIR (for example DEVELOPER_DIR=/Library/Developer/CommandLineTools
-# when Xcode is installed but its license is not accepted yet).
+# Run every package's tests, then the installer tests and the main thread check. Works with
+# Xcode or with only the command line tools. Honors an existing DEVELOPER_DIR (for example
+# DEVELOPER_DIR=/Library/Developer/CommandLineTools when Xcode is installed but its license is
+# not accepted yet). Needs no iPhone, Apple account or network.
+#
+# Usage: scripts/test.sh [swift test arguments]     (for example: scripts/test.sh --filter Layout)
+#   GLASSPAD_BUILD_ROOT  Where SwiftPM keeps its builds (see scripts/toolchain.sh).
+#   CI                   Set by CI: a failed timing test gets one more run on its own.
 set -euo pipefail
+case "${1:-}" in -h|--help) awk 'NR>1 && /^#/ {sub(/^# ?/, ""); print; next} NR>1 {exit}' "$0"; exit 0 ;; esac
 cd "$(dirname "$0")/.."
 # shellcheck source=scripts/toolchain.sh
 source scripts/toolchain.sh

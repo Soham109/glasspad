@@ -3,7 +3,14 @@
 # from scripts/setup-autorefresh.sh; does nothing until the install is 5 days old.
 # Reinstalls the exact revision you last installed, so an unfinished update never reaches the phone.
 # Each run leaves its outcome in refresh-status.json, which the Mac app shows in Settings > iPhone.
+# All output goes to ~/Library/Logs/Glasspad/refresh.log, not the terminal.
+#
+# Usage: scripts/refresh-phone.sh [--now]
+#   --now  Renew now, whatever the install's age and even while the app is in use.
+#
+# No `set -e`: a failed step must still reach the end, write its status and notify you.
 set -uo pipefail
+case "${1:-}" in -h|--help) awk 'NR>1 && /^#/ {sub(/^# ?/, ""); print; next} NR>1 {exit}' "$0"; exit 0 ;; esac
 SUPPORT="${HOME}/Library/Application Support/Glasspad"
 STATE="$SUPPORT/phone-install.env"
 STATUS="$SUPPORT/refresh-status.json"

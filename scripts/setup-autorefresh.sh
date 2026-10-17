@@ -1,7 +1,13 @@
 #!/usr/bin/env bash
 # One-time setup: your Mac renews Glasspad on your iPhone automatically, so the free-account
-# 7-day limit never bites. Removes itself with: scripts/setup-autorefresh.sh --remove
+# 7-day limit never bites. Installs a LaunchAgent (a background job macOS runs for you,
+# ~/Library/LaunchAgents/com.soham109.glasspad.refresh.plist) that runs
+# scripts/refresh-phone.sh from this checkout every hour. Run scripts/install-phone.sh once first.
+#
+# Usage: scripts/setup-autorefresh.sh [--remove]
+#   --remove  Turn automatic renewal off and delete the LaunchAgent.
 set -euo pipefail
+case "${1:-}" in -h|--help) awk 'NR>1 && /^#/ {sub(/^# ?/, ""); print; next} NR>1 {exit}' "$0"; exit 0 ;; esac
 cd "$(dirname "$0")/.."
 LABEL="com.soham109.glasspad.refresh"
 PLIST="${HOME}/Library/LaunchAgents/${LABEL}.plist"

@@ -1,8 +1,16 @@
 #!/usr/bin/env bash
 # Builds the Mac menu bar app with SwiftPM (no Xcode project needed) and assembles
-# build/Glasspad.app, ad-hoc signed. Works with Xcode or the command line tools; honours an
-# existing DEVELOPER_DIR. Does not launch the app.
+# build/Glasspad.app, ad-hoc signed. Works with Xcode or the command line tools; honors an
+# existing DEVELOPER_DIR. Does not launch the app and needs no Apple account.
+#
+# Usage: scripts/build-mac.sh
+#   GLASSPAD_VERSION       Version stamped in the app. Default: MARKETING_VERSION in project.yml.
+#   GLASSPAD_BUILD_NUMBER  Build number stamped in the app. Default: 1.
+#   GLASSPAD_BUILD_ROOT    Where SwiftPM keeps its build. Default: one folder per checkout in
+#                          ~/Library/Caches/glasspad-build (see scripts/toolchain.sh).
+#   DEVELOPER_DIR          Which Xcode or command line tools to use. Default: xcode-select's.
 set -euo pipefail
+case "${1:-}" in -h|--help) awk 'NR>1 && /^#/ {sub(/^# ?/, ""); print; next} NR>1 {exit}' "$0"; exit 0 ;; esac
 cd "$(dirname "$0")/.."
 ROOT="$(pwd)"
 # shellcheck source=scripts/toolchain.sh

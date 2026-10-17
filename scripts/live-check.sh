@@ -3,6 +3,8 @@
 # real, one step at a time in its own window, puts the Mac back after each one, and writes
 # ~/Library/Logs/Glasspad/live-check-<date>.md. Quits the running Glasspad first (the phone
 # disconnects) and starts it as usual again when the check is done.
+#
+# Usage: scripts/live-check.sh [--install] [--include-disruptive]
 #   --install              build and install this checkout first (scripts/install-mac.sh)
 #   --include-disruptive   also Lock Screen, Sleep Display, Sleep Mac, Empty Trash and Eject All
 set -euo pipefail
@@ -17,7 +19,7 @@ for a in "$@"; do
   case "$a" in
     --install) install=1 ;;
     --include-disruptive) args+=(--include-disruptive) ;;
-    -h|--help) sed -n '2,7p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -h|--help) awk 'NR>1 && /^#/ {sub(/^# ?/, ""); print; next} NR>1 {exit}' "$0"; exit 0 ;;
     *) echo "Unknown option: $a (try --help)" >&2; exit 2 ;;
   esac
 done

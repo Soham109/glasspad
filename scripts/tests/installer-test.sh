@@ -1,11 +1,14 @@
 #!/bin/bash
 # Tests install.sh and the phone scripts without a real iPhone, Xcode or Apple account.
 # Fake xcrun/devicectl, security, xcodebuild, sudo, curl, brew, launchctl... come first on PATH
-# (scripts/tests/stubs) and read their behaviour from files in $STUB. Every run uses a scratch
+# (scripts/tests/stubs) and read their behavior from files in $STUB. Every run uses a scratch
 # HOME whose path has spaces in it, so quoting bugs show up here.
 #
 # Usage: scripts/tests/installer-test.sh        (bash 3.2 is fine; no other tools needed)
+#
+# No `set -e`: a failing case is counted and the run goes on to the next one.
 set -uo pipefail
+case "${1:-}" in -h|--help) awk 'NR>1 && /^#/ {sub(/^# ?/, ""); print; next} NR>1 {exit}' "$0"; exit 0 ;; esac
 HERE="$(cd "$(dirname "$0")" && pwd)"
 REPO="$(cd "$HERE/../.." && pwd)"
 STUBS="$HERE/stubs"
