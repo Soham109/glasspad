@@ -104,6 +104,9 @@ struct Palette: Equatable, Sendable {
     let accent: UIColor
     /// The finger dot colour before the user's opacity setting.
     let dotBase: UIColor
+    /// The Photo theme's window palette: its full-size tile, held only by this palette, so it
+    /// goes when the theme changes (see `forgetPhotoWindow`).
+    private(set) var photoTile: UIImage?
     /// The user's dot opacity multiplier.
     var dotScale: CGFloat = 1
     /// Finger dot diameter in points and look, from Settings.
@@ -181,6 +184,16 @@ struct Palette: Equatable, Sendable {
         return p
     }
 
+    /// Drops the Photo theme's window palette, and with it the full-size photo, once another
+    /// theme is on screen. It is made again if the Photo theme comes back.
+    static func forgetPhotoWindow() {
+        cache.lock.lock()
+        defer { cache.lock.unlock() }
+        for key in cache.palettes.keys where key.hasPrefix("photo.") && !key.hasSuffix(".preview") {
+            cache.palettes[key] = nil
+        }
+    }
+
     /// The app palette for a theme. `dark` only says which way the window currently looks;
     /// the colours themselves follow whatever appearance they are drawn in.
     static func themed(_ theme: ThemeChoice = .paper, dark: Bool) -> Palette {
@@ -188,7 +201,10 @@ struct Palette: Equatable, Sendable {
             return cached("photo.\(photo.version)", window: true) {
                 var p = Palette(light: photo.tone.tokens, dark: photo.tone.tokens, theme: theme, isDark: photo.tone.isDark,
                                 patternBackdrop: false)
-                p.background = UIColor(patternImage: photo.tile)
+                if let tile = PhotoBackdrop.shared.tile() {
+                    p.background = UIColor(patternImage: tile)
+                    p.photoTile = tile
+                }
                 return p
             }
         }
@@ -234,7 +250,7 @@ struct Palette: Equatable, Sendable {
     /// The glass backdrop at full size (the picked photo in the Photo theme), lined up with the
     /// window's. Nil in the plain themes.
     var backdropImage: UIImage? {
-        if theme == .photo, tokens.photoSamples != nil { return PhotoBackdrop.shared.current?.tile }
+        if theme == .photo, tokens.photoSamples != nil { return photoTile }
         return tokens.backdrop.map(Backdrop.image)
     }
 
@@ -424,6 +440,8 @@ struct WindowAppearance: UIViewRepresentable {
     func updateUIView(_ view: Probe, context: Context) {
         view.style = style
         view.surface = Palette.themed(theme, dark: style == .dark).background
+        // The theme on screen is the one place that knows the photo is no longer shown.
+        if theme != .photo { Palette.forgetPhotoWindow() }
         view.apply()
     }
 

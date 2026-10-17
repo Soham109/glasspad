@@ -524,6 +524,9 @@ enum PhotoSaver {
 @MainActor
 final class IconCache {
     private var memory: [String: UIImage] = [:]
+    /// Decoded icons are up to 1 MB each: only the last 64 used stay in memory (more than a
+    /// Dock shows at once); the rest come back from disk when next drawn.
+    private var recent = RecentKeys<String>(limit: 64)
     /// bundle id -> newest icon key.
     private var index: [String: String]
     private let folder: URL?
@@ -540,7 +543,10 @@ final class IconCache {
         if let old = base?.appendingPathComponent("DockIcons", isDirectory: true) { try? FileManager.default.removeItem(at: old) }
         // Decoded icons are up to 1 MB each; under memory pressure drop them (they reload from disk).
         NotificationCenter.default.addObserver(forName: UIApplication.didReceiveMemoryWarningNotification, object: nil, queue: .main) { [weak self] _ in
-            MainActor.assumeIsolated { self?.memory.removeAll() }
+            MainActor.assumeIsolated {
+                self?.memory.removeAll()
+                self?.recent.removeAll()
+            }
         }
     }
 
@@ -565,24 +571,72 @@ final class IconCache {
         return UIImage(cgImage: cg, scale: 3, orientation: .up)
     }
 
-    func store(_ png: Data, key: String, bundleID: String) {
-        guard let image = Self.decode(png) else { return }
-        store(png, decoded: image, key: key, bundleID: bundleID)
+    /// An icon from the Mac, already decoded (off the main thread, by `decode`).
+    struct Incoming {
+        let png: Data
+        let image: UIImage
+        let key: String
+        let bundleID: String
     }
 
-    /// Keeps an icon already decoded (off the main thread, by `decode`). The files are written
-    /// in the background; the image is in memory at once.
-    func store(_ png: Data, decoded image: UIImage, key: String, bundleID: String) {
-        let stale = index[bundleID].flatMap { $0 != key ? $0 : nil }
+    /// Keeps the icons of one message. The files are written in the background, the index
+    /// once for the whole message; the images are in memory at once.
+    func store(_ icons: [Incoming]) {
+        guard !icons.isEmpty else { return }
+        for icon in icons { keep(icon) }
+        saveIndex()
+        trimDisk()
+    }
+
+    /// Icons on disk: the 300 last received or drawn, and no more than 30 MB (an icon is up to
+    /// about 150 KB). Every app the Mac lists can send one, so the folder would otherwise grow.
+    nonisolated static let diskLimit = DiskCacheLimit(maxFiles: 300, maxBytes: 30_000_000)
+
+    /// Deletes the icons past `diskLimit`, after the writes before it, and forgets them in the
+    /// index so the Mac sends them again when they are next needed.
+    private func trimDisk() {
+        guard let folder else { return }
+        Self.disk.async {
+            let keys: Set<URLResourceKey> = [.contentModificationDateKey, .fileSizeKey]
+            guard let urls = try? FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: Array(keys))
+            else { return }
+            let files = urls.filter { $0.pathExtension == "png" }.map { url in
+                let values = try? url.resourceValues(forKeys: keys)
+                return DiskCacheLimit.File(id: url, modified: values?.contentModificationDate ?? .distantPast,
+                                           bytes: values?.fileSize ?? 0)
+            }
+            let drop = Self.diskLimit.overflow(files)
+            guard !drop.isEmpty else { return }
+            for url in drop { try? FileManager.default.removeItem(at: url) }
+            let names = Set(drop.map(\.lastPathComponent))
+            Task { @MainActor [weak self] in self?.forget(files: names) }
+        }
+    }
+
+    /// Icons still in memory stay until they leave it (`image(for:)` then finds no file and
+    /// forgets them), so nothing on screen loses its icon.
+    private func forget(files names: Set<String>) {
+        let gone = index.filter { memory[$0.value] == nil && names.contains(fileURL($0.value)?.lastPathComponent ?? "") }
+        guard !gone.isEmpty else { return }
+        for bundleID in gone.keys { index[bundleID] = nil }
+        saveIndex()
+    }
+
+    private func keep(_ icon: Incoming) {
+        let stale = index[icon.bundleID].flatMap { $0 != icon.key ? $0 : nil }
         if let stale { memory[stale] = nil }
-        memory[key] = image
-        index[bundleID] = key
-        let oldURL = stale.flatMap(fileURL), newURL = fileURL(key)
+        remember(icon.image, key: icon.key)
+        index[icon.bundleID] = icon.key
+        let oldURL = stale.flatMap(fileURL), newURL = fileURL(icon.key), png = icon.png
         Self.disk.async {
             if let oldURL { try? FileManager.default.removeItem(at: oldURL) }
             if let newURL { try? png.write(to: newURL, options: .atomic) }
         }
-        saveIndex()
+    }
+
+    private func remember(_ image: UIImage, key: String) {
+        memory[key] = image
+        for old in recent.use(key) { memory[old] = nil }
     }
 
     /// Icon files and the index are written here, in order, off the main thread.
@@ -592,8 +646,18 @@ final class IconCache {
         guard let key = index[bundleID] else { return nil }
         if let image = memory[key] { return image }
         guard let url = fileURL(key), let data = try? Data(contentsOf: url),
-              let image = Self.decode(data) else { return nil }
-        memory[key] = image
+              let image = Self.decode(data) else {
+            // Its file is gone (trimmed, or the system cleared Caches): forget it, so the Mac
+            // is asked for it again.
+            if fileURL(key).map({ !FileManager.default.fileExists(atPath: $0.path) }) ?? false {
+                index[bundleID] = nil
+                saveIndex()
+            }
+            return nil
+        }
+        remember(image, key: key)
+        // Drawn again: newest for `diskLimit`, so icons in use outlast ones only listed once.
+        Self.disk.async { try? FileManager.default.setAttributes([.modificationDate: Date()], ofItemAtPath: url.path) }
         return image
     }
 
