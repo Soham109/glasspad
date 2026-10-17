@@ -29,24 +29,25 @@ public enum AutomationProbe {
     /// Never shows a prompt. Runs off the main thread: `AEDeterminePermissionToAutomateTarget`
     /// can block indefinitely (waiting on tccd or on an unresponsive player), and on the main
     /// thread that froze the whole app at launch. Gives up after `timeout` and reports
-    /// `notDetermined`; a stuck call keeps one background thread, never the main one.
+    /// `notDetermined`. A stuck call keeps one background thread, never the main one, and never
+    /// more than one: later checks wait for that same call instead of starting another (each
+    /// phone session asks again, and every stuck call used to keep a thread of its own).
     public static func current(deniedApps: [String] = [], timeout: TimeInterval = 2) async -> AutomationState {
-        await current(deniedApps: deniedApps, timeout: timeout) {
+        await current(deniedApps: deniedApps, timeout: timeout, gate: .live) {
             players.map { answer(bundleID: $0.bundleID, ask: false) }
         }
     }
 
     /// `current` with the per-player probe injected (tests use a probe that never returns).
-    static func current(deniedApps: [String], timeout: TimeInterval,
+    static func current(deniedApps: [String], timeout: TimeInterval, gate: ProbeGate = ProbeGate(),
                         probe: @escaping @Sendable () -> [Answer]) async -> AutomationState {
         let fallback: AutomationState = deniedApps.isEmpty ? .notDetermined : .denied
         // Whichever finishes first resumes; a probe that never returns only keeps its own
         // background thread busy.
         return await withCheckedContinuation { continuation in
-            let once = ResumeOnce()
-            DispatchQueue.global(qos: .utility).async {
-                let state = combine(probe(), deniedApps: deniedApps)
-                if once.claim() { continuation.resume(returning: state) }
+            let once = ProbeOnce()
+            gate.join(probe, once: once) { answers in
+                if once.claim() { continuation.resume(returning: combine(answers, deniedApps: deniedApps)) }
             }
             DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + timeout) {
                 if once.claim() { continuation.resume(returning: fallback) }
@@ -87,7 +88,7 @@ public enum AutomationProbe {
 }
 
 /// Lets exactly one of two racing callbacks resume a continuation.
-private final class ResumeOnce: @unchecked Sendable {
+final class ProbeOnce: @unchecked Sendable {
     private let lock = NSLock()
     private var done = false
     func claim() -> Bool {
@@ -95,5 +96,62 @@ private final class ResumeOnce: @unchecked Sendable {
         if done { return false }
         done = true
         return true
+    }
+    var isClaimed: Bool {
+        lock.lock(); defer { lock.unlock() }
+        return done
+    }
+}
+
+/// At most one permission probe at a time. A check made while one is still running (or stuck)
+/// gets that run's answers instead of starting another thread.
+final class ProbeGate: @unchecked Sendable {
+    /// The one the app uses.
+    static let live = ProbeGate()
+
+    private struct Waiter {
+        let once: ProbeOnce
+        let deliver: @Sendable ([AutomationProbe.Answer]) -> Void
+    }
+
+    private let lock = NSLock()
+    /// nil while no probe runs.
+    private var waiters: [Waiter]?
+    private var started = 0
+    private var joined = 0
+
+    /// Probes started so far, and checks made (tests).
+    var runs: Int {
+        lock.lock(); defer { lock.unlock() }
+        return started
+    }
+    var joins: Int {
+        lock.lock(); defer { lock.unlock() }
+        return joined
+    }
+
+    func join(_ probe: @escaping @Sendable () -> [AutomationProbe.Answer], once: ProbeOnce,
+              deliver: @escaping @Sendable ([AutomationProbe.Answer]) -> Void) {
+        lock.lock()
+        joined += 1
+        if var list = waiters {
+            // Callers that already gave up are dropped, so a probe stuck for good holds no list.
+            list.removeAll { $0.once.isClaimed }
+            list.append(Waiter(once: once, deliver: deliver))
+            waiters = list
+            lock.unlock()
+            return
+        }
+        waiters = [Waiter(once: once, deliver: deliver)]
+        started += 1
+        lock.unlock()
+        DispatchQueue.global(qos: .utility).async {
+            let answers = probe()
+            self.lock.lock()
+            let list = self.waiters ?? []
+            self.waiters = nil
+            self.lock.unlock()
+            list.forEach { $0.deliver(answers) }
+        }
     }
 }

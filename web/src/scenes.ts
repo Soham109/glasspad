@@ -56,7 +56,7 @@ const DESK = {
       ${dock(["finder", "web", "mail", "notes", "music", "xcode", "term", "set"], ["finder", "web", "mail", "xcode"])}${cursor}</div>`)}
     ${standPhone("sp-desk", `<div class="pt land lyt">
       <div class="lp-pane tpad"><i class="tp-hint"></i></div><div class="lyt-div"><i></i></div>
-      <div class="lp-pane ac">${front("web", "Safari")}<div class="ag f3">${tiles(SAFARI)}</div><h5>Pinned</h5>
+      <div class="lp-pane ac">${front("web", "Safari")}<div class="ag f3">${tiles(SAFARI)}</div><div class="lyt-h">Pinned</div>
         <div class="ag f3">${tl("Split Screen", "rectangle.split.2x1.fill", "#0A84FF")}${tl("Do Not Disturb", "moon.fill", "#5E5CE6")}${tl("Screenshot", "camera.viewfinder", "#0A84FF")}</div></div></div>`)}
   </div></div>`,
   async run(s: Scene) {

@@ -200,7 +200,7 @@ const MODES: Mode[] = [
     key: "clipboard", title: "Clipboard", icon: "i-clipboard", accent: "#34C759",
     text: "Text and images, both ways. Send to Mac, or get what the Mac has copied.",
     phone: () => `<div class="pt"><span class="status-dot"></span><div class="u-clip">
-      <h4>Clipboard</h4>
+      <div class="u-h">Clipboard</div>
       <div class="cc to"><div class="ch">${glyph("square.and.arrow.up")}<div><b>Send to Mac</b><span>Text or an image you copied on this iPhone.</span></div></div>
         <div class="pv">See you at the station at nine</div>
         <div class="crow"><span class="cbtn paste">${glyph("doc.on.clipboard")}Paste</span><span class="ok">${glyph("checkmark")}Sent</span></div></div>

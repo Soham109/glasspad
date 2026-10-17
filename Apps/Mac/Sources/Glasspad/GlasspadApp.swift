@@ -5,7 +5,9 @@ import SwiftUI
 @main
 struct GlasspadApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
-    @StateObject private var model = AppDelegate.model
+    /// Not observed here: the scenes never change, so a model change must not rebuild them
+    /// (that redrew the menu bar icon on every status tick). Each view observes what it shows.
+    private let model = AppDelegate.model
 
     var body: some Scene {
         // The live check runs on its own, with no menu bar item and no phone listening.
@@ -13,7 +15,7 @@ struct GlasspadApp: App {
             PopoverView()
                 .environmentObject(model)
         } label: {
-            MenuBarLabel(model: model)
+            MenuBarLabel(status: AppDelegate.menuBarStatus)
         }
         .menuBarExtraStyle(.window)
 
@@ -28,6 +30,7 @@ struct GlasspadApp: App {
 final class AppDelegate: NSObject, NSApplicationDelegate {
     static let controller = GlasspadController()
     static let model = AppModel.live(controller)
+    static let menuBarStatus = MenuBarStatus(model: model)
     private let recordingIndicator = RecordingIndicator()
     private let welcome = WelcomeWindow()
     private let liveCheck = LiveCheckWindow()

@@ -55,8 +55,9 @@ private struct GlassButtonStyle: ViewModifier {
     let accent: Color?
 
     func body(content: Content) -> some View {
-        // Mono has no colours: an accent becomes the ink, with the surface colour on it.
-        let accent = palette.monochrome ? nil : self.accent
+        // Mono has no colours: an accent becomes the ink, with the surface colour on it. The
+        // tinted themes move it onto their hue.
+        let accent = palette.monochrome ? nil : palette.tinted ? self.accent.map(palette.tint) : self.accent
         if prominent {
             styled(content)
                 .tint(accent ?? palette.inkColor)
@@ -116,7 +117,7 @@ struct KeyCapStyle: ButtonStyle {
         // Mono fills an armed key with the ink and puts the surface colour on it.
         let fill = accent.map { palette.tint($0) }
         return configuration.label
-            .foregroundStyle(accent == nil ? palette.inkColor : (palette.monochrome ? palette.solidColor : Color.white))
+            .foregroundStyle(accent == nil ? palette.inkColor : palette.onFill)
             .background {
                 if let fill {
                     shape.fill(fill.opacity(configuration.isPressed ? 0.8 : 1))

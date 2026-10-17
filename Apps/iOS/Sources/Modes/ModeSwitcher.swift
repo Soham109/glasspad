@@ -78,6 +78,10 @@ struct ModeSwitcher: View {
         .onAppear {
             scheduleHide()
         }
+        // The menu needs the whole screen: an iPhone keyboard (Keyboard's, Remote's Search) goes down.
+        .onChange(of: expanded) { _, open in
+            if open { UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil) }
+        }
         .onChange(of: router.mode) { reveal() }
         .onChange(of: router.layoutID) { reveal() }
         .onChange(of: voiceOver) { reveal() }

@@ -12,8 +12,11 @@ import UIKit
 ///
 /// The screen lays itself out edge to edge and gives each pane the safe area of the screen
 /// edges it touches, so the trackpad runs to the glass while other modes keep clear of the
-/// Dynamic Island and the home indicator. The keyboard is handled here too: the panes share
-/// what is left above it.
+/// Dynamic Island and the home indicator. The iPhone keyboard is handled here too: the pane
+/// that asked for it (Keyboard's globe key, Remote's Search) has the whole room above it to
+/// itself, the other panes rest out of sight at their own size, and when the keyboard goes
+/// down every pane and line is back exactly where it was. A keyboard raised by a sheet over
+/// the layout leaves the panes alone.
 struct LayoutScreen: View {
     @Environment(\.palette) private var palette
     let layout: ScreenLayout
@@ -25,6 +28,8 @@ struct LayoutScreen: View {
 
     @State private var drag: DividerDrag?
     @State private var keyboard = KeyboardHeight()
+    /// The pane that owns the iPhone keyboard while it is up.
+    @State private var keyboardPane: Int?
 
     static let gap: CGFloat = 8
     static let corner: CGFloat = 22
@@ -32,8 +37,10 @@ struct LayoutScreen: View {
     var body: some View {
         GeometryReader { geo in
             let full = geo.size
-            let keyboardHeight = keyboard.height
-            let area = CGSize(width: full.width, height: max(0, full.height - keyboardHeight))
+            let keyboardHeight = keyboardPane == nil ? 0 : keyboard.height
+            let typing = keyboardHeight > 0 ? keyboardPane : nil
+            let area = full
+            let above = CGRect(x: 0, y: 0, width: full.width, height: max(0, full.height - keyboardHeight))
             let committed = layout.arrangement(in: area, gap: Self.gap)
             let shown = displayed.arrangement(in: area, gap: Self.gap)
             let split = shown.panes.count > 1
@@ -44,14 +51,21 @@ struct LayoutScreen: View {
                 ForEach(shown.panes, id: \.index) { pane in
                     let mode = layout.mode(at: pane.index)
                     let resting = committed.panes.first { $0.index == pane.index }?.rect
+                    let focused = typing == pane.index
+                    let rect = focused ? above : pane.rect
                     LayoutPane(mode: mode,
-                               frame: pane.rect,
-                               contentSize: resting?.size,
-                               insets: insets(for: pane.rect, in: area, keyboardUp: keyboardHeight > 0),
-                               rounded: split,
+                               frame: rect,
+                               contentSize: focused ? rect.size : resting?.size,
+                               insets: insets(for: rect, in: area, keyboardUp: focused),
+                               rounded: split && !focused,
                                resizing: drag != nil,
                                folding: drag?.folds(pane: pane.index, in: layout) ?? false)
-                        .offset(x: pane.rect.minX, y: pane.rect.minY)
+                        .offset(x: rect.minX, y: rect.minY)
+                        // While another pane types, this one waits out of sight at its own size.
+                        .opacity(typing == nil || focused ? 1 : 0)
+                        .allowsHitTesting(typing == nil || focused)
+                        .accessibilityHidden(typing != nil && !focused)
+                        .zIndex(focused ? 1 : 0)
                 }
                 ForEach(Array(shown.dividers.enumerated()), id: \.offset) { _, divider in
                     DividerHandle(divider: placed(divider, in: area),
@@ -60,6 +74,9 @@ struct LayoutScreen: View {
                                   onEnd: { released(divider, at: $0) },
                                   onReset: { reset(divider) },
                                   onStep: { step(divider, by: $0) })
+                        .opacity(typing == nil ? 1 : 0)
+                        .allowsHitTesting(typing == nil)
+                        .accessibilityHidden(typing != nil)
                 }
             }
             .frame(width: full.width, height: full.height, alignment: .topLeading)
@@ -91,10 +108,27 @@ struct LayoutScreen: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillChangeFrameNotification)) {
             keyboard.update($0)
+            keyboardPane = keyboard.height > 0 ? paneOwningKeyboard() : nil
         }
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
             keyboard.height = 0
+            keyboardPane = nil
         }
+    }
+
+    /// The pane holding the text field the keyboard is typing into, nil when it is in none of
+    /// them (a sheet's field, such as naming a layout).
+    private func paneOwningKeyboard() -> Int? {
+        guard let view = FirstResponder.current() as? UIView, let window = view.window else { return nil }
+        // A field in a sheet or cover over the layout is not the layout's business.
+        var presented = window.rootViewController?.presentedViewController
+        while let p = presented {
+            if view.isDescendant(of: p.view) { return nil }
+            presented = p.presentedViewController
+        }
+        let point = view.convert(CGPoint(x: view.bounds.midX, y: view.bounds.midY), to: window)
+        let shown = layout.arrangement(in: window.bounds.size, gap: Self.gap)
+        return shown.panes.first { $0.rect.contains(point) }?.index
     }
 
     /// Seconds between Dock list requests for a Dock pane the Mac does not follow.
@@ -312,11 +346,9 @@ private struct LayoutPane: View {
         .id(mode)
     }
 
-    /// The Keyboard's short layout (one row of keys) suits any short pane, since the system
-    /// keyboard takes the space below it anyway.
+    /// Keyboard sizes itself to the pane (`KeyboardPlan`) and ignores this.
     private var compact: Bool {
-        if mode == .keys { return frame.height < 420 }
-        return frame.height < 500 && frame.width >= 560
+        frame.height < 500 && frame.width >= 560
     }
 
     /// What a pane shows while it is being resized: its mode's symbol on the surface.
@@ -398,5 +430,25 @@ private extension CGPoint {
     /// A little of the flick's momentum, so a quick throw toward an edge folds the pane.
     func blended(with other: CGPoint) -> CGPoint {
         CGPoint(x: other.x + (x - other.x) * 0.25, y: other.y + (y - other.y) * 0.25)
+    }
+}
+
+/// Finds the first responder, the public way: an action sent to nil goes to it.
+@MainActor
+enum FirstResponder {
+    private static weak var found: UIResponder?
+
+    static func current() -> UIResponder? {
+        found = nil
+        UIApplication.shared.sendAction(#selector(UIResponder.glasspadFindFirstResponder), to: nil, from: nil, for: nil)
+        return found
+    }
+
+    fileprivate static func record(_ responder: UIResponder) { found = responder }
+}
+
+extension UIResponder {
+    @objc fileprivate func glasspadFindFirstResponder() {
+        MainActor.assumeIsolated { FirstResponder.record(self) }
     }
 }
