@@ -404,6 +404,8 @@ enum DebugLaunch {
             AppRouter.shared.layoutDraft = AppRouter.shared.newLayout(from: template)
         }
         if let scene = value("-GPFilm") { FilmDirector.shared.start(scene: scene, iconFolder: value("-GPDemo")) }
+        if args.contains("-GPLaunchClock") { LaunchClock.start() }
+        if args.contains("-GPTour") { DebugTour.start(rounds: value("-GPTour").flatMap(Int.init) ?? 1) }
     }
     @MainActor static var showMenuAtLaunch = false
     /// `library`, `front` or `folder`: the Actions sheet (or Pinned folder) to open.
