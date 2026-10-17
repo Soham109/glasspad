@@ -109,6 +109,10 @@ private struct StatusRow: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
             Spacer(minLength: 4)
+            if model.isConnected, let battery = model.phoneBattery {
+                PhoneBatteryLabel(battery: battery)
+                    .padding(.trailing, 4)
+            }
             if let signal = model.signal {
                 SignalBars(quality: signal)
                     .help("\(signal.title) signal")
@@ -122,7 +126,8 @@ private struct StatusRow: View {
         .padding(.horizontal, 8)
         .padding(.vertical, 4)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(title). \(model.statusDetail)")
+        .accessibilityLabel("\(title). \(model.statusDetail)"
+                            + (model.isConnected ? model.phoneBattery.map { ". \(PhoneBatteryLabel.spoken($0))" } ?? "" : ""))
     }
 
     private var title: String {
