@@ -47,7 +47,7 @@ enum PairingCopy {
 /// The first-run window (SetupViews.swift).
 enum WelcomeCopy {
     static let helloTitle = "Welcome to Glasspad"
-    static let helloDetail = "Your Mac, at your fingertips."
+    static let helloDetail = "A control surface for your Mac, on your iPhone."
     static let permissionsTitle = "Let Your iPhone Control This Mac"
     static let permissionsDetail = "macOS asks you once. Glasspad only acts on what you do on your iPhone."
     static let permissionsFooter = "In System Settings, turn on Glasspad. This step finishes by itself."
