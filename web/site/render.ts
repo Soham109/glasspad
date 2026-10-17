@@ -37,14 +37,14 @@ export function nav(p: Page): string {
     <a class="gn-top" href="/guide"${p.path === "/guide" ? ' aria-current="page"' : ""}>Guide</a>
   </nav>
   <a class="nav-gh" href="${REPO}" aria-label="Glasspad on GitHub">${GITHUB}</a>
-  <a class="gn-install" href="/#get">Install</a>
+  <a class="gn-install" href="/install"${p.path === "/install" ? ' aria-current="page"' : ""}>Install</a>
   <button class="nav-menu" id="navMenu" type="button" aria-expanded="false" aria-controls="navSheet">Menu</button>
 </header>
 <div class="gn-sheet" id="navSheet">
   <nav class="gn-sheet-in wrap" aria-label="Menu">
     <div class="gn-sec">${sheetList("Features", feats, true)}</div>
     <div class="gn-sec">${sheetList("Compare", comps, false)}</div>
-    <div class="gn-sec"><p class="gn-h" aria-hidden="true">More</p><ul aria-label="More"><li><a href="/">Home</a></li><li><a href="/guide"${p.path === "/guide" ? ' aria-current="page"' : ""}>Guide</a></li><li><a href="${REPO}">GitHub</a></li></ul></div>
+    <div class="gn-sec"><p class="gn-h" aria-hidden="true">More</p><ul aria-label="More"><li><a href="/">Home</a></li><li><a href="/install"${p.path === "/install" ? ' aria-current="page"' : ""}>Install</a></li><li><a href="/guide"${p.path === "/guide" ? ' aria-current="page"' : ""}>Guide</a></li><li><a href="${REPO}">GitHub</a></li></ul></div>
   </nav>
 </div>`;
 }
@@ -62,7 +62,7 @@ export function footer(p: Page): string {
     <div class="gf-top">
       <div class="gf-brand"><a class="brand" href="/">${BRAND}</a><p>A control surface for your Mac, on your iPhone.</p></div>
       <nav class="gf-cols" aria-label="Footer">
-        ${col("Product", [["Overview", "/", p.path === "/"], ["Install", "/#get"], ["Demo film", "/#film"], ["Questions", "/#questions"]])}
+        ${col("Product", [["Overview", "/", p.path === "/"], ["Install", "/install", p.path === "/install"], ["Demo film", "/#film"], ["Questions", "/#questions"]])}
         ${col("Features", featurePages().map(q => [q.nav!, q.path, p === q]))}
         ${col("Compare", comparePages().map(q => [q.nav!.replace(/^vs /, ""), q.path, p === q]))}
         ${col("Resources", [["Guide", "/guide", p.path === "/guide"], ["GitHub", REPO], ["Releases", `${REPO}/releases`], ["Changelog", `${REPO}/blob/main/CHANGELOG.md`]])}
@@ -82,7 +82,7 @@ const hero = (eyebrow: string, eyeIcon: string | undefined, h1: string, sub: str
   <p class="pg-eye">${eyeIcon ? icon(eyeIcon, 20) : ""}${esc(eyebrow)}</p>
   <h1>${h1}</h1>
   <p class="pg-sub">${sub}</p>
-  <div class="pg-cta"><a class="btn btn-ink" href="/#get">Install Glasspad</a><a class="btn btn-quiet" href="${second[0]}">${second[1]}</a></div>
+  <div class="pg-cta"><a class="btn btn-ink" href="/install">Install Glasspad</a><a class="btn btn-quiet" href="${second[0]}">${second[1]}</a></div>
 </header>`;
 
 const faqBlock = (faq: [string, string][]) => `<section class="pg-sec wrap" id="faq" aria-labelledby="faq-t">
@@ -104,7 +104,7 @@ const band = () => `<section class="pg-band" id="install" aria-labelledby="insta
     <h2 id="install-t">Get Glasspad. It is free.</h2>
     <p>${FACTS} Paste this into Terminal on your Mac:</p>
     <div class="pg-cmd"><code>${INSTALL_CMD}</code>${copyButton(INSTALL_CMD, "Copy the install command")}</div>
-    <p class="pg-band-more">The script builds it with Xcode 26 or later and your free Apple ID, and waits for you where Apple needs a click. <a href="/#get">Every install step</a> <span aria-hidden="true">&middot;</span> <a href="/guide#help">Help in the guide</a></p>
+    <p class="pg-band-more">The script builds it with Xcode 26 or later and your free Apple ID, and waits for you where Apple needs a click. <a href="/install">Every install step</a> <span aria-hidden="true">&middot;</span> <a href="/guide#help">Help in the guide</a></p>
   </div>
 </section>`;
 

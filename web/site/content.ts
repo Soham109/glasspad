@@ -59,7 +59,7 @@ export const FAQS: Record<string, { q: string; a: string }[]> = {
   ],
 };
 
-/** The install steps as on the home page (#get), for HowTo data. */
+/** The install steps as on the install page, for HowTo data. */
 export const HOWTO: { name: string; text: string }[] = [
   { name: "Run the command", text: `Paste ${INSTALL} into Terminal on your Mac. It waits for you at each step, and is safe to run again.` },
   { name: "Xcode", text: "Install Xcode, then enter your Mac password once." },

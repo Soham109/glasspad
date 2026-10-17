@@ -335,3 +335,10 @@ html.gn-locked, html.gn-locked body { overflow: hidden; }
   .pg-cmd .copy:active { transform: scale(0.94); }
   .pg-faq summary { font-size: 17px; }
 }
+
+/* The install page: the home page's install steps under the page header. */
+.pg-install .get { padding-top: 0; padding-bottom: clamp(24px, 3vw, 40px); }
+.pg-install .ig { border-top: 0; }
+.pg-install .pg-next { text-align: center; padding-top: clamp(40px, 5vw, 64px); padding-bottom: clamp(88px, 10vw, 136px); }
+.pg-next-tx { margin: 12px auto 0; color: var(--ink-2); font-size: 17px; }
+.pg-next-tx a { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }

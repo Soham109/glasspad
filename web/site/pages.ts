@@ -11,9 +11,9 @@
 
 export const SITE = "https://glasspad.sohamaggarwal.com";
 export const REPO = "https://github.com/Soham109/glasspad";
-export const VERSION = "0.1.2";
+export const VERSION = "0.2.1";
 export const RELEASE = `${REPO}/releases/tag/v${VERSION}`;
-export const RELEASED = "2026-10-16";
+export const RELEASED = "2026-10-17";
 
 export interface Page {
   /** URL path, without .html: "/" or "/guide" */
@@ -66,6 +66,17 @@ export const pages: Page[] = [
     crumb: "Guide",
     ogType: "article",
     faq: "guide",
+  },
+  {
+    path: "/install",
+    file: "install.html",
+    title: "Install Glasspad on your Mac and iPhone | Glasspad",
+    ogTitle: "Install Glasspad",
+    description: "Install Glasspad with one command in Terminal: what you need, every step with pictures, automatic renewal with a free Apple ID, troubleshooting and uninstall.",
+    lastmod: "2026-10-17",
+    summary: "How to install Glasspad: one Terminal command, what you need, every step with pictures, troubleshooting and uninstall.",
+    crumb: "Install",
+    ogType: "article",
   },
 
   // Features, in nav order

@@ -38,7 +38,7 @@ function schema(p: Page): object {
     softwareVersion: VERSION, datePublished: RELEASED,
     offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
     isAccessibleForFree: true, license: "https://opensource.org/licenses/MIT",
-    downloadUrl: RELEASE, installUrl: `${SITE}/#get`, softwareRequirements: NEEDS.join(", "),
+    downloadUrl: RELEASE, installUrl: `${SITE}/install`, softwareRequirements: NEEDS.join(", "),
     featureList: FEATURES.map(([k]) => k),
     screenshot: ["trackpad", "actions", "remote", "media"].map(s => `${SITE}/img/screens/${s}.png`),
     image: OG.url, author: { "@id": PERSON["@id"] }, sameAs: [REPO],
@@ -64,12 +64,12 @@ function schema(p: Page): object {
     "@type": "FAQPage", "@id": `${url(p)}#faq`, url: url(p),
     mainEntity: qa.map(([q, a]) => ({ "@type": "Question", name: plain(q), acceptedAnswer: { "@type": "Answer", text: plain(a) } })),
   });
+  if (p.path === "/install") graph.push({
+    "@type": "HowTo", "@id": `${SITE}/install#steps`, name: "How to install Glasspad", description: "Install Glasspad on your Mac and iPhone with one command in Terminal.",
+    tool: NEEDS.map(n => ({ "@type": "HowToTool", name: n })),
+    step: HOWTO.map((s, i) => ({ "@type": "HowToStep", position: i + 1, name: s.name, text: s.text, url: `${SITE}/install#get` })),
+  });
   if (p === home) graph.push(
-    {
-      "@type": "HowTo", "@id": `${SITE}/#install`, name: "How to install Glasspad", description: "Install Glasspad on your Mac and iPhone with one command in Terminal.",
-      tool: NEEDS.map(n => ({ "@type": "HowToTool", name: n })),
-      step: HOWTO.map((s, i) => ({ "@type": "HowToStep", position: i + 1, name: s.name, text: s.text, url: `${SITE}/#get` })),
-    },
     {
       "@type": "VideoObject", "@id": `${SITE}/#film`, name: FILM.name, description: FILM.description,
       thumbnailUrl: `${SITE}/film.jpg`, uploadDate: FILM.uploadDate, duration: FILM.duration,
