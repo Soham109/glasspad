@@ -1,0 +1,94 @@
+# Publishes a GitHub release when a version tag such as v0.2.2 is pushed.
+#   1. test     runs every test on the tagged commit; nothing is released if one fails
+#   2. release  makes the source tarball and its SHA-256 checksum (scripts/release/package.sh),
+#               records where they were built (a signed build provenance attestation), and
+#               creates the release with the matching CHANGELOG.md section as its text
+#               (scripts/release/notes.sh). A tag with a hyphen, like v0.3.0-beta.1, is marked
+#               as a pre-release.
+# Run it again from the Actions tab to redo a failed release: it updates the existing one.
+#
+# No app downloads are attached. Without a paid Apple Developer account the apps cannot be
+# notarized or put on the App Store, and macOS blocks apps from the internet that are not
+# notarized. People install with install.sh, which builds on their own Mac with a free Apple ID.
+
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+# Never two releases of the same tag at once, and never cancel one halfway.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  test:
+    runs-on: macos-26
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Test
+        run: |
+          xcodebuild -version
+          if [ -f Makefile ] && grep -q '^test:' Makefile; then make test; else scripts/test.sh; fi
+
+  release:
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write     # create the release and upload its files
+      id-token: write     # sign the build provenance attestation
+      attestations: write # store the attestation
+    env:
+      TAG: ${{ github.ref_name }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # git archive needs the tag, and the tag needs history
+          persist-credentials: false
+      - name: Release text from CHANGELOG.md
+        run: |
+          scripts/release/notes.sh "$TAG" > "$RUNNER_TEMP/notes.md"
+          {
+            echo
+            echo "### Install"
+            echo
+            echo "Follow the [install guide](https://glasspad.sohamaggarwal.com/install). It builds Glasspad on your Mac with Xcode and a free Apple ID."
+            echo
+            echo "### Check the download"
+            echo
+            echo "\`SHA256SUMS\` lists the source tarball's SHA-256. Check it with \`shasum -a 256 -c SHA256SUMS\`, and check where it was built with \`gh attestation verify glasspad-${TAG#v}.tar.gz --repo ${GITHUB_REPOSITORY}\`."
+          } >> "$RUNNER_TEMP/notes.md"
+          cat "$RUNNER_TEMP/notes.md"
+      - name: Source tarball and checksum
+        run: scripts/release/package.sh "$TAG" "$RUNNER_TEMP/out"
+      - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: ${{ runner.temp }}/out/glasspad-*.tar.gz
+      - name: Create or update the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          version="${TAG#v}"
+          files=("$RUNNER_TEMP/out/glasspad-$version.tar.gz" "$RUNNER_TEMP/out/SHA256SUMS")
+          pre=(); case "$TAG" in *-*) pre=(--prerelease) ;; esac
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release edit "$TAG" --title "Glasspad $version" --notes-file "$RUNNER_TEMP/notes.md" ${pre[@]+"${pre[@]}"}
+            gh release upload "$TAG" "${files[@]}" --clobber
+          else
+            gh release create "$TAG" "${files[@]}" --verify-tag --title "Glasspad $version" \
+              --notes-file "$RUNNER_TEMP/notes.md" ${pre[@]+"${pre[@]}"}
+          fi
+          gh release view "$TAG" --json url --jq .url
