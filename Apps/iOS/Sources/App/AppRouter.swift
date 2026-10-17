@@ -45,6 +45,9 @@ final class AppRouter {
     /// Last time anything touched a screen that dims. Not observed: it changes on every touch.
     @ObservationIgnored private var lastActivity = ProcessInfo.processInfo.systemUptime
     @ObservationIgnored private var dimTimer: Timer?
+    /// The idle check runs (a dimming screen shows, held awake).
+    @ObservationIgnored private var dimWatching = false
+    @ObservationIgnored private var followsPower = false
 
     private init() {
         mode = PhoneSettings.shared.startMode
@@ -163,35 +166,69 @@ final class AppRouter {
     /// Called on every touch of a dimming screen. Cheap enough to call per touch sample.
     func noteActivity() {
         lastActivity = ProcessInfo.processInfo.systemUptime
-        if isDimmed { isDimmed = false }
+        if isDimmed {
+            isDimmed = false
+            // The next dim is a full delay from now; the timer may be set for later than that.
+            scheduleIdleCheck()
+        }
         if ScreenAwake.releasedForIdle { ScreenAwake.update() }
     }
 
     /// Seconds since the last touch on a screen that dims.
     var idleTime: TimeInterval { ProcessInfo.processInfo.systemUptime - lastActivity }
 
-    /// Starts the idle check if it is not running (a running one keeps its idle time).
+    /// Starts the idle check if it is not running (a running one keeps its idle time, and only
+    /// looks again at its next deadline, which a new dim delay may have moved).
     func startDimTimer() {
-        guard dimTimer == nil else { return }
+        if dimWatching { return scheduleIdleCheck() }
+        if !followsPower {
+            // Low Power Mode or heat shortens the keep-awake limit: look again at once.
+            followsPower = true
+            PowerMonitor.shared.onChange { _ in AppRouter.shared.scheduleIdleCheck() }
+        }
+        dimWatching = true
         lastActivity = ProcessInfo.processInfo.systemUptime
         isDimmed = false
-        let timer = Timer(timeInterval: 2, repeats: true) { _ in
-            MainActor.assumeIsolated { AppRouter.shared.checkIdle() }
-        }
-        timer.tolerance = 1
-        RunLoop.main.add(timer, forMode: .common)
-        dimTimer = timer
+        scheduleIdleCheck()
     }
 
     func stopDimTimer() {
+        dimWatching = false
         dimTimer?.invalidate()
         dimTimer = nil
         isDimmed = false
     }
 
+    /// One timer, set for the next moment something can change: the screen dims, or Keep Screen
+    /// On lets go. Touches only move `lastActivity`; a check that comes early sets the timer
+    /// again for what is left. So a trackpad in use wakes the app about once per dim delay
+    /// rather than every two seconds.
+    private func scheduleIdleCheck() {
+        dimTimer?.invalidate()
+        dimTimer = nil
+        guard dimWatching else { return }
+        let wait = IdleDeadline.next(idle: idleTime, dimDelay: PhoneSettings.shared.dimDelay, dimmed: isDimmed,
+                                     holdingAwake: UIApplication.shared.isIdleTimerDisabled,
+                                     keepAwakeLimit: PowerMonitor.shared.policy.keepAwakeLimit,
+                                     blocked: idleCheckBlocked)
+        guard let wait else { return }
+        let timer = Timer(timeInterval: wait, repeats: false) { _ in
+            MainActor.assumeIsolated { AppRouter.shared.checkIdle() }
+        }
+        timer.tolerance = min(1, max(0.1, wait * 0.1))
+        RunLoop.main.add(timer, forMode: .common)
+        dimTimer = timer
+    }
+
+    /// Something on top (a sheet, the editor) holds the screen as it is.
+    private var idleCheckBlocked: Bool {
+        !dims || showSettings || showPairing || showClipboard || showSetup || showLayouts || layoutDraft != nil
+    }
+
     private func checkIdle() {
-        guard dims, !showSettings, !showPairing, !showClipboard, !showSetup, !showLayouts, layoutDraft == nil else { return }
-        let idle = ProcessInfo.processInfo.systemUptime - lastActivity
+        defer { scheduleIdleCheck() }
+        guard !idleCheckBlocked else { return }
+        let idle = idleTime
         let delay = PhoneSettings.shared.dimDelay
         if !isDimmed, delay > 0, idle >= delay { isDimmed = true }
         // Left alone long enough: let the phone lock on its own Auto-Lock.

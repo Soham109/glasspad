@@ -84,3 +84,37 @@ import Testing
         #expect(!PowerPolicy(heat: .critical).keepsScreenAwake(s))
     }
 }
+
+@Suite struct IdleDeadlineTests {
+    @Test func looksAgainWhenTheScreenWouldDim() {
+        // Touched 10 s ago, dims after 60 s: look in 50 s, not every 2 s.
+        #expect(IdleDeadline.next(idle: 10, dimDelay: 60, dimmed: false, holdingAwake: true,
+                                  keepAwakeLimit: 600, blocked: false) == 50)
+        // Dimmed already: the next thing is Keep Screen On letting go.
+        #expect(IdleDeadline.next(idle: 70, dimDelay: 60, dimmed: true, holdingAwake: true,
+                                  keepAwakeLimit: 600, blocked: false) == 530)
+        // A limit shorter than the dim delay (Low Power Mode, 3 min, Dim After 5 min).
+        #expect(IdleDeadline.next(idle: 0, dimDelay: 300, dimmed: false, holdingAwake: true,
+                                  keepAwakeLimit: 180, blocked: false) == 180)
+    }
+
+    @Test func nothingLeftToWaitFor() {
+        // Dimmed and no longer held awake: the next touch starts it again, no timer meanwhile.
+        #expect(IdleDeadline.next(idle: 700, dimDelay: 60, dimmed: true, holdingAwake: false,
+                                  keepAwakeLimit: 600, blocked: false) == nil)
+        // Dim After set to Never and not held awake.
+        #expect(IdleDeadline.next(idle: 5, dimDelay: 0, dimmed: false, holdingAwake: false,
+                                  keepAwakeLimit: 600, blocked: false) == nil)
+    }
+
+    @Test func aPassedDeadlineDoesNotSpin() {
+        // A check that comes late (the timer's tolerance) looks again soon, never at once.
+        #expect(IdleDeadline.next(idle: 61, dimDelay: 60, dimmed: false, holdingAwake: false,
+                                  keepAwakeLimit: 600, blocked: false) == IdleDeadline.minimumWait)
+    }
+
+    @Test func aSheetOnTopIsLookedAtNowAndThen() {
+        #expect(IdleDeadline.next(idle: 1_000, dimDelay: 60, dimmed: false, holdingAwake: true,
+                                  keepAwakeLimit: 600, blocked: true) == IdleDeadline.blockedPoll)
+    }
+}
