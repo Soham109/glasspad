@@ -2,7 +2,7 @@
    and Compare), written from site/pages.ts and site/features.ts at build time by site/plugin.ts. */
 
 import { REPO, pages, featurePages, comparePages, type Page } from "./pages";
-import { CONTENT, FACTS, SHOTS, type Feature, type Comparison, type Mark } from "./features";
+import { CONTENT, FACTS, SHOTS, type Feature, type Comparison, type Mark, type Section } from "./features";
 import { icon } from "./icons";
 
 export const INSTALL_CMD = "curl -fsSL https://raw.githubusercontent.com/Soham109/glasspad/main/install.sh | bash";
@@ -167,10 +167,54 @@ function visual(f: Feature): string {
   switch (f.visual) {
     case "trackpad": return DEMO;
     case "displays": return `<div class="pg-visual wrap"><div class="dp-stage" id="dpStage" role="img" aria-label="${label}"></div></div>`;
-    case "keys": return `<div class="pg-visual wrap"><div class="pg-mode" data-mode="keys" role="img" aria-label="${label}"><div class="pgm-phone"></div><div class="pgm-mac"></div></div></div>`;
+    case "keys": case "media": case "clipboard": return `<div class="pg-visual wrap"><div class="pg-mode" data-mode="${f.visual}" role="img" aria-label="${label}"><div class="pgm-phone"></div><div class="pgm-mac"></div></div></div>`;
     default: return `<div class="pg-visual wrap"><div class="uc-stage pg-stage" data-room="${f.visual}" role="img" aria-label="${label}"></div></div>`;
   }
 }
+
+/* ------------------------------------------------------------------ longer parts */
+
+const slug = (t: string) => t.toLowerCase().replace(/&[a-z]+;/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+const MARK: Record<Mark, string> = { yes: "Yes", no: "No", part: "Partly", "": "" };
+const cell = ([m, t]: [Mark, string]) => `<td>${m ? `<span class="cmp-mk ${m}">${icon(m === "yes" ? "check" : m === "no" ? "cross" : "part", 14)}<span class="sr">${MARK[m]}. </span></span>` : ""}<span class="cmp-tx">${t}</span></td>`;
+const fitList = (points: string[]) => `<ul>${points.map(x => `<li>${icon("check", 16)}<span>${x}</span></li>`).join("")}</ul>`;
+const cmpKey = `<p class="cmp-key"><span><span class="cmp-mk yes">${icon("check", 14)}</span>Has it</span><span><span class="cmp-mk part">${icon("part", 14)}</span>Partly, or with limits</span><span><span class="cmp-mk no">${icon("cross", 14)}</span>Does not</span></p>`;
+
+function section(s: Section): string {
+  const id = slug(s.title);
+  const head = `<h2 class="pg-h2" id="${id}-t">${s.title}</h2>`;
+  const note = s.note ? `\n  <p class="cmp-note">${s.note}</p>` : "";
+  if (s.kind === "text") return `<section class="pg-sec wrap" id="${id}" aria-labelledby="${id}-t">
+  ${head}
+  <div class="pg-short solo"><div class="pg-short-tx"><p class="pg-answer">${s.text}</p>${s.note ? `<p class="pg-facts">${s.note}</p>` : ""}</div></div>
+</section>`;
+  if (s.kind === "cards") return `<section class="pg-sec wrap" id="${id}" aria-labelledby="${id}-t">
+  ${head}
+  <div class="cmp-fits">
+${s.cards.map(c => `    <div class="cmp-fit${c.us ? " us" : ""}"><h3>${c.title}</h3>${fitList(c.points)}</div>`).join("\n")}
+  </div>${note}
+</section>`;
+  const marks = s.rows.some(r => r.us[0] || r.them[0]);
+  return `<section class="pg-sec wrap" id="${id}" aria-labelledby="${id}-t">
+  ${head}
+  <table class="cmp">
+    <caption class="sr">${s.caption}</caption>
+    <thead><tr><td></td><th scope="col">${s.cols[0]}</th><th scope="col">${s.cols[1]}</th></tr></thead>
+    <tbody>
+${s.rows.map(r => `      <tr><th scope="row">${r.k}</th>${cell(r.us)}${cell(r.them)}</tr>`).join("\n")}
+    </tbody>
+  </table>${marks ? `\n  ${cmpKey}` : ""}${note}
+</section>`;
+}
+const sections = (list?: Section[]) => (list ?? []).map(section).map(x => `\n\n${x}`).join("");
+
+const sourcesBlock = (sources: [string, string][], checked: string) => `<section class="pg-sec wrap pg-sources" aria-labelledby="src-t">
+  <h2 class="pg-h3" id="src-t">Sources</h2>
+  <p>Checked on ${checked}.${sources.some(([, u]) => u.includes("apps.apple.com")) ? " Prices are from the US App Store and can differ in other countries." : ""}</p>
+  <ul>
+${sources.map(([t, u]) => `    <li><a href="${u}">${t}</a></li>`).join("\n")}
+  </ul>
+</section>`;
 
 /* ------------------------------------------------------------------ templates */
 
@@ -188,7 +232,7 @@ ${visual(f)}
     </div>
     <figure class="pg-shot${SHOTS[f.shot].w > SHOTS[f.shot].h ? " land" : ""}">${shot(f.shot)}<figcaption>${f.caption}</figcaption></figure>
   </div>
-</section>
+</section>${sections(f.early)}
 
 <section class="pg-sec wrap" aria-labelledby="why-t">
   <h2 class="pg-h2" id="why-t">What you get</h2>
@@ -202,25 +246,22 @@ ${f.tiles.map(t => `    <li><span class="pg-tile-ic">${icon(t.icon, 24)}</span><
   <ol class="pg-steps">
 ${f.steps.map((s, i) => `    <li><span class="pg-step-art">${icon(s.icon, 40)}<span class="pg-step-n" aria-hidden="true">${i + 1}</span></span><h3>${s.title}</h3><p>${s.text}</p></li>`).join("\n")}
   </ol>
-</section>
+</section>${sections(f.more)}
 
 ${faqBlock(f.faq)}
 
-${related(f.related)}`;
+${related(f.related)}${f.sources ? `\n\n${sourcesBlock(f.sources, f.checked ?? "17 October 2026")}` : ""}`;
 }
-
-const MARK: Record<Mark, string> = { yes: "Yes", no: "No", part: "Partly", "": "" };
-const cell = ([m, t]: [Mark, string]) => `<td>${m ? `<span class="cmp-mk ${m}">${icon(m === "yes" ? "check" : m === "no" ? "cross" : "part", 14)}<span class="sr">${MARK[m]}. </span></span>` : ""}<span class="cmp-tx">${t}</span></td>`;
 
 function comparePage(p: Page, c: Comparison): string {
   return `${hero("Compare", undefined, c.h1, c.sub, ["#compare", "See the table"])}
 
 <section class="pg-sec wrap" aria-labelledby="short-t">
-  <div class="pg-short solo">
+  <div class="pg-short${c.shot ? "" : " solo"}">
     <div class="pg-short-tx">
       <h2 class="pg-label" id="short-t">In short</h2>
       <p class="pg-answer">${c.answer}</p>
-    </div>
+    </div>${c.shot ? `\n    <figure class="pg-shot${SHOTS[c.shot].w > SHOTS[c.shot].h ? " land" : ""}">${shot(c.shot)}<figcaption>${c.caption ?? ""}</figcaption></figure>` : ""}
   </div>
 </section>
 
@@ -233,28 +274,22 @@ function comparePage(p: Page, c: Comparison): string {
 ${c.rows.map(r => `      <tr><th scope="row">${r.k}</th>${cell(r.us)}${cell(r.them)}</tr>`).join("\n")}
     </tbody>
   </table>
-  <p class="cmp-key"><span><span class="cmp-mk yes">${icon("check", 14)}</span>Has it</span><span><span class="cmp-mk part">${icon("part", 14)}</span>Partly, or with limits</span><span><span class="cmp-mk no">${icon("cross", 14)}</span>Does not</span></p>
+  ${cmpKey}
 </section>
 
 <section class="pg-sec wrap" aria-labelledby="fit-t">
   <h2 class="pg-h2" id="fit-t">Which one fits you</h2>
   <div class="cmp-fits">
-    <div class="cmp-fit"><h3>Choose ${esc(c.them)} if</h3><ul>${c.fitThem.map(x => `<li>${icon("check", 16)}<span>${x}</span></li>`).join("")}</ul></div>
-    <div class="cmp-fit us"><h3>Choose Glasspad if</h3><ul>${c.fitUs.map(x => `<li>${icon("check", 16)}<span>${x}</span></li>`).join("")}</ul></div>
+    <div class="cmp-fit"><h3>Choose ${esc(c.them)} if</h3>${fitList(c.fitThem)}</div>
+    <div class="cmp-fit us"><h3>Choose Glasspad if</h3>${fitList(c.fitUs)}</div>
   </div>${c.note ? `\n  <p class="cmp-note">${c.note}</p>` : ""}
-</section>
+</section>${sections(c.more)}
 
 ${faqBlock(c.faq)}
 
 ${related(c.related)}
 
-<section class="pg-sec wrap pg-sources" aria-labelledby="src-t">
-  <h2 class="pg-h3" id="src-t">Sources</h2>
-  <p>Checked on 16 October 2026. Prices are from the US App Store and can differ in other countries.</p>
-  <ul>
-${c.sources.map(([t, u]) => `    <li><a href="${u}">${t}</a></li>`).join("\n")}
-  </ul>
-</section>`;
+${sourcesBlock(c.sources, c.checked ?? "16 October 2026")}`;
 }
 
 /** The whole <body> of a Features or Compare page. */
@@ -280,4 +315,4 @@ ${band()}
 
 /** For structured data: the page's questions as plain [q, a] pairs, and its main image. */
 export const pageFaq = (p: Page) => CONTENT[p.path]?.faq;
-export const pageImage = (p: Page) => { const c = CONTENT[p.path]; return c?.kind === "feature" ? { name: c.shot, ...SHOTS[c.shot] } : undefined; };
+export const pageImage = (p: Page) => { const c = CONTENT[p.path]; return c?.shot ? { name: c.shot, ...SHOTS[c.shot] } : undefined; };
