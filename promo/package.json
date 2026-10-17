@@ -29,19 +29,19 @@
     "thumbs:motion": "node scripts/motion/thumbs.mjs --4k"
   },
   "dependencies": {
-    "@remotion/bundler": "4.0.529",
-    "@remotion/cli": "4.0.529",
-    "@remotion/fonts": "4.0.529",
-    "@remotion/motion-blur": "4.0.529",
-    "@remotion/renderer": "4.0.529",
-    "react": "18.3.1",
-    "react-dom": "18.3.1",
-    "remotion": "4.0.529"
+    "@remotion/bundler": "4.0.535",
+    "@remotion/cli": "4.0.535",
+    "@remotion/fonts": "4.0.535",
+    "@remotion/motion-blur": "4.0.535",
+    "@remotion/renderer": "4.0.535",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "remotion": "4.0.535"
   },
   "devDependencies": {
-    "@fontsource/inter": "5.1.0",
-    "@types/react": "18.3.12",
-    "esbuild": "0.25.0",
-    "typescript": "5.6.3"
+    "@fontsource/inter": "5.3.0",
+    "@types/react": "19.3.0",
+    "esbuild": "0.28.2",
+    "typescript": "7.0.2"
   }
 }
