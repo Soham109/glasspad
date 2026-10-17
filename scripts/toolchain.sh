@@ -15,5 +15,7 @@ export GP_DEV_DIR
 # Build products live outside the repo: this checkout sits in an iCloud-synced Desktop, and the
 # file provider tags bundles with Finder info, which makes codesign refuse the test bundle
 # ("resource fork, Finder information, or similar detritus not allowed").
-GP_BUILD_ROOT="${GLASSPAD_BUILD_ROOT:-$HOME/Library/Caches/glasspad-build}"
+# One folder per checkout, so parallel worktrees never share (and fight over) SwiftPM's build.
+GP_CHECKOUT="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/.." && pwd -P)"
+GP_BUILD_ROOT="${GLASSPAD_BUILD_ROOT:-$HOME/Library/Caches/glasspad-build/$(basename "$GP_CHECKOUT")-$(printf %s "$GP_CHECKOUT" | shasum | cut -c1-8)}"
 export GP_BUILD_ROOT
