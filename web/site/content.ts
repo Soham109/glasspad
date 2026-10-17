@@ -28,7 +28,7 @@ export const FAQS: Record<string, { q: string; a: string }[]> = {
     },
     {
       q: "Does anything leave my Wi-Fi?",
-      a: "No. Glasspad pairs once with a QR code, encrypts everything, and your iPhone and Mac talk only over your Wi-Fi. There is no account. Website buttons fetch their site's name and logo from that site.",
+      a: "No. Glasspad pairs once with a QR code, encrypts everything, and your iPhone and Mac talk only over your Wi-Fi. There is no account. Website buttons fetch their site's name and logo from that site, and the Mac may download album artwork for the song playing.",
     },
     {
       q: "What do I need?",
@@ -115,7 +115,7 @@ export const FEATURES: [string, string][] = [
   ["StandBy", "A clock beside Now Playing or your calendar while the iPhone charges, in dim red at night."],
   ["Siri and Shortcuts", "Open a mode or a layout from Siri or the Shortcuts app, plus a Control Center control, a Lock Screen widget and a Live Activity with Remote or Present keys."],
   ["Themes", themesLine()],
-  ["Private", "Paired by QR code, encrypted, no account. Nothing leaves your Wi-Fi, except Website buttons fetching their site's name and logo."],
+  ["Private", "Paired by QR code, encrypted, no account. Your iPhone and Mac talk only over your Wi-Fi. Website buttons fetch their site's logo and the Mac may fetch album art."],
 ];
 
 export const FILM = {
