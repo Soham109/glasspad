@@ -48,11 +48,13 @@ git worktree remove --force "$WT" 2>/dev/null || rm -rf "$WT"
 git worktree prune
 git worktree add -q --detach "$WT" "$REV"
 DD="${HOME}/Library/Caches/glasspad-dd-phone"
-( cd "$WT" && xcodegen -q && xcodebuild -project Glasspad.xcodeproj -scheme "Glasspad iOS" \
+# Release: optimised code, lighter on the battery. GLASSPAD_CONFIG=Debug for a debuggable build.
+CONFIG="${GLASSPAD_CONFIG:-Release}"
+( cd "$WT" && xcodegen -q && xcodebuild -project Glasspad.xcodeproj -scheme "Glasspad iOS" -configuration "$CONFIG" \
     -destination "id=$DEVICE" -derivedDataPath "$DD" \
     -allowProvisioningUpdates -allowProvisioningDeviceRegistration \
     DEVELOPMENT_TEAM="$TEAM" -quiet build </dev/null )
-xcrun devicectl device install app --device "$DEVICE" "$DD/Build/Products/Debug-iphoneos/Glasspad.app" >/dev/null
+xcrun devicectl device install app --device "$DEVICE" "$DD/Build/Products/$CONFIG-iphoneos/Glasspad.app" >/dev/null
 
 # %q keeps any path (spaces, quotes) safe to read back with `source`.
 mkdir -p "$STATE_DIR"
