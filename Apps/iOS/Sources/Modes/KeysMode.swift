@@ -26,6 +26,11 @@ struct KeysMode: View {
     @State private var keyboard = KeyboardController()
     /// The modifiers a held, repeating key of the iPhone keyboard's row started with.
     @State private var heldModifiers: KeyModifiers = []
+    /// The shortcut row's chips by width, the one scrolled to the front, and the one it
+    /// last came to rest on (`ChipWindow`).
+    @State private var chipWidths: [String: CGFloat] = [:]
+    @State private var firstChip: String?
+    @State private var settledChip: String?
 
     var body: some View {
         GeometryReader { geo in
@@ -248,29 +253,71 @@ struct KeysMode: View {
         .accessibilityElement(children: .combine)
     }
 
+    /// The shortcuts, then Clipboard. All of them in a row when they fit. Otherwise the row
+    /// scrolls a chip at a time and, at rest, shows only whole chips: it ends at the last chip
+    /// that fits, with the rest of the room left empty before the globe, so no chip is ever
+    /// cut off under it.
     private var shortcutChips: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 6) {
-                ForEach(Shortcut.common) { shortcut in
-                    Button {
-                        Haptics.shared.tap()
-                        session.send(.keysKeystroke(shortcut.keystroke))
-                    } label: {
-                        HStack(spacing: 5) {
-                            Text(shortcut.name).font(.subheadline.weight(.medium))
-                            Text(shortcut.label).font(.footnote).foregroundStyle(palette.inkSoftColor)
-                        }
-                        .padding(.horizontal, 10)
-                        .frame(maxHeight: .infinity)
-                    }
-                    .buttonStyle(KeyCapStyle(cornerRadius: 9))
-                    .accessibilityLabel(shortcut.name)
-                    .accessibilityHint(shortcut.spoken)
-                }
+        GeometryReader { geo in
+            let room = geo.size.width - 4
+            let measured = Self.chipIDs.map { chipWidths[$0] ?? 0 }
+            let extra = ChipWindow.stretch(widths: measured, spacing: 6, room: room)
+            ScrollView(.horizontal) {
+                chipRow(extra: extra).scrollTargetLayout()
             }
+            .scrollIndicators(.hidden)
+            .scrollTargetBehavior(.viewAligned(limitBehavior: .never))
+            .scrollPosition(id: $firstChip, anchor: .leading)
+            .onScrollPhaseChange { _, phase in
+                if phase == .idle { settledChip = firstChip }
+            }
+            .frame(width: ChipWindow.width(widths: measured.map { $0 + extra },
+                                           from: Self.chipIDs.firstIndex(of: settledChip ?? "") ?? 0,
+                                           spacing: 6, room: room))
+            .animation(.snappy(duration: 0.2), value: settledChip)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
         }
-        .mask(LinearGradient(stops: [.init(color: .black, location: 0.9), .init(color: .clear, location: 1)],
-                             startPoint: .leading, endPoint: .trailing))
+    }
+
+    private static let chipIDs = Shortcut.common.map(\.id) + [AppMode.clipboard.rawValue]
+
+    /// `extra` widens every chip so a row that scrolls fills its first screenful exactly.
+    private func chipRow(extra: CGFloat) -> some View {
+        HStack(spacing: 6) {
+            ForEach(Shortcut.common) { shortcut in
+                chip(shortcut.id, shortcut.name, detail: Text(shortcut.label), extra: extra) {
+                    session.send(.keysKeystroke(shortcut.keystroke))
+                }
+                .accessibilityHint(shortcut.spoken)
+            }
+            // Clipboard lives here and in the Library, not in the mode menu.
+            chip(AppMode.clipboard.rawValue, AppMode.clipboard.title, detail: Text(Image(systemName: "doc.on.clipboard")), extra: extra) {
+                AppRouter.shared.openTool(.clipboard)
+            }
+            .accessibilityHint(AppMode.clipboard.toolHint)
+        }
+    }
+
+    private func chip(_ id: String, _ name: String, detail: Text, extra: CGFloat,
+                      _ action: @escaping () -> Void) -> some View {
+        Button {
+            Haptics.shared.tap()
+            action()
+        } label: {
+            HStack(spacing: 5) {
+                Text(name).font(.subheadline.weight(.medium))
+                detail.font(.footnote).foregroundStyle(palette.inkSoftColor)
+            }
+            .padding(.horizontal, 10)
+            .fixedSize()
+            // Its own width, before any stretch.
+            .onGeometryChange(for: CGFloat.self, of: \.size.width) { chipWidths[id] = $0 }
+            .frame(width: chipWidths[id].map { $0 + extra })
+            .frame(maxHeight: .infinity)
+        }
+        .buttonStyle(KeyCapStyle(cornerRadius: 9))
+        .id(id)
+        .accessibilityLabel(name)
     }
 
     private func stripKey(_ label: String, name: String, _ action: @escaping () -> Void) -> some View {

@@ -574,7 +574,7 @@ Each mode is a `ModeMessage` case pair handled by `GlasspadMacCore/Modes`.
 | Dock | the Mac's Dock and nothing else: Dock apps + running apps in Dock order, running dots, long-press Quit / Hide / Show in Finder / Keep, phone-side order and hiding. Apps outside the Dock are pinned in Actions | read Dock prefs + NSWorkspace, icons as 384 px PNG (3x the largest icon the phone draws) keyed by bundle id + app modification date + size, sent once (`dockSync`), in messages of at most 1.5 MB of icons, launch / activate / reopen (`AppLauncher`), hide the Mac Dock (`MacDockHider`) |
 | Keyboard (stored as `keys`) | text field that streams typed text; arrows, esc, tab, cmd shortcuts row, modifier keys, F1 to F12; dictation works | CGEvent keyboard unicode strings; shortcuts press the key that types that character on the Mac's keyboard layout (`KeyLayout`) |
 | Media | now playing title/artist/art, play/pause/next/prev, scrubbing, shuffle and repeat, sound output, volume, brightness | MediaRemote through `Apps/Mac/Helpers/NowPlayingHelper.m` (since macOS 15.4 MediaRemote answers only Apple processes, so the helper runs inside `/usr/bin/perl`), AppleScript to Spotify and Music, media key events for commands, volume via CoreAudio |
-| Actions (Deck) | one screen: the front app's best buttons (6 by default, up to 8 chosen and ordered per app) above Pinned (favourites of every kind, + opens a searchable Library whose Apps group lists every installed Mac app); folders, sizes, colours, edit on the phone. Sideways it splits: front app on the left half, Pinned on the right. Clipboard and Present are tools in the mode menu. Older Decks move into Pinned once, losslessly (`PinnedDeck.migrated`) | executes actions directly (screencapture, pmset, CoreAudio...), config v3 on the Mac, phone edits via `deckSave` (never shell) |
+| Actions (Deck) | one screen: the front app's best buttons (6 by default, up to 8 chosen and ordered per app) above Pinned (favourites of every kind, + opens a searchable Library whose Apps group lists every installed Mac app); folders, sizes, colours, edit on the phone. Sideways it splits: front app on the left half, Pinned on the right. Present is a tool in the mode menu; Clipboard opens from Keyboard's shortcut row or a Pinned button. Older Decks move into Pinned once, losslessly (`PinnedDeck.migrated`) | executes actions directly (screencapture, pmset, CoreAudio...), config v3 on the Mac, phone edits via `deckSave` (never shell) |
 | Macros | the Mac's macros, the set for the app in front, record on the Mac | GlasspadMacros (docs/SPEC-macros.md) |
 | Clipboard | send phone clipboard to Mac, pull Mac clipboard to phone (text, images) | NSPasteboard |
 | Present | big next/previous buttons, timer, laser dot (move a highlight on the Mac) | arrow keys + transparent overlay window for the laser |
@@ -644,10 +644,14 @@ As built, UX pass (Oct 2026):
   (SwiftUI `defersSystemGestures(on: .all)` while a trackpad shows, alone or in a layout pane).
 - Mode switching: a small pill at the top centre (or the bottom, in Settings) that fades out
   after 2 s, revealed by touching the edge it sits on. Tap it for the mode menu, long press it
-  for Settings. As built (Oct 2026): the pill and the menu are one piece of glass (on iOS 26 the
-  pill grows into the menu); the menu lists the modes, the tools (Clipboard, Present, Remote,
-  Displays unless shown as modes) and a Layouts row with + for a new layout. A small dot on
-  the pill shows the connection only when something is wrong.
+  for Settings, swipe it sideways to flip back to the mode or layout before (again to return;
+  a light tap is felt; VoiceOver action "Previous Mode"). As built (Oct 2026): the pill and the
+  menu are one piece of glass (on iOS 26 the pill grows into the menu); the menu lists the
+  modes, the tools (Present, Remote, Displays unless shown as modes) and a Layouts row with +
+  for a new layout. Clipboard opens from the last chip of Keyboard's shortcut row, from a
+  Pinned button (Library, `glasspad://mode/clipboard`, opened on the phone, never sent to the
+  Mac), from Shortcuts, or as a mode when Actions is split. A small dot on the pill shows the
+  connection only when something is wrong.
 - Haptics: Core Haptics (`CHHapticEngine`) pre-warmed; transient events for
   click, force click ramp, detents. Strength follows Mac click pressure and
   the phone-side slider.

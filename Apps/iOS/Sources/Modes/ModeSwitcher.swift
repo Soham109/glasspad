@@ -2,7 +2,8 @@ import SwiftUI
 import GlasspadKit
 
 /// The small pill at the top centre. It shows the current mode, fades after 2 s, and comes
-/// back when the top edge is touched. Tap it for the mode menu, long press for Settings.
+/// back when the top edge is touched. Tap it for the mode menu, long press for Settings, swipe
+/// it sideways to flip back to the screen before, like the iPhone's Home bar between apps.
 /// The pill and the menu are one piece of glass: on iOS 26 the pill grows into the menu.
 /// A small dot shows the connection only when something is wrong.
 struct ModeSwitcher: View {
@@ -20,6 +21,8 @@ struct ModeSwitcher: View {
     /// cannot do ("glassEffect() tried to update multiple times per frame").
     @State private var expanded = ModeSwitcher.opensAtLaunch
     @State private var hideTask: Task<Void, Never>?
+    /// How far the pill leans with a sideways swipe, a few points at most.
+    @State private var lean: CGFloat = 0
     @Namespace private var glass
 
     var body: some View {
@@ -126,6 +129,9 @@ struct ModeSwitcher: View {
         .frame(minHeight: 40)
         .morphingGlass(Capsule(), id: "switcher", in: glass, interactive: true)
         .contentShape(Capsule())
+        .offset(x: lean)
+        // Only the pill listens: the trackpad around it never sees this swipe.
+        .simultaneousGesture(flipBack)
         .onTapGesture {
             Haptics.shared.tap()
             settings.seenTips.insert(Self.hintID)
@@ -147,6 +153,31 @@ struct ModeSwitcher: View {
             router.showSettings = true
             ScreenAwake.update()
         }
+        .accessibilityActions {
+            if router.previous != nil {
+                Button("Previous Mode") {
+                    if router.showPrevious() { Haptics.shared.tap() }
+                }
+            }
+        }
+    }
+
+    /// A sideways swipe on the pill flips to the screen before this one. The pill leans a
+    /// little with the finger and springs back; a tap or a hold still does what it did.
+    private var flipBack: some Gesture {
+        DragGesture(minimumDistance: 12)
+            .onChanged { drag in
+                let dx = drag.translation.width
+                guard !reduceMotion, abs(dx) > abs(drag.translation.height) else { return }
+                lean = (dx < 0 ? -1 : 1) * min(10, abs(dx) * 0.2)
+            }
+            .onEnded { drag in
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) { lean = 0 }
+                let dx = drag.translation.width, dy = drag.translation.height
+                let flung = abs(drag.predictedEndTranslation.width) > 80
+                guard abs(dx) > 2 * abs(dy), abs(dx) > 32 || (abs(dx) > 16 && flung) else { return }
+                if router.showPrevious() { Haptics.shared.tap() }
+            }
     }
 
     // MARK: First-run hint
@@ -187,7 +218,7 @@ struct ModeSwitcher: View {
     private var menu: some View {
         let modes = AppMode.visible
         // Every mode that opens on top instead of replacing the screen, unless shown as a mode.
-        let tools = AppMode.allCases.filter { $0.isTool && !modes.contains($0) }
+        let tools = AppMode.allCases.filter { $0.inToolsRow && !modes.contains($0) }
         return VStack(spacing: 8) {
             header
             if session.macNeedsAccessibility {
