@@ -218,7 +218,7 @@
 .foot-credit { margin-top: -8px; padding-bottom: clamp(16px, 3vw, 28px); font-size: 13px; color: var(--ink-2); }
 .foot-credit a { color: inherit; text-underline-offset: 2px; }
 .foot-mark { display: flex; justify-content: center; height: 0.6em; overflow: hidden; font-size: 22vw; line-height: 1; user-select: none; }
-.foot-mark span { display: block; margin-top: -0.06em; font-weight: 700; letter-spacing: -0.06em; white-space: nowrap; color: var(--ink); }
+.foot-word { display: block; width: 100%; height: 0.6em; overflow: visible; font-family: var(--font); font-size: 1em; font-weight: 700; letter-spacing: -0.06em; fill: var(--mark, var(--ink)); }
 
 @media (max-width: 860px) {
   .ig-label { position: static; }
@@ -354,4 +354,3 @@ h2 { font-size: clamp(40px, 6.6vw, 84px); line-height: 1.02; letter-spacing: -0.
 .film-frame iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
 @media (prefers-reduced-motion: reduce) { .film-play img, .film-btn { transition: none; } }
 .foot-mark { --mark: #D9D5CC; box-sizing: border-box; max-width: var(--max); margin: 0 auto; padding: 0 var(--gutter); }
-.foot-mark span { color: var(--mark); }

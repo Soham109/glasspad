@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "prebuild": "node scripts/sync-screens.mjs",
+    "prebuild": "node scripts/sync-screens.mjs && node scripts/learn.mjs",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview --port 4173",
     "shots": "node scripts/shots.mjs"

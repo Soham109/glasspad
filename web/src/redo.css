@@ -1,72 +1,3 @@
-/* ---------- Floating glass nav ---------- */
-.nav {
-  position: fixed; z-index: 30;
-  top: 12px; left: 50%; right: auto; bottom: auto;
-  transform: translateX(-50%) scale(var(--ns, 1));
-  transform-origin: 50% 0;
-  height: 52px; padding: 0 6px 0 8px; gap: 4px;
-  display: flex; align-items: center;
-  border-radius: 999px;
-  background: rgba(246, 245, 242, 0.72);
-  -webkit-backdrop-filter: saturate(1.8) blur(20px);
-  backdrop-filter: saturate(1.8) blur(20px);
-  border: 1px solid rgba(26, 26, 26, 0.08);
-  box-shadow: 0 1px 2px rgba(20, 20, 20, 0.06), 0 10px 30px -12px rgba(20, 20, 20, 0.22);
-  color: var(--ink);
-  transition: transform 560ms var(--ease-snappy), background-color 320ms ease, border-color 320ms ease, color 320ms ease, box-shadow 320ms ease;
-}
-.nav.scrolled { --ns: 0.94; }
-.nav.on-dark {
-  background: rgba(30, 30, 30, 0.66);
-  border-color: rgba(242, 241, 238, 0.12);
-  color: var(--on-dark);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 10px 30px -12px rgba(0, 0, 0, 0.6);
-}
-.brand { padding: 0 10px 0 4px; height: 40px; border-radius: 999px; font-size: 15px; }
-.brand img { width: 26px; height: 26px; border-radius: 7px; }
-.nav-links { position: relative; display: flex; gap: 0; margin: 0; font-size: 14px; }
-.nav-links a {
-  position: relative; z-index: 1;
-  display: flex; align-items: center; height: 40px; padding: 0 14px; border-radius: 999px;
-  text-decoration: none; opacity: 0.72; transition: opacity 200ms;
-}
-.nav-links a:hover, .nav-links a[aria-current="true"] { opacity: 1; }
-.nav-ind {
-  position: absolute; z-index: 0; top: 0; left: 0; height: 40px; border-radius: 999px;
-  background: rgba(26, 26, 26, 0.07);
-  opacity: 0;
-  transition: transform 560ms var(--ease-snappy), width 560ms var(--ease-snappy), opacity 240ms ease, background-color 320ms;
-}
-.nav.on-dark .nav-ind { background: rgba(242, 241, 238, 0.12); }
-.nav-gh { width: 40px; height: 40px; margin-left: 2px; }
-.nav-menu { display: none; }
-.nav-sheet { display: none; }
-@media (max-width: 760px) {
-  .nav { width: calc(100% - 24px); max-width: 420px; justify-content: space-between; }
-  .nav.scrolled { --ns: 0.97; }
-  .nav-links { display: none; }
-  .nav-gh { margin-left: auto; }
-  .nav-menu {
-    display: flex; align-items: center; gap: 6px; height: 40px; padding: 0 14px; border: 0; border-radius: 999px;
-    background: rgba(26, 26, 26, 0.07); font-size: 14px; font-weight: 550; cursor: pointer;
-  }
-  .nav.on-dark .nav-menu { background: rgba(242, 241, 238, 0.12); }
-  .nav-sheet {
-    position: fixed; z-index: 29; top: 72px; left: 12px; right: 12px; max-width: 420px; margin: 0 auto;
-    display: flex; flex-direction: column; padding: 8px; border-radius: 26px;
-    background: rgba(246, 245, 242, 0.86);
-    -webkit-backdrop-filter: saturate(1.8) blur(20px); backdrop-filter: saturate(1.8) blur(20px);
-    border: 1px solid rgba(26, 26, 26, 0.08);
-    box-shadow: 0 18px 40px -16px rgba(20, 20, 20, 0.3);
-    transform-origin: 50% 0;
-    opacity: 0; transform: translateY(-8px) scale(0.97); pointer-events: none; visibility: hidden;
-    transition: opacity 220ms ease, transform 480ms var(--ease-snappy), visibility 0s 480ms;
-  }
-  .nav-sheet.open { opacity: 1; transform: none; pointer-events: auto; visibility: visible; transition: opacity 220ms ease, transform 480ms var(--ease-snappy), visibility 0s; }
-  .nav-sheet a { padding: 14px 16px; border-radius: 16px; text-decoration: none; font-size: 17px; }
-  .nav-sheet a:hover { background: rgba(26, 26, 26, 0.05); }
-}
-
 /* ---------- Rooms: the panel and the MacBook drawn in it ---------- */
 .scene {
   position: relative;
@@ -266,8 +197,6 @@
   .mode-side { display: grid; grid-template-columns: 1fr; gap: 20px; }
   .mini-mac { max-width: 420px; }
 }
-.nav-sheet.on-dark { background: rgba(30, 30, 30, 0.84); border-color: rgba(242, 241, 238, 0.12); color: var(--on-dark); }
-.nav-sheet.on-dark a:hover { background: rgba(242, 241, 238, 0.08); }
 .scene { max-width: min(1160px, calc((100svh - 150px) * 16 / 9.4)); }
 .scene { aspect-ratio: 16 / 10.2; max-width: min(1160px, calc((100svh - 140px) * 16 / 10.2)); }
 .mbp { top: 4cqw; }

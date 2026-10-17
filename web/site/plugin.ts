@@ -1,7 +1,10 @@
-/* Builds what search engines and language models read, from pages.ts and content.ts:
+/* Builds every page's shared parts, and what search engines and language models read, from
+   pages.ts, content.ts and features.ts:
    - in each page: <!--site:head--> (title, description, canonical, icons, social cards, JSON-LD),
-     <!--site:faq--> (the page's questions), <!--site:learn--> (the footer's Learn links),
-     and <picture> with AVIF and WebP for images that have light copies (scripts/sync-screens.mjs);
+     <!--site:nav--> and <!--site:footer--> (the same nav and footer everywhere, from render.ts),
+     <!--site:page--> (a whole Features or Compare page, from render.ts), <!--site:faq--> (the
+     page's questions), and <picture> with AVIF and WebP for images that have light copies
+     (scripts/sync-screens.mjs);
    - sitemap.xml, llms.txt and llms-full.txt. */
 
 import type { Plugin } from "vite";
@@ -10,6 +13,8 @@ import { join } from "node:path";
 import { SITE, REPO, RELEASE, RELEASED, VERSION, pages, type Page } from "./pages";
 import { DEFINITION, FAQS, HOWTO, NEEDS, FEATURES, FILM, INSTALL, LINKS } from "./content";
 import { themesLine } from "../src/themes";
+import { nav, footer, body, pageFaq, pageImage } from "./render";
+import { CONTENT } from "./features";
 
 const NAME = "Glasspad";
 const TAGLINE = "A control surface for your Mac, on your iPhone.";
@@ -44,9 +49,9 @@ function schema(p: Page): object {
     app,
     { "@type": "SoftwareSourceCode", "@id": `${SITE}/#code`, name: NAME, codeRepository: REPO, programmingLanguage: "Swift", license: "https://opensource.org/licenses/MIT", author: { "@id": PERSON["@id"] }, targetProduct: { "@id": app["@id"] } },
     {
-      "@type": "WebPage", "@id": `${url(p)}#page`, url: url(p), name: p.title!, description: p.description!,
+      "@type": "WebPage", "@id": `${url(p)}#page`, url: url(p), name: p.title, description: p.description,
       isPartOf: { "@id": `${SITE}/#website` }, about: { "@id": app["@id"] }, dateModified: p.lastmod, inLanguage: "en",
-      primaryImageOfPage: { "@type": "ImageObject", url: OG.url, width: OG.width, height: OG.height },
+      primaryImageOfPage: image(p),
       ...(p.crumb ? { breadcrumb: { "@id": `${url(p)}#crumbs` } } : {}),
     },
   ];
@@ -54,9 +59,10 @@ function schema(p: Page): object {
     "@type": "BreadcrumbList", "@id": `${url(p)}#crumbs`,
     itemListElement: [{ name: NAME, item: url(home) }, { name: p.crumb, item: url(p) }].map((c, i) => ({ "@type": "ListItem", position: i + 1, ...c })),
   });
-  if (p.faq) graph.push({
+  const qa = questions(p);
+  if (qa) graph.push({
     "@type": "FAQPage", "@id": `${url(p)}#faq`, url: url(p),
-    mainEntity: FAQS[p.faq].map(f => ({ "@type": "Question", name: f.q, acceptedAnswer: { "@type": "Answer", text: plain(f.a) } })),
+    mainEntity: qa.map(([q, a]) => ({ "@type": "Question", name: plain(q), acceptedAnswer: { "@type": "Answer", text: plain(a) } })),
   });
   if (p === home) graph.push(
     {
@@ -75,12 +81,23 @@ function schema(p: Page): object {
   return { "@context": "https://schema.org", "@graph": graph };
 }
 
+/** The page's questions as [question, answer HTML]: home and the guide from content.ts, the others from features.ts. */
+const questions = (p: Page): [string, string][] | undefined => p.faq ? FAQS[p.faq].map(f => [f.q, f.a]) : pageFaq(p);
+
+/** The page's main picture: its real app screen on Features pages, else the social card. */
+function image(p: Page) {
+  const s = pageImage(p);
+  return s
+    ? { "@type": "ImageObject", url: `${SITE}/img/screens/${s.name}.png`, width: s.w, height: s.h, caption: s.alt }
+    : { "@type": "ImageObject", url: OG.url, width: OG.width, height: OG.height };
+}
+
 function head(p: Page): string {
   const u = url(p);
-  if (!p.title || !p.description) throw new Error(`site: ${p.file} uses <!--site:head--> but has no title or description in site/pages.ts`);
+  const og = p.ogTitle ?? p.title;
   return [
-    `<title>${esc(p.title!)}</title>`,
-    `<meta name="description" content="${esc(p.description!)}">`,
+    `<title>${esc(p.title)}</title>`,
+    `<meta name="description" content="${esc(p.description)}">`,
     `<link rel="canonical" href="${u}">`,
     `<meta name="theme-color" content="#F2F1EE">`,
     `<link rel="icon" href="/favicon.ico" sizes="48x48">`,
@@ -92,16 +109,16 @@ function head(p: Page): string {
     `<meta property="og:site_name" content="${NAME}">`,
     `<meta property="og:locale" content="en_US">`,
     `<meta property="og:url" content="${u}">`,
-    `<meta property="og:title" content="${esc(p.title!)}">`,
-    `<meta property="og:description" content="${esc(p.description!)}">`,
+    `<meta property="og:title" content="${esc(og)}">`,
+    `<meta property="og:description" content="${esc(p.description)}">`,
     `<meta property="og:image" content="${OG.url}">`,
     `<meta property="og:image:type" content="image/png">`,
     `<meta property="og:image:width" content="${OG.width}">`,
     `<meta property="og:image:height" content="${OG.height}">`,
     `<meta property="og:image:alt" content="${esc(OG.alt)}">`,
     `<meta name="twitter:card" content="summary_large_image">`,
-    `<meta name="twitter:title" content="${esc(p.title!)}">`,
-    `<meta name="twitter:description" content="${esc(p.description!)}">`,
+    `<meta name="twitter:title" content="${esc(og)}">`,
+    `<meta name="twitter:description" content="${esc(p.description)}">`,
     `<meta name="twitter:image" content="${OG.url}">`,
     `<meta name="twitter:image:alt" content="${esc(OG.alt)}">`,
     `<script type="application/ld+json">${json(schema(p))}</script>`,
@@ -110,12 +127,6 @@ function head(p: Page): string {
 
 const faq = (p: Page) => `<dl class="faq">\n${FAQS[p.faq!].map(f => `<dt>${esc(f.q)}</dt>\n<dd>${f.a}</dd>`).join("\n")}\n</dl>`;
 
-/** The footer's Learn list, as scripts/learn.mjs writes it on the Learn pages. */
-function learn(): string {
-  const list = pages.filter(p => p.learn);
-  if (!list.length) return "";
-  return `<nav class="wrap lp-learn" aria-labelledby="learn-t">\n    <h2 id="learn-t">Learn</h2>\n    <ul>\n${list.map(p => `      <li><a href="${p.path}">${esc(p.learn!)}</a></li>`).join("\n")}\n    </ul>\n  </nav>`;
-}
 
 /** <img src="/x.png"> becomes <picture> with AVIF and WebP when /img/x.avif and .webp exist in public/. */
 function pictures(html: string, pub: string): string {
@@ -140,6 +151,16 @@ const facts = () => [
   `- Made by Soham Aggarwal (https://sohamaggarwal.com)`,
 ];
 
+/** The page list for llms.txt, grouped as the nav groups it. */
+function pageList(): string[] {
+  const line = (p: Page) => `- [${p.crumb ?? "Home"}](${url(p)}): ${p.summary}`;
+  return [
+    "## Pages", "", ...pages.filter(p => !p.group).map(line), "",
+    "## Feature pages", "", ...pages.filter(p => p.group === "feature").map(line), "",
+    "## Comparison pages", "", ...pages.filter(p => p.group === "compare").map(line), "",
+  ];
+}
+
 function llms(): string {
   return [
     `# ${NAME}`,
@@ -148,10 +169,7 @@ function llms(): string {
     "",
     ...facts(),
     "",
-    "## Pages",
-    "",
-    ...pages.map(p => `- [${p.crumb ?? "Home"}](${url(p)}): ${p.summary}`),
-    "",
+    ...pageList(),
     "## Links",
     "",
     ...LINKS.map(([t, h, d]) => `- [${t}](${h}): ${d}`),
@@ -194,10 +212,11 @@ function llmsFull(): string {
     "",
     ...qa("home"),
     ...qa("guide"),
-    "## Pages",
-    "",
-    ...pages.map(p => `- [${p.crumb ?? "Home"}](${url(p)}): ${p.summary}`),
-    "",
+    ...pages.filter(p => p.group).flatMap(p => {
+      const c = CONTENT[p.path];
+      return [`## ${p.crumb}`, "", `${url(p)}`, "", plain(c.answer), "", ...c.faq.flatMap(([q, a]) => [`### ${plain(q)}`, "", plain(a), ""])];
+    }),
+    ...pageList(),
     "## Links",
     "",
     ...LINKS.slice(0, -1).map(([t, h, d]) => `- [${t}](${h}): ${d}`),
@@ -221,8 +240,15 @@ export function site(): Plugin {
       const p = pages.find(x => x.file === file);
       if (!p) throw new Error(`site: ${file} is not in site/pages.ts`);
       if (p.faq && !html.includes("<!--site:faq-->")) throw new Error(`site: ${file} has no <!--site:faq-->`);
-      if (html.includes("<!--site:head-->")) html = html.replace("<!--site:head-->", head(p));
-      html = html.replace("<!--site:learn-->", learn());
+      if (!html.includes("<!--site:head-->")) throw new Error(`site: ${file} has no <!--site:head-->`);
+      html = html.replace("<!--site:head-->", head(p));
+      if (p.group) {
+        if (!html.includes("<!--site:page-->")) throw new Error(`site: ${file} has no <!--site:page--> (run node scripts/learn.mjs)`);
+        html = html.replace("<!--site:page-->", body(p));
+      } else {
+        if (!html.includes("<!--site:nav-->") || !html.includes("<!--site:footer-->")) throw new Error(`site: ${file} needs <!--site:nav--> and <!--site:footer-->`);
+        html = html.replace("<!--site:nav-->", nav(p)).replace("<!--site:footer-->", footer(p));
+      }
       if (p.faq) html = html.replace("<!--site:faq-->", faq(p));
       // the theme line as guide.ts writes it, so it is in the page without JavaScript
       html = html.replace(/(<li data-themes>)[^<]*(<\/li>)/, `$1Settings, then Theme. ${themesLine()} System follows your iPhone.$2`);

@@ -270,6 +270,8 @@ export function initScenes() {
   const stage = document.getElementById("ucStage"), tabs = document.getElementById("ucTabs"), cap = document.getElementById("ucCap");
   if (!stage || !tabs || !cap) return;
   stage.innerHTML = SCENES.map(c => c.html()).join("");
+  // the rooms are drawings: out of the tab order and the accessibility tree (the stage names them)
+  stage.querySelectorAll<HTMLElement>(".scene").forEach(s => { s.inert = true; });
   fitAll(stage);
   const panes = Array.from(stage.children) as HTMLElement[];
   const btns: HTMLButtonElement[] = [];
@@ -278,6 +280,7 @@ export function initScenes() {
   const fresh = (i: number) => {
     const box = document.createElement("div"); box.innerHTML = SCENES[i].html();
     const el = box.firstElementChild as HTMLElement;
+    el.inert = true;
     el.classList.toggle("on", i === cur); el.setAttribute("aria-hidden", String(i !== cur));
     panes[i].replaceWith(el); panes[i] = el; fitAll(el);
     return el;
@@ -318,3 +321,29 @@ export function initScenes() {
   document.addEventListener("visibilitychange", () => { if (!document.hidden && visible) { token++; run(cur, token); } });
 }
 
+
+/** One room on its own (the Features pages): drawn fresh for each pass, looping while on screen. */
+export function mountRoom(root: HTMLElement, key: string) {
+  const room = SCENES.find(c => c.key === key);
+  if (!room) return;
+  const draw = () => {
+    root.innerHTML = room.html();
+    const el = root.firstElementChild as HTMLElement;
+    el.classList.add("on"); el.inert = true; fitAll(el);
+    return el;
+  };
+  draw();
+  if (reduce) return;
+  let token = 0, visible = false;
+  const go = async (t: number) => {
+    for (;;) {
+      const el = draw();
+      const s = new Scene(el.querySelector<HTMLElement>(".ip-screen")!, el, () => t === token && visible && !document.hidden);
+      try { await s.wait(400); await room.run(s); } catch { s.clear(); return; }
+      s.clear();
+    }
+  };
+  const start = () => { token++; if (visible && !document.hidden) go(token); };
+  new IntersectionObserver(([e]) => { if (e.isIntersecting === visible) return; visible = e.isIntersecting; start(); }, { threshold: 0.3 }).observe(root);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) start(); });
+}

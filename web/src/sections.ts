@@ -19,45 +19,6 @@ export function initReveals() {
   els.forEach(e => io.observe(e));
 }
 
-/* ---------- Nav: floating glass pill ---------- */
-export function initNav() {
-  const nav = document.getElementById("nav")!;
-  const ind = document.getElementById("navInd")!;
-  const links = Array.from(document.querySelectorAll<HTMLAnchorElement>("#navLinks a"));
-  const darks = Array.from(document.querySelectorAll<HTMLElement>(".dark"));
-  const targets = links.map(a => { const h = a.getAttribute("href")!; return h.startsWith("#") ? document.querySelector<HTMLElement>(h) : null; });
-  const menu = document.getElementById("navMenu")!, sheet = document.getElementById("navSheet")!;
-  let active = -1;
-  const place = () => {
-    if (active < 0) { ind.style.opacity = "0"; return; }
-    const a = links[active];
-    ind.style.opacity = "1"; ind.style.width = a.offsetWidth + "px"; ind.style.transform = `translateX(${a.offsetLeft}px)`;
-  };
-  const update = () => {
-    nav.classList.toggle("scrolled", scrollY > 24);
-    const mid = 38;
-    const dark = darks.some(d => { const r = d.getBoundingClientRect(); return r.top <= mid && r.bottom >= mid; });
-    nav.classList.toggle("on-dark", dark);
-    sheet.classList.toggle("on-dark", dark);
-    let a = -1; const line = innerHeight * 0.4;
-    targets.forEach((t, i) => { if (t && t.getBoundingClientRect().top <= line) a = i; });
-    if (a >= 0 && targets[a]!.getBoundingClientRect().bottom < line) a = -1;
-    if (a !== active) { active = a; links.forEach((l, i) => l.setAttribute("aria-current", String(i === a))); place(); }
-  };
-  let ticking = false;
-  addEventListener("scroll", () => { if (!ticking) { ticking = true; requestAnimationFrame(() => { ticking = false; update(); }); } }, { passive: true });
-  addEventListener("resize", place);
-  const close = () => { sheet.classList.remove("open"); menu.setAttribute("aria-expanded", "false"); menu.textContent = "Menu"; };
-  menu.addEventListener("click", () => {
-    const open = !sheet.classList.contains("open");
-    sheet.classList.toggle("open", open); menu.setAttribute("aria-expanded", String(open)); menu.textContent = open ? "Close" : "Menu";
-    if (open) (sheet.querySelector("a") as HTMLElement).focus();
-  });
-  sheet.addEventListener("click", e => { if ((e.target as HTMLElement).closest("a")) close(); });
-  addEventListener("keydown", e => { if (e.key === "Escape" && sheet.classList.contains("open")) { close(); menu.focus(); } });
-  update();
-}
-
 /* ---------- Scroll-linked: hero mark eases back, demo phone settles into place ---------- */
 export function initScrollLinked() {
   if (reduce) return;

@@ -1,7 +1,7 @@
 import { clamp, lerp, minJerk, reducedMotion, nextFrame, sleep } from "./spring";
 import { APPS, appIcon } from "./apps";
 import { glyph } from "./glyphs";
-import { Scene, Cancel, tl } from "./kit";
+import { Scene, Cancel, tl, phone, loopInView } from "./kit";
 import { menuBar } from "./scenes";
 
 /* Recreations of the iPhone app's own screens (Apps/iOS/Sources/Modes), drawn in iPhone points. */
@@ -236,6 +236,8 @@ export function initModes() {
   const rot = document.getElementById("mdRot")!, device = document.getElementById("modeDevice")!;
   const copy = document.getElementById("modeCopy")!, scroller = document.getElementById("modesScroll")!;
   const screen = document.querySelector("#modeIphone .ip-screen") as HTMLElement;
+  // the drawn screens are pictures; the rail and the words beside them carry the meaning
+  wrapS.inert = true; mmd.inert = true;
 
   const buttons: HTMLButtonElement[] = [], screens: HTMLElement[] = [], layers: HTMLElement[] = [];
   MODES.forEach((m, i) => {
@@ -317,4 +319,18 @@ export function initModes() {
     if (!visible) { token++; } else if (current >= 0) { const c = current; current = -1; show(c); }
   }).observe(device);
   show(0); fit(); onScroll();
+}
+
+/** One mode on its own (the Features pages): the phone beside a small Mac, looping while on screen. */
+export function mountMode(root: HTMLElement, key: string) {
+  const m = MODES.find(x => x.key === key);
+  if (!m) return;
+  // the two boxes are in the page already (site/render.ts), sized by CSS, so nothing moves when they fill
+  root.querySelector(".pgm-phone")!.innerHTML = phone("portrait", "light", `<div class="ms on">${m.phone()}</div>`);
+  root.querySelector(".pgm-mac")!.innerHTML = `<div class="mini-mac"><div class="mm-display"><div class="mm-layer on">${m.mac()}</div></div></div><div class="pgm-foot"></div>`;
+  const screen = root.querySelector<HTMLElement>(".ip-screen")!, ms = root.querySelector<HTMLElement>(".ms")!;
+  root.querySelectorAll<HTMLElement>(".pgm-phone, .pgm-mac").forEach(e => { e.inert = true; });
+  const fit = () => { const w = screen.clientWidth; if (w) ms.querySelectorAll<HTMLElement>(".pt").forEach(pt => { pt.style.transform = `scale(${w / 402})`; }); };
+  new ResizeObserver(fit).observe(screen); fit();
+  loopInView(root, ms, root.querySelector<HTMLElement>(".mm-layer")!, s => m.run(s));
 }

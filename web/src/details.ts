@@ -138,6 +138,7 @@ export function initDetails() {
   grid.innerHTML = CARDS.map(c => `<article class="mk reveal" data-k="${c.key}"><div class="mk-art" aria-hidden="true"><div class="pt mk-pt">${c.art()}</div></div><h3>${c.title}</h3><p>${c.text}</p></article>`).join("");
   grid.querySelectorAll<HTMLElement>(".mk").forEach((el, i) => {
     const art = el.querySelector<HTMLElement>(".mk-art")!, pt = art.querySelector<HTMLElement>(".pt")!;
+    art.inert = true;
     const fit = () => { const k = art.clientWidth / W; pt.style.transform = `scale(${k})`; art.style.height = H * k + "px"; };
     new ResizeObserver(fit).observe(art); fit();
     loopInView(el, art, el, s => CARDS[i].run(s), () => CARDS[i].reset(el));
