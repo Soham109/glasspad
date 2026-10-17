@@ -19,6 +19,12 @@ public protocol DisplaysBackend: AnyObject {
     /// Back to the last permanent setup (what was there before an unconfirmed change).
     func restorePermanent()
     func setBrightness(_ value: Double, display: UInt32)
+    /// One window's frame (global display coordinates) without reading the others or asking
+    /// apps through Accessibility; nil when it has closed.
+    func frame(of window: UInt32) -> CGRect?
+    /// Outlines this frame (global display coordinates) for a moment, over everything and
+    /// without taking clicks; nothing moves or comes forward.
+    func highlight(_ frame: CGRect)
 }
 
 /// One thing done to one window, with the frame already worked out.
@@ -109,7 +115,7 @@ public final class DisplaysMode {
         return DisplaysState(displays: backend.displays(), windows: backend.windows(), nightShift: nightShift(),
                              canArrangeWindows: backend.canArrangeWindows, tileMargin: Double(backend.tileMargin),
                              pending: pending.map { PendingDisplayChange(summary: $0.summary, secondsLeft: left ?? 0) },
-                             arrangements: WindowArrangement.allCases.map(\.rawValue))
+                             arrangements: WindowArrangement.allCases.map(\.rawValue), highlightsWindows: true)
     }
 
     /// Sends the state when it changed, with the icons of apps the phone has not seen first.
@@ -186,6 +192,14 @@ public final class DisplaysMode {
             return [(id, .arrange(arrangement, with: Array(ids.dropFirst()), visible: d.visibleFrame, gap: CGFloat(s.tileMargin),
                                   display: d.name))]
         }
+    }
+
+    /// The phone picked this window: outline it on the Mac so the person sees which one it is.
+    /// No answer, and nothing for a window that has closed. Reads that one window only: picks
+    /// come often, and the full window list asks every app through Accessibility.
+    public func highlight(windowID: UInt32) {
+        guard let frame = backend.frame(of: windowID) else { return }
+        backend.highlight(frame)
     }
 
     // MARK: Displays

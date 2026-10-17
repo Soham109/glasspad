@@ -13,6 +13,7 @@ import { loadFonts as loadFonts2 } from "./v2/system";
 import { FilmV4, FILM_V4_LEN } from "./v4/Film";
 import { PosterV4 } from "./v4/Poster";
 import { MotionFilm, MOTION_LEN } from "./motion/Film";
+import { THUMBS } from "./motion/thumbs/Thumbs";
 
 loadFonts();
 loadFonts2();
@@ -31,6 +32,7 @@ export const Root: React.FC = () => (
     ))}
     <Composition id="GlasspadFilmV4" component={FilmV4} durationInFrames={FILM_V4_LEN} fps={60} width={1920} height={1080} />
     <Composition id="GlasspadMotion" component={MotionFilm} durationInFrames={MOTION_LEN} fps={60} width={1920} height={1080} />
+    {THUMBS.map(([k, T]) => <Still key={k} id={`MotionThumb-${k}`} component={T} width={1280} height={720} />)}
     <Still id="GlasspadPosterV4" component={PosterV4} width={1920} height={1080} />
     <Still id="GlasspadOGPaper" component={OGPaper} width={1200} height={630} />
     <Still id="GlasspadOGGraphite" component={OGGraphite} width={1200} height={630} />

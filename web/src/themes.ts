@@ -2,13 +2,18 @@
    (names, groups, hex values and secondary text opacity), in the order Settings lists them.
    The Themes card on the home page and the guide both read this list.
    Themes that follow light and dark show their light colors; the swatch shows both halves.
-   Glass backdrops are the catalog's color pools as gradients. Photo stands in for a picked photo. */
+   Glass backdrops are the catalog's color pools as gradients. Photo stands in for a picked photo.
+   Regenerate the list with scripts/web-themes.sh. */
 export interface Theme {
-  key: string; name: string; group: "Classic" | "Glass" | "Color" | "Photo";
+  key: string; name: string; group: "Classic" | "Glass" | "Color" | "Grain" | "Tinted" | "Photo";
   bg: string; tile: string; ink: string; ink2: string; accent: string; swatch: string;
   dark?: boolean;
   /** No color anywhere: every accent is the ink. */
   mono?: boolean;
+  /** One hue for everything: every accent is the theme's accent. */
+  tinted?: boolean;
+  /** A still grain over the surface, at most this far either way (0...1). */
+  grain?: number;
 }
 
 export const THEMES: Theme[] = [
@@ -39,14 +44,25 @@ export const THEMES: Theme[] = [
   { key: "solar", name: "Solar", group: "Color", bg: "#FBF2DE", tile: "#FFFAEE", ink: "#23343B", ink2: "rgba(35,52,59,0.7)", accent: "#B04A12", swatch: "#FBF2DE" },
   { key: "frost", name: "Frost", group: "Color", bg: "#2E3440", tile: "#3B4252", ink: "#ECEFF4", ink2: "rgba(236,239,244,0.74)", accent: "#88C0D0", swatch: "#2E3440", dark: true },
   { key: "dawn", name: "Dawn", group: "Color", bg: "#FAF4ED", tile: "#FFFAF3", ink: "#4A4569", ink2: "rgba(74,69,105,0.8)", accent: "#7A5C9E", swatch: "#FAF4ED" },
+  { key: "grain", name: "Grain", group: "Grain", bg: "#ECE7DD", tile: "rgba(255,255,255,0.5)", ink: "#1E1A15", ink2: "rgba(30,26,21,0.7)", accent: "#A0361E", swatch: "#ECE7DD", grain: 0.07 },
+  { key: "grainDark", name: "Grain Dark", group: "Grain", bg: "#1A1917", tile: "rgba(255,255,255,0.06)", ink: "#EEEAE2", ink2: "rgba(238,234,226,0.66)", accent: "#E3B47E", swatch: "#1A1917", dark: true, grain: 0.06 },
+  { key: "risograph", name: "Risograph", group: "Grain", bg: "#F2DFD6", tile: "rgba(255,255,255,0.5)", ink: "#1D3478", ink2: "rgba(29,52,120,0.84)", accent: "#C4245F", swatch: "#F2DFD6", grain: 0.075 },
+  { key: "film", name: "Film", group: "Grain", bg: "#0F1716", tile: "rgba(255,255,255,0.06)", ink: "#F2E8D9", ink2: "rgba(242,232,217,0.66)", accent: "#EFA35F", swatch: "#0F1716", dark: true, grain: 0.065 },
+  { key: "monoBlue", name: "Mono Blue", group: "Tinted", bg: "#E1E8F2", tile: "#F5F7FB", ink: "#132B4F", ink2: "rgba(19,43,79,0.72)", accent: "#135AC4", swatch: "linear-gradient(90deg, #E1E8F2 50%, #101B2B 50%)", tinted: true },
+  { key: "monoGreen", name: "Mono Green", group: "Tinted", bg: "#DDEAE3", tile: "#F3F8F6", ink: "#163022", ink2: "rgba(22,48,34,0.72)", accent: "#246C45", swatch: "linear-gradient(90deg, #DDEAE3 50%, #101D16 50%)", tinted: true },
+  { key: "monoRose", name: "Mono Rose", group: "Tinted", bg: "#F2E4E7", tile: "#FBF6F7", ink: "#4D1925", ink2: "rgba(77,25,37,0.72)", accent: "#B62345", swatch: "linear-gradient(90deg, #F2E4E7 50%, #2A1319 50%)", tinted: true },
+  { key: "monoAmber", name: "Mono Amber", group: "Tinted", bg: "#EFE6D8", tile: "#FAF7F1", ink: "#3A280C", ink2: "rgba(58,40,12,0.72)", accent: "#86540A", swatch: "linear-gradient(90deg, #EFE6D8 50%, #22190C 50%)", tinted: true },
+  { key: "monoViolet", name: "Mono Violet", group: "Tinted", bg: "#EAE5F1", tile: "#F8F6FB", ink: "#332153", ink2: "rgba(51,33,83,0.72)", accent: "#733FCC", swatch: "linear-gradient(90deg, #EAE5F1 50%, #1E162C 50%)", tinted: true },
+  { key: "monoSlate", name: "Mono Slate", group: "Tinted", bg: "#E5E7EA", tile: "#F6F7F8", ink: "#252C33", ink2: "rgba(37,44,51,0.72)", accent: "#4F6176", swatch: "linear-gradient(90deg, #E5E7EA 50%, #181B1E 50%)", tinted: true },
+  { key: "customTint", name: "Custom Tint", group: "Tinted", bg: "#DBEAEA", tile: "#F2F8F8", ink: "#142F2F", ink2: "rgba(20,47,47,0.72)", accent: "#206969", swatch: "linear-gradient(90deg, #DBEAEA 50%, #101D1D 50%)", tinted: true },
   { key: "photo", name: "Photo", group: "Photo", bg: "radial-gradient(60% 60% at 30% 30%, #F2C38Bd9, transparent), radial-gradient(55% 55% at 75% 70%, #5C86B8d9, transparent), radial-gradient(40% 40% at 80% 20%, #E78C6Ed9, transparent), #7A8C9E", tile: "rgba(255,255,255,.52)", ink: "#11141C", ink2: "rgba(17,20,28,0.68)", accent: "#11141C", swatch: "radial-gradient(60% 60% at 30% 30%, #F2C38Bd9, transparent), radial-gradient(55% 55% at 75% 70%, #5C86B8d9, transparent), radial-gradient(40% 40% at 80% 20%, #E78C6Ed9, transparent), #7A8C9E" },
 ];
 
 /** CSS custom properties for a theme. */
 export const themeVars = (t: Theme) =>
-  `--pt-bg:${t.bg};--tile:${t.tile};--ink:${t.ink};--ink2:${t.ink2};--tline:${t.dark ? "rgba(255,255,255,.1)" : "rgba(0,0,0,.07)"};--tint:${t.dark ? "26%" : "16%"}`;
+  `--pt-bg:${t.bg};--tile:${t.tile};--ink:${t.ink};--ink2:${t.ink2};--accent:${t.accent};--tline:${t.dark ? "rgba(255,255,255,.1)" : "rgba(0,0,0,.07)"};--tint:${t.dark ? "26%" : "16%"};--grain:${t.grain ? Math.min(1, t.grain * 5) : 0}`;
 
 const count = (g: Theme["group"]) => THEMES.filter(t => t.group === g).length;
 /** One line about the collection, used by the card and the guide. */
 export const themesLine = () =>
-  `${THEMES.length} themes: ${count("Classic")} classic, ${count("Glass")} glass, ${count("Color")} color, and Photo, which blurs a picture of yours behind everything.`;
+  `${THEMES.length} themes: ${count("Classic")} classic, ${count("Glass")} glass, ${count("Color")} color, ${count("Grain")} with a fine grain, ${count("Tinted")} tinted in one color down to the app icons, and Photo, which blurs a picture of yours behind everything.`;

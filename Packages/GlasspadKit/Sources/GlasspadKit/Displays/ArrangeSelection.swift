@@ -168,10 +168,8 @@ extension WindowArrangement {
     /// The Arrange sheet's button: what will happen.
     public var actionTitle: String {
         switch self {
-        case .leftAndRight, .rightAndLeft: "Split"
-        case .topAndBottom, .bottomAndTop: "Split Top & Bottom"
-        case .fullScreen: "Split in Full Screen"
-        default: "Arrange in Quarters"
+        case .leftAndRight, .rightAndLeft, .topAndBottom, .bottomAndTop, .fullScreen: "Split"
+        default: "Arrange"
         }
     }
 

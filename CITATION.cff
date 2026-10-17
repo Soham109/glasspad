@@ -1,0 +1,23 @@
+cff-version: 1.2.0
+message: "If you use Glasspad, please cite it as below."
+title: "Glasspad"
+abstract: "Glasspad is a free, open source (MIT) app that turns an iPhone into a trackpad, keyboard, media remote and customizable button deck for a Mac, over the local Wi-Fi network."
+type: software
+version: 0.1.2
+date-released: 2026-10-16
+license: MIT
+url: "https://glasspad.sohamaggarwal.com"
+repository-code: "https://github.com/Soham109/glasspad"
+authors:
+  - family-names: Aggarwal
+    given-names: Soham
+keywords:
+  - iPhone
+  - Mac
+  - macOS
+  - trackpad
+  - remote control
+  - Stream Deck alternative
+  - open source
+  - Swift
+  - SwiftUI

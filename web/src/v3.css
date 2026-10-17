@@ -215,7 +215,6 @@
 .foot-links a { color: var(--ink-2); text-decoration: none; transition: color 200ms; }
 .foot-links a:hover { color: var(--ink); }
 .foot-by { margin-left: auto; }
-.foot-learn { margin-top: -8px; padding-top: 0; }
 .foot-credit { margin-top: -8px; padding-bottom: clamp(16px, 3vw, 28px); font-size: 13px; color: var(--ink-2); }
 .foot-credit a { color: inherit; text-underline-offset: 2px; }
 .foot-mark { display: flex; justify-content: center; height: 0.6em; overflow: hidden; font-size: 22vw; line-height: 1; user-select: none; }

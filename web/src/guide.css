@@ -23,6 +23,7 @@
 .g-cmd .copy { top: 50%; transform: translateY(-50%); }
 .g-cmd .copy:active { transform: translateY(-50%) scale(0.94); }
 .g-more { display: block; font-size: 15px; }
+.g-card .g-more { margin-top: 12px; color: var(--ink-2); }
 
 .g-fig { margin: 0; }
 .g-fig img { display: block; width: 100%; height: auto; }
@@ -55,11 +56,3 @@
 }
 .g-fig.hud { align-self: center; } .g-fig.hud img { border-radius: 22px; }
 
-/* Footer, as on the home page (v3.css), without the wordmark */
-.foot { padding: 0 0 clamp(32px, 5vw, 56px); margin-top: clamp(56px, 7vw, 96px); background: var(--paper); color: var(--ink); border-top: 1px solid var(--line); }
-.foot-links { gap: 8px 28px; padding-top: 36px; }
-.foot-links a { color: var(--ink-2); }
-.foot-links a:hover { color: var(--ink); }
-.foot-by { margin-left: auto; }
-.foot-learn { margin-top: 0; padding-top: 16px; }
-@media (max-width: 600px) { .foot-by { margin-left: 0; } }

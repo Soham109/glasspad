@@ -97,11 +97,13 @@ A layout shows one to three modes on one screen. The model is in GlasspadKit (`L
 
 ## Themes
 
-`ThemeCatalog` in GlasspadKit holds every theme as plain data: 27 themes plus Photo, in four groups.
+`ThemeCatalog` in GlasspadKit holds every theme as plain data: 38 themes plus Photo, in six groups.
 
 - **Classic:** System, Paper, Graphite, Mono, Pure Black, High Contrast.
 - **Glass:** Glass, Glass Dark, Clear, Aurora, Ocean, Dusk, Rose, Mint, Lavender, Ember, Citrus, Smoke.
 - **Color:** Sand, Midnight, Forest, Plum, Slate, Espresso, Solar, Frost, Dawn.
+- **Grain:** Grain, Grain Dark, Risograph, Film. `ThemeGrain` makes a still noise tile from a fixed seed; the phone draws it once at the screen's pixel density as a repeating pattern color (`Design/Grain.swift`), so it costs nothing after the first draw. The contrast tests check text on the grain at its darkest and lightest.
+- **Tinted:** Mono Blue, Mono Green, Mono Rose, Mono Amber, Mono Violet, Mono Slate and Custom Tint (any color the person picks). `ThemeTint` builds every color from one hue; mode and tile colors move onto it keeping their brightness, and app icons and website logos are recolored along the hue's ramp, once per icon and look (`Design/IconTint.swift`, through `Palette.appIcon`). Tests sweep every hue and strength.
 - **Photo:** a picked photo, blurred and veiled (`PhotoTone`) so text reads on it.
 
 Each theme defines every color, its own accent included. `ThemeContrastTests` checks text, accents, button labels and status colors against WCAG AA (the web's accessibility contrast standard) on every surface. Views read colors only through `Palette` (`Apps/iOS/Sources/Design/Theme.swift`). Remote and StandBy stay dark.
@@ -120,7 +122,7 @@ Each theme defines every color, its own accent included. `ThemeContrastTests` ch
 All of these are additive: an older build drops what it does not know and keeps the session (`ControlMessage.unknown`).
 
 - **Remote:** `modeSelected(.remote)` makes the Mac send now playing and the front app. `remoteSystem(id:action:)` runs one Mac control without a Deck button and is answered with `deckResult`, including a switch's new state ("Do Not Disturb is on").
-- **Displays:** `displaysWatch(on:)` starts `displaysState` updates, read four times a second while watched. `windowCommand` and `displayCommand` are answered with `displaysResult`. Tile and move frames come from one shared function, so the phone shows the result before the Mac confirms.
+- **Displays:** `displaysWatch(on:)` starts `displaysState` updates, read four times a second while watched. `windowCommand` and `displayCommand` are answered with `displaysResult`; `windowHighlight` (to a Mac whose state says `highlightsWindows`) outlines a window on the Mac for a second, unanswered. Tile and move frames come from one shared function, so the phone shows the result before the Mac confirms.
 - **modesShown:** every pane of a layout, so the front app and Dock changes reach the panes that show them.
 - **Lenient Deck decoding:** a Deck action from a newer build decodes as `DeckAction.unsupported` with its raw JSON and is written back unchanged. Lists skip only an element that cannot be read at all. The phone shows such a button as "Update Glasspad to use this"; the Mac refuses to run or add it.
 - **macStatus:** Accessibility and Automation state, sent after the handshake and on every change.
