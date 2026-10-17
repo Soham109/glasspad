@@ -2,6 +2,7 @@ import { lerp } from "./spring";
 import { appIcon } from "./apps";
 import { glyph } from "./glyphs";
 import { phone, fitAll, tl, tlApp, settle, reduce, Scene } from "./kit";
+import { SETUPS, caption } from "./setups";
 
 /* Five setups drawn as rooms, each named after the layout (LayoutTemplates.swift) its phone
    shows: Desk, Studio, Couch, Presenter and StandBy. */
@@ -47,7 +48,7 @@ const MENUS: Record<string, string[]> = {
   Xcode: ["File", "Edit", "View", "Find", "Navigate", "Editor", "Product", "Debug", "Window", "Help"],
 };
 const DESK = {
-  key: "desk", title: "Desk", text: "Trackpad and Actions side by side on a stand. Tap Split Screen and two windows share the display.",
+  ...SETUPS.desk,
   html: () => `<div class="scene uc uc-desk"><div class="cam"><div class="uc-wall"></div><div class="sc-desk"></div>
     ${macbook("mb-left", `<div class="mbx">${menuBar("Mail", ["File", "Edit", "View", "Mailbox"], "")}${win("front ml", `<div class="mail"><div class="ml-l">${"<i></i>".repeat(6)}</div><div class="md-doc">${lines(6)}</div></div>`)}</div>`)}
     ${monitor("mon-c", `<div class="mbx">${menuBar("Safari", MENUS.Safari)}
@@ -97,7 +98,7 @@ const DESK = {
 /* ---------- Studio: Final Cut Pro on a MacBook; the Studio layout on the phone ---------- */
 const DUR = 0.82; // where the timeline ends, as a share of its width
 const STUDIO = {
-  key: "studio", title: "Studio", text: "Trackpad, Media and Actions on one screen. Final Cut Pro is in front, so Actions shows its buttons: Play, Blade, Mark In. More than 70 apps get their own.",
+  ...SETUPS.studio,
   html: () => `<div class="scene uc uc-studio"><div class="uc-wall"></div><div class="sc-desk"></div>
     ${macbook("mb-studio", `<div class="mbx fcp">${menuBar("Final Cut Pro", ["File", "Edit", "Trim", "Mark", "Clip", "Modify", "View"])}
       <div class="fc-top"><div class="fc-lib">${"<i></i>".repeat(6)}</div><div class="fc-view"><div class="fc-frame"><i class="sun"></i><i class="sea"></i></div></div></div>
@@ -148,7 +149,7 @@ const rg = (g: string) => `<svg viewBox="0 0 24 24" aria-hidden="true">${(R as R
 const rkeys = (k: string[][]) => k.map(([n, g]) => `<span class="ro" data-k="${n}">${g in R ? rg(g) : glyph(g)}<small>${n}</small></span>`).join("");
 const poster = '<span class="pst"><i class="s1"></i><i class="s2"></i><i class="s3"></i></span>';
 const COUCH = {
-  key: "couch", title: "Couch", text: "Remote over the trackpad. Its pad works like the Siri Remote: tap to pause, swipe to skip 10 seconds, up or down for volume. The keys follow the player.",
+  ...SETUPS.couch,
   html: () => `<div class="scene uc uc-couch"><div class="uc-wall"></div><div class="uc-floor"></div>
     <div class="tv"><div class="tv-b"><div class="tv-s" data-p="netflix"><div class="tv-film">${poster}</div><div class="tv-dim"></div>
       <div class="tv-seek"><svg viewBox="0 0 24 24">${R.fwd10}</svg></div><div class="tv-vol"><i></i></div><div class="tv-bar"><i></i></div><div class="tv-pp"><svg viewBox="0 0 24 24">${R.pause}</svg></div></div></div></div>
@@ -201,7 +202,7 @@ const SLIDES = [
   '<b class="sl-t big" style="width:64%"></b><i style="width:30%;margin:2cqh auto 0"></i>',
 ];
 const STAGE = {
-  key: "presenter", title: "Presenter", text: "Present over the trackpad: Next and Back as big as your thumb, a timer, and a laser you steer with one finger.",
+  ...SETUPS.presenter,
   html: () => `<div class="scene uc uc-show"><div class="uc-wall"></div><div class="uc-floor"></div>
     <div class="screen"><div class="scr-roll"></div><div class="scr-s"><div class="slide">${SLIDES[0]}</div><span class="slaser"></span><span class="sl-n">1</span></div></div>
     ${handPhone("hp-stage", `<div class="pt lyp">
@@ -242,7 +243,7 @@ const STAGE = {
 
 /* ---------- StandBy: the StandBy layout on the nightstand, Clock beside Now Playing ---------- */
 const NIGHT = {
-  key: "standby", title: "StandBy", text: "On the nightstand: Clock beside Now Playing, in dim red when the room goes dark.",
+  ...SETUPS.standby,
   html: () => `<div class="scene uc uc-night"><div class="uc-wall"></div><div class="nstand"></div><div class="lamp"><i class="shade"></i><i class="glow"></i><i class="stem"></i><i class="base"></i></div>
     ${standPhone("sp-night", `<div class="pt land sby">
       <div class="sb-pane clk"><div class="cd">Fri, 16 Oct <span class="chg">${glyph("bolt.fill")}82%</span></div><div class="dg"><b class="hh">10</b><b class="mm">09</b></div></div>
@@ -291,7 +292,7 @@ export function initScenes() {
     cur = i; token++;
     panes.forEach((p, k) => { p.classList.toggle("on", k === i); p.setAttribute("aria-hidden", String(k !== i)); });
     btns.forEach((b, k) => { b.setAttribute("aria-selected", String(k === i)); b.tabIndex = k === i ? 0 : -1; });
-    cap.innerHTML = `<b>${SCENES[i].title}</b><span>${SCENES[i].text}</span>`;
+    cap.innerHTML = caption(SCENES[i]);
     if (user) auto = false;
     run(i, token);
   };

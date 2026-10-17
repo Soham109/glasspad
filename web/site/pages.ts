@@ -55,9 +55,9 @@ export const pages: Page[] = [
     path: "/",
     file: "index.html",
     title: "Glasspad: your iPhone as a Mac trackpad, keyboard and remote",
-    description: "Glasspad is a free, open source app that turns your iPhone into a control surface for your Mac: trackpad, keyboard, remote, Dock, app buttons and split screen.",
+    description: "Glasspad is a free, open source app that turns your iPhone into a trackpad, keyboard, media remote and button deck for your Mac, over Wi-Fi, with no account.",
     lastmod: "2026-10-17",
-    summary: "What Glasspad does, the demo film, how to install it, and common questions.",
+    summary: "What Glasspad does, the demo video, how to install it, and common questions.",
     faq: "home",
   },
   {
@@ -142,7 +142,7 @@ export const pages: Page[] = [
     crumb: "iPhone as a Mac keyboard", lastmod: "2026-10-17", ogType: "article",
     title: "Use your iPhone as a Mac keyboard | Glasspad",
     ogTitle: "Use your iPhone as a Mac keyboard",
-    description: "Type or dictate on your iPhone and the text lands on your Mac, with command, option, control, shortcuts, arrows and F1 to F12. Free and open source.",
+    description: "Type or dictate on your iPhone and the text lands on your Mac, with Command, Option, Control, shortcuts, arrows and F1 to F12. Free and open source.",
     summary: "Type or dictate on your iPhone and the text lands on your Mac, with modifier keys, shortcuts, arrows and F1 to F12.",
   },
   {
@@ -169,7 +169,7 @@ export const pages: Page[] = [
     crumb: "Free Stream Deck alternative", lastmod: "2026-10-17", ogType: "article",
     title: "Turn an old iPhone into a free Stream Deck for Mac | Glasspad",
     ogTitle: "A free Stream Deck for your Mac, on an iPhone you own",
-    description: "Use an iPhone XS or newer as a Stream Deck for your Mac: buttons that follow the app in front, plus apps, websites, shortcuts and macros. Free, no key limits.",
+    description: "Use any iPhone on iOS 18 as a Stream Deck for your Mac: buttons that follow the app in front, plus apps, websites, shortcuts and macros. Free, no key limits.",
     summary: "Your iPhone as a Stream Deck for your Mac: buttons that follow the app in front, plus your own apps, websites, shortcuts and macros.",
   },
   {
@@ -236,6 +236,15 @@ export const pages: Page[] = [
     ogTitle: "Glasspad vs Mobile Mouse",
     description: "How Glasspad and Mobile Mouse compare on iPhone and Mac: price, platforms, install, trackpad gestures and extras. Glasspad is free and open source.",
     summary: "How Glasspad and Mobile Mouse compare: price, platforms, install, trackpad gestures and extras.",
+  },
+  {
+    path: "/compare/coast", file: "compare/coast.html", group: "compare",
+    nav: "vs Coast", blurb: "Price, devices and buttons, side by side.",
+    crumb: "Glasspad vs Coast", lastmod: "2026-10-17", ogType: "article",
+    title: "Glasspad vs Coast for iPhone and Mac | Glasspad",
+    ogTitle: "Glasspad vs Coast",
+    description: "How Glasspad and Coast compare on iPhone and Mac: price, Pro features, devices, install, trackpad and buttons. Glasspad is free and open source.",
+    summary: "How Glasspad and Coast compare: price, Coast Pro, devices, install, trackpad and buttons.",
   },
   {
     path: "/compare/universal-control", file: "compare/universal-control.html", group: "compare",

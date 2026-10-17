@@ -50,10 +50,10 @@
 </section>
 
 <!-- Demo film: a still until clicked, so nothing loads from YouTube before then -->
-<section class="film" id="film" aria-label="Demo film">
+<section class="film" id="film" aria-label="Demo video">
   <div class="wrap">
     <div class="film-frame" id="filmFrame">
-      <button class="film-play" type="button" id="filmPlay" aria-label="Play the Glasspad demo film">
+      <button class="film-play" type="button" id="filmPlay" aria-label="Play the Glasspad demo video">
         <img src="/film.jpg" alt="" width="1280" height="720" loading="lazy" decoding="async">
         <span class="film-btn" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.4-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5Z"/></svg></span>
       </button>
@@ -69,7 +69,8 @@
     </div>
     <div class="uc-stage" id="ucStage" role="tabpanel" aria-label="Setups, drawn"></div>
     <div class="seg"><div class="seg-in" id="ucTabs" role="tablist" aria-label="Setups"></div></div>
-    <p class="uc-cap" id="ucCap" aria-live="polite"></p>
+    <p class="uc-cap" id="ucCap" aria-live="polite"><!--site:setups--></p>
+    <!--site:setups-list-->
   </div>
 </section>
 
@@ -115,9 +116,9 @@
     <div class="gestures" role="group" aria-label="Show a gesture">
       <button class="chip" data-g="move">Move</button>
       <button class="chip" data-g="click">Tap to click</button>
-      <button class="chip" data-g="scroll">Two finger scroll</button>
+      <button class="chip" data-g="scroll">Two-finger scroll</button>
       <button class="chip" data-g="pinch">Pinch to zoom</button>
-      <button class="chip" data-g="spaces">Three finger swipe</button>
+      <button class="chip" data-g="spaces">Three-finger swipe</button>
       <button class="chip" data-g="mission">Mission Control</button>
     </div>
   </div>
@@ -280,7 +281,7 @@
             <li class="stp-i" data-step="7">
               <button class="stp-h" type="button" aria-expanded="false" aria-controls="stp-b7"><span class="n">7</span><span class="tt"><b>Automatic renewal</b><small>Automatic</small></span><span class="ln">Your Mac keeps the app opening.</span></button>
               <div class="stp-b" id="stp-b7"><div class="stp-in">
-                <div class="sub" data-view="7" data-auto="Every hour"><p>With a free Apple ID, apps you install yourself stop opening after 7 days. Your Mac checks every hour and reinstalls Glasspad over Wi-Fi once the install is 5 days old, as long as the Mac is on and the iPhone is on the same Wi-Fi at some point. It notifies you if it can't.</p></div>
+                <div class="sub" data-view="7" data-auto="Every hour"><p>Free installs stop opening after 7 days. Your Mac checks every hour and renews Glasspad over Wi-Fi when it is 5 days old, and tells you if it cannot.</p></div>
               </div></div>
             </li>
             <li class="stp-i" data-step="8">
@@ -339,7 +340,7 @@
 
 <footer class="foot">
   <!--site:footer-->
-  <p class="foot-credit wrap">Music in the film: <a href="https://commons.wikimedia.org/wiki/File:Uplifting_Electronic_Indie_by_WinnieTheMoog.ogg">&ldquo;Uplifting Electronic Indie&rdquo; by WinnieTheMoog</a>, <span style="white-space:nowrap">CC BY 4.0</span></p>
+  <p class="foot-credit wrap">Music in the video: <a href="https://commons.wikimedia.org/wiki/File:Uplifting_Electronic_Indie_by_WinnieTheMoog.ogg">&ldquo;Uplifting Electronic Indie&rdquo; by WinnieTheMoog</a>, <span style="white-space:nowrap">CC BY 4.0</span></p>
   <div class="foot-mark" aria-hidden="true"><svg id="footMark" class="foot-word"><text x="50%" y="0.795em" text-anchor="middle">Glasspad</text></svg></div>
 </footer>
 

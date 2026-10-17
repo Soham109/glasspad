@@ -59,7 +59,7 @@
       <ul>
         <li>Tap the mode button at the top of the screen for the mode menu.</li>
         <li>Present, Remote and Displays open full screen from the same menu.</li>
-        <li>Settings is there too: Appearance, Trackpad, Haptics, the modes you show, Advanced and About.</li>
+        <li>Settings is there too, in the corner.</li>
       </ul>
     </div>
   </div>
@@ -69,7 +69,7 @@
 <!-- Modes -->
 <section class="g-sec wrap" id="modes" aria-labelledby="modes-t">
   <h2 id="modes-t">Every mode</h2>
-  <p class="g-intro">Glasspad has nine modes. Tap the mode button at the top of the iPhone screen to switch: <a href="#trackpad">Trackpad</a>, <a href="#keyboard">Keyboard</a>, <a href="#media">Media</a>, <a href="#dock">Dock</a>, <a href="#actions">Actions</a>, <a href="#remote">Remote</a>, <a href="#present">Present</a>, <a href="#clipboard">Clipboard</a> and <a href="#displays">Displays</a>.</p>
+  <p class="g-intro">Glasspad has 11 modes. The mode menu shows <a href="#trackpad">Trackpad</a>, <a href="#keyboard">Keyboard</a>, <a href="#media">Media</a>, <a href="#dock">Dock</a> and <a href="#actions">Actions</a>. <a href="#present">Present</a>, <a href="#remote">Remote</a> and <a href="#displays">Displays</a> open full screen from the same menu. Pinned and <a href="#macros">Macros</a> live in Actions, and <a href="#clipboard">Clipboard</a> opens from Keyboard's shortcut row.</p>
   <div class="g-grid">
     <article class="g-card wide" id="trackpad" aria-labelledby="trackpad-t">
       <figure class="g-fig"><img src="/img/screens/trackpad.png" width="640" height="349" alt="Trackpad, sideways, with three finger dots" loading="lazy" decoding="async"></figure>
@@ -85,7 +85,7 @@
       <figure class="g-fig"><img src="/img/screens/keyboard.png" width="350" height="644" alt="Keyboard: modifier keys, shortcuts and arrows above the iPhone keyboard" loading="lazy" decoding="async"></figure>
       <div class="g-text"><h3 id="keyboard-t">Keyboard: type and dictate on your Mac</h3><ul>
         <li>Type or dictate. The text lands wherever the cursor is on the Mac.</li>
-        <li>control, option, command and shift, the usual shortcuts, arrows, and fn for F1 to F12.</li>
+        <li>Control, Option, Command and Shift, the usual shortcuts, arrows, and Fn for F1 to F12.</li>
       </ul>
         <p class="g-more">More: <a href="/use/iphone-as-mac-keyboard">iPhone as a Mac keyboard</a></p></div>
     </article>
@@ -101,7 +101,7 @@
       <div class="g-text"><h3 id="dock-t">Dock: open and switch Mac apps</h3><ul>
         <li>Your Mac's Dock. Tap an app to open it or switch to it.</li>
         <li>Touch and hold an app to hide or quit it.</li>
-        <li>The <span class="g-k">&middot;&middot;&middot;</span> menu hides the Mac's own Dock, always or only while connected.</li>
+        <li>Settings &rsaquo; Dock hides the Mac's own Dock, always or only while connected.</li>
       </ul></div>
     </article>
     <article class="g-card" id="actions" aria-labelledby="actions-t">
@@ -200,7 +200,7 @@
     <article class="g-card" id="folders" aria-labelledby="folders-t">
       <figure class="g-fig"><img src="/img/screens/folder.png" width="350" height="644" alt="Actions with the Windows folder open: Left Half, Right Half, Fill, Split Screen and Next Display" loading="lazy" decoding="async"></figure>
       <div class="g-text"><h3 id="folders-t">Folders</h3><ul>
-        <li>Add a Folder, save it, then tap it and add buttons inside.</li>
+        <li>Add a folder, save it, then tap it and add buttons inside.</li>
         <li>Edit, next to the app's name, changes the buttons for that app.</li>
       </ul></div>
     </article>
@@ -221,7 +221,7 @@
     <figure class="g-fig"><img src="/img/screens/themes.png" width="350" height="644" alt="Settings: Theme and Finger Dots under Appearance, then Trackpad and Modes" loading="lazy" decoding="async"></figure>
     <div class="g-text"><ul>
       <li data-themes>Settings, then Appearance.</li>
-      <li>Finger Dots, Mode Button, Start In and Left-Handed are set there too.</li>
+      <li>Finger Dots is there too. Mode Button, Start In and Left-Handed are under Advanced.</li>
     </ul></div>
   </div>
 </section>
@@ -244,9 +244,9 @@
     <dt>Media shows no song from Spotify or Music</dt>
     <dd>System Settings &rsaquo; Privacy &amp; Security &rsaquo; Automation &rsaquo; Glasspad: switch on Spotify and Music.</dd>
     <dt>The app stopped opening after a week</dt>
-    <dd>With a free Apple ID, your Mac renews the app over Wi-Fi before the 7 days are up. It could not reach the phone in time: bring the phone onto the Mac's Wi-Fi and run <code>~/Projects/glasspad/scripts/refresh-phone.sh --now</code>. How renewal works: <a href="/install#renewal">automatic renewal</a>.</dd>
+    <dd>Your Mac could not reach the iPhone in time. Put both on the same Wi-Fi and run <code>~/Projects/glasspad/scripts/refresh-phone.sh --now</code>. How renewal works: <a href="/install#renewal">automatic renewal</a>.</dd>
     <dt>Is anything sent over the internet?</dt>
-    <dd>No. Glasspad pairs once with a QR code, encrypts everything, and your iPhone and Mac talk only over your Wi-Fi. There is no account. Website buttons fetch their site's name and logo from that site.</dd>
+    <dd>Almost nothing. Glasspad pairs once with a QR code, encrypts everything, and your iPhone and Mac talk only over your Wi-Fi. There is no account. Website buttons fetch their site's name and logo, and the Mac may fetch album artwork for what is playing.</dd>
   </dl>
 </section>
 

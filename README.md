@@ -21,12 +21,12 @@
   <a href="#install"><b>Install</b></a> &nbsp;&middot;&nbsp;
   <a href="https://glasspad.sohamaggarwal.com">Website</a> &nbsp;&middot;&nbsp;
   <a href="https://glasspad.sohamaggarwal.com/guide">Guide</a> &nbsp;&middot;&nbsp;
-  <a href="https://www.youtube.com/watch?v=6AArTWOADGc">Film</a> &nbsp;&middot;&nbsp;
+  <a href="https://www.youtube.com/watch?v=6AArTWOADGc">Video</a> &nbsp;&middot;&nbsp;
   <a href="CHANGELOG.md">Changelog</a>
 </p>
 
 <p align="center">
-  <img src="docs/img/demo.gif" width="820" alt="Three iPhones running Glasspad. Left: Actions, buttons for Safari, the app in front on the Mac. Middle: Remote, a touch pad playing a film in Safari with skip, Skip Intro and Full Screen keys. Right: Displays, a map of two displays with a window moving between them.">
+  <img src="docs/img/demo.gif" width="820" alt="Three iPhones running Glasspad. Left: Actions, buttons for Safari, the app in front on the Mac. Middle: Remote, a touch pad playing a movie in Safari with skip, Skip Intro and Full Screen keys. Right: Displays, a map of two displays with a window moving between them.">
 </p>
 <p align="center">
   <sub>Actions follow the app in front &nbsp;&middot;&nbsp; Remote for Netflix and YouTube &nbsp;&middot;&nbsp; Displays and windows<br>
@@ -41,9 +41,16 @@ curl -fsSL https://raw.githubusercontent.com/Soham109/glasspad/main/install.sh |
 
 Then click Glasspad in the Mac menu bar, choose **Pair Your iPhone…** and scan the code.
 
+To build a fixed release instead of the newest code:
+
+```bash
+curl --proto '=https' --tlsv1.2 -fsSL https://raw.githubusercontent.com/Soham109/glasspad/main/install.sh | GLASSPAD_REF=v0.2.1 bash
+```
+
 - **You need:** a Mac on macOS 14+, an iPhone on iOS 18+, Xcode 26+ (free), a free Apple ID, and a cable for the first install.
 - **What it does:** builds both apps from source with your Apple ID, and waits for you where Apple needs a click (Xcode, Accessibility, Developer Mode). Safe to run again.
 - **The 7-day limit:** apps signed with a free Apple ID stop opening after 7 days. Your Mac renews Glasspad over Wi-Fi before then.
+- **Free, and the cost:** no fees and no paid Apple account. In return you build it once with Xcode, and the iPhone app is re-signed every 7 days (your Mac does it by itself). There is no App Store, TestFlight or notarized download, because those need Apple's paid developer program.
 - **Read it first?** The script is [install.sh](install.sh). The [install page](https://glasspad.sohamaggarwal.com/install) shows every step, with fixes if something goes wrong.
 
 ## Features
@@ -54,7 +61,7 @@ Then click Glasspad in the Mac menu bar, choose **Pair Your iPhone…** and scan
   <tr>
     <td align="center" width="33%"><img src="docs/img/screens/trackpad.png" width="220" alt="Trackpad: the iPhone held sideways, with three finger dots on the touch surface"><br><b>Trackpad</b><br><sub>Move, click, scroll, pinch and swipe between Spaces, with a tap you can feel on every click.</sub></td>
     <td align="center" width="33%"><img src="docs/img/screens/keyboard.png" width="160" alt="Keyboard: modifier keys, shortcuts and arrows above the letter keys"><br><b>Keyboard</b><br><sub>Type or dictate, with modifier keys, shortcuts, arrows and F1 to F12.</sub></td>
-    <td align="center" width="33%"><img src="docs/img/screens/media.png" width="160" alt="Media: artwork, scrubber, volume and brightness for the song playing on the Mac"><br><b>Media</b><br><sub>What is playing in Spotify, Music or a browser, with artwork, scrubbing, volume and brightness.</sub></td>
+    <td align="center" width="33%"><img src="docs/img/screens/media.png" width="160" alt="Media: artwork, scrubber, volume and brightness for the song playing on the Mac"><br><b>Media</b><br><sub>What is playing in Spotify, Music, Podcasts or a browser, with artwork, scrubbing, volume and brightness.</sub></td>
   </tr>
   <tr>
     <td align="center"><img src="docs/img/screens/dock.png" width="160" alt="Dock: the Mac's Dock apps as large buttons"><br><b>Dock</b><br><sub>Your Mac's Dock: tap to open, hold to hide or quit.</sub></td>
@@ -79,8 +86,9 @@ Then click Glasspad in the Mac menu bar, choose **Pair Your iPhone…** and scan
 | --- | --- |
 | **Split Screen** | Left and Right, Top and Bottom, Quarters or Full Screen, from the phone. |
 | **StandBy** | A clock beside Now Playing or your calendar while the iPhone charges. |
-| **Shortcuts and Siri** | Run any Mac shortcut, and open a mode or layout from Siri. |
-| **Lock Screen** | Remote and Present keys on the iPhone Lock Screen. |
+| **Without opening the app** | A Control Center control and a Lock Screen widget open the trackpad. Remote, Media and Present keys on the Lock Screen. Siri and Shortcuts open a mode, play or pause, or run a button or macro. |
+| **Connection** | Reconnects by itself and says why the Mac is away (asleep, locked, Glasspad off). Wake Mac wakes a Mac with Wake for network access on. On Wi-Fi that keeps devices apart, it tries a direct Wi-Fi link. |
+| **More than one Mac** | Pair Another Mac in Settings, then tap to switch. |
 
 <p align="center">
   <img src="docs/img/themes.png" width="820" alt="Four Glasspad themes: Actions in Glass, Media in Aurora, Actions in Ocean and Dock in Midnight">
@@ -115,7 +123,7 @@ Details in [SECURITY.md](SECURITY.md) and [ARCHITECTURE.md](ARCHITECTURE.md).
 | Works with | Mac only | Mac, Windows | Mac, Windows, Linux | Mac, iPad |
 | Install | Terminal, builds with Xcode | App Store | App Store | Built in |
 
-Side by side pages: [Stream Deck Mobile](https://glasspad.sohamaggarwal.com/compare/stream-deck-mobile) · [Remote Mouse](https://glasspad.sohamaggarwal.com/compare/remote-mouse) · [Universal Control](https://glasspad.sohamaggarwal.com/compare/universal-control)
+Side by side pages: [Stream Deck Mobile](https://glasspad.sohamaggarwal.com/compare/stream-deck-mobile) · [Remote Mouse](https://glasspad.sohamaggarwal.com/compare/remote-mouse) · [Mobile Mouse](https://glasspad.sohamaggarwal.com/compare/mobile-mouse) · [Coast](https://glasspad.sohamaggarwal.com/compare/coast) · [Universal Control](https://glasspad.sohamaggarwal.com/compare/universal-control)
 
 ## FAQ
 
@@ -128,7 +136,7 @@ Glasspad is a free, open source (MIT) app that turns an iPhone into a trackpad, 
 <details>
 <summary><b>Is it really free?</b></summary>
 
-Yes. No ads, accounts, subscriptions or in-app purchases. The code is under the [MIT license](LICENSE), and installing needs only a free Apple ID.
+Yes. No ads, accounts, subscriptions or in-app purchases. The code is public under the [MIT license](LICENSE), so no feature in it can be moved behind a paywall later. Installing needs only a free Apple ID.
 </details>
 
 <details>
@@ -184,7 +192,9 @@ xcodegen generate
 open Glasspad.xcodeproj
 ```
 
-Run the **Glasspad Mac** scheme, then **Glasspad iOS** on your iPhone with your Apple ID under Signing. Run the tests with `scripts/test.sh`. How the code fits together: [ARCHITECTURE.md](ARCHITECTURE.md).
+Run the **Glasspad Mac** scheme, then **Glasspad iOS** on your iPhone with your Apple ID under Signing. Run the tests with `scripts/test.sh`.
+
+**Developer docs:** [docs/README.md](docs/README.md) (every developer guide) · [ARCHITECTURE.md](ARCHITECTURE.md) (how the code fits together) · [CONTRIBUTING.md](CONTRIBUTING.md) (how to send a change)
 
 ## Contributing
 
@@ -193,8 +203,8 @@ Bug reports, ideas and pull requests are welcome. Start with [CONTRIBUTING.md](C
 ## Learn more
 
 - Guides: [trackpad](https://glasspad.sohamaggarwal.com/use/iphone-as-mac-trackpad) · [keyboard](https://glasspad.sohamaggarwal.com/use/iphone-as-mac-keyboard) · [remote](https://glasspad.sohamaggarwal.com/use/iphone-remote-for-mac) · [Stream Deck alternative](https://glasspad.sohamaggarwal.com/use/stream-deck-alternative-mac) · [split screen](https://glasspad.sohamaggarwal.com/use/mac-split-screen-from-iphone) · [displays](https://glasspad.sohamaggarwal.com/use/control-mac-displays-from-iphone)
-- [Every mode, step by step](https://glasspad.sohamaggarwal.com/guide) · [The film on YouTube](https://www.youtube.com/watch?v=6AArTWOADGc) · [Releases](https://github.com/Soham109/glasspad/releases)
+- [Every mode, step by step](https://glasspad.sohamaggarwal.com/guide) · [The video on YouTube](https://www.youtube.com/watch?v=6AArTWOADGc) · [Releases](https://github.com/Soham109/glasspad/releases)
 
 ## License and credits
 
-[MIT](LICENSE), copyright 2026 [Soham Aggarwal](https://sohamaggarwal.com). Film music: "Uplifting Electronic Indie" by WinnieTheMoog, [CC BY 4.0](https://creativecommons.org/licenses/by/4.0).
+[MIT](LICENSE), copyright 2026 [Soham Aggarwal](https://sohamaggarwal.com). Music in the video: "Uplifting Electronic Indie" by WinnieTheMoog, [CC BY 4.0](https://creativecommons.org/licenses/by/4.0).

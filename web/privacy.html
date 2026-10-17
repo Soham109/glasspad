@@ -21,7 +21,7 @@
 <header class="pg-hero wrap">
   <p class="pg-eye">Privacy</p>
   <h1>Privacy Policy</h1>
-  <p class="pg-sub">Short version: Glasspad collects nothing about you. Last updated 17 October 2026.</p>
+  <p class="pg-sub">Short version: Glasspad collects nothing about you. Last updated October 17, 2026.</p>
 </header>
 
 <article class="pg-sec wrap pg-prose">
@@ -42,10 +42,32 @@
 </ul>
 
 <h2>Permissions</h2>
-<p>The Mac app asks for Accessibility, so it can move the pointer, type and arrange windows when you ask from the iPhone. It may ask for Automation, so it can show and control Spotify or Music. The iPhone app asks for Local Network, to find your Mac. You can turn any of these off in Settings.</p>
+<p>Most are asked only the first time you use the feature that needs them. You can turn any of them off in Settings, and only that feature stops.</p>
+<table class="px-table px-perm">
+  <caption>The iPhone app</caption>
+  <thead><tr><th scope="col">Permission</th><th scope="col">What it is for, and when it is asked</th></tr></thead>
+  <tbody>
+    <tr><th scope="row">Local Network</th><td>Finds your paired Mac on your Wi-Fi and sends your touches to it. <i>Asked the first time it looks for your Mac.</i></td></tr>
+    <tr><th scope="row">Camera</th><td>Only to scan the pairing code your Mac shows. <i>Asked when you scan.</i></td></tr>
+    <tr><th scope="row">Calendars</th><td>Shows your next events on the StandBy Calendar screen. It only reads them. <i>Asked when you tap Allow Calendar.</i></td></tr>
+    <tr><th scope="row">Photos (add only)</th><td>Saves a screenshot from your Mac, only for a button you set up to do that. <i>Asked the first time one is saved.</i></td></tr>
+  </tbody>
+</table>
+<table class="px-table px-perm">
+  <caption>The Mac app</caption>
+  <thead><tr><th scope="col">Permission</th><th scope="col">What it is for, and when it is asked</th></tr></thead>
+  <tbody>
+    <tr><th scope="row">Accessibility</th><td>Moves the pointer, clicks, scrolls, types and arranges windows when you ask from the iPhone. Required. <i>Asked during setup.</i></td></tr>
+    <tr><th scope="row">Local Network</th><td>Lets your paired iPhone find and reach this Mac. <i>Asked when Glasspad starts.</i></td></tr>
+    <tr><th scope="row">Automation</th><td>Shows and controls what Spotify or Music is playing, opens Notification Center, and runs a Dark Mode button. <i>Asked the first time each is used.</i></td></tr>
+    <tr><th scope="row">Input Monitoring</th><td>Records the keys and clicks of a macro. <i>Asked only when you record a macro.</i></td></tr>
+    <tr><th scope="row">Screen &amp; System Audio Recording</th><td>Takes screenshots and screen recordings for those buttons. <i>Asked by macOS the first time you use one.</i></td></tr>
+    <tr><th scope="row">Notifications</th><td>Shows a notice from a macro step that asks for one. <i>Asked only when such a step runs.</i></td></tr>
+  </tbody>
+</table>
 
 <h2>This website</h2>
-<p>This site uses no cookies, no analytics and no trackers. It is hosted on Vercel, which keeps standard server logs, such as IP addresses, as any web host does. The demo film is a YouTube video in privacy-enhanced mode, and it loads only when you press play.</p>
+<p>This site uses no cookies, no analytics and no trackers. It is hosted on Vercel, which keeps standard server logs, such as IP addresses, as any web host does. The demo video is on YouTube, in privacy-enhanced mode, and it loads only when you press play.</p>
 
 <h2>Contact</h2>
 <p>Questions about privacy: <a href="mailto:hello@sohamaggarwal.com">hello@sohamaggarwal.com</a>. If this policy changes, the new version will be posted on this page with a new date.</p>
@@ -58,6 +80,6 @@
   <!--site:footer-->
 </footer>
 
-<script type="module" src="/src/guide.ts"></script>
+<script type="module" src="/src/pro.ts"></script>
 </body>
 </html>

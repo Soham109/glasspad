@@ -60,9 +60,9 @@ export function footer(p: Page): string {
     : "";
   return `<div class="gf wrap">
     <div class="gf-top">
-      <div class="gf-brand"><a class="brand" href="/">${BRAND}</a><p>A control surface for your Mac, on your iPhone.</p></div>
+      <div class="gf-brand"><a class="brand" href="/">${BRAND}</a><p>Your iPhone as a Mac trackpad, keyboard and remote.</p></div>
       <nav class="gf-cols" aria-label="Footer">
-        ${col("Product", [["Overview", "/", p.path === "/"], ["Install", "/install", p.path === "/install"], ["Demo film", "/#film"], ["Questions", "/#questions"]])}
+        ${col("Product", [["Overview", "/", p.path === "/"], ["Install", "/install", p.path === "/install"], ["Demo video", "/#film"], ["Questions", "/#questions"]])}
         ${col("Features", featurePages().map(q => [q.nav!, q.path, p === q]))}
         ${col("Compare", comparePages().map(q => [q.nav!.replace(/^vs /, ""), q.path, p === q]))}
         ${col("Resources", [["Guide", "/guide", p.path === "/guide"], ["GitHub", REPO], ["Releases", `${REPO}/releases`], ["Changelog", "/changelog", p.path === "/changelog"], ["Support", "/support", p.path === "/support"], ["Press kit", "/press", p.path === "/press"], ["About", "/about", p.path === "/about"]])}
@@ -154,9 +154,9 @@ const DEMO = `<section class="demo dark pg-demo" id="trackpad" aria-labelledby="
     <div class="gestures" role="group" aria-label="Show a gesture">
       <button class="chip" data-g="move">Move</button>
       <button class="chip" data-g="click">Tap to click</button>
-      <button class="chip" data-g="scroll">Two finger scroll</button>
+      <button class="chip" data-g="scroll">Two-finger scroll</button>
       <button class="chip" data-g="pinch">Pinch to zoom</button>
-      <button class="chip" data-g="spaces">Three finger swipe</button>
+      <button class="chip" data-g="spaces">Three-finger swipe</button>
       <button class="chip" data-g="mission">Mission Control</button>
     </div>
   </div>
@@ -250,7 +250,7 @@ ${f.steps.map((s, i) => `    <li><span class="pg-step-art">${icon(s.icon, 40)}<s
 
 ${faqBlock(f.faq)}
 
-${related(f.related)}${f.sources ? `\n\n${sourcesBlock(f.sources, f.checked ?? "17 October 2026")}` : ""}`;
+${related(f.related)}${f.sources ? `\n\n${sourcesBlock(f.sources, f.checked ?? "October 17, 2026")}` : ""}`;
 }
 
 function comparePage(p: Page, c: Comparison): string {

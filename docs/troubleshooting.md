@@ -25,6 +25,7 @@ Problems you may hit while building, testing or running from source. For help us
 | Spaces swipe does nothing | Private gesture events stopped working on this macOS | Mac Settings > Trackpad > "If a Gesture Stops Working": choose Keyboard shortcut |
 | Pointer feels jumpy | Peer-to-peer Wi-Fi in use, or a busy network | The Mac logs `peer-to-peer Wi-Fi: expect latency spikes`. Read the `feel:` lines in the log. |
 | Phone app stops opening after 7 days | Free Apple ID profile expired | `scripts/refresh-phone.sh --now`, or run `scripts/install-phone.sh` again. Check `~/Library/Logs/Glasspad/refresh.log`. |
+| Mission Control shows black or misplaced Spaces on macOS 27 | A known bug in Apple's Mission Control on macOS 27, still reported on 27.0.1 ([report](https://www.macobserver.com/?p=492915), checked October 17, 2026). It also happens without Glasspad. | Nothing to change in Glasspad. Update macOS when Apple ships a fix. |
 
 Read the Mac's log:
 

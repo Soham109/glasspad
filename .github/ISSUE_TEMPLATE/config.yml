@@ -6,6 +6,9 @@ contact_links:
   - name: Guide
     url: https://glasspad.sohamaggarwal.com/guide
     about: Every mode, Layouts, and fixes for common problems.
+  - name: Support
+    url: https://glasspad.sohamaggarwal.com/support
+    about: Help, troubleshooting, the 7-day renewal, and how to get in touch.
   - name: Questions
     url: https://github.com/Soham109/glasspad/blob/main/SUPPORT.md
     about: Where to ask, and what to include.

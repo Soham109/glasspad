@@ -1,7 +1,7 @@
 {
   "name": "Glasspad",
   "short_name": "Glasspad",
-  "description": "A control surface for your Mac, on your iPhone.",
+  "description": "Your iPhone as a Mac trackpad, keyboard and remote",
   "start_url": "/",
   "display": "browser",
   "background_color": "#F2F1EE",

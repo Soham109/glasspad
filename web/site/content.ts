@@ -16,7 +16,7 @@ export const FAQS: Record<string, { q: string; a: string }[]> = {
     },
     {
       q: "Is Glasspad free?",
-      a: `Yes. It is free and open source under the MIT License, with no account and nothing to buy. The code is on <a href="${REPO}">GitHub</a>.`,
+      a: `Yes. It is free and open source under the MIT License, with no account and nothing to buy. The code is public on <a href="${REPO}">GitHub</a> under that license, so no feature in it can be moved behind a paywall later.`,
     },
     {
       q: "Is Glasspad on the App Store?",
@@ -24,11 +24,15 @@ export const FAQS: Record<string, { q: string; a: string }[]> = {
     },
     {
       q: "Does it stop opening after 7 days?",
-      a: "Not while your Mac can reach it. With a free Apple ID, apps you install yourself stop opening after 7 days, so your Mac renews Glasspad over Wi-Fi before then. If it can't, it tells you.",
+      a: "Not while your Mac can reach it. With a free Apple ID, apps you install yourself stop opening after 7 days, so your Mac renews Glasspad over Wi-Fi before then. If it cannot, it tells you.",
+    },
+    {
+      q: "What if my Mac sleeps or the Wi-Fi drops?",
+      a: "The iPhone reconnects by itself when the Wi-Fi is back, the Mac wakes or you open the app, and says why the Mac is away, such as asleep, locked or Glasspad turned off. Wake Mac sends a wake signal over Wi-Fi to a Mac with Wake for network access on; a Mac on battery cannot wake this way. If the Wi-Fi keeps devices apart, Glasspad tries a direct Wi-Fi link to the Mac, which is slower than a normal network.",
     },
     {
       q: "Does anything leave my Wi-Fi?",
-      a: "No. Glasspad pairs once with a QR code, encrypts everything, and your iPhone and Mac talk only over your Wi-Fi. There is no account. Website buttons fetch their site's name and logo from that site, and the Mac may download album artwork for the song playing.",
+      a: "Almost nothing. Glasspad pairs once with a QR code, encrypts everything, and your iPhone and Mac talk only over your Wi-Fi. There is no account. Website buttons fetch their site's name and logo, and the Mac may fetch album artwork for what is playing.",
     },
     {
       q: "What do I need?",
@@ -46,7 +50,7 @@ export const FAQS: Record<string, { q: string; a: string }[]> = {
     },
     {
       q: "Can I use my iPhone as a keyboard for my Mac?",
-      a: 'Yes. In Glasspad\'s Keyboard mode, what you type or dictate on the iPhone lands where the cursor is on the Mac. It has control, option, command and shift, arrows, and F1 to F12, and works with any Mac keyboard layout. More in <a href="/use/iphone-as-mac-keyboard">iPhone as a Mac keyboard</a>.',
+      a: 'Yes. In Glasspad\'s Keyboard mode, what you type or dictate on the iPhone lands where the cursor is on the Mac. It has Control, Option, Command and Shift, arrows, and F1 to F12, and works with any Mac keyboard layout. More in <a href="/use/iphone-as-mac-keyboard">iPhone as a Mac keyboard</a>.',
     },
     {
       q: "Can I use my iPhone as a remote for Netflix or YouTube on my Mac?",
@@ -71,6 +75,14 @@ export const FAQS: Record<string, { q: string; a: string }[]> = {
     {
       q: "Can I use my iPhone as a presentation clicker for my Mac?",
       a: "Yes. Glasspad's Present mode has Next and Back, a timer, and a laser pointer you steer with one finger, for slides in Keynote, PowerPoint and other apps on the Mac. Next, Back and the timer also show on the iPhone's Lock Screen.",
+    },
+    {
+      q: "Can I use Glasspad with more than one Mac?",
+      a: "Yes. Choose Pair Another Mac in Settings on the iPhone, then tap a Mac to switch. With two or more, the Mac's name at the top of the screen is a menu to switch too. One Mac is connected at a time.",
+    },
+    {
+      q: "Can I control my Mac without opening Glasspad?",
+      a: "Partly. A Control Center control and a Lock Screen widget open the trackpad. While Remote, Media or Present is open, a Live Activity puts its keys on the Lock Screen. Siri and the Shortcuts app can open a mode or layout, play or pause, send the clipboard, open Mission Control, or run a button or macro.",
     },
     {
       q: "Does Glasspad work with Windows, Android or iPad?",
@@ -101,7 +113,7 @@ export const NEEDS = ["A Mac on macOS 14 or later", "Xcode 26 or later", "An iPh
 export const FEATURES: [string, string][] = [
   ["Trackpad", "Move, click, scroll, pinch, swipe between Spaces and open Mission Control, with a tap you can feel on every click. It follows your Mac's own trackpad settings."],
   ["Keyboard", "Type or dictate. Modifier keys, shortcuts, arrows and F1 to F12, with any Mac keyboard layout."],
-  ["Media", "What is playing in Spotify, Music or a browser: artwork, scrubbing, sound output, volume and screen brightness."],
+  ["Media", "What is playing in Spotify, Music, Podcasts or a browser: artwork, scrubbing, sound output, volume and screen brightness."],
   ["Dock", "Your Mac's Dock. Tap to open, hold to hide or quit, and hide the Mac's own Dock."],
   ["Actions", "Buttons that follow the app in front, for more than 70 apps."],
   ["Pinned", "Your own buttons: Do Not Disturb, Night Shift, Keep Awake, Split Screen and window tiling, screenshots, apps, and websites with their real logos. Folders keep them tidy; the Library finds anything."],
@@ -115,6 +127,8 @@ export const FEATURES: [string, string][] = [
   ["StandBy", "A clock beside Now Playing or your calendar while the iPhone charges, in dim red at night."],
   ["Siri and Shortcuts", "Open a mode or a layout from Siri or the Shortcuts app, plus a Control Center control, a Lock Screen widget and a Live Activity with Remote or Present keys."],
   ["Themes", themesLine()],
+  ["Connection", "Reconnects by itself and says why the Mac is away. Wake Mac wakes a Mac with Wake for network access on. On Wi-Fi that keeps devices apart, it tries a direct Wi-Fi link."],
+  ["More than one Mac", "Pair Another Mac in Settings, then tap to switch."],
   ["Private", "Paired by QR code, encrypted, no account. Your iPhone and Mac talk only over your Wi-Fi. Website buttons fetch their site's logo and the Mac may fetch album art."],
 ];
 
@@ -157,6 +171,6 @@ export const LINKS: [string, string, string][] = [
   ["Source code", REPO, "Swift, MIT License"],
   [`Release ${VERSION}`, RELEASE, "release notes"],
   ["License", `${REPO}/blob/main/LICENSE`, "MIT"],
-  ["Demo film", `https://www.youtube.com/watch?v=${FILM.id}`, "one minute, on YouTube"],
+  ["Demo video", `https://www.youtube.com/watch?v=${FILM.id}`, "one minute, on YouTube"],
   ["Full text for language models", `${SITE}/llms-full.txt`, "the features, install steps and questions in full"],
 ];

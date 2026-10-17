@@ -15,11 +15,22 @@ import { DEFINITION, FAQS, HOWTO, NEEDS, FEATURES, FILM, INSTALL, LINKS } from "
 import { themesLine } from "../src/themes";
 import { nav, footer, body, pageFaq, pageImage } from "./render";
 import { CONTENT, SHOTS, type Shot } from "./features";
+import { SETUPS, caption } from "../src/setups";
 import { changelogHtml, changelogFeed, icons, pressKit, notFound } from "./extras";
 
 const NAME = "Glasspad";
 const TAGLINE = "A control surface for your Mac, on your iPhone.";
-const OG = { url: `${SITE}/og-light.png`, width: 1200, height: 630, alt: "Glasspad: a control surface for your Mac, on your iPhone" };
+const OG = { url: `${SITE}/og-light.png`, width: 1200, height: 630, alt: "Glasspad: your iPhone as a Mac trackpad, keyboard and remote" };
+/** public/, set when Vite resolves its config; the per-page social cards live in public/og/. */
+let PUBLIC = "";
+/** A page's card in public/og/ (docs/brand/tools/og.py makes them): "/" is home.png, "/use/x" is use-x.png. */
+const ogSlug = (p: Page) => p.path === "/" ? "home" : p.path.slice(1).replace(/\//g, "-");
+/** The page's social card: its own ogImage, else its card in public/og/, else the site card. */
+const ogFor = (p: Page) => {
+  const own = p.ogImage ?? (existsSync(join(PUBLIC, "og", `${ogSlug(p)}.png`)) ? `/og/${ogSlug(p)}.png` : "");
+  const t = p.ogTitle ?? p.title;
+  return own ? { ...OG, url: SITE + own, alt: /glasspad/i.test(t) ? t : `Glasspad: ${t}` } : OG;
+};
 const AUTHOR = "Soham Aggarwal";
 const YOUTUBE = "https://www.youtube.com/@sohamaggarwal5";
 const LICENSE = "https://opensource.org/licenses/MIT";
@@ -157,13 +168,13 @@ function image(p: Page) {
   const s = pageImage(p);
   return s
     ? { "@type": "ImageObject", contentUrl: `${SITE}/img/screens/${s.name}.png`, url: `${SITE}/img/screens/${s.name}.png`, width: s.w, height: s.h, caption: s.alt }
-    : { "@type": "ImageObject", contentUrl: OG.url, url: OG.url, width: OG.width, height: OG.height, caption: OG.alt };
+    : (({ url, width, height, alt }) => ({ "@type": "ImageObject", contentUrl: url, url, width, height, caption: alt }))(ogFor(p));
 }
 
 function head(p: Page): string {
   const u = url(p);
   const og = p.ogTitle ?? p.title;
-  const card = p.ogImage ? { ...OG, url: SITE + p.ogImage } : OG;
+  const card = ogFor(p);
   return [
     `<title>${esc(p.title)}</title>`,
     `<meta name="description" content="${esc(p.description)}">`,
@@ -188,7 +199,7 @@ function head(p: Page): string {
     `<meta property="og:image:type" content="image/png">`,
     `<meta property="og:image:width" content="${OG.width}">`,
     `<meta property="og:image:height" content="${OG.height}">`,
-    `<meta property="og:image:alt" content="${esc(OG.alt)}">`,
+    `<meta property="og:image:alt" content="${esc(card.alt)}">`,
     ...(p.ogType === "article" ? [`<meta property="article:modified_time" content="${p.lastmod}">`, `<meta property="article:author" content="${AUTHOR}">`] : []),
     ...(p === pages[0] ? [
       `<meta property="og:video" content="${FILM_EMBED}">`,
@@ -201,7 +212,7 @@ function head(p: Page): string {
     `<meta name="twitter:title" content="${esc(og)}">`,
     `<meta name="twitter:description" content="${esc(p.description)}">`,
     `<meta name="twitter:image" content="${card.url}">`,
-    `<meta name="twitter:image:alt" content="${esc(OG.alt)}">`,
+    `<meta name="twitter:image:alt" content="${esc(card.alt)}">`,
     `<script type="application/ld+json">${json(schema(p))}</script>`,
   ].join("\n");
 }
@@ -218,9 +229,14 @@ function pictures(html: string, pub: string): string {
   });
 }
 
-/** Real app screenshots each page shows, for Google Images (home: the four on its first screen). */
+/** Real app screenshots each page shows, for Google Images: home shows only the film's poster
+    (its other pictures are drawn), the guide lists every screenshot in guide.html. */
 const sitemapImages = (p: Page): string[] => {
-  if (p === pages[0]) return ["trackpad", "actions", "remote", "media"].map(s => `${SITE}/img/screens/${s}.png`);
+  if (p === pages[0]) return [`${SITE}/film.jpg`];
+  if (p.path === "/guide") {
+    const html = readFileSync(join(PUBLIC, "..", p.file), "utf8");
+    return [...new Set([...html.matchAll(/<img\b[^>]*\bsrc="(\/img\/screens\/[^"]+\.png)"/g)].map(m => SITE + m[1]))];
+  }
   const img = pageImage(p);
   return img ? [`${SITE}/img/screens/${img.name}.png`] : [];
 };
@@ -271,7 +287,7 @@ function pageList(): string[] {
 const intro = () => [
   `# ${NAME}`,
   "",
-  `> ${DEFINITION} ${TAGLINE}`,
+  `> ${DEFINITION}`,
   "",
   ...facts(),
   "",
@@ -334,9 +350,9 @@ function llmsFull(root: string): string {
     "",
     ...HOWTO.slice(1).map((s, i) => `${i + 1}. ${s.name}: ${s.text}`),
     "",
-    "With a free Apple ID, apps you install yourself stop opening after 7 days. Your Mac checks every hour and reinstalls Glasspad over Wi-Fi once the install is 5 days old, as long as the Mac is on and the iPhone is on the same Wi-Fi at some point. It notifies you if it can't.",
+    "With a free Apple ID, apps you install yourself stop opening after 7 days. Your Mac checks every hour and reinstalls Glasspad over Wi-Fi once the install is 5 days old, as long as the Mac is on and the iPhone is on the same Wi-Fi at some point. If it cannot, it tells you.",
     "",
-    "## Demo film",
+    "## Demo video",
     "",
     `${FILM.name} (${seconds(FILM.duration)} seconds, on YouTube): ${FILM_URL}`,
     "",
@@ -379,7 +395,7 @@ export function site(): Plugin {
   };
   return {
     name: "glasspad-site",
-    configResolved(c) { pub = c.publicDir; root = c.root; },
+    configResolved(c) { pub = PUBLIC = c.publicDir; root = c.root; },
     transformIndexHtml(html, ctx) {
       const file = ctx.path.replace(/^\//, "");
       const p = pages.find(x => x.file === file);
@@ -396,6 +412,9 @@ export function site(): Plugin {
       }
       if (p.faq) html = html.replace("<!--site:faq-->", faq(p));
       if (html.includes("<!--site:changelog-->")) html = html.replace("<!--site:changelog-->", changelogHtml(root));
+      // the home page's setup captions, so they are in the page without JavaScript (scenes.ts takes over)
+      html = html.replace("<!--site:setups-->", caption(SETUPS.desk))
+        .replace("<!--site:setups-list-->", `<noscript><ul class="uc-list">${Object.values(SETUPS).map(s => `<li>${caption(s)}</li>`).join("")}</ul></noscript>`);
       html = icons(html);
       // the theme line as guide.ts writes it, so it is in the page without JavaScript
       html = html.replace(/(<li data-themes>)[^<]*(<\/li>)/, `$1Settings, then Theme. ${themesLine()} System follows your iPhone.$2`);

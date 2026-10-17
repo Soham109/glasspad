@@ -1,8 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
-  <!-- Paper variant. Flat colours only. Rendered by scripts/make-icons.swift with the same numbers. -->
-  <rect width="1024" height="1024" fill="#EDECE8"/>
-  <rect x="102" y="222" width="820" height="580" rx="140" fill="#FBFBF9" stroke="#1A1A1A" stroke-opacity="0.10" stroke-width="4"/>
-    <!-- Finger glide: fading trail, then the finger dot (rendered as stacked discs) -->
-  <line x1="300" y1="610" x2="660" y2="440" stroke="#1A1A1A" stroke-opacity="0.1" stroke-width="90" stroke-linecap="round"/>
-  <circle cx="660" cy="440" r="74" fill="#1A1A1A" fill-opacity="0.62"/>
+  <title>Glasspad</title>
+  <rect width="1024" height="1024" fill="#E3E1DC"/>
+  <rect x="84" y="204" width="856" height="616" rx="132" fill="#FCFBFA" stroke="#1A1A1A" stroke-opacity="0.06" stroke-width="4"/>
+  <g fill="#1A1A1A" opacity="0.16">
+    <circle cx="276" cy="628" r="26"/>
+    <polygon points="261.00,606.76 614.93,356.85 696.28,519.54 283.99,652.74"/>
+  </g>
+  <circle cx="668" cy="432" r="92" fill="#1A1A1A"/>
 </svg>

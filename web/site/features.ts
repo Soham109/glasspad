@@ -8,7 +8,7 @@ export type Shot = "trackpad" | "keyboard" | "remote" | "media" | "actions" | "l
 export const SHOTS: Record<Shot, { w: number; h: number; alt: string }> = {
   trackpad: { w: 1280, h: 698, alt: "Trackpad on an iPhone held sideways, with three finger dots" },
   keyboard: { w: 700, h: 1288, alt: "Keyboard on an iPhone: modifier keys, shortcuts and arrows above the iPhone keyboard" },
-  remote: { w: 700, h: 1288, alt: "Remote on an iPhone for a film on Netflix in Safari: a large touch pad, skip and pause buttons, then Search, Skip Intro, Full Screen and Mute" },
+  remote: { w: 700, h: 1288, alt: "Remote on an iPhone for a movie on Netflix in Safari: a large touch pad, skip and pause buttons, then Search, Skip Intro, Full Screen and Mute" },
   media: { w: 700, h: 1288, alt: "Media on an iPhone: artwork, the song, scrubber, controls, volume and brightness" },
   actions: { w: 700, h: 1288, alt: "Actions on an iPhone: Safari's buttons on top, Pinned buttons below" },
   library: { w: 700, h: 1288, alt: "Library on an iPhone: search, Pinned, Record New Macro, and apps with add buttons" },
@@ -89,7 +89,7 @@ export interface Comparison {
   caption?: string;
   faq: [string, string][];
   sources: [string, string][];
-  /** the day the sources were read, as the page says it: "17 October 2026" */
+  /** the day the sources were read, as the page says it: "October 17, 2026" */
   checked?: string;
   related: string[];
 }
@@ -156,14 +156,14 @@ export const CONTENT: Record<string, Feature | Comparison> = {
     sub: "Type or dictate on the iPhone. The words land on the Mac.",
     visual: "keys",
     visualLabel: "Keyboard on an iPhone: the words typed on it appear in Notes on a Mac",
-    answer: "To type on your Mac from your iPhone, you need an app on both. Glasspad is a free, open source one: in its Keyboard mode, what you type or dictate on the iPhone lands wherever the cursor is on your Mac, over Wi-Fi. It has control, option, command and shift, the usual shortcuts, arrows, and F1 to F12, and it works with any Mac keyboard layout.",
+    answer: "To type on your Mac from your iPhone, you need an app on both. Glasspad is a free, open source one: in its Keyboard mode, what you type or dictate on the iPhone lands wherever the cursor is on your Mac, over Wi-Fi. It has Control, Option, Command and Shift, the usual shortcuts, arrows, and F1 to F12, and it works with any Mac keyboard layout.",
     shot: "clipboard",
     caption: "Clipboard in the app: Send to Mac and Get from Mac.",
     guide: ["/guide#keyboard", "Keyboard in the guide"],
     tiles: [
       { icon: "keyboard", title: "Type anywhere", text: "Text lands wherever the cursor is on the Mac." },
       { icon: "mic", title: "Dictate", text: "Tap the microphone, speak, and the words are typed on the Mac." },
-      { icon: "command", title: "Every key you need", text: "control, option, command, shift, shortcuts, arrows, and fn for F1 to F12." },
+      { icon: "command", title: "Every key you need", text: "Control, Option, Command, Shift, shortcuts, arrows, and Fn for F1 to F12." },
       { icon: "clipboard", title: "Send a long text", text: "Clipboard, at the end of the shortcut row, sends text or an image both ways." },
     ],
     steps: [
@@ -186,7 +186,7 @@ export const CONTENT: Record<string, Feature | Comparison> = {
     h1: "Your iPhone as a remote for your Mac",
     sub: "Netflix, YouTube and Spotify from the couch, like a Siri Remote.",
     visual: "couch",
-    visualLabel: "A film on a TV plugged into a Mac, and Remote on an iPhone in hand: a swipe skips ahead, a slide turns it up, a tap pauses",
+    visualLabel: "A movie on a TV plugged into a Mac, and Remote on an iPhone in hand: a swipe skips ahead, a slide turns it up, a tap pauses",
     answer: "Glasspad's Remote mode turns your iPhone into a remote for whatever plays on your Mac, much like a Siri Remote: tap the pad to play or pause, swipe sideways to skip 10 seconds, and up or down for volume. Its buttons follow the player, such as Skip Intro on Netflix and Subtitles and Next on YouTube. It works with YouTube, Netflix, Prime Video, Disney+, Apple TV, QuickTime Player, IINA, VLC, Infuse, Spotify and Music. Glasspad is free and open source.",
     shot: "media",
     caption: "Media shows what is playing, with volume, sound output and brightness.",
@@ -195,7 +195,7 @@ export const CONTENT: Record<string, Feature | Comparison> = {
       {
         kind: "cards", title: "What it works with",
         cards: [
-          { title: "Films and videos: Remote", points: ["YouTube, Netflix, Prime Video, Disney+ and Apple TV in Safari, Chrome, Firefox, Edge, Brave or Arc.", "QuickTime Player, IINA, VLC and Infuse.", "A pad like the Siri Remote, with buttons that follow the player."] },
+          { title: "Movies and shows: Remote", points: ["YouTube, Netflix, Prime Video, Disney+ and Apple TV in Safari, Chrome, Firefox, Edge, Brave or Arc.", "QuickTime Player, IINA, VLC and Infuse.", "A pad like the Siri Remote, with buttons that follow the player."] },
           { title: "Music and podcasts: Media", points: ["Spotify, Music, Podcasts or a browser: the artwork, the song and a scrubber.", "Play, pause, next, previous, shuffle and repeat.", "The Mac's volume, its sound output, such as speakers or AirPods, and the screen's brightness."] },
         ],
       },
@@ -250,7 +250,7 @@ export const CONTENT: Record<string, Feature | Comparison> = {
     faq: [
       ["Is it really free?", "Yes. Every feature, with no limit on pinned buttons, no ads and no subscription. The code is under the MIT License."],
       ["Can it run my Shortcuts?", "Yes. Any shortcut from the Shortcuts app on your Mac can be a button."],
-      ["Can a button press a keyboard shortcut?", "Yes. Add a Keyboard Shortcut button and set the keys, such as command C, or a hotkey you set in another app."],
+      ["Can a button press a keyboard shortcut?", "Yes. Add a Keyboard Shortcut button and set the keys, such as Command-C, or a hotkey you set in another app."],
       ["Does it work with OBS or Twitch?", "Only through keyboard shortcuts you set up in those apps. Glasspad has no streaming plugins; Stream Deck has many. <a href=\"/compare/stream-deck-mobile\">Glasspad vs Stream Deck Mobile</a>."],
       ["Does it work with Windows or Android?", "No. Glasspad is for an iPhone and a Mac only."],
       ["Will an iPhone X or iPhone 8 work?", "No. Glasspad needs iOS 18, which starts with the iPhone XS and XR."],
@@ -287,24 +287,24 @@ export const CONTENT: Record<string, Feature | Comparison> = {
         kind: "table", title: "Mac split screen shortcuts", caption: "Window tiling keyboard shortcuts on macOS 15 and later, and the same move in Glasspad",
         cols: ["Keyboard shortcut, macOS 15 and later", "On your iPhone with Glasspad"],
         rows: [
-          { k: "Left or right half", us: ["", "fn control left arrow, or right arrow"], them: ["yes", "Left Half or Right Half button"] },
-          { k: "Top or bottom half", us: ["", "fn control up arrow, or down arrow"], them: ["yes", "Top Half or Bottom Half button"] },
-          { k: "Fill the screen", us: ["", "fn control F"], them: ["yes", "Fill button"] },
-          { k: "Center", us: ["", "fn control C"], them: ["yes", "Center button"] },
+          { k: "Left or right half", us: ["", "Fn-Control-Left Arrow, or Right Arrow"], them: ["yes", "Left Half or Right Half button"] },
+          { k: "Top or bottom half", us: ["", "Fn-Control-Up Arrow, or Down Arrow"], them: ["yes", "Top Half or Bottom Half button"] },
+          { k: "Fill the screen", us: ["", "Fn-Control-F"], them: ["yes", "Fill button"] },
+          { k: "Center", us: ["", "Fn-Control-C"], them: ["yes", "Center button"] },
           { k: "One quarter", us: ["no", "No shortcut. Use Window &rsaquo; Move &amp; Resize"], them: ["yes", "Top Left, Top Right, Bottom Left and Bottom Right Quarter buttons"] },
-          { k: "Back to the old size", us: ["", "fn control R"], them: ["yes", "Return to Previous Size button"] },
-          { k: "Two windows side by side", us: ["", "fn control shift left arrow, or right arrow"], them: ["yes", "Split Screen, Left &amp; Right"] },
-          { k: "Two windows top and bottom", us: ["", "fn control shift up arrow, or down arrow"], them: ["yes", "Split Screen, Top &amp; Bottom"] },
+          { k: "Back to the old size", us: ["", "Fn-Control-R"], them: ["yes", "Return to Previous Size button"] },
+          { k: "Two windows side by side", us: ["", "Fn-Control-Shift-Left Arrow, or Right Arrow"], them: ["yes", "Split Screen, Left &amp; Right"] },
+          { k: "Two windows top and bottom", us: ["", "Fn-Control-Shift-Up Arrow, or Down Arrow"], them: ["yes", "Split Screen, Top &amp; Bottom"] },
           { k: "Four windows in quarters", us: ["no", "No shortcut. Use Window &rsaquo; Move &amp; Resize"], them: ["yes", "Split Screen, Quarters"] },
-          { k: "Three windows: one half and two quarters", us: ["", "fn control option shift and an arrow"], them: ["no", "Not offered"] },
+          { k: "Three windows: one half and two quarters", us: ["", "Fn-Control-Option-Shift and an arrow"], them: ["no", "Not offered"] },
         ],
       },
       { kind: "text", title: "On macOS 14 Sonoma", text: "Window tiling, with its menu and these shortcuts, came with macOS 15. On macOS 14 the green button can still put two apps side by side in full screen Split View, but there is no shortcut to snap a window to a half. Glasspad's window buttons and Split Screen work on macOS 14 too: they move and size the windows themselves, through the Accessibility permission." },
     ],
     faq: [
-      ["What is the keyboard shortcut for split screen on a Mac?", "On macOS 15 and later, fn control left arrow puts the front window on the left half and fn control right arrow on the right. Add shift to arrange the next window on the other half too. The same moves are in Window &rsaquo; Move &amp; Resize."],
-      ["How do I split my Mac screen top and bottom?", "On macOS 15 and later, press fn control shift up arrow to put the front window on top and the next one below it, or choose Window &rsaquo; Move &amp; Resize &rsaquo; Top &amp; Bottom. In Glasspad, tap Split Screen and choose Top &amp; Bottom."],
-      ["Can I split my Mac screen into three or four?", "Into four, yes: Quarters, in Window &rsaquo; Move &amp; Resize or in Glasspad's Split Screen. Into three, macOS 15 has the &amp; Quarters moves (one half and two quarters) with fn control option shift and an arrow; Glasspad does not offer those."],
+      ["What is the keyboard shortcut for split screen on a Mac?", "On macOS 15 and later, Fn-Control-Left Arrow puts the front window on the left half and Fn-Control-Right Arrow on the right. Add Shift to arrange the next window on the other half too. The same moves are in Window &rsaquo; Move &amp; Resize."],
+      ["How do I split my Mac screen top and bottom?", "On macOS 15 and later, press Fn-Control-Shift-Up Arrow to put the front window on top and the next one below it, or choose Window &rsaquo; Move &amp; Resize &rsaquo; Top &amp; Bottom. In Glasspad, tap Split Screen and choose Top &amp; Bottom."],
+      ["Can I split my Mac screen into three or four?", "Into four, yes: Quarters, in Window &rsaquo; Move &amp; Resize or in Glasspad's Split Screen. Into three, macOS 15 has the &amp; Quarters moves (one half and two quarters) with Fn-Control-Option-Shift and an arrow; Glasspad does not offer those."],
       ["Why is split screen not working on my Mac?", "Tiling shortcuts need macOS 15 or later. Some apps have a minimum width and will not fit a half or a quarter. If dragging a window to the edge does nothing, check that tiling by dragging is on in System Settings, under Desktop &amp; Dock."],
       ["What is the difference between tiling and Split View?", "Tiled windows stay on your desktop with everything else. Split View puts two windows side by side in full screen, in a Space of their own. Glasspad does both: Left &amp; Right tiles, Full Screen makes a Split View."],
       ["Does it work with two displays?", "Yes. Pick the display in Arrange. If the windows are on different displays, the second one moves over first."],
@@ -599,7 +599,7 @@ export const CONTENT: Record<string, Feature | Comparison> = {
     steps: [
       { icon: "copy", title: "Copy on the iPhone", text: "Text, a link or an image, from any app." },
       { icon: "keyboard", title: "Open Clipboard", text: "At the end of Keyboard's shortcut row, or pin it from the Library." },
-      { icon: "command", title: "Paste on the Mac", text: "Tap Paste under Send to Mac, then press command V on the Mac." },
+      { icon: "command", title: "Paste on the Mac", text: "Tap Paste under Send to Mac, then press Command-V on the Mac." },
     ],
     faq: [
       ["Why is copy from iPhone to Mac not working?", "Universal Clipboard needs the same Apple Account on both devices, Wi-Fi, Bluetooth and Handoff on, and the devices near each other. What you copy stays available only briefly. If all of that is right and it still fails, send it with Glasspad's Clipboard instead."],
@@ -614,6 +614,49 @@ export const CONTENT: Record<string, Feature | Comparison> = {
     ],
   },
 
+  "/compare/coast": {
+    kind: "compare",
+    them: "Coast",
+    h1: "Glasspad vs Coast",
+    sub: "Two new ways to control your Mac from your iPhone, side by side.",
+    answer: "Coast, from LeShan Chen, turns an iPhone, iPad or Apple Watch into controls for a Mac: decks of buttons, sliders and jog wheels you lay out yourself, a trackpad and keyboard, and an optical mouse that uses the camera. The app is free on the US App Store, and Coast Pro is $2.99 once for macros, screen mirroring, the air mouse, drawing, the Apple Watch app and iCloud sync. It talks to a free Mac app over your Wi-Fi. Glasspad is for iPhone and Mac only, free with nothing to buy, and open source (MIT). It comes with buttons for more than 70 apps, a remote for Netflix and YouTube, and window and display control. It is not on the App Store, so installing it takes more steps.",
+    shot: "actions",
+    caption: "Glasspad's Actions: buttons for the app in front.",
+    rows: [
+      { k: "Phone", us: ["part", "iPhone (iOS 18 or later)"], them: ["yes", "iPhone and iPad (iOS 17 or later), and Apple Watch with Pro"] },
+      { k: "Computer", us: ["part", "Mac (macOS 14 or later)"], them: ["part", "Mac, with its free menu bar app"] },
+      { k: "Price", us: ["yes", "Free. No ads or in-app purchases"], them: ["part", "Free. Coast Pro $2.99 once, for macros, screen mirror, air mouse, drawing, Apple Watch, iCloud sync and more grids"] },
+      { k: "Install", us: ["part", "One-line installer that builds the app with Xcode and a free Apple ID; the Mac renews it every 7 days"], them: ["yes", "App Store, plus the Mac app from its website"] },
+      { k: "Connection", us: ["part", "Same Wi-Fi, paired by QR code, encrypted"], them: ["part", "Same Wi-Fi, paired by a six-digit code, encrypted"] },
+      { k: "Trackpad", us: ["yes", "Your Mac's own gestures: Spaces, Mission Control, pinch, force click, with haptics"], them: ["yes", "Mac gestures, press to click, and an optical mouse with the camera"] },
+      { k: "Buttons", us: ["yes", "Ready-made buttons for 70+ apps that follow the app in front, plus your own"], them: ["yes", "Decks you design from about 40 controls, in grids up to 8 by 12, that can switch with the app in front"] },
+      { k: "Also", us: ["yes", "Media, Remote for 11 players, Present with a laser, Dock, macros, Clipboard, Displays, Layouts, StandBy"], them: ["yes", "Clipboard, a talk timer and Home Screen widgets; now playing, screen mirror and a laser with Pro"] },
+      { k: "Source code", us: ["yes", "Open source, MIT"], them: ["no", "Not open source"] },
+    ],
+    fitThem: [
+      "You want an iPad or Apple Watch too.",
+      "You want to see the Mac's screen on the phone, or an air mouse, and $2.99 is fine.",
+      "You want to design your own controls, with sliders, dials and jog wheels.",
+    ],
+    fitUs: [
+      "You want every feature free, macros and now playing included, and code you can read.",
+      "You want buttons that are ready for 70+ apps without building decks.",
+      "You want a couch remote for Netflix and YouTube, and window and display control.",
+    ],
+    faq: [
+      ["Is Coast free?", "The app and its Mac app are free. Coast Pro, $2.99 once on the US App Store, adds macros, screen mirroring, the air mouse, drawing and a laser, the Apple Watch app, iCloud sync and more grids."],
+      ["Is there a free and open source alternative to Coast?", "Yes. Glasspad is free with nothing to buy, and its code is public under the MIT license. It works only with an iPhone and a Mac, and installs with a Terminal command instead of the App Store."],
+      ["Can Glasspad show my Mac's screen on the iPhone?", "No. Glasspad has no screen mirroring. Its Displays mode shows a map of your displays and windows to move and tile them. For the screen itself, Coast Pro or a screen sharing app fits better."],
+      ["Does Glasspad work on iPad or Apple Watch?", "No. Glasspad is made for an iPhone and a Mac. For an iPad or Apple Watch, Coast is a good choice."],
+    ],
+    sources: [
+      ["Coast on the App Store: price, Coast Pro, requirements and devices", "https://apps.apple.com/us/app/id6790821600"],
+      ["Coast features: every feature, with Pro marked", "https://coast.masn.studio/features"],
+      ["Coast privacy policy: pairing, camera and iCloud sync", "https://coast.masn.studio/privacy"],
+    ],
+    checked: "October 17, 2026",
+    related: ["/compare/stream-deck-mobile", "/use/stream-deck-alternative-mac", "/use/iphone-as-mac-trackpad"],
+  },
   "/compare/mobile-mouse": {
     kind: "compare",
     them: "Mobile Mouse",
@@ -652,7 +695,7 @@ export const CONTENT: Record<string, Feature | Comparison> = {
       ["Mobile Mouse on the App Store: price, in-app purchases and requirements", "https://apps.apple.com/us/app/mobile-mouse/id289616509"],
       ["Mobile Mouse website: features, platforms and connections", "https://mobilemouse.com/"],
     ],
-    checked: "17 October 2026",
+    checked: "October 17, 2026",
     related: ["/compare/remote-mouse", "/use/iphone-as-mac-trackpad", "/use/iphone-presentation-remote-mac"],
   },
 };

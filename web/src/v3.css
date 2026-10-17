@@ -247,7 +247,7 @@
 .ig .term { max-width: none; }
 .ig-note { margin-top: 16px; }
 .ig-block { margin-top: clamp(64px, 8vw, 104px); }
-.ig-block .ig-label { position: static; margin-bottom: 24px; padding: 0; color: var(--ink-3); font-size: 14px; font-weight: 550; letter-spacing: 0; }
+.ig-block .ig-label { position: static; max-width: none; margin-bottom: 24px; padding: 0; color: var(--ink-3); font-size: 14px; font-weight: 550; line-height: inherit; letter-spacing: 0; text-wrap: wrap; }
 .req { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 56px; }
 .req li { display: block; padding: 0; color: var(--ink-2); font-size: 16px; }
 .req li::before { content: none; }
@@ -299,6 +299,9 @@
 .tp { padding: 1.2em 1.4em; font-family: var(--mono); font-size: 0.98em; line-height: 1.55; }
 .tp p + p { margin-top: 0.5em; }
 .tp-dim { color: rgba(26, 26, 26, 0.5); }
+/* the install page: tags, badges and dim terminal text dark enough for 4.5 to 1 contrast (the home page keeps its look) */
+.pg-install .tag, .pg-install .nb { background: #C84B05; }
+.pg-install .tp-dim { color: rgba(26, 26, 26, 0.64); }
 .tp-pw { display: inline-flex; align-items: center; gap: 0.5em; padding: 0 0.2em; }
 .tp-pw i { width: 0.6em; height: 1.2em; background: #1A1A1A; }
 
@@ -313,6 +316,7 @@
 .qd dt:first-child { margin-top: 0; }
 .qd dd { margin: 2px 0 0; color: var(--ink-2); font-size: 15px; }
 .qd .un { margin: 14px 0 12px; font-size: 15px; }
+.qd .qd-p { margin: 14px 0 12px; max-width: 620px; color: var(--ink-2); font-size: 15px; }
 .qd[open] > :not(summary) { animation: capIn var(--snappy-ms) var(--ease-snappy) both; }
 @media (prefers-reduced-motion: reduce) { .qd[open] > :not(summary) { animation: none; } }
 .qd .cmd-sm { background: #FBFBF9; box-shadow: none; }

@@ -14,6 +14,9 @@
     },
     { "source": "/assets/(.*)", "headers": [{ "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }] },
     { "source": "/img/(.*)", "headers": [{ "key": "Cache-Control", "value": "public, max-age=86400" }] },
+    { "source": "/og/(.*)", "headers": [{ "key": "Cache-Control", "value": "public, max-age=86400" }] },
+    { "source": "/(film.jpg|og-light.png|icon-(192|512).png|apple-touch-icon.png|favicon.ico|icon.svg|icon-graphite.svg)", "headers": [{ "key": "Cache-Control", "value": "public, max-age=86400" }] },
+    { "source": "/changelog.xml", "headers": [{ "key": "Content-Type", "value": "application/atom+xml; charset=utf-8" }] },
     { "source": "/(llms|llms-full).txt", "headers": [{ "key": "Content-Type", "value": "text/plain; charset=utf-8" }] },
     { "source": "/site.webmanifest", "headers": [{ "key": "Content-Type", "value": "application/manifest+json" }] }
   ]

@@ -41,19 +41,19 @@
       <p class="ig-note">Paste into Terminal. It waits for you at each step, and is safe to run again.</p>
 
       <div class="ig-block" id="requirements">
-        <h3 class="ig-label">You need</h3>
+        <h2 class="ig-label">You need</h2>
         <ul class="req">
           <li><b>Xcode 26 or later</b> free from the Mac App Store, a large download</li>
           <li><b>macOS 14 or later</b> for the Glasspad Mac app</li>
           <li><b>iOS 18 or later</b> on your iPhone</li>
-          <li><b>A free Apple ID</b></li>
+          <li><b>A free Apple ID</b> (Apple now calls it an Apple Account)</li>
           <li><b>A USB cable</b> for the first install</li>
           <li><b>One Wi-Fi</b> for the Mac and the iPhone</li>
         </ul>
       </div>
 
       <div class="ig-block" id="steps">
-        <h3 class="ig-label" id="stp-label">What happens</h3>
+        <h2 class="ig-label" id="stp-label">What happens</h2>
         <div class="stp" id="stepper">
           <ol class="stp-list" aria-labelledby="stp-label">
             <li class="stp-i" data-step="1">
@@ -98,7 +98,7 @@
             <li class="stp-i" data-step="7" id="renewal">
               <button class="stp-h" type="button" aria-expanded="false" aria-controls="stp-b7"><span class="n">7</span><span class="tt"><b>Automatic renewal</b><small>Automatic</small></span><span class="ln">Your Mac keeps the app opening.</span></button>
               <div class="stp-b" id="stp-b7"><div class="stp-in">
-                <div class="sub" data-view="7" data-auto="Every hour"><p>With a free Apple ID, apps you install yourself stop opening after 7 days. Your Mac checks every hour and reinstalls Glasspad over Wi-Fi once the install is 5 days old, as long as the Mac is on and the iPhone is on the same Wi-Fi at some point. It notifies you if it can't.</p></div>
+                <div class="sub" data-view="7" data-auto="Every hour"><p>Free installs stop opening after 7 days. Your Mac checks every hour and renews Glasspad over Wi-Fi when it is 5 days old, and tells you if it cannot.</p></div>
               </div></div>
             </li>
             <li class="stp-i" data-step="8">
@@ -133,6 +133,18 @@
           <div class="cmd-sm">
             <code>~/Projects/glasspad/<wbr>scripts/<wbr>setup-autorefresh.sh --remove</code>
             <button class="copy" type="button" data-copy="~/Projects/glasspad/scripts/setup-autorefresh.sh --remove" aria-label="Copy the uninstall command">
+              <svg width="15" height="15" class="ic-copy" aria-hidden="true"><use href="#i-copy"/></svg>
+              <svg width="15" height="15" class="ic-check" aria-hidden="true"><use href="#i-check"/></svg>
+              <span>Copy</span>
+            </button>
+          </div>
+        </details>
+        <details class="qd" id="release">
+          <summary>Install a fixed release</summary>
+          <p class="qd-p">To build one release, such as v0.2.1, instead of the newest code. Later runs stay on it until you choose another.</p>
+          <div class="cmd-sm">
+            <code>curl --proto '=https' --tlsv1.2 -fsSL https://<wbr>raw.githubusercontent.com/<wbr>Soham109/<wbr>glasspad/<wbr>main/<wbr>install.sh | GLASSPAD_REF=v0.2.1 bash</code>
+            <button class="copy" type="button" data-copy="curl --proto '=https' --tlsv1.2 -fsSL https://raw.githubusercontent.com/Soham109/glasspad/main/install.sh | GLASSPAD_REF=v0.2.1 bash" aria-label="Copy the fixed release install command">
               <svg width="15" height="15" class="ic-copy" aria-hidden="true"><use href="#i-copy"/></svg>
               <svg width="15" height="15" class="ic-check" aria-hidden="true"><use href="#i-check"/></svg>
               <span>Copy</span>
