@@ -499,6 +499,11 @@ struct DockNotice: Equatable {
 enum PhotoSaver {
     static func save(_ image: UIImage, done: @escaping @MainActor (Bool) -> Void) {
         guard let data = image.pngData() else { return done(false) }
+        save(imageData: data, done: done)
+    }
+
+    /// Saves encoded image bytes as they are (no decoding and encoding again on the way).
+    static func save(imageData data: Data, done: @escaping @MainActor (Bool) -> Void) {
         Task {
             let status = await PHPhotoLibrary.requestAuthorization(for: .addOnly)
             guard status == .authorized || status == .limited else { return done(false) }
@@ -545,11 +550,11 @@ final class IconCache {
 
     /// Icons are decoded at most this many pixels on a side: sharp at 3x up to a 170 pt tile,
     /// however large the Mac sends them, without holding 1024 px bitmaps for every app.
-    static let decodedPixels = 512
+    nonisolated static let decodedPixels = 512
 
     /// Decodes at full resolution up to `decodedPixels` (scaled down by ImageIO, never up),
     /// at the screen's scale so a point of icon is a pixel of screen.
-    static func decode(_ data: Data) -> UIImage? {
+    nonisolated static func decode(_ data: Data) -> UIImage? {
         guard let source = CGImageSourceCreateWithData(data as CFData, nil) else { return nil }
         let options: [CFString: Any] = [
             kCGImageSourceCreateThumbnailFromImageAlways: true,
@@ -563,15 +568,26 @@ final class IconCache {
 
     func store(_ png: Data, key: String, bundleID: String) {
         guard let image = Self.decode(png) else { return }
-        if let old = index[bundleID], old != key, let url = fileURL(old) {
-            try? FileManager.default.removeItem(at: url)
-            memory[old] = nil
-        }
+        store(png, decoded: image, key: key, bundleID: bundleID)
+    }
+
+    /// Keeps an icon already decoded (off the main thread, by `decode`). The files are written
+    /// in the background; the image is in memory at once.
+    func store(_ png: Data, decoded image: UIImage, key: String, bundleID: String) {
+        let stale = index[bundleID].flatMap { $0 != key ? $0 : nil }
+        if let stale { memory[stale] = nil }
         memory[key] = image
         index[bundleID] = key
-        if let url = fileURL(key) { try? png.write(to: url, options: .atomic) }
+        let oldURL = stale.flatMap(fileURL), newURL = fileURL(key)
+        Self.disk.async {
+            if let oldURL { try? FileManager.default.removeItem(at: oldURL) }
+            if let newURL { try? png.write(to: newURL, options: .atomic) }
+        }
         saveIndex()
     }
+
+    /// Icon files and the index are written here, in order, off the main thread.
+    private static let disk = DispatchQueue(label: "glasspad.icons", qos: .utility)
 
     func image(for bundleID: String) -> UIImage? {
         guard let key = index[bundleID] else { return nil }
@@ -584,7 +600,8 @@ final class IconCache {
 
     private func saveIndex() {
         guard let folder, let data = try? JSONEncoder().encode(index) else { return }
-        try? data.write(to: folder.appendingPathComponent(Self.indexName), options: .atomic)
+        let url = folder.appendingPathComponent(Self.indexName)
+        Self.disk.async { try? data.write(to: url, options: .atomic) }
     }
 
     private func fileURL(_ key: String) -> URL? {

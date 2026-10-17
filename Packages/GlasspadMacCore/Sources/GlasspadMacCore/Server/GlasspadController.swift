@@ -257,7 +257,9 @@ public final class GlasspadController: ObservableObject {
 
     /// What the phone is told about this Mac (`ControlMessage.macStatus`).
     public var macStatus: MacStatus {
-        MacStatus(accessibilityTrusted: accessibilityTrusted, automationMedia: automation, macName: macName)
+        // `ModeRouter` reads `modesShown`, so the phone's layouts need not poll the Dock.
+        MacStatus(accessibilityTrusted: accessibilityTrusted, automationMedia: automation, macName: macName,
+                  followsAllPanes: true)
     }
 
     private func reportStatus(newSession: Bool = false) {

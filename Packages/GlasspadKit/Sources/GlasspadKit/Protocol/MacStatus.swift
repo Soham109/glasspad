@@ -26,14 +26,19 @@ public struct MacStatus: Codable, Equatable, Sendable {
     public var automationMedia: AutomationState?
     /// The Mac's name as shown in its menu bar app.
     public var macName: String?
+    /// The Mac reads `modesShown` and pushes Dock changes and the front app to every pane of a
+    /// layout, so the phone need not ask again on a timer. nil from a Mac built before that.
+    public var followsAllPanes: Bool?
 
-    public init(accessibilityTrusted: Bool, automationMedia: AutomationState? = nil, macName: String? = nil) {
+    public init(accessibilityTrusted: Bool, automationMedia: AutomationState? = nil, macName: String? = nil,
+                followsAllPanes: Bool? = nil) {
         self.accessibilityTrusted = accessibilityTrusted
         self.automationMedia = automationMedia
         self.macName = macName
+        self.followsAllPanes = followsAllPanes
     }
 
-    private enum Keys: String, CodingKey { case accessibilityTrusted, automationMedia, macName }
+    private enum Keys: String, CodingKey { case accessibilityTrusted, automationMedia, macName, followsAllPanes }
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: Keys.self)
@@ -42,6 +47,7 @@ public struct MacStatus: Codable, Equatable, Sendable {
         automationMedia = (try? c.decodeIfPresent(String.self, forKey: .automationMedia))
             .flatMap { $0.flatMap(AutomationState.init(rawValue:)) }
         macName = try? c.decodeIfPresent(String.self, forKey: .macName)
+        followsAllPanes = try? c.decodeIfPresent(Bool.self, forKey: .followsAllPanes)
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -49,5 +55,6 @@ public struct MacStatus: Codable, Equatable, Sendable {
         try c.encode(accessibilityTrusted, forKey: .accessibilityTrusted)
         try c.encodeIfPresent(automationMedia, forKey: .automationMedia)
         try c.encodeIfPresent(macName, forKey: .macName)
+        try c.encodeIfPresent(followsAllPanes, forKey: .followsAllPanes)
     }
 }

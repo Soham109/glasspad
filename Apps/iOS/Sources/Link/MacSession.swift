@@ -1,4 +1,5 @@
 import Foundation
+import ImageIO
 import GlasspadKit
 import Network
 import Observation
@@ -110,6 +111,12 @@ final class MacSession {
     @ObservationIgnored private var diagnostics = ShownCount()
     /// The last Deck save, until the Mac confirms or refuses it.
     @ObservationIgnored private var deckSaveWatch = ReplyWatch()
+    /// Drops a request for state made again a moment after the same one (two panes asking).
+    @ObservationIgnored private var requests = RequestCoalescer()
+    /// Icons being decoded for the last Dock message; the next one waits for it.
+    @ObservationIgnored private var iconWork: Task<Void, Never>?
+    /// Counts `resetModeData`, so late work for the previous Mac is dropped.
+    @ObservationIgnored private var modeDataEpoch = 0
 
     private static let settingsKey = "lastMacSettings"
     private static let deckCacheKey = "deckButtonsCache"
@@ -301,6 +308,7 @@ final class MacSession {
     }
 
     func send(_ message: ModeMessage) {
+        guard requests.shouldSend(message, now: ProcessInfo.processInfo.systemUptime) else { return }
         client?.send(message: .mode(message))
     }
 
@@ -490,6 +498,8 @@ final class MacSession {
         }
         if case .connected = new {
             connectedAt = Date()
+            // Anything asked before this session never reached the Mac.
+            requests.reset()
             // The connector marked this Mac as last used; show it.
             PairingStore.shared.reload()
             let modes = AppRouter.shared.screenModes
@@ -548,14 +558,19 @@ final class MacSession {
     private func received(_ message: ModeMessage) {
         switch message {
         case .dockList(let apps):
-            dockApps = storeIcons(apps)
-            if let data = try? JSONEncoder().encode(dockApps) {
-                UserDefaults.standard.set(data, forKey: Self.dockListCacheKey)
+            storeIcons(apps) { list in
+                // The same list again (a refresh, a push after a tap) changes nothing: no
+                // redraw, no write.
+                guard list != self.dockApps else { return }
+                self.dockApps = list
+                if let data = try? JSONEncoder().encode(list) {
+                    UserDefaults.standard.set(data, forKey: Self.dockListCacheKey)
+                }
             }
         case .dockIcons(let apps):
-            _ = storeIcons(apps)
+            storeIcons(apps) { _ in }
         case .dockCatalog(let apps):
-            dockCatalog = apps
+            if dockCatalog != apps { dockCatalog = apps }
         case .dockOpenResult(let bundleID, let ok, let message):
             if ok {
                 Haptics.shared.play(.detent)
@@ -565,10 +580,11 @@ final class MacSession {
                 showDockNotice(DockNotice(title: "\(name) did not open", message: message ?? "Your Mac could not open it."))
             }
         case .frontmostApp(let bundleID):
-            frontmostBundleID = bundleID
+            if frontmostBundleID != bundleID { frontmostBundleID = bundleID }
         case .macDockState(let state):
-            macDockState = state
+            if macDockState != state { macDockState = state }
         case .deckLayout(let layout):
+            guard deckLayout != layout else { return }
             deckLayout = layout
             cacheDeckLayout(layout)
         case .deckSaveResult(let ok, let message):
@@ -579,7 +595,7 @@ final class MacSession {
                 send(.deckRequest)
             }
         case .deckCatalog(let catalog):
-            deckCatalog = catalog
+            if deckCatalog != catalog { deckCatalog = catalog }
         case .deckImage(_, let data, let destination):
             receivedDeckImage(data, destination)
         case .mediaState(let state):
@@ -587,6 +603,7 @@ final class MacSession {
             mediaReceivedAt = Date()
             MediaStore.shared.receive(state)
         case .deckButtons(let buttons):
+            guard deckButtons != buttons else { return }
             deckButtons = buttons
             if let data = try? JSONEncoder().encode(buttons) {
                 UserDefaults.standard.set(data, forKey: Self.deckCacheKey)
@@ -624,7 +641,7 @@ final class MacSession {
             clipboardPulled = PulledClipboard(content: content)
             switch content {
             case .text(let text)?: UIPasteboard.general.string = text
-            case .imagePNG(let data)?: if let image = UIImage(data: data) { UIPasteboard.general.image = image }
+            case .imagePNG(let data)?: Self.copyImage(data)
             case nil: break
             }
             Haptics.shared.play(content == nil ? .error : .snap)
@@ -641,7 +658,8 @@ final class MacSession {
     private func received(_ message: MacroMessage) {
         switch message {
         case .macroList(let active, let all):
-            macroProfile = active
+            if macroProfile != active { macroProfile = active }
+            guard allMacros != all else { return }
             allMacros = all
             if let data = try? JSONEncoder().encode(all) {
                 UserDefaults.standard.set(data, forKey: Self.macroCacheKey)
@@ -711,13 +729,35 @@ final class MacSession {
         return allMacros ?? []
     }
 
-    /// Keeps icons by key and returns the list without the image bytes.
-    private func storeIcons(_ apps: [DockApp]) -> [DockApp] {
-        apps.map { app in
+    /// Keeps icons by key, then hands `then` the list without the image bytes. Icons are
+    /// decoded off the main thread (the first Dock list carries dozens at 384 px), and lists
+    /// are handled in the order they came, so an older list never lands after a newer one.
+    private func storeIcons(_ apps: [DockApp], then: @escaping @MainActor ([DockApp]) -> Void) {
+        let list = apps.map { app -> DockApp in
             var a = app
-            if let png = app.iconPNG { icons.store(png, key: app.iconKey ?? app.bundleID, bundleID: app.bundleID) }
             a.iconPNG = nil
             return a
+        }
+        let incoming = apps.compactMap { app in app.iconPNG.map { (app, $0) } }
+        guard !incoming.isEmpty || iconWork != nil else { return then(list) }
+        let previous = iconWork
+        let epoch = modeDataEpoch
+        let work = Task { @MainActor in
+            await previous?.value
+            let decoded = await Task.detached(priority: .userInitiated) {
+                incoming.map { app, png in (app, png, IconCache.decode(png)) }
+            }.value
+            for (app, png, image) in decoded {
+                guard let image else { continue }
+                self.icons.store(png, decoded: image, key: app.iconKey ?? app.bundleID, bundleID: app.bundleID)
+            }
+            // Another Mac was chosen meanwhile: this list is not its.
+            if self.modeDataEpoch == epoch { then(list) }
+        }
+        iconWork = work
+        Task { @MainActor in
+            await work.value
+            if self.iconWork == work { self.iconWork = nil }
         }
     }
 
@@ -735,18 +775,34 @@ final class MacSession {
         }
     }
 
+    /// A screenshot from a Deck button. Its bytes go to the pasteboard or Photos as they came:
+    /// a full-display PNG is many megabytes, and decoding it on the main thread only to encode
+    /// it again froze the screen for a moment.
     private func receivedDeckImage(_ data: Data, _ destination: DeckImageDestination) {
-        guard let image = UIImage(data: data) else { return }
+        guard Self.imageType(data) != nil else { return }
         switch destination {
         case .clipboard:
-            UIPasteboard.general.image = image
+            Self.copyImage(data)
             showDeckImageNotice("Screenshot copied")
         case .photos:
-            PhotoSaver.save(image) { ok in
+            PhotoSaver.save(imageData: data) { ok in
                 self.showDeckImageNotice(ok ? "Screenshot saved to Photos" : "Allow Glasspad to add to Photos in Settings")
             }
         }
         Haptics.shared.play(.snap)
+    }
+
+    /// Puts image bytes on the pasteboard without decoding them (apps that paste read them as
+    /// an image of their type: PNG, or JPEG from a Mac that had to shrink a large one).
+    private static func copyImage(_ data: Data) {
+        guard let type = imageType(data) else { return }
+        UIPasteboard.general.setData(data, forPasteboardType: type)
+    }
+
+    /// The bytes' image type identifier (read from the header only), nil when not an image.
+    private static func imageType(_ data: Data) -> String? {
+        guard let source = CGImageSourceCreateWithData(data as CFData, nil), CGImageSourceGetCount(source) > 0 else { return nil }
+        return CGImageSourceGetType(source) as String?
     }
 
     private func showDeckImageNotice(_ text: String) {
@@ -768,6 +824,7 @@ final class MacSession {
     }
 
     private func resetModeData() {
+        modeDataEpoch += 1
         macStatus = nil
         dockApps = []
         dockCatalog = []
