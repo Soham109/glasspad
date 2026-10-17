@@ -36,6 +36,10 @@ public final class GlasspadController: ObservableObject {
                                                   _ answer: @escaping @MainActor (Bool) -> Void) -> @MainActor () -> Void
     public var approvalPrompt: ApprovalPrompt?
     private var dismissApproval: (@MainActor () -> Void)?
+    /// The server's answer for the question on screen, and which phone it is for. Taking the
+    /// question down without a click answers no, so the phone hears it at once.
+    private var pendingAnswer: (@Sendable (Bool) -> Void)?
+    private var approvingPhoneID: String?
 
     public let pairing: PairingStore
     public let macName: String
@@ -217,6 +221,7 @@ public final class GlasspadController: ObservableObject {
     /// Cancel a code on screen, or dismiss the result of the last attempt.
     public func cancelPairing() {
         disarmPairingKey()
+        approvingPhoneID = nil
         takeDownApproval()
         flow.reset()
         publishPairing()
@@ -239,7 +244,9 @@ public final class GlasspadController: ObservableObject {
     }
 
     /// The server already saved the phone (`saveKey`), after the person allowed it.
-    private func paired(_ phone: PairedPhone) {
+    func paired(_ phone: PairedPhone) {
+        guard isApproving(phone) else { return }
+        approvingPhoneID = nil
         takeDownApproval()
         flow.completed(phoneName: phone.phoneName)
         disarmPairingKey()
@@ -248,32 +255,48 @@ public final class GlasspadController: ObservableObject {
     }
 
     /// A phone proved it holds the code: ask before it may control this Mac.
-    private func askToAllow(_ phone: PairedPhone, answer: @escaping @Sendable (Bool) -> Void) {
+    func askToAllow(_ phone: PairedPhone, answer: @escaping @Sendable (Bool) -> Void) {
         disarmPairingKey()
+        // A question still up for another phone is answered no first.
+        takeDownApproval()
         let name = PairingFlow.displayName(phone.phoneName)
+        approvingPhoneID = phone.phoneID
         flow.approving(phoneName: name)
         publishPairing()
-        takeDownApproval()
         guard let prompt = approvalPrompt else {
             GPLog.log("pairing: no way to ask, so \(name) is not allowed")
             return answer(false)
         }
-        var answered = false
+        pendingAnswer = answer
         dismissApproval = prompt(name, GlasspadService.approvalTimeout) { [weak self] allowed in
-            guard !answered else { return }
-            answered = true
-            self?.dismissApproval = nil
-            answer(allowed)
+            guard let self, let pending = self.pendingAnswer else { return }
+            self.pendingAnswer = nil
+            self.dismissApproval = nil
+            pending(allowed)
         }
     }
 
+    /// Takes the question down. If nobody answered yet, the server hears no at once, so the phone
+    /// is refused instead of waiting for the timeout.
     private func takeDownApproval() {
+        let pending = pendingAnswer
+        pendingAnswer = nil
         let dismiss = dismissApproval
         dismissApproval = nil
+        pending?(false)
         dismiss?()
     }
 
-    private func pairingFailed(_ phone: PairedPhone, _ why: PairingFailure) {
+    /// Whether the flow is still waiting on this phone's answer (a late report for a question
+    /// that was cancelled or replaced must not touch the new code).
+    private func isApproving(_ phone: PairedPhone) -> Bool {
+        guard case .approving = flow.phase else { return false }
+        return approvingPhoneID == phone.phoneID
+    }
+
+    func pairingFailed(_ phone: PairedPhone, _ why: PairingFailure) {
+        guard isApproving(phone) else { return }
+        approvingPhoneID = nil
         takeDownApproval()
         let name = PairingFlow.displayName(phone.phoneName)
         switch why {

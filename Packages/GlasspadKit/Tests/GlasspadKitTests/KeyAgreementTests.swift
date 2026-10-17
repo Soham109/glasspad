@@ -99,6 +99,8 @@ import Testing
         #expect(ok.updateAndSave { $0.add(PairingPayload(macID: UUID(), macName: "M", pairKey: pairKey)) })
         let failing = KnownMacsStore(storage: Failing())
         #expect(!failing.updateAndSave { $0.add(PairingPayload(macID: UUID(), macName: "M", pairKey: pairKey)) })
+        // The change that did not reach storage is undone in memory too.
+        #expect(failing.current.macs.isEmpty)
     }
 }
 
@@ -210,6 +212,37 @@ struct PairingUpgradeTests {
         restarted.onNewPairKey = { _ in true }
         restarted.connect(host: "127.0.0.1", port: port)
         #expect(await waitUntil { restarted.state.isConnected })
+        #expect(await waitUntil { book["phone-1"].map { $0.key == restarted.pairKey && $0.previous == nil } == true })
+        restarted.disconnect()
+    }
+
+    /// The save fails, the phone reconnects in the same run, then restarts: it keeps using the
+    /// key it has on disk, so the Mac never drops it, and the phone is never locked out.
+    @Test func aFailedSaveThenAReconnectThenARestartStillConnects() async throws {
+        let book = KeyBook(["phone-1": PhoneKey(key: code, agreed: false)])
+        let (server, port) = try await makeServer(book)
+        defer { server.stop() }
+        let client = makeClient(key: code)
+        client.onNewPairKey = { _ in false }
+        client.connect(host: "127.0.0.1", port: port)
+        #expect(await waitUntil { client.state.isConnected })
+        #expect(client.pairKey == code && !client.keyAgreed)
+        client.disconnect()
+
+        // Same run: connects again with the key it really has, and the Mac still knows it.
+        client.connect(host: "127.0.0.1", port: port)
+        #expect(await waitUntil { client.state.isConnected })
+        try await Task.sleep(nanoseconds: 300_000_000)
+        #expect(client.pairKey == code)
+        #expect(book["phone-1"].map { $0.key == code || $0.previous == code } == true)
+        client.disconnect()
+
+        // A restart reads the code's key from disk, which still works and now saves.
+        let restarted = makeClient(key: code)
+        restarted.onNewPairKey = { _ in true }
+        restarted.connect(host: "127.0.0.1", port: port)
+        #expect(await waitUntil { restarted.state.isConnected })
+        #expect(restarted.keyAgreed)
         #expect(await waitUntil { book["phone-1"].map { $0.key == restarted.pairKey && $0.previous == nil } == true })
         restarted.disconnect()
     }

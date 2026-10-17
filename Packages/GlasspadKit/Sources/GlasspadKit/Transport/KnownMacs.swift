@@ -180,11 +180,17 @@ public final class KnownMacsStore: @unchecked Sendable {
     /// state could overwrite a newer one).
     /// Like `update`, and says whether the change reached storage (a pair key that did not
     /// must not be reported as saved).
+    /// A change that did not reach storage is undone, so memory never holds a key the next
+    /// launch will not have.
     public func updateAndSave(_ change: (inout KnownMacs) -> Void) -> Bool {
         lock.withLock {
+            let before = value
             change(&value)
-            guard let d = try? JSONEncoder().encode(value) else { return false }
-            return (try? storage.save(d)) != nil
+            guard let d = try? JSONEncoder().encode(value), (try? storage.save(d)) != nil else {
+                value = before
+                return false
+            }
+            return true
         }
     }
 

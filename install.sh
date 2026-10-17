@@ -237,7 +237,10 @@ else
 fi
 cd "$DEST"
 REV="$(git rev-parse HEAD)"
-ok "$DEST (${REF:+$REF, }${REV:0:7})"
+# Name the release only when it is really what is checked out (uncommitted changes skip the switch).
+SHOWN_REF=""
+if [ -n "$REF" ] && [ "$(git rev-parse -q --verify "$REF^{commit}" 2>/dev/null)" = "$REV" ]; then SHOWN_REF="$REF"; fi
+ok "$DEST (${SHOWN_REF:+$SHOWN_REF, }${REV:0:7})"
 note "Source" "$DEST at ${REV:0:7}"
 
 # 4. Apple account -----------------------------------------------------------------------------

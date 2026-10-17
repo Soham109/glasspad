@@ -590,9 +590,10 @@ public final class GlasspadServer: @unchecked Sendable {
         s.phase = .awaitingApproval
         sendRaw(approvalWaitToken, on: s)
         GPLog.log("server: asking whether to allow \(phone.phoneName)")
+        ActivityLog.shared.record("link", ["side": "mac", "event": "allow asked"])
         queue.asyncAfter(deadline: .now() + GlasspadService.approvalTimeout + 5) { [weak self, weak s] in
             guard let self, let s else { return }
-            self.approvalAnswered(s, allowed: false)
+            self.approvalAnswered(s, allowed: false, timedOut: true)
         }
         let answer: @Sendable (Bool) -> Void = { [weak self, weak s] allowed in
             guard let server = self else { return }
@@ -601,11 +602,14 @@ public final class GlasspadServer: @unchecked Sendable {
                 server.approvalAnswered(s, allowed: allowed)
             }
         }
-        delegateQueue.async { approve(phone, answer) }
+        delegateQueue.async { [phone] in approve(phone, answer) }
     }
 
-    private func approvalAnswered(_ s: Session, allowed: Bool) {
+    private func approvalAnswered(_ s: Session, allowed: Bool, timedOut: Bool = false) {
         guard s.phase == .awaitingApproval, handshaking[ObjectIdentifier(s)] === s, let phone = s.phone else { return }
+        // The event only, never the phone's name.
+        let event = allowed ? "allowed" : timedOut ? "allow timed out" : "not allowed"
+        ActivityLog.shared.record("link", ["side": "mac", "event": event])
         if allowed { return admit(s) }
         GPLog.log("server: \(phone.phoneName) was not allowed")
         s.phase = .awaitingHello      // so closing it reports nothing more

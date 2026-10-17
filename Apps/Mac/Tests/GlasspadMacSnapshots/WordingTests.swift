@@ -91,6 +91,7 @@ final class WordingTests: XCTestCase {
     func testPairingWordsMatchThePhone() {
         // The phone's Settings button is "Pair a Mac"; its onboarding says "choose Pair Your iPhone".
         XCTAssertTrue(PairingCopy.instruction.contains("Pair a Mac"))
+        XCTAssertTrue(PairingCopy.instruction.contains("click Allow"))
         XCTAssertEqual(PairingCopy.menuItem, "Pair Your iPhone…")
         XCTAssertTrue(PairingCopy.linkHelp.contains("Paste the Link Instead"))
         XCTAssertEqual(PairingCopy.heading(.paired(phoneName: "Soham's iPhone")), "Paired with Soham's iPhone")

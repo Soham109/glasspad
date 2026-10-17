@@ -12,12 +12,7 @@ import GlasspadMacCore
 enum ApprovalPrompt {
     static func ask(phoneName: String, timeout: TimeInterval,
                     answer: @escaping @MainActor (Bool) -> Void) -> @MainActor () -> Void {
-        let alert = NSAlert()
-        alert.messageText = ApprovalCopy.title(phoneName)
-        alert.informativeText = ApprovalCopy.detail
-        let allow = alert.addButton(withTitle: ApprovalCopy.allow)
-        let dontAllow = alert.addButton(withTitle: ApprovalCopy.dontAllow)
-        dontAllow.keyEquivalent = "\u{1b}"           // Escape
+        let (alert, allow, dontAllow) = makeAlert(phoneName: phoneName)
         let handler = Handler(alert: alert, answer: answer)
         for (button, allowed) in [(allow, true), (dontAllow, false)] {
             button.target = handler
@@ -31,6 +26,20 @@ enum ApprovalPrompt {
         window.makeKeyAndOrderFront(nil)
         DispatchQueue.main.asyncAfter(deadline: .now() + timeout) { handler.finish(false) }
         return { handler.close() }
+    }
+
+    /// The alert and its two buttons, not shown yet (tests check the keys without a window).
+    static func makeAlert(phoneName: String) -> (NSAlert, allow: NSButton, dontAllow: NSButton) {
+        let alert = NSAlert()
+        alert.messageText = ApprovalCopy.title(phoneName)
+        alert.informativeText = ApprovalCopy.detail
+        let allow = alert.addButton(withTitle: ApprovalCopy.allow)
+        // Allow needs a click: NSAlert makes the first button answer Return, and this alert takes
+        // focus while the person may be typing.
+        allow.keyEquivalent = ""
+        let dontAllow = alert.addButton(withTitle: ApprovalCopy.dontAllow)
+        dontAllow.keyEquivalent = "\u{1b}"           // Escape
+        return (alert, allow, dontAllow)
     }
 
     @MainActor private final class Handler: NSObject {

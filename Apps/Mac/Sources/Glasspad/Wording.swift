@@ -13,7 +13,7 @@ import GlasspadMacros
 enum PairingCopy {
     static let menuItem = "Pair Your iPhone…"
     static let title = "Pair Your iPhone"
-    static let instruction = "On your iPhone, open Glasspad, tap Pair a Mac and hold it over this code."
+    static let instruction = "On your iPhone, open Glasspad, tap Pair a Mac and hold it over this code. Then click Allow on this Mac."
     static let showText = "Show Code as Text"
     static let showCode = "Show Code"
     static let linkHelp = "No camera? Copy the link, then on your iPhone tap Paste the Link Instead."

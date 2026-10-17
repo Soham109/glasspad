@@ -54,6 +54,24 @@ import Testing
         #expect(dir.intValue == 0o700)
     }
 
+    /// A folder and file made earlier with open permissions are tightened when the log opens.
+    @Test func anExistingOpenLogIsMadePrivate() throws {
+        let url = tempLog()
+        let fm = FileManager.default
+        let dir = url.deletingLastPathComponent()
+        try fm.createDirectory(at: dir, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o755])
+        #expect(fm.createFile(atPath: url.path, contents: Data("old\n".utf8), attributes: [.posixPermissions: 0o644]))
+        let log = fixedLog()
+        log.start(at: url)
+        log.record("link", ["state": "connected"])
+        log.flush()
+        let file = try #require(try fm.attributesOfItem(atPath: url.path)[.posixPermissions] as? NSNumber)
+        let folder = try #require(try fm.attributesOfItem(atPath: dir.path)[.posixPermissions] as? NSNumber)
+        #expect(file.intValue == 0o600)
+        #expect(folder.intValue == 0o700)
+        #expect(log.contents().hasPrefix("old\n"))
+    }
+
     /// The ring: the file never passes the cap, keeps whole lines, and keeps the newest.
     @Test func cappedKeepingTheNewestWholeLines() throws {
         let url = tempLog()

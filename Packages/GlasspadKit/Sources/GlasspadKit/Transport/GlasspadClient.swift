@@ -688,10 +688,15 @@ public final class GlasspadClient: @unchecked Sendable {
                 // The Mac saved the agreed key before confirming. Save it here, then say so, so
                 // the Mac can forget the code's key.
                 agreedKey = nil
-                keyBox.set((agreed, true))
                 let saved = newKeyHandler.get()?(agreed) ?? true
-                if saved, let json = try? JSONEncoder().encode(KeySaved()) { sendRaw(json) }
-                if !saved { GPLog.log("pairing: the agreed key could not be saved; the Mac keeps the old one too") }
+                if saved {
+                    // Only a saved key is used from now on: a reconnect with an unsaved one would
+                    // let the Mac drop the old key, and the phone would be locked out on restart.
+                    keyBox.set((agreed, true))
+                    if let json = try? JSONEncoder().encode(KeySaved()) { sendRaw(json) }
+                } else {
+                    GPLog.log("pairing: the agreed key could not be saved; keeping the old one, the Mac keeps both")
+                }
             }
             phase = .connected
             attempt = 0

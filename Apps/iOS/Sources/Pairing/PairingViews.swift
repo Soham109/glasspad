@@ -197,7 +197,7 @@ struct PairFlow: View {
                 .transition(.opacity)
             case .connected:
                 if let mac {
-                    ConnectedView(mac: mac, onContinue: onFinish)
+                    ConnectedView(mac: mac, onContinue: onFinish, onScanAgain: { step = .scan })
                         .transition(.blurReplace)
                 }
             }
@@ -238,17 +238,23 @@ struct PairFlow: View {
 
 // MARK: - Connected
 
-/// After the scan: the Mac, its name, and Continue. Says Connected only once it is, and
-/// what to fix when iOS is keeping Glasspad off the network.
+/// After the scan: the Mac, its name, and Continue. Says Paired only once the Mac has let this
+/// iPhone in, asks to click Allow while the Mac asks, and offers Scan Again after a refusal.
 struct ConnectedView: View {
     @Environment(\.palette) private var palette
     let mac: PairedMac
     var onContinue: () -> Void
+    var onScanAgain: () -> Void = {}
     var session = MacSession.shared
     var probe = LocalNetworkProbe.shared
+    @State private var hasConnected = false
+
+    private var stage: PairingStage {
+        PairingStage(state: session.state, issue: session.linkIssue, hasConnected: hasConnected)
+    }
 
     var body: some View {
-        SetupPage(title: title, detail: detail, primary: "Continue", primaryAction: onContinue) {
+        SetupPage(title: title, detail: detail, primary: primary, primaryAction: primaryAction) {
             MacBookArt(width: 280) {
                 ZStack {
                     ScreenWallpaper()
@@ -261,41 +267,74 @@ struct ConnectedView: View {
         } extra: {
             status
         }
-        .onAppear { probe.start() }
+        .onAppear {
+            probe.start()
+            if session.isConnected { hasConnected = true }
+        }
         .onDisappear { probe.stop() }
-        .animation(.smooth, value: session.isConnected)
+        .onChange(of: session.isConnected) { _, now in if now { hasConnected = true } }
+        .animation(.smooth, value: stage)
         .sensoryFeedback(.success, trigger: session.isConnected) { _, now in now }
     }
 
     private var title: String {
-        session.isConnected ? "Connected to \(mac.name)" : "Paired with \(mac.name)"
+        switch stage {
+        case .connected: "Connected to \(mac.name)"
+        case .reconnecting: "Paired with \(mac.name)"
+        case .awaitingApproval: "Allow on Your Mac"
+        case .failed: "Not Paired"
+        case .reaching: "Pairing with \(mac.name)"
+        }
     }
 
     private var detail: String {
-        session.isConnected ? "Your iPhone is ready to control this Mac." : "Glasspad will connect whenever this Mac is nearby."
+        switch stage {
+        case .connected: "Your iPhone is ready to control this Mac."
+        case .reconnecting: "Glasspad will connect whenever this Mac is nearby."
+        case .awaitingApproval: LinkIssue.awaitingApproval.message
+        case .failed(let reason): ConnectionWords.failure(reason)
+        case .reaching: "Keep Glasspad open on \(mac.name). It will ask you to allow this iPhone."
+        }
+    }
+
+    private var primary: String {
+        if case .failed = stage { return "Scan Again" }
+        return "Continue"
+    }
+
+    private func primaryAction() {
+        if case .failed = stage { onScanAgain() } else { onContinue() }
     }
 
     @ViewBuilder private var status: some View {
-        if session.isConnected {
+        switch stage {
+        case .connected, .failed:
             EmptyView()
-        } else if probe.effectiveAccess == .denied {
-            StatusRow(symbol: "exclamationmark.circle.fill", tint: palette.caution, title: "Local Network Is Off",
-                      detail: "Turn it on for Glasspad in Settings so it can reach your Mac.") {
-                Button("Open Settings") { openAppSettings() }
-                    .glassButton()
+        case .awaitingApproval, .reaching, .reconnecting:
+            if probe.effectiveAccess == .denied {
+                StatusRow(symbol: "exclamationmark.circle.fill", tint: palette.caution, title: "Local Network Is Off",
+                          detail: "Turn it on for Glasspad in Settings so it can reach your Mac.") {
+                    Button("Open Settings") { openAppSettings() }
+                        .glassButton()
+                        .controlSize(.small)
+                }
+                .frame(maxWidth: 360)
+                .padding(.top, 6)
+            } else if stage == .reconnecting {
+                HStack(spacing: 8) {
+                    ProgressView().controlSize(.small)
+                    Text("Connecting")
+                        .font(.subheadline)
+                        .foregroundStyle(palette.inkSoftColor)
+                }
+                .padding(.top, 4)
+                .accessibilityElement(children: .combine)
+            } else {
+                ProgressView()
                     .controlSize(.small)
+                    .padding(.top, 4)
+                    .accessibilityLabel(stage == .awaitingApproval ? "Waiting for your Mac" : "Reaching your Mac")
             }
-            .frame(maxWidth: 360)
-            .padding(.top, 6)
-        } else {
-            HStack(spacing: 8) {
-                ProgressView().controlSize(.small)
-                Text("Connecting")
-                    .font(.subheadline)
-                    .foregroundStyle(palette.inkSoftColor)
-            }
-            .padding(.top, 4)
-            .accessibilityElement(children: .combine)
         }
     }
 }

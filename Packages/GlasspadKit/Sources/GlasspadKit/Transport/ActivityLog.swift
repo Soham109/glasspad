@@ -114,9 +114,20 @@ public final class ActivityLog: @unchecked Sendable {
         let fm = FileManager.default
         let dir = url.deletingLastPathComponent()
         try? fm.createDirectory(at: dir, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
+        // A folder or file made earlier (or by hand) is tightened too.
+        try? fm.setAttributes([.posixPermissions: 0o700], ofItemAtPath: dir.path)
         if !fm.fileExists(atPath: url.path) {
             fm.createFile(atPath: url.path, contents: nil, attributes: [.posixPermissions: 0o600])
+        } else {
+            try? fm.setAttributes([.posixPermissions: 0o600], ofItemAtPath: url.path)
         }
+        #if os(iOS)
+        // Troubleshooting only: never part of an iCloud or computer backup.
+        var folder = dir
+        var values = URLResourceValues()
+        values.isExcludedFromBackup = true
+        try? folder.setResourceValues(values)
+        #endif
         handle = try? FileHandle(forWritingTo: url)
         size = Int((try? handle?.seekToEnd()) ?? 0)
     }

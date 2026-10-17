@@ -1,7 +1,7 @@
 # Checks every push to main, every pull request, and once a week.
 #   changes    decides which of the jobs below this change needs
 #   lint       checks the workflow files, scripts and web types
-#   test       runs every test (branch protection requires this exact name)
+#   test       runs every test (the name stays fixed, ready for a future required check)
 #   build-ios  builds the iPhone app, unsigned
 #   build-mac  builds the Mac app, ad hoc signed
 #   web        builds the website and checks its structured data, links, speed and accessibility

@@ -350,6 +350,14 @@ if [ "$(git -C "$DEST" rev-parse HEAD)" = "$NEWER" ]; then pass "moves to anothe
 run_installer GLASSPAD_REPO_URL="$PINNED" GLASSPAD_SKIP_PHONE=1 GLASSPAD_REF=v0.0.0-missing
 expect_code 1
 expect_out "There is no tag or commit named v0.0.0-missing"
+# Uncommitted changes keep the folder where it is, so the tag is not named as what was built.
+echo "# local" >> "$DEST/scripts/install-phone.sh"
+run_installer GLASSPAD_REPO_URL="$PINNED" GLASSPAD_SKIP_PHONE=1 GLASSPAD_REF=v9.9.9
+expect_code 0
+expect_out "not committed"
+reject_out "(v9.9.9,"
+expect_out "(${NEWER:0:7})"
+git -C "$DEST" checkout -q -- scripts/install-phone.sh
 
 new_case "unsafe source"
 run_installer GLASSPAD_REPO_URL=http://example.com/glasspad.git

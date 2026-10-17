@@ -41,6 +41,13 @@ jobs:
         run: |
           xcodebuild -version
           if [ -f Makefile ] && grep -q '^test:' Makefile; then make test; else scripts/test.sh; fi
+      # The Mac app's own tests (menu bar status, pairing code, wording, the Allow question),
+      # as in ci.yml. Skipped once scripts/test.sh covers Apps/Mac too.
+      - name: Mac app tests
+        run: |
+          if grep -q 'Apps/Mac' scripts/test.sh; then echo "scripts/test.sh already ran them."; exit 0; fi
+          source scripts/toolchain.sh
+          swift test --package-path Apps/Mac --scratch-path "$GP_BUILD_ROOT/GlasspadMacDebug" ${GP_SWIFT_FLAGS[@]+"${GP_SWIFT_FLAGS[@]}"}
 
   release:
     needs: test

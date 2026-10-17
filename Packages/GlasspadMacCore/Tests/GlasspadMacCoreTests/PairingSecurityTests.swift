@@ -43,6 +43,73 @@ import Testing
         #expect(flow.phase == .declined(phoneName: "Soham's iPhone"))
     }
 
+    final class Answers: @unchecked Sendable {
+        private let lock = NSLock()
+        private var _all: [Bool] = []
+        var all: [Bool] { lock.withLock { _all } }
+        func add(_ a: Bool) { lock.withLock { _all.append(a) } }
+    }
+
+    @MainActor func controller() -> GlasspadController {
+        GlasspadController(pairing: PairingStore(store: InMemorySecretStore()), macName: "Test Mac",
+                           accessibilityCheck: { false },
+                           presence: MacPresence(workspace: NotificationCenter(), distributed: NotificationCenter(),
+                                                 initiallyLocked: false))
+    }
+
+    /// Cancel while the Mac asks: the server hears no at once (so the phone is refused now, not
+    /// after the timeout), and the late report for that phone leaves a new code alone.
+    @MainActor @Test func cancellingTheQuestionRefusesAtOnceAndKeepsTheNextCode() {
+        let c = controller()
+        var dismissed = 0
+        c.approvalPrompt = { _, _, _ in { dismissed += 1 } }
+        let answers = Answers()
+        let phone = PairedPhone(phoneID: "p1", phoneName: "Phone", pairKey: Data())
+        c.beginPairing()
+        c.askToAllow(phone) { answers.add($0) }
+        #expect(c.pairingPhase == .approving(phoneName: "Phone"))
+
+        c.cancelPairing()
+        #expect(answers.all == [false])
+        #expect(dismissed == 1)
+        #expect(c.pairingPhase == .idle)
+
+        c.beginPairing()
+        let armed = c.pairing.pendingKey
+        #expect(armed != nil)
+        // What the server reports for the refused phone arrives after the new code is up.
+        c.pairingFailed(phone, .notAllowed)
+        c.paired(phone)
+        #expect(c.pairing.pendingKey == armed)
+        #expect(c.pairingPhase.url != nil)
+        #expect(answers.all == [false])
+    }
+
+    /// A second question replaces the first: the first phone is told no, and only the second
+    /// phone's outcome changes the flow.
+    @MainActor @Test func aSecondQuestionAnswersTheFirstNo() {
+        let c = controller()
+        var answerSecond: ((Bool) -> Void)?
+        c.approvalPrompt = { _, _, answer in
+            answerSecond = answer
+            return {}
+        }
+        let first = Answers(), second = Answers()
+        let p1 = PairedPhone(phoneID: "p1", phoneName: "One", pairKey: Data())
+        let p2 = PairedPhone(phoneID: "p2", phoneName: "Two", pairKey: Data())
+        c.beginPairing()
+        c.askToAllow(p1) { first.add($0) }
+        c.askToAllow(p2) { second.add($0) }
+        #expect(first.all == [false])
+        c.pairingFailed(p1, .notAllowed)
+        #expect(c.pairingPhase == .approving(phoneName: "Two"))
+        answerSecond?(true)
+        answerSecond?(false)
+        #expect(second.all == [true])
+        c.paired(p2)
+        #expect(c.pairingPhase == .paired(phoneName: "Two"))
+    }
+
     /// The phone picks its own name, so the question shows it on one short line.
     @Test func phoneNamesAreMadeSafeToShow() {
         #expect(PairingFlow.displayName("Soham's iPhone") == "Soham's iPhone")

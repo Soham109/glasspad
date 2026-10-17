@@ -32,7 +32,7 @@ struct OnboardingView: View {
                 .transition(.push(from: forward ? .trailing : .leading))
             case .mac:
                 SetupPage(title: "Open Glasspad\non Your Mac",
-                          detail: "In the menu bar, click Glasspad and choose Pair Your iPhone. Keep both on the same Wi\u{2011}Fi.",
+                          detail: "In the menu bar, click Glasspad and choose Pair Your iPhone. After the scan, click Allow on the Mac. Keep both on the same Wi\u{2011}Fi.",
                           primary: "Pair a Mac", secondary: "Set Up Later",
                           primaryAction: { go(.pair) }, secondaryAction: onFinish) {
                     MacMenuArt(width: 300)
