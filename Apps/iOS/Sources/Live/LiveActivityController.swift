@@ -90,7 +90,9 @@ final class LiveActivityController {
         let router = AppRouter.shared
         let modes = router.screenModes
         if router.showPresenter || modes.contains(.present) {
-            return .present(LivePresentTimer.shared.state, macName: mac.name, problem: problem)
+            let clock = PresentClock.shared
+            return .present(LiveControls.Present(timer: clock.timer, length: clock.length),
+                            macName: mac.name, problem: problem)
         }
         if router.showRemote || modes.contains(.remote) || modes.contains(.media) {
             let store = MediaStore.shared

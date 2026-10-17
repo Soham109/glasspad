@@ -1,6 +1,5 @@
 import Foundation
 import GlasspadKit
-import Observation
 import UIKit
 
 /// Runs the Live Activity's buttons in the app. iOS wakes the app in the background for each
@@ -36,7 +35,11 @@ enum LiveControlsRunner {
     private static func send(_ command: Command, _ session: MacSession, pressed: Date) async {
         let store = MediaStore.shared
         switch command {
-        case .nextSlide: session.send(.presentNext)
+        case .nextSlide:
+            session.send(.presentNext)
+            // As Present's own Next button: the first Next starts the talk clock.
+            let clock = PresentClock.shared
+            if PhoneSettings.shared.presentStartsTimer && !clock.isRunning && !clock.hasTime { clock.toggle() }
         case .previousSlide: session.send(.presentPrevious)
         case .playPause: store.togglePlay()
         case .back, .forward:
@@ -121,21 +124,5 @@ enum LiveControlsRunner {
         guard lingerTask != .invalid else { return }
         UIApplication.shared.endBackgroundTask(lingerTask)
         lingerTask = .invalid
-    }
-}
-
-/// The Present timer as the Live Activity needs it. Present's screen reports its timer here
-/// whenever it starts, pauses or resets; the state only changes then, never while it counts.
-@MainActor
-@Observable
-final class LivePresentTimer {
-    static let shared = LivePresentTimer()
-
-    private(set) var state = LiveControls.Present(countingFrom: nil, elapsed: 0)
-
-    private init() {}
-
-    func report(isRunning: Bool, elapsed: TimeInterval, length: TimeInterval? = nil) {
-        state = LiveControls.Present(isRunning: isRunning, elapsed: elapsed, length: length, now: Date())
     }
 }

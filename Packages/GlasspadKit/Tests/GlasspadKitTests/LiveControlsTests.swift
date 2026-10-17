@@ -67,6 +67,26 @@ import Testing
         #expect(later == p)
     }
 
+    @Test func presentsClockGivesTheSameStateWhileItRuns() {
+        let start = Date(timeIntervalSinceReferenceDate: 1000)
+        var timer = PresentTimer()
+        timer.toggle(at: start)
+        let running = LiveControls.Present(timer: timer, length: nil)
+        #expect(running.countingFrom == start)
+        #expect(running.elapsed == 0)
+        // Paused after 90 s, then running again from 2000: counted from 90 s before that.
+        timer.toggle(at: start.addingTimeInterval(90))
+        let paused = LiveControls.Present(timer: timer, length: 600)
+        #expect(!paused.isRunning)
+        #expect(paused.elapsed == 90)
+        #expect(paused.pausedText == "8:30")
+        timer.toggle(at: Date(timeIntervalSinceReferenceDate: 2000))
+        let again = LiveControls.Present(timer: timer, length: 600)
+        #expect(again.countingFrom == Date(timeIntervalSinceReferenceDate: 1910))
+        #expect(again.endsAt == Date(timeIntervalSinceReferenceDate: 2510))
+        #expect(LiveControls.Present(timer: PresentTimer(), length: 0) == .init(countingFrom: nil, elapsed: 0))
+    }
+
     @Test func aTalkLengthEndsAtADate() {
         let now = Date(timeIntervalSinceReferenceDate: 1000)
         let p = LiveControls.Present(isRunning: true, elapsed: 60, length: 600, now: now)
