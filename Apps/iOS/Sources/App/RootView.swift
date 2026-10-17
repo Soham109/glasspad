@@ -214,8 +214,9 @@ struct ModeScreen: View {
     }
 }
 
-/// Quiet status over the trackpad, only when it is not connected. Never takes touches,
-/// except the "Pair a Mac" button when nothing is paired.
+/// Quiet status over the trackpad, only when it is not connected (or the Mac is locked). Never
+/// takes touches, except its buttons ("Pair a Mac", Wake Mac, Pair Again). Shows nothing for the
+/// first moments after the app comes back, while the link usually returns by itself.
 struct TrackpadStatus: View {
     @Environment(\.palette) private var palette
     var session = MacSession.shared
@@ -233,19 +234,16 @@ struct TrackpadStatus: View {
                     .glassButton(prominent: true)
                     .controlSize(.large)
             }
-        } else if !session.isConnected {
-            VStack(spacing: 16) {
-                VStack(spacing: 6) {
-                    Text(session.state.statusText)
-                        .font(.subheadline.weight(.medium))
-                        .foregroundStyle(palette.inkSoftColor)
-                    Text(detail)
-                        .font(.footnote)
-                        .foregroundStyle(palette.inkSoftColor.opacity(0.8))
-                }
-                .multilineTextAlignment(.center)
+        } else if session.isMacLocked {
+            // Touches still reach the Mac, so nothing here takes one.
+            statusWords
+                .padding(.horizontal, 40)
                 .allowsHitTesting(false)
-                .accessibilityElement(children: .combine)
+                .transition(.opacity)
+        } else if !session.isConnected, !session.holdsBackOfflineMessage {
+            VStack(spacing: 16) {
+                statusWords
+                    .allowsHitTesting(false)
                 // The only touchable part; the surface keeps every other touch.
                 LinkActions()
             }
@@ -253,17 +251,31 @@ struct TrackpadStatus: View {
             .transition(.opacity)
         }
     }
+
+    private var statusWords: some View {
+        VStack(spacing: 6) {
+            Text(session.statusText)
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(palette.inkSoftColor)
+            Text(detail)
+                .font(.footnote)
+                .foregroundStyle(palette.inkSoftColor.opacity(0.8))
+        }
+        .multilineTextAlignment(.center)
+        .accessibilityElement(children: .combine)
+    }
 }
 
 extension TrackpadStatus {
     /// What to check, in the same words the other modes use.
     fileprivate var detail: String {
         let name = session.macName ?? "your Mac"
+        if let absence = session.absence { return absence.detail }
         if session.isReplaced { return "\(name) follows one iPhone at a time." }
         switch session.linkIssue {
         case .localNetworkDenied?: return "Turn on Local Network for Glasspad in Settings."
         case .networkBlocksDevices?: return "\(name) was found, but this Wi-Fi keeps devices apart. Guest Wi-Fi and VPNs often do."
-        case nil: break
+        case .macAsleep?, .macTurnedOff?, nil: break
         }
         if case .connecting = session.state { return name }
         return "Keep both on the same Wi-Fi with Glasspad open on \(name)."

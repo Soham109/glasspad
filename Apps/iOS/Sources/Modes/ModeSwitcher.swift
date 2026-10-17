@@ -140,7 +140,7 @@ struct ModeSwitcher: View {
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(layout == nil ? "\(mode.title) mode" : "\(title) layout")
-        .accessibilityValue(session.isConnected ? "" : session.state.statusText)
+        .accessibilityValue(session.isConnected && !session.isMacLocked ? "" : session.statusText)
         .accessibilityHint("Double tap to switch modes")
         .accessibilityAddTraits(.isButton)
         .accessibilityAction(named: "Settings") {
@@ -290,7 +290,7 @@ struct ModeSwitcher: View {
     @ViewBuilder private var macStatus: some View {
         let choosing = store.macs.count > 1
         let words = store.selected == nil ? "No Mac paired"
-            : session.isConnected ? (session.macName ?? "Mac") : session.state.statusText
+            : session.isConnected && !session.isMacLocked ? (session.macName ?? "Mac") : session.statusText
         let label = HStack(spacing: 6) {
             if !session.isConnected { ConnectionDot(state: session.state) }
             Text(words)
@@ -460,14 +460,18 @@ struct ConnectionDot: View {
     }
 }
 
-/// What a mode shows when there is no connection.
+/// What a mode shows when there is no connection: nothing at all for the first moments after
+/// the app comes back (the link usually returns by itself), then why the Mac is not there.
 struct ModeOfflineMessage: View {
     var session = MacSession.shared
     var router = AppRouter.shared
     let mode: AppMode
 
     var body: some View {
-        if PairingStore.shared.selected == nil {
+        if session.holdsBackOfflineMessage, PairingStore.shared.selected != nil {
+            // Empty, so the background the call site adds draws nothing and takes no touches.
+            EmptyView()
+        } else if PairingStore.shared.selected == nil {
             VStack(spacing: 16) {
                 QuietMessage(symbol: "laptopcomputer", title: "No Mac paired",
                              detail: "Pair a Mac to use \(mode.title).")
@@ -481,6 +485,13 @@ struct ModeOfflineMessage: View {
             VStack(spacing: 16) {
                 QuietMessage(symbol: "iphone", title: session.state.statusText,
                              detail: "\(session.macName ?? "Your Mac") follows one iPhone at a time.")
+                    .frame(maxHeight: 180)
+                LinkActions()
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else if let absence = session.absence {
+            VStack(spacing: 16) {
+                QuietMessage(symbol: absence.symbol, title: absence.title, detail: absence.detail)
                     .frame(maxHeight: 180)
                 LinkActions()
             }

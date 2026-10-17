@@ -29,16 +29,20 @@ public struct MacStatus: Codable, Equatable, Sendable {
     /// The Mac reads `modesShown` and pushes Dock changes and the front app to every pane of a
     /// layout, so the phone need not ask again on a timer. nil from a Mac built before that.
     public var followsAllPanes: Bool?
+    /// The Mac's screen is locked (touches still arrive; the lock screen gets them). nil from a
+    /// Mac built before Oct 2026, which never says.
+    public var screenLocked: Bool?
 
     public init(accessibilityTrusted: Bool, automationMedia: AutomationState? = nil, macName: String? = nil,
-                followsAllPanes: Bool? = nil) {
+                followsAllPanes: Bool? = nil, screenLocked: Bool? = nil) {
         self.accessibilityTrusted = accessibilityTrusted
         self.automationMedia = automationMedia
         self.macName = macName
         self.followsAllPanes = followsAllPanes
+        self.screenLocked = screenLocked
     }
 
-    private enum Keys: String, CodingKey { case accessibilityTrusted, automationMedia, macName, followsAllPanes }
+    private enum Keys: String, CodingKey { case accessibilityTrusted, automationMedia, macName, followsAllPanes, screenLocked }
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: Keys.self)
@@ -48,6 +52,7 @@ public struct MacStatus: Codable, Equatable, Sendable {
             .flatMap { $0.flatMap(AutomationState.init(rawValue:)) }
         macName = try? c.decodeIfPresent(String.self, forKey: .macName)
         followsAllPanes = try? c.decodeIfPresent(Bool.self, forKey: .followsAllPanes)
+        screenLocked = try? c.decodeIfPresent(Bool.self, forKey: .screenLocked)
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -56,5 +61,6 @@ public struct MacStatus: Codable, Equatable, Sendable {
         try c.encodeIfPresent(automationMedia, forKey: .automationMedia)
         try c.encodeIfPresent(macName, forKey: .macName)
         try c.encodeIfPresent(followsAllPanes, forKey: .followsAllPanes)
+        try c.encodeIfPresent(screenLocked, forKey: .screenLocked)
     }
 }

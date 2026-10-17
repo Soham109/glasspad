@@ -96,6 +96,8 @@ public final class GlasspadServer: @unchecked Sendable {
     var listenerBackoff: [TimeInterval] = [0.5, 1, 2, 5, 10]
     /// Last authenticated TCP frame, touch datagram or partial frame from the active phone.
     private var lastHeard: TimeInterval = 0
+    /// How late the first touch after a quiet spell arrives, for the log (queue-confined).
+    private var restProbe = RestWakeProbe()
     /// The active session is closed after this long without hearing from the phone (it answers
     /// a ping every second, so this is several missed pongs). Internal so tests can shorten it.
     var silenceTimeout: TimeInterval = GlasspadService.serverSilenceTimeout
@@ -199,7 +201,7 @@ public final class GlasspadServer: @unchecked Sendable {
                 pingTimer?.cancel()
                 pingTimer = nil
                 s.udp?.cancel()
-                byeAndClose(s, reason: "server stopped")
+                byeAndClose(s, reason: GlasspadService.stoppedReason)
             }
             for s in handshaking.values { s.channel.close("stopped") }
             handshaking = [:]
@@ -491,6 +493,7 @@ public final class GlasspadServer: @unchecked Sendable {
         rtts = []
         pingSent = [:]
         lastHeard = uptime()
+        restProbe.sessionStarted(at: lastHeard)
         statsBox.mutate { $0.rttMedianMs = nil; $0.rttP95Ms = nil; $0.rttSamples = 0 }
         setState(.connected(rttMs: nil))
         if let phone = s.phone {
@@ -638,9 +641,11 @@ public final class GlasspadServer: @unchecked Sendable {
             let n = statsBox.mutate { st -> Int in st.framesReceived += 1; return st.framesReceived }
             if n == 1 || n % 200 == 0 { GPLog.log("server: \(n) touch frames received") }
             delegateQueue.async { [weak self] in self?.delegate?.link(didReceive: frame) }
+            if let rest = restProbe.touch(at: lastHeard, timestamp: frame.timestamp) { GPLog.log(rest.line) }
         case .heartbeat:
             let n = statsBox.mutate { st -> Int in st.heartbeatsReceived += 1; return st.heartbeatsReceived }
             if n == 1 || n % 500 == 0 { GPLog.log("server: \(n) heartbeats received") }
+            if let rest = restProbe.heartbeat(at: lastHeard) { GPLog.log(rest.line) }
         case nil:
             statsBox.mutate { $0.malformed += 1 }
         }

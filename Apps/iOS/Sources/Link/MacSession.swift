@@ -41,6 +41,37 @@ final class MacSession {
     var macName: String? { PairingStore.shared.selected?.name }
     /// Connected, and the Mac says Accessibility is off: touches arrive but cannot move anything.
     var macNeedsAccessibility: Bool { isConnected && macStatus?.accessibilityTrusted == false }
+    /// Connected, and the Mac says its screen is locked. Touches still go through.
+    var isMacLocked: Bool { isConnected && macStatus?.screenLocked == true }
+    /// Just back in front (or a connected link restarting): screens hold their "not connected"
+    /// message back until the link is up or `TapHold.grace` has passed, so a quick reconnect
+    /// shows nothing.
+    private(set) var inReconnectGrace = false
+    /// Screens show nothing about the link right now: within the grace, and nothing known yet
+    /// that the user should read (a known reason or a refusal shows at once).
+    var holdsBackOfflineMessage: Bool { inReconnectGrace && absence == nil && !state.isFailedState }
+
+    /// Why the Mac is not there (or locked), when the phone knows. nil otherwise.
+    var absence: MacAbsence? {
+        guard PairingStore.shared.selected != nil else { return nil }
+        if isMacLocked { return .locked(macName) }
+        if isConnected { return nil }
+        if state.macForgotPhone { return .forgotPhone(macName) }
+        switch linkIssue {
+        case .macAsleep?: return .asleep(macName)
+        case .macTurnedOff?: return .turnedOff(macName)
+        default: return nil
+        }
+    }
+
+    /// The link in a few words: the reason when known, the state otherwise.
+    var statusText: String { absence?.title ?? state.statusText }
+
+    /// What a tap that could not reach the Mac says.
+    var notConnectedWords: String {
+        if let absence, absence.kind != .locked { return absence.title + "." }
+        return "Not connected to \(macName ?? "your Mac")."
+    }
 
     /// Round trips measured in this session (only while `setDiagnosticsVisible(true)`). Not
     /// observed: read it on a timer.
@@ -120,6 +151,33 @@ final class MacSession {
     @ObservationIgnored private var iconWork: Task<Void, Never>?
     /// Counts `resetModeData`, so late work for the previous Mac is dropped.
     @ObservationIgnored private var modeDataEpoch = 0
+    /// Taps made while the link comes back (`TapHold`), sent once it is up.
+    @ObservationIgnored private var outbox = TapOutbox<ModeMessage>()
+    @ObservationIgnored private var outboxExpiry: Task<Void, Never>?
+    /// When the link was last up, or when the app came to the front without it (uptime).
+    @ObservationIgnored private var notConnectedSince: TimeInterval?
+    @ObservationIgnored private var graceGeneration = 0
+
+    /// Battery experiment: when the trackpad's keep-awake heartbeats stop. Settings > Advanced
+    /// shows it only in debug builds, when launched with `-GPBatteryExperiment` (optionally
+    /// followed by 120, 30 or dim), or while it is set to anything but the default.
+    var heartbeatRest: HeartbeatRest = .standard {
+        didSet {
+            guard heartbeatRest != oldValue else { return }
+            UserDefaults.standard.set(heartbeatRest.rawValue, forKey: Self.heartbeatRestKey)
+            GPLog.log("battery experiment: heartbeats stop \(heartbeatRest == .whenDimmed ? "when the trackpad dims" : "after \(Int(heartbeatRest.idleTimeout)) s")")
+            applyHeartbeats()
+        }
+    }
+    /// Whether Settings > Advanced shows the battery experiment.
+    var showsBatteryExperiment: Bool {
+        #if DEBUG
+        return true
+        #else
+        return Self.launchedForBatteryExperiment || heartbeatRest != .standard
+        #endif
+    }
+    private static let launchedForBatteryExperiment = ProcessInfo.processInfo.arguments.contains("-GPBatteryExperiment")
 
     private static let settingsKey = "lastMacSettings"
     private static let deckCacheKey = "deckButtonsCache"
@@ -127,6 +185,7 @@ final class MacSession {
     private static let deckLayoutCacheKey = "deckLayoutCache"
     private static let dockListCacheKey = "dockListCache"
     private static let keyboardLettersKey = "keyboardLetters"
+    private static let heartbeatRestKey = "heartbeatRest"
 
     private init() {
         if let data = UserDefaults.standard.data(forKey: Self.settingsKey),
@@ -153,9 +212,21 @@ final class MacSession {
            let saved = try? JSONDecoder().decode(KeyboardLetters.self, from: data) {
             keyboardLetters = saved
         }
+        heartbeatRest = UserDefaults.standard.string(forKey: Self.heartbeatRestKey).flatMap(HeartbeatRest.init(rawValue:)) ?? .standard
+        let args = ProcessInfo.processInfo.arguments
+        if let i = args.firstIndex(of: "-GPBatteryExperiment"), i + 1 < args.count,
+           let choice = HeartbeatRest(rawValue: args[i + 1]) {
+            heartbeatRest = choice
+            UserDefaults.standard.set(choice.rawValue, forKey: Self.heartbeatRestKey)
+        }
+        if heartbeatRest != .standard { GPLog.log("battery experiment: \(heartbeatRest.rawValue)") }
         bridge.session = self
         PowerMonitor.shared.onChange { [weak self] in self?.powerChanged($0) }
         refreshHapticStrength()
+        #if DEBUG
+        // After DebugLaunch (it runs right after this), so -GPDemo cannot undo it.
+        Task { @MainActor in self.applyDebugLink() }
+        #endif
     }
 
     // MARK: Lifecycle
@@ -166,8 +237,16 @@ final class MacSession {
         backgrounded = !active
         applyHapticEngine()
         if active {
+            if !isConnected {
+                // The link restarts now; taps may wait for it from here.
+                notConnectedSince = ProcessInfo.processInfo.systemUptime
+                startGrace()
+            }
             connectIfNeeded()
         } else {
+            // Nobody sees a tap land from here on.
+            dropHeld()
+            endGrace()
             releaseBackgroundOrDisconnect()
         }
     }
@@ -184,6 +263,7 @@ final class MacSession {
     /// haptic engine can rest meanwhile and be ready again before the first real click.
     func dimmedChanged() {
         applyHapticEngine()
+        applyHeartbeats()
     }
 
     /// The Taptic Engine stays powered only while the trackpad is on screen, awake and in front.
@@ -247,6 +327,8 @@ final class MacSession {
 
     /// Drops the current connection and starts over (new Mac, new phone name).
     func reconnect() {
+        // A tap meant for the previous connection (or the previous Mac) is not sent to this one.
+        dropHeld()
         disconnect()
         connectIfNeeded()
     }
@@ -287,7 +369,7 @@ final class MacSession {
             MainActor.assumeIsolated { PairingStore.shared.setWakeTarget(target, for: macID) }
         }
         new.client?.onIssueChange = { issue in
-            MainActor.assumeIsolated { MacSession.shared.linkIssue = issue }
+            MainActor.assumeIsolated { MacSession.shared.issueChanged(issue) }
         }
         linkIssue = new.client?.issue
         applyHeartbeats()
@@ -317,7 +399,18 @@ final class MacSession {
 
     func send(_ message: ModeMessage) {
         guard requests.shouldSend(message, now: ProcessInfo.processInfo.systemUptime) else { return }
+        if !isConnected, TapHold.holds(message) { return hold(message) }
+        transmit(message)
+    }
+
+    /// Hands a message to the link, and starts the wait for an answer where one is expected.
+    private func transmit(_ message: ModeMessage) {
         client?.send(message: .mode(message))
+        switch message {
+        case .deckRun(let id), .deckRunConfirmed(let id): watchDeckRun(id)
+        case .macro(.run(let id)): watchMacroRun(id)
+        default: break
+        }
     }
 
     /// Any control message (the trackpad uses it to send its tuning inside `.settings`).
@@ -384,12 +477,129 @@ final class MacSession {
     func runDeck(_ id: UUID, confirmed: Bool = false) {
         deckPending.insert(id)
         send(confirmed ? .deckRunConfirmed(id: id) : .deckRun(id: id))
-        // If the Mac never answers (old Mac build, dropped link), stop the spinner.
+    }
+
+    /// If the Mac never answers (old Mac build, dropped link), stop the spinner. Counted from
+    /// when the tap left, not from when it was held.
+    private func watchDeckRun(_ id: UUID) {
+        guard deckPending.contains(id) else { return }
         Task { @MainActor in
             try? await Task.sleep(for: .seconds(10))
             if self.deckPending.remove(id) != nil {
                 self.showDeckFailure("Your Mac did not answer.")
             }
+        }
+    }
+
+    // MARK: Taps during a reconnect
+
+    /// Not connected: keep a one-shot tap until the link is back, or fail it now when the Mac
+    /// is not coming back soon.
+    private func hold(_ message: ModeMessage) {
+        let now = ProcessInfo.processInfo.systemUptime
+        let mayWait = TapHold.mayWait(macSelected: PairingStore.shared.selected != nil, inFront: foreground,
+                                      linkGivenUp: state.isFailedState,
+                                      knownAbsent: linkIssue != nil, downFor: now - (notConnectedSince ?? now))
+        guard mayWait else { return failTap(message) }
+        for pushedOut in outbox.hold(message, at: now) { failTap(pushedOut) }
+        scheduleOutboxExpiry()
+    }
+
+    /// Wakes when the oldest held tap runs out, only while something is held.
+    private func scheduleOutboxExpiry() {
+        outboxExpiry?.cancel()
+        guard let at = outbox.nextExpiry else { return outboxExpiry = nil }
+        outboxExpiry = Task { @MainActor in
+            try? await Task.sleep(for: .seconds(max(0.05, at - ProcessInfo.processInfo.systemUptime)))
+            guard !Task.isCancelled else { return }
+            for expired in self.outbox.expire(at: ProcessInfo.processInfo.systemUptime) { self.failTap(expired) }
+            self.scheduleOutboxExpiry()
+        }
+    }
+
+    /// Connected: send what waited, in order, once each; fail what ran out.
+    private func drainOutbox() {
+        guard !outbox.isEmpty else { return }
+        let out = outbox.drain(at: ProcessInfo.processInfo.systemUptime)
+        scheduleOutboxExpiry()
+        for expired in out.expired { failTap(expired) }
+        for message in out.send { transmit(message) }
+    }
+
+    /// Everything held fails now (the link gave up, or the Mac is known to be away).
+    private func failHeld() {
+        let all = outbox.removeAll()
+        scheduleOutboxExpiry()
+        for message in all { failTap(message) }
+    }
+
+    /// Everything held is dropped quietly (another Mac, the app left the screen).
+    private func dropHeld() {
+        for message in outbox.removeAll() {
+            switch message {
+            case .deckRun(let id), .deckRunConfirmed(let id): deckPending.remove(id)
+            case .macro(.run(let id)) where macroPendingID == id: macroPendingID = nil
+            default: break
+            }
+        }
+        scheduleOutboxExpiry()
+    }
+
+    /// Says on screen that a tap did not reach the Mac, the way each screen already shows a
+    /// failed tap.
+    private func failTap(_ message: ModeMessage) {
+        let words = notConnectedWords
+        switch message {
+        case .deckRun(let id), .deckRunConfirmed(let id), .remoteSystem(let id, _):
+            deckPending.remove(id)
+            let outcome = DeckOutcome(ok: false, message: words)
+            deckOutcomes[id] = outcome
+            Haptics.shared.play(.error)
+            showDeckFailure(words)
+            Task { @MainActor in
+                try? await Task.sleep(for: .seconds(1.6))
+                if self.deckOutcomes[id] == outcome { self.deckOutcomes[id] = nil }
+            }
+        case .macro(.run(let id)):
+            if macroPendingID == id { macroPendingID = nil }
+            let name = allMacros?.first { $0.id == id }?.name ?? macroProfile?.macros.first { $0.id == id }?.name ?? "Macro"
+            showMacroResult(MacroResult(macroID: id, title: name, outcome: .failed, message: words, output: nil))
+            Haptics.shared.play(.error)
+        case .dockOpen(let bundleID):
+            Haptics.shared.play(.error)
+            let name = (dockApps + dockCatalog).first { $0.bundleID == bundleID }?.name ?? "That app"
+            showDockNotice(DockNotice(title: "\(name) did not open", message: words))
+        default:
+            Haptics.shared.play(.error)
+            UIAccessibility.post(notification: .announcement, argument: words)
+        }
+    }
+
+    private func startGrace() {
+        guard PairingStore.shared.selected != nil else { return }
+        graceGeneration += 1
+        let generation = graceGeneration
+        inReconnectGrace = true
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(TapHold.grace))
+            if self.graceGeneration == generation { self.inReconnectGrace = false }
+        }
+    }
+
+    private func endGrace() {
+        graceGeneration += 1
+        if inReconnectGrace { inReconnectGrace = false }
+    }
+
+    private func issueChanged(_ issue: LinkIssue?) {
+        #if DEBUG
+        if isDemo { return }
+        #endif
+        linkIssue = issue
+        // The phone knows why the Mac is away: say it now instead of waiting.
+        if issue != nil {
+            endGrace()
+            failHeld()
         }
     }
 
@@ -491,15 +701,30 @@ final class MacSession {
 
     private func applyHeartbeats() {
         guard let client else { return }
-        client.heartbeatIdleTimeout = power.heartbeatIdleTimeout
+        client.heartbeatIdleTimeout = power.heartbeatIdleTimeout(rest: heartbeatRest)
         client.measuresRoundTrip = diagnostics.isShown
-        client.heartbeatsEnabled = (trackpadVisible || diagnostics.isShown) && power.allowsHeartbeats
+        let restingDimmed = !heartbeatRest.runsWhileDimmed && AppRouter.shared.isDimmed
+        client.heartbeatsEnabled = (trackpadVisible || diagnostics.isShown) && power.allowsHeartbeats && !restingDimmed
     }
 
     // MARK: Receiving
 
     fileprivate func linkStateChanged(_ new: LinkState) {
+        #if DEBUG
+        if isDemo { return }
+        #endif
+        let wasConnected = isConnected
         setState(new)
+        switch new {
+        case .connected: endGrace()
+        case .failed:
+            // Not retrying (a refusal, or another iPhone took the Mac): say so now.
+            endGrace()
+            failHeld()
+        case .searching, .connecting:
+            if wasConnected { startGrace() }
+        case .idle: break
+        }
         if !new.isConnectedState, case .waiting = clipboardPush {
             // The answer cannot come any more; never leave it looking sent.
             clipboardPush = .refused("The connection dropped before your Mac confirmed it. Try again.")
@@ -526,6 +751,8 @@ final class MacSession {
                 default: break
                 }
             }
+            // Taps made while the link came back, after the screen's own refresh.
+            drainOutbox()
         }
     }
 
@@ -715,6 +942,11 @@ final class MacSession {
     func runMacro(_ id: UUID) {
         macroPendingID = id
         send(.macro(.run(macroID: id)))
+    }
+
+    /// Counted from when the run left, like `watchDeckRun`.
+    private func watchMacroRun(_ id: UUID) {
+        guard macroPendingID == id else { return }
         Task { @MainActor in
             try? await Task.sleep(for: .seconds(10))
             if self.macroPendingID == id {
@@ -870,6 +1102,7 @@ final class MacSession {
         if isDemo { return }
         #endif
         guard state != new else { return }
+        if state.isConnectedState, !new.isConnectedState { notConnectedSince = ProcessInfo.processInfo.systemUptime }
         state = new
         if case .connected = new {} else { connectedAt = nil }
         switch new {
@@ -901,6 +1134,35 @@ final class MacSession {
         allMacros = demo.macros
         macDockState = MacDockState(hidden: false, hideWhileConnected: true, isHiddenNow: true)
         hasMacSettings = true
+    }
+
+    /// Debug builds only, for simulator screenshots of the link's words:
+    /// `-GPLinkIssue asleep|off|locked|forgot` holds that state; `-GPGraceDemo` shows the quick
+    /// reconnect (nothing for 2.5 s), then "Looking for your Mac".
+    private func applyDebugLink() {
+        let args = ProcessInfo.processInfo.arguments
+        func value(_ flag: String) -> String? {
+            guard let i = args.firstIndex(of: flag), i + 1 < args.count else { return nil }
+            return args[i + 1]
+        }
+        if let issue = value("-GPLinkIssue") {
+            isDemo = true
+            switch issue {
+            case "asleep": state = .searching; linkIssue = .macAsleep
+            case "off": state = .searching; linkIssue = .macTurnedOff
+            case "forgot": state = .failed("not paired"); linkIssue = nil
+            case "locked":
+                state = .connected(rttMs: 3)
+                macStatus = MacStatus(accessibilityTrusted: true, macName: macName, followsAllPanes: true, screenLocked: true)
+            default: break
+            }
+        }
+        if args.contains("-GPGraceDemo") {
+            isDemo = true
+            state = .searching
+            linkIssue = nil
+            startGrace()
+        }
     }
     #endif
 
@@ -968,6 +1230,35 @@ final class MacSession {
     }
 }
 
+/// Why the selected Mac is not there, in the words every screen uses.
+struct MacAbsence: Equatable {
+    enum Kind { case asleep, turnedOff, locked, forgotPhone }
+    let kind: Kind
+    let title: String
+    let detail: String
+    let symbol: String
+
+    static func asleep(_ name: String?) -> MacAbsence {
+        MacAbsence(kind: .asleep, title: "\(name ?? "Your Mac") is asleep",
+                   detail: "Wake it, and Glasspad connects again.", symbol: "moon.zzz")
+    }
+
+    static func turnedOff(_ name: String?) -> MacAbsence {
+        MacAbsence(kind: .turnedOff, title: "Glasspad is off on \(name ?? "your Mac")",
+                   detail: "Turn it on from the menu bar on your Mac, or open Glasspad there.", symbol: "menubar.rectangle")
+    }
+
+    static func locked(_ name: String?) -> MacAbsence {
+        MacAbsence(kind: .locked, title: "\(name ?? "Your Mac") is locked",
+                   detail: "Unlock it to keep going.", symbol: "lock")
+    }
+
+    static func forgotPhone(_ name: String?) -> MacAbsence {
+        MacAbsence(kind: .forgotPhone, title: "\(name ?? "Your Mac") forgot this iPhone",
+                   detail: "Pair again to use it.", symbol: "iphone.slash")
+    }
+}
+
 /// Receives link callbacks (on the main queue, the client's default) and hands them to the session.
 private final class LinkBridge: GlasspadLinkDelegate {
     weak var session: MacSession?
@@ -985,9 +1276,17 @@ private final class LinkBridge: GlasspadLinkDelegate {
 
 extension LinkState {
     var isConnectedState: Bool { if case .connected = self { true } else { false } }
+    var isFailedState: Bool { if case .failed = self { true } else { false } }
 
     var isReplaced: Bool {
         if case .failed(let reason) = self { reason == GlasspadService.replacedFailure } else { false }
+    }
+
+    /// The Mac refused this iPhone's key: it was unpaired on the Mac.
+    var macForgotPhone: Bool {
+        guard case .failed(let reason) = self else { return false }
+        let r = reason.lowercased()
+        return r.contains("not paired") || r.contains("key confirmation")
     }
 
     var statusText: String {
