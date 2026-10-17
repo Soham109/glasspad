@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Glasspad installer. One command sets up everything:
 #   curl -fsSL https://raw.githubusercontent.com/Soham109/glasspad/main/install.sh | bash
+# Stricter, if your curl supports it (HTTPS only, also after redirects):
+#   curl --proto '=https' --tlsv1.2 -fsSL https://raw.githubusercontent.com/Soham109/glasspad/main/install.sh | bash
 #
 # It does every step it can by itself and, where Apple requires a person (signing in, a tap on
 # the iPhone), it tells you exactly what to click and waits until it sees that you have done it.
@@ -8,6 +10,8 @@
 #
 # Options (environment variables):
 #   GLASSPAD_HOME=path     Where the source goes. Default: ~/Projects/glasspad
+#   GLASSPAD_REF=tag       Build this release tag or commit (for example v0.2.1) instead of the
+#                          newest code on main. Run again with another tag to move to it.
 #   GLASSPAD_SKIP_PHONE=1  Set up only the Mac (no iPhone at hand, or a run without a person).
 #   GLASSPAD_TEAM=ID       Which Apple team to sign with, when you have more than one.
 #   GLASSPAD_DEVICE=UDID   Which iPhone to use, when several are paired with this Mac.
@@ -24,6 +28,7 @@ main() {
 set -euo pipefail
 
 REPO_URL="${GLASSPAD_REPO_URL:-https://github.com/Soham109/glasspad.git}"
+REF="${GLASSPAD_REF:-}"
 DEST="${GLASSPAD_HOME:-$HOME/Projects/glasspad}"
 SUPPORT="$HOME/Library/Application Support/Glasspad"
 BIN="$SUPPORT/bin"
@@ -93,6 +98,16 @@ run_logged() {
 }
 
 [ "$(uname)" = "Darwin" ] || fail "Glasspad needs a Mac."
+# The source is only fetched over HTTPS (or from a folder on this Mac, for tests and forks):
+# plain http:// and git:// can be changed by anyone on the network path.
+case "$REPO_URL" in
+  https://*|/*|file://*) ;;
+  *) fail "GLASSPAD_REPO_URL must start with https:// (it is $REPO_URL)." ;;
+esac
+# A ref is a tag, branch or commit name; one that starts with "-" would be read as an option.
+case "$REF" in
+  -*|*[!A-Za-z0-9._/-]*) fail "GLASSPAD_REF is not a tag or commit name: $REF" ;;
+esac
 
 SUMMARY=""
 note() { SUMMARY="$SUMMARY$(printf '  %-15s %s' "$1" "$2")"$'\n'; }
@@ -156,7 +171,8 @@ step "2. Build tools"
 get_xcodegen() {
   local tmp sum
   tmp="$(mktemp -d)"
-  if ! curl -fsSL --retry 3 -o "$tmp/xcodegen.zip" \
+  # HTTPS only, also for GitHub's redirect to its download server.
+  if ! curl --proto '=https' --tlsv1.2 -fsSL --retry 3 -o "$tmp/xcodegen.zip" \
       "https://github.com/yonaskolb/XcodeGen/releases/download/${XCODEGEN_VERSION}/xcodegen.zip"; then
     rm -rf "$tmp"; say "Could not download XcodeGen (offline, or GitHub is unreachable)."; return 1
   fi
@@ -187,10 +203,26 @@ ok "XcodeGen $XCODEGEN_V"
 
 # 3. Source ----------------------------------------------------------------------------------
 step "3. Glasspad source"
+# use_ref: checks out GLASSPAD_REF (a tag or commit) without a branch. Fails when it is unknown.
+use_ref() {
+  local commit
+  commit="$(git -C "$DEST" rev-parse -q --verify "$REF^{commit}" 2>/dev/null)" \
+    || fail "There is no tag or commit named $REF in $DEST." \
+      "Release tags are listed at github.com/Soham109/glasspad/releases."
+  git -C "$DEST" -c advice.detachedHead=false checkout -q --detach "$commit" </dev/null \
+    || fail "Could not switch $DEST to $REF."
+}
 if [ -d "$DEST/.git" ]; then
   if [ -n "$(git -C "$DEST" status --porcelain --untracked-files=no 2>/dev/null)" ]; then
     say "You have changes in this folder that are not committed, so it was not updated."
     say "The iPhone build uses the last commit, without those changes."
+  elif [ -n "$REF" ]; then
+    git -C "$DEST" fetch -q --tags origin </dev/null >/dev/null 2>&1 \
+      || say "Could not check for new tags (offline?). Using the ones already here."
+    use_ref
+  elif ! git -C "$DEST" symbolic-ref -q HEAD >/dev/null 2>&1; then
+    say "This folder is on a fixed release (an earlier run used GLASSPAD_REF), so it was not updated."
+    say "To move on: GLASSPAD_REF=<newer tag>, or git -C \"$DEST\" checkout main for the newest code."
   elif ! git -C "$DEST" pull -q --ff-only </dev/null >/dev/null 2>&1; then
     say "Could not update (offline, or the folder has its own commits). Using what is there."
   fi
@@ -201,10 +233,11 @@ else
   mkdir -p "$(dirname "$DEST")"
   git clone -q "$REPO_URL" "$DEST" </dev/null || fail "Could not download Glasspad from $REPO_URL." \
     "Check your internet connection and run the installer again."
+  [ -z "$REF" ] || use_ref
 fi
 cd "$DEST"
 REV="$(git rev-parse HEAD)"
-ok "$DEST (${REV:0:7})"
+ok "$DEST (${REF:+$REF, }${REV:0:7})"
 note "Source" "$DEST at ${REV:0:7}"
 
 # 4. Apple account -----------------------------------------------------------------------------
