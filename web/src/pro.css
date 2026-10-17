@@ -84,3 +84,7 @@ details.cl-rel[open] > summary { margin-bottom: 4px; }
 .px-perm { margin: 24px 0 8px; }
 .px-perm caption { padding-bottom: 10px; text-align: left; font-weight: 600; }
 .px-perm td i { display: block; margin-top: 2px; font-style: normal; color: var(--ink-3); font-size: 14.5px; }
+@media (max-width: 480px) {
+  .px-links { gap: 8px 18px; }
+  .px-links > span[aria-hidden="true"] { display: none; }
+}

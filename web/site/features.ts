@@ -353,7 +353,7 @@ export const CONTENT: Record<string, Feature | Comparison> = {
     them: "Stream Deck Mobile",
     h1: "Glasspad vs Stream Deck Mobile",
     sub: "Two ways to put buttons for your Mac on your iPhone.",
-    answer: "Stream Deck Mobile, from Elgato, turns an iPhone or iPad into Stream Deck keys for a Mac or Windows PC running the Stream Deck app, with hundreds of plugins for streaming and creative tools. It is free for 6 keys; Pro gives up to 64 and costs $2.99 a month, $24.99 a year or $49.99 once. Glasspad is a free, open source iPhone app for the Mac only, with no key limit and buttons that change with the app in front, plus a trackpad, keyboard, remote and window control. For live streaming, Stream Deck's plugins make it the stronger choice.",
+    answer: "Stream Deck Mobile, from Elgato, turns an iPhone or iPad into Stream Deck keys for a Mac or PC, free for 6 keys and paid for more. Glasspad is free and open source for iPhone and Mac, with no key limit and buttons that follow the app in front. For live streaming plugins, Stream Deck is stronger.",
     rows: [
       { k: "Devices", us: ["part", "iPhone (iOS 18 or later) with a Mac (macOS 14 or later)"], them: ["yes", "iPhone or iPad (iOS 17 or later) with a Mac or Windows PC; Android with Pro"] },
       { k: "Price", us: ["yes", "Free, everything"], them: ["part", "Free for 6 keys. Pro: $2.99 a month, $24.99 a year or $49.99 once"] },
@@ -392,7 +392,7 @@ export const CONTENT: Record<string, Feature | Comparison> = {
     them: "Remote Mouse",
     h1: "Glasspad vs Remote Mouse",
     sub: "Two ways to turn a phone into a mouse and keyboard for your computer.",
-    answer: "Remote Mouse and Glasspad both turn a phone into a mouse, keyboard and media remote for a computer over Wi-Fi. Remote Mouse works on iPhone and Android with Mac, Windows and Linux, installs from the App Store, and is free with ads and paid extras. Glasspad is for iPhone and Mac only, free with no ads or purchases, and open source (MIT). It adds a trackpad with haptics that follows your Mac's own gestures, buttons for the app in front, and window and display control. It is not on the App Store, so installing it takes more steps.",
+    answer: "Remote Mouse turns an iPhone or Android phone into a mouse, keyboard and media remote for Mac, Windows or Linux, free with ads and paid extras. Glasspad is free with no ads, open source, and for iPhone and Mac only. It adds a haptic trackpad with Mac gestures and buttons for the app in front.",
     rows: [
       { k: "Phone", us: ["part", "iPhone (iOS 18 or later)"], them: ["yes", "iPhone and iPad (iOS 15 or later), and Android"] },
       { k: "Computer", us: ["part", "Mac (macOS 14 or later)"], them: ["yes", "Mac, Windows and Linux"] },
@@ -414,7 +414,7 @@ export const CONTENT: Record<string, Feature | Comparison> = {
     ],
     faq: [
       ["Is Glasspad an open source alternative to Remote Mouse?", "Yes. Glasspad's code is on GitHub under the MIT License, and every feature is free. It works only with an iPhone and a Mac."],
-      ["Why is Glasspad not on the App Store?", "The Mac app uses system features that the App Store does not allow. Instead, the installer builds both apps on your Mac with Xcode and your free Apple ID."],
+      ["Why is Glasspad not on the App Store?", "The App Store needs Apple's paid developer program ($99 a year). Building from source with a free Apple ID keeps Glasspad free."],
       ["Does Glasspad work on Windows?", "No. For Windows or Linux, Remote Mouse is a good choice."],
       ["What other Remote Mouse alternatives are there for Mac?", "Mobile Mouse is a paid one for iPhone, iPad and Apple Watch, with Mac and Windows. <a href=\"/compare/mobile-mouse\">Glasspad vs Mobile Mouse</a> compares them."],
       ["Do I need to pay Apple to install Glasspad?", "No. A free Apple ID is enough. Apps installed that way stop opening after 7 days, and your Mac renews Glasspad over Wi-Fi before then."],
@@ -545,7 +545,7 @@ export const CONTENT: Record<string, Feature | Comparison> = {
     ],
     steps: [
       { icon: "code", title: "Install it", text: "One command in Terminal on the Mac builds and installs both apps." },
-      { icon: "wifi", title: "Pair once", text: "Scan the QR code on the Mac. Everything after that is encrypted." },
+      { icon: "wifi", title: "Pair once", text: "Scan the QR code on the Mac and click Allow. Everything after that is encrypted." },
       { icon: "menu", title: "Pick a mode", text: "Trackpad, Keyboard, Remote, Actions and more, from the mode menu." },
     ],
     more: [
@@ -576,7 +576,7 @@ export const CONTENT: Record<string, Feature | Comparison> = {
     sub: "When Universal Clipboard will not paste, send it with one tap.",
     visual: "clipboard",
     visualLabel: "Clipboard on an iPhone beside a Mac: Paste under Send to Mac puts what the iPhone copied on the Mac's clipboard",
-    answer: "Apple's Universal Clipboard is the built-in way: copy on the iPhone and paste on the Mac. It needs the same Apple Account on both, Wi-Fi and Bluetooth on, Handoff on, and the devices near each other. When it still will not paste, Glasspad's Clipboard sends it on a tap: Send to Mac puts the text, link or image you copied on the iPhone onto the Mac's clipboard, and Get from Mac copies the Mac's clipboard to the iPhone. It works over your Wi-Fi with no Apple Account sign-in, Bluetooth or Handoff. Glasspad is free and open source.",
+    answer: "Apple's Universal Clipboard copies between iPhone and Mac when both share an Apple Account with Wi-Fi, Bluetooth and Handoff on. When it will not paste, Glasspad's Clipboard sends text, links and images on a tap, both ways, over your Wi-Fi. It is free and open source.",
     shot: "keyboard",
     caption: "Clipboard sits at the end of Keyboard's shortcut row.",
     guide: ["/guide#clipboard", "Clipboard in the guide"],
@@ -619,7 +619,7 @@ export const CONTENT: Record<string, Feature | Comparison> = {
     them: "Coast",
     h1: "Glasspad vs Coast",
     sub: "Two new ways to control your Mac from your iPhone, side by side.",
-    answer: "Coast, from LeShan Chen, turns an iPhone, iPad or Apple Watch into controls for a Mac: decks of buttons, sliders and jog wheels you lay out yourself, a trackpad and keyboard, and an optical mouse that uses the camera. The app is free on the US App Store, and Coast Pro is $2.99 once for macros, screen mirroring, the air mouse, drawing, the Apple Watch app and iCloud sync. It talks to a free Mac app over your Wi-Fi. Glasspad is for iPhone and Mac only, free with nothing to buy, and open source (MIT). It comes with buttons for more than 70 apps, a remote for Netflix and YouTube, and window and display control. It is not on the App Store, so installing it takes more steps.",
+    answer: "Coast, from LeShan Chen, turns an iPhone, iPad or Apple Watch into decks of controls, a trackpad and a keyboard for a Mac, free with a $2.99 Pro upgrade. Glasspad is free with nothing to buy, open source, and for iPhone and Mac only, with buttons for 70+ apps and a remote for Netflix and YouTube.",
     shot: "actions",
     caption: "Glasspad's Actions: buttons for the app in front.",
     rows: [
@@ -647,7 +647,7 @@ export const CONTENT: Record<string, Feature | Comparison> = {
       ["Is Coast free?", "The app and its Mac app are free. Coast Pro, $2.99 once on the US App Store, adds macros, screen mirroring, the air mouse, drawing and a laser, the Apple Watch app, iCloud sync and more grids."],
       ["Is there a free and open source alternative to Coast?", "Yes. Glasspad is free with nothing to buy, and its code is public under the MIT license. It works only with an iPhone and a Mac, and installs with a Terminal command instead of the App Store."],
       ["Can Glasspad show my Mac's screen on the iPhone?", "No. Glasspad has no screen mirroring. Its Displays mode shows a map of your displays and windows to move and tile them. For the screen itself, Coast Pro or a screen sharing app fits better."],
-      ["Does Glasspad work on iPad or Apple Watch?", "No. Glasspad is made for an iPhone and a Mac. For an iPad or Apple Watch, Coast is a good choice."],
+      ["Does Glasspad work on iPad or Apple Watch?", "There is no Watch or iPad app. Glasspad's Lock Screen controls also show on Apple Watch. For an iPad, Coast is a good choice."],
     ],
     sources: [
       ["Coast on the App Store: price, Coast Pro, requirements and devices", "https://apps.apple.com/us/app/id6790821600"],
@@ -662,7 +662,7 @@ export const CONTENT: Record<string, Feature | Comparison> = {
     them: "Mobile Mouse",
     h1: "Glasspad vs Mobile Mouse",
     sub: "Two ways to use your iPhone as a mouse and remote for your Mac.",
-    answer: "Mobile Mouse, from R.P.A. Tech, turns an iPhone, iPad or Apple Watch into a trackpad, air mouse, keyboard and media and presentation remote for a Mac or Windows PC. It costs $9.99 on the US App Store, with paid extras, and talks to a free server app on the computer over Wi-Fi, with Bluetooth and USB versions too. Glasspad is for iPhone and Mac only, free with nothing to buy, and open source (MIT). It adds haptics on every click, buttons for the app in front, and window and display control. It is not on the App Store, so installing it takes more steps.",
+    answer: "Mobile Mouse, from R.P.A. Tech, turns an iPhone, iPad or Apple Watch into a trackpad, air mouse, keyboard and remote for a Mac or PC, for $9.99. Glasspad is free with nothing to buy, open source, and for iPhone and Mac only, with haptics on every click and buttons for the app in front.",
     shot: "trackpad",
     caption: "Glasspad's Trackpad, held sideways.",
     rows: [
@@ -688,7 +688,7 @@ export const CONTENT: Record<string, Feature | Comparison> = {
     faq: [
       ["Is there a free alternative to Mobile Mouse for Mac?", "Yes. Glasspad is free and open source, with no ads or in-app purchases. It works only with an iPhone and a Mac, and installs with a Terminal command instead of the App Store."],
       ["How much does Mobile Mouse cost?", "On the US App Store it is $9.99, with two in-app purchases: Advanced Communications for $0.99 and Pro Presentation Mode for $1.99. The server app on the computer is free."],
-      ["Does Glasspad work on Windows or Apple Watch?", "No. Glasspad is made for an iPhone and a Mac. For Windows or Apple Watch, Mobile Mouse is a good choice."],
+      ["Does Glasspad work on Windows or Apple Watch?", "Glasspad is for a Mac only. There is no Watch or iPad app. Glasspad's Lock Screen controls also show on Apple Watch. For Windows, Mobile Mouse is a good choice."],
       ["Do I need to pay Apple to install Glasspad?", "No. A free Apple ID is enough. Apps installed that way stop opening after 7 days, and your Mac renews Glasspad over Wi-Fi before then."],
     ],
     sources: [

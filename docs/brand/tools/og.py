@@ -2,7 +2,9 @@
 
 Same family as web/public/og-light.png: paper background, bold title on the left, a real app
 screen on the right (from docs/img/screens, or a real Mac view from docs/brand/screenshots).
-Slug: "/" -> "home", "/use/x" -> "use-x". Render on a Mac (the title font is SF Pro).
+Slug: "/" -> "home", "/use/x" -> "use-x". Pages with no entry in SHOT get no card of their own and
+use the site card, web/public/og-light.png, which this script also renders (icon, wordmark and the
+definition line from web/site/content.ts). Render on a Mac (the title font is SF Pro).
 Usage (repo root): python3 docs/brand/tools/og.py
 """
 import json, pathlib, re, subprocess, tempfile
@@ -33,6 +35,7 @@ SHOT = {
     "/compare/stream-deck-mobile": ["library"],
     "/compare/remote-mouse": ["media"],
     "/compare/mobile-mouse": ["trackpad"],
+    "/compare/coast": ["actions"],
     "/compare/universal-control": ["displays"],
 }
 LANDSCAPE = {"trackpad", "layouts", "standby"}
@@ -98,11 +101,35 @@ def html(path, title):
 <div class="foot">Free and open source &middot; glasspad.sohamaggarwal.com</div></div>
 <div class="r">{art(SHOT[path])}</div></body></html>"""
 
+def definition():
+    src = (ROOT / "web/site/content.ts").read_text()
+    return re.search(r'export const DEFINITION = "([^"]+)"', src).group(1)
+
+SITE_CSS = """
+* { margin: 0; box-sizing: border-box; }
+body { width: 1200px; height: 630px; overflow: hidden; background: #F2F1EE; color: #1A1A1A;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', Arial, sans-serif;
+  display: flex; flex-direction: column; justify-content: center; padding: 0 96px; }
+.brand { display: flex; align-items: center; gap: 28px; font-size: 104px; font-weight: 700; letter-spacing: -0.035em; line-height: 1; }
+.brand img { width: 176px; height: 176px; margin: -14px -18px -14px -14px; }
+p { margin-top: 44px; max-width: 980px; font-size: 36px; line-height: 1.3; font-weight: 500; letter-spacing: -0.01em; color: rgba(26,26,26,0.72); text-wrap: balance; }
+.foot { position: absolute; bottom: 52px; left: 96px; font-size: 22px; font-weight: 500; color: rgba(26,26,26,0.62); }
+"""
+
+def site_card():
+    return f"""<html><head><style>{SITE_CSS}</style></head><body>
+<div class="brand"><img src="{ICON.as_uri()}">Glasspad</div>
+<p>{definition()}</p>
+<div class="foot">glasspad.sohamaggarwal.com</div></body></html>"""
+
 def main():
     OUT.mkdir(parents=True, exist_ok=True)
     tmp = pathlib.Path(tempfile.mkdtemp())
-    jobs = []
+    (tmp / "site.html").write_text(site_card())
+    jobs = [{"in": str(tmp / "site.html"), "out": str(ROOT / "web/public/og-light.png"), "w": 1200, "h": 630}]
     for path, t in pages():
+        if path not in SHOT:
+            continue          # uses the site card
         name = slug(path)
         (tmp / f"{name}.html").write_text(html(path, display_title(path, t)))
         jobs.append({"in": str(tmp / f"{name}.html"), "out": str(OUT / f"{name}.png"), "w": 1200, "h": 630})

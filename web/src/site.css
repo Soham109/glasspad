@@ -149,6 +149,7 @@ html.gn-locked, html.gn-locked body { overflow: hidden; }
 .gf-crumbs a:hover { text-decoration: underline; }
 .gf-crumbs a[aria-current="page"] { color: var(--ink); }
 .gf-by { margin-left: auto; }
+.gf-tm { font-size: 12px; }
 .foot .foot-credit { margin-top: -12px; }
 @media (max-width: 1024px) {
   .gf-brand, .gf-cols { grid-column: 1 / -1; }

@@ -28,7 +28,7 @@ export const FAQS: Record<string, { q: string; a: string }[]> = {
     },
     {
       q: "What if my Mac sleeps or the Wi-Fi drops?",
-      a: "The iPhone reconnects by itself when the Wi-Fi is back, the Mac wakes or you open the app, and says why the Mac is away, such as asleep, locked or Glasspad turned off. Wake Mac sends a wake signal over Wi-Fi to a Mac with Wake for network access on; a Mac on battery cannot wake this way. If the Wi-Fi keeps devices apart, Glasspad tries a direct Wi-Fi link to the Mac, which is slower than a normal network.",
+      a: "The iPhone reconnects by itself when the Wi-Fi is back or the Mac wakes, and says why the Mac is away. Wake Mac can wake a Mac that has Wake for network access on, but not one on battery.",
     },
     {
       q: "Does anything leave my Wi-Fi?",
@@ -105,7 +105,7 @@ export const HOWTO: { name: string; text: string }[] = [
   { name: "Mac app", text: "Allow Accessibility for Glasspad in System Settings." },
   { name: "iPhone", text: "Trust the Mac, turn on Developer Mode, and trust the app." },
   { name: "Automatic renewal", text: "Your Mac keeps the app opening by renewing it over Wi-Fi." },
-  { name: "Pair", text: "Click Glasspad in the menu bar, choose Pair Your iPhone, and scan the code." },
+  { name: "Pair", text: "Click Glasspad in the menu bar, choose Pair Your iPhone, scan the code, then click Allow on the Mac." },
 ];
 
 export const NEEDS = ["A Mac on macOS 14 or later", "Xcode 26 or later", "An iPhone on iOS 18 or later", "A free Apple ID", "A USB cable for the first install", "One Wi-Fi for the Mac and the iPhone"];

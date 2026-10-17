@@ -7,13 +7,14 @@ import markdown
 ROOT = pathlib.Path(__file__).resolve().parents[3]
 B = ROOT / "docs/brand"
 OUT = ROOT / "web/public/press/glasspad-press-kit.zip"
+LANDSCAPE = ["trackpad", "layouts"]
 SHOTS = ["glasspad-iphone-actions", "glasspad-iphone-keyboard", "glasspad-iphone-media", "glasspad-iphone-remote",
          "glasspad-iphone-present", "glasspad-iphone-displays", "glasspad-iphone-split", "glasspad-mac-popover-connected-light"]
 
-CSS = """body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',Arial,sans-serif;color:#1A1A1A;margin:44px 60px;font-size:12.5px;line-height:1.45}
-h1{font-size:30px;letter-spacing:-0.02em;margin:0 0 6px}h2{font-size:17px;margin:22px 0 8px}
-table{border-collapse:collapse;width:100%;font-size:12.5px}td:first-child{width:118px;font-weight:600;white-space:nowrap}td,th{text-align:left;vertical-align:top;padding:6px 10px 6px 0;border-bottom:1px solid #E6E4DF}
-th{display:none}code{font-family:ui-monospace,Menlo,monospace;font-size:12px}ul{padding-left:18px}li{margin:3px 0}
+CSS = """body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',Arial,sans-serif;color:#1A1A1A;margin:26px 56px 20px;font-size:12px;line-height:1.38}
+h1{font-size:30px;letter-spacing:-0.02em;margin:0 0 6px}h2{font-size:16px;margin:16px 0 6px}
+table{border-collapse:collapse;width:100%;font-size:12.5px}td:first-child{width:118px;font-weight:600;white-space:nowrap}td,th{text-align:left;vertical-align:top;padding:4px 10px 4px 0;border-bottom:1px solid #E6E4DF}
+th{display:none}code{font-family:ui-monospace,Menlo,monospace;font-size:12px}ul{padding-left:18px}li{margin:2px 0}
 .logo{width:56px;height:56px;margin:-6px 0 8px -6px}"""
 
 def pdf(tmp):
@@ -31,6 +32,8 @@ def main():
     files += [(p, f"icon/{p.name}") for p in sorted((B / "icon").iterdir()) if p.suffix in (".png", ".svg")]
     files += [(p, f"wordmark/{p.name}") for p in sorted((B / "wordmark").glob("*.png"))]
     files += [(B / "screenshots" / f"{s}.png", f"screenshots/{s}.png") for s in SHOTS]
+    # The landscape screens the press page shows (docs/img/screens, as on the site).
+    files += [(ROOT / "docs/img/screens" / f"{s}.png", f"screenshots/glasspad-iphone-{s}.png") for s in LANDSCAPE]
     OUT.parent.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(OUT, "w", zipfile.ZIP_DEFLATED) as z:
         for src, name in files:

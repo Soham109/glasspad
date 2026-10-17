@@ -20,7 +20,7 @@ import { changelogHtml, changelogFeed, icons, pressKit, notFound } from "./extra
 
 const NAME = "Glasspad";
 const TAGLINE = "A control surface for your Mac, on your iPhone.";
-const OG = { url: `${SITE}/og-light.png`, width: 1200, height: 630, alt: "Glasspad: your iPhone as a Mac trackpad, keyboard and remote" };
+const OG = { url: `${SITE}/og-light.png`, width: 1200, height: 630, alt: "The Glasspad icon and name: a free, open source app that turns an iPhone into a trackpad, keyboard, media remote and button deck for a Mac" };
 /** public/, set when Vite resolves its config; the per-page social cards live in public/og/. */
 let PUBLIC = "";
 /** A page's card in public/og/ (docs/brand/tools/og.py makes them): "/" is home.png, "/use/x" is use-x.png. */
@@ -65,7 +65,7 @@ const free = { "@type": "Offer", price: "0", priceCurrency: "USD", availability:
 function entities(withFilm: boolean): object[] {
   const person = {
     "@type": "Person", "@id": ID.person, name: AUTHOR, url: "https://sohamaggarwal.com",
-    sameAs: ["https://github.com/Soham109", YOUTUBE],
+    sameAs: ["https://github.com/Soham109", "https://www.linkedin.com/in/soham-aggarwal5/", YOUTUBE],
   };
   const website = {
     "@type": "WebSite", "@id": ID.website, name: NAME, alternateName: "Glasspad for iPhone and Mac", url: `${SITE}/`,

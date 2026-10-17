@@ -117,13 +117,13 @@ export const pages: Page[] = [
   {
     path: "/press", file: "press.html", crumb: "Press kit", lastmod: "2026-10-17", ogType: "website",
     title: "Glasspad Press Kit: descriptions, facts, icon and screenshots",
-    description: "Everything to write about Glasspad: one line and long descriptions, the facts, the app icon, real app screenshots in one download, and how to reach the developer.",
+    description: "Everything to write about Glasspad: short and long descriptions, the facts, the app icon, real screenshots in one download, and the press contact.",
     summary: "Press kit: descriptions, facts, app icon, real screenshots as files or one zip, logo use and press contact.",
   },
   {
     path: "/accessibility", file: "accessibility.html", crumb: "Accessibility", lastmod: "2026-10-17", ogType: "website",
     title: "Glasspad Accessibility: VoiceOver, Reduce Motion and more",
-    description: "What the Glasspad apps and this website support for accessibility today, such as VoiceOver, Reduce Motion, larger text and contrast, what is not there yet, and how to tell me.",
+    description: "What the Glasspad apps and site support for accessibility: VoiceOver, Reduce Motion, larger text and contrast, the known gaps, and how to tell me.",
     summary: "Accessibility statement: what the apps and site support (VoiceOver, Reduce Motion, Dynamic Type, contrast), known gaps, and contact.",
   },
   // Features, in nav order

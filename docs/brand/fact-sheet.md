@@ -12,11 +12,12 @@
 | Needs | A Mac on macOS 14 or later, an iPhone on iOS 18 or later, Xcode 26 (free) and a free Apple ID |
 | How to get it | Not on the App Store. One Terminal command builds and installs both apps: glasspad.sohamaggarwal.com/install |
 | Built with | Swift 6 and SwiftUI |
-| Privacy | Paired by QR code, encrypted, no account, no tracking. Nothing leaves your Wi-Fi, except Website buttons fetching a site's name and logo. |
+| Privacy | Paired by QR code, encrypted, no account, no tracking. Nothing leaves your Wi-Fi, except Website buttons fetching a site's name and logo, and Media fetching album artwork. |
 | Developer | Soham Aggarwal, sohamaggarwal.com |
 | Website | glasspad.sohamaggarwal.com |
 | Source code | github.com/Soham109/glasspad |
 | Press contact | hello@sohamaggarwal.com |
+| Trademarks | Glasspad is not made by, endorsed by or affiliated with Apple or any other company named. Their names belong to their owners. |
 
 ## What it does
 
@@ -34,7 +35,7 @@
 | --- | --- |
 | `icon/` | App icon: Mac (transparent, rounded) and iOS (square, light and dark), PNG 1024 to 64, iOS as SVG |
 | `wordmark/` | Icon plus name, and name alone, for light and dark backgrounds (transparent PNG) |
-| `screenshots/` | 7 iPhone screens (1206x2622) and 1 Mac menu bar view |
+| `screenshots/` | 7 iPhone screens (1206x2622), Trackpad and a Layout held sideways (1280x698), and 1 Mac menu bar view |
 | `colors.json` | Brand colors from the app and site code |
 | `brand-guide.md` | Short brand guide: how to use the icon and name (`docs/brand/README.md` in the repo) |
 

@@ -69,7 +69,7 @@ export function footer(p: Page): string {
         ${col("Legal", [["Privacy", "/privacy", p.path === "/privacy"], ["Terms", "/terms", p.path === "/terms"], ["Accessibility", "/accessibility", p.path === "/accessibility"], ["Security", `${REPO}/blob/main/SECURITY.md`], ["MIT License", `${REPO}/blob/main/LICENSE`]])}
       </nav>
     </div>
-    <div class="gf-base">${crumbs}<p class="gf-by">Made by <a href="https://sohamaggarwal.com">Soham Aggarwal</a>. Free and open source.</p></div>
+    <div class="gf-base">${crumbs}<p class="gf-by">Made by <a href="https://sohamaggarwal.com">Soham Aggarwal</a>. Free and open source. <span class="gf-tm">Not affiliated with Apple or any other company named on this site.</span></p></div>
   </div>`;
 }
 

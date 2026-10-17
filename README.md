@@ -39,7 +39,7 @@
 curl -fsSL https://raw.githubusercontent.com/Soham109/glasspad/main/install.sh | bash
 ```
 
-Then click Glasspad in the Mac menu bar, choose **Pair Your iPhone…** and scan the code.
+Then click Glasspad in the Mac menu bar, choose **Pair Your iPhone…**, scan the code, then click **Allow** on your Mac.
 
 To build a fixed release instead of the newest code:
 
@@ -50,7 +50,7 @@ curl --proto '=https' --tlsv1.2 -fsSL https://raw.githubusercontent.com/Soham109
 - **You need:** a Mac on macOS 14+, an iPhone on iOS 18+, Xcode 26+ (free), a free Apple ID, and a cable for the first install.
 - **What it does:** builds both apps from source with your Apple ID, and waits for you where Apple needs a click (Xcode, Accessibility, Developer Mode). Safe to run again.
 - **The 7-day limit:** apps signed with a free Apple ID stop opening after 7 days. Your Mac renews Glasspad over Wi-Fi before then.
-- **Free, and the cost:** no fees and no paid Apple account. In return you build it once with Xcode, and the iPhone app is re-signed every 7 days (your Mac does it by itself). There is no App Store, TestFlight or notarized download, because those need Apple's paid developer program.
+- **Free, and the cost:** no fees and no paid Apple account. In return you build it once with Xcode, and the iPhone app is re-signed every 7 days (your Mac does it by itself). There is no App Store, TestFlight or notarized download: the App Store needs Apple's paid developer program ($99 a year). Building from source with a free Apple ID keeps Glasspad free.
 - **Read it first?** The script is [install.sh](install.sh). The [install page](https://glasspad.sohamaggarwal.com/install) shows every step, with fixes if something goes wrong.
 
 ## Features
@@ -59,24 +59,24 @@ curl --proto '=https' --tlsv1.2 -fsSL https://raw.githubusercontent.com/Soham109
 
 <table>
   <tr>
-    <td align="center" width="33%"><img src="docs/img/screens/trackpad.png" width="220" alt="Trackpad: the iPhone held sideways, with three finger dots on the touch surface"><br><b>Trackpad</b><br><sub>Move, click, scroll, pinch and swipe between Spaces, with a tap you can feel on every click.</sub></td>
-    <td align="center" width="33%"><img src="docs/img/screens/keyboard.png" width="160" alt="Keyboard: modifier keys, shortcuts and arrows above the letter keys"><br><b>Keyboard</b><br><sub>Type or dictate, with modifier keys, shortcuts, arrows and F1 to F12.</sub></td>
-    <td align="center" width="33%"><img src="docs/img/screens/media.png" width="160" alt="Media: artwork, scrubber, volume and brightness for the song playing on the Mac"><br><b>Media</b><br><sub>What is playing in Spotify, Music, Podcasts or a browser, with artwork, scrubbing, volume and brightness.</sub></td>
+    <td align="center" valign="top" width="33%"><img src="docs/img/screens/trackpad.png" width="220" height="120" alt="Trackpad: the iPhone held sideways, with three finger dots on the touch surface"><br><b>Trackpad</b><br><sub>Move, click, scroll, pinch and swipe between Spaces, with a tap you can feel on every click.</sub></td>
+    <td align="center" valign="top" width="33%"><img src="docs/img/screens/keyboard.png" width="160" height="294" alt="Keyboard: modifier keys, shortcuts and arrows above the letter keys"><br><b>Keyboard</b><br><sub>Type or dictate, with modifier keys, shortcuts, arrows and F1 to F12.</sub></td>
+    <td align="center" valign="top" width="33%"><img src="docs/img/screens/media.png" width="160" height="294" alt="Media: artwork, scrubber, volume and brightness for the song playing on the Mac"><br><b>Media</b><br><sub>What is playing in Spotify, Music, Podcasts or a browser, with artwork, scrubbing, volume and brightness.</sub></td>
   </tr>
   <tr>
-    <td align="center"><img src="docs/img/screens/dock.png" width="160" alt="Dock: the Mac's Dock apps as large buttons"><br><b>Dock</b><br><sub>Your Mac's Dock: tap to open, hold to hide or quit.</sub></td>
-    <td align="center"><img src="docs/img/screens/actions.png" width="160" alt="Actions: buttons for Safari, the app in front, above your Pinned buttons"><br><b>Actions</b><br><sub>Buttons that follow the app in front, for more than 70 apps.</sub></td>
-    <td align="center"><img src="docs/img/screens/library.png" width="160" alt="Library: search every button you can pin"><br><b>Pinned</b><br><sub>Your own buttons: apps, websites, shortcuts, window tiling and Mac controls, in folders.</sub></td>
+    <td align="center" valign="top"><img src="docs/img/screens/dock.png" width="160" height="294" alt="Dock: the Mac's Dock apps as large buttons"><br><b>Dock</b><br><sub>Your Mac's Dock: tap to open, hold to hide or quit.</sub></td>
+    <td align="center" valign="top"><img src="docs/img/screens/actions.png" width="160" height="294" alt="Actions: buttons for Safari, the app in front, above your Pinned buttons"><br><b>Actions</b><br><sub>Buttons that follow the app in front, for more than 70 apps.</sub></td>
+    <td align="center" valign="top"><img src="docs/img/screens/library.png" width="160" height="294" alt="Library: search every button you can pin"><br><b>Pinned</b><br><sub>Your own buttons: apps, websites, shortcuts, window tiling and Mac controls, in folders.</sub></td>
   </tr>
   <tr>
-    <td align="center"><img src="docs/img/screens/macros-hud.png" width="220" alt="The Mac's Recording Macro panel with a Stop button"><br><b>Macros</b><br><sub>Record steps on your Mac once, replay them with a tap.</sub></td>
-    <td align="center"><img src="docs/img/screens/clipboard.png" width="160" alt="Clipboard sheet: Send to Mac and Get from Mac"><br><b>Clipboard</b><br><sub>Text and images, both ways.</sub></td>
-    <td align="center"><img src="docs/img/screens/present.png" width="160" alt="Present: a timer with large Next and Back buttons"><br><b>Present</b><br><sub>Next and Back, a timer, and a laser you steer with one finger.</sub></td>
+    <td align="center" valign="top"><img src="docs/img/screens/macros-hud.png" width="220" height="72" alt="The Mac's Recording Macro panel with a Stop button"><br><b>Macros</b><br><sub>Record steps on your Mac once, replay them with a tap.</sub></td>
+    <td align="center" valign="top"><img src="docs/img/screens/clipboard.png" width="160" height="294" alt="Clipboard sheet: Send to Mac and Get from Mac"><br><b>Clipboard</b><br><sub>Text and images, both ways.</sub></td>
+    <td align="center" valign="top"><img src="docs/img/screens/present.png" width="160" height="294" alt="Present: a timer with large Next and Back buttons"><br><b>Present</b><br><sub>Next and Back, a timer, and a laser you steer with one finger.</sub></td>
   </tr>
   <tr>
-    <td align="center"><img src="docs/img/screens/remote.png" width="160" alt="Remote: a touch pad with play, skip 10 seconds, Skip Intro and Full Screen"><br><b>Remote</b><br><sub>A touch pad like the Siri Remote that follows 11 players, from Netflix to VLC.</sub></td>
-    <td align="center"><img src="docs/img/screens/displays.png" width="160" alt="Displays: a map of the Mac's displays and the windows on each"><br><b>Displays</b><br><sub>Every display and its windows: move, tile, and set brightness, resolution and Night Shift.</sub></td>
-    <td align="center"><img src="docs/img/screens/layouts.png" width="220" alt="A layout: Media and Actions side by side on an iPhone held sideways"><br><b>Layouts</b><br><sub>Up to three modes on one screen.</sub></td>
+    <td align="center" valign="top"><img src="docs/img/screens/remote.png" width="160" height="294" alt="Remote: a touch pad with play, skip 10 seconds, Skip Intro and Full Screen"><br><b>Remote</b><br><sub>A touch pad like the Siri Remote that follows 11 players, from Netflix to VLC.</sub></td>
+    <td align="center" valign="top"><img src="docs/img/screens/displays.png" width="160" height="294" alt="Displays: a map of the Mac's displays and the windows on each"><br><b>Displays</b><br><sub>Every display and its windows: move, tile, and set brightness, resolution and Night Shift.</sub></td>
+    <td align="center" valign="top"><img src="docs/img/screens/layouts.png" width="220" height="120" alt="A layout: Media and Actions side by side on an iPhone held sideways"><br><b>Layouts</b><br><sub>Up to three modes on one screen.</sub></td>
   </tr>
 </table>
 
@@ -105,7 +105,7 @@ curl --proto '=https' --tlsv1.2 -fsSL https://raw.githubusercontent.com/Soham109
 ## Private by design
 
 - **No account, no Glasspad server.** Your iPhone and Mac talk only over your Wi-Fi.
-- **Paired by QR code.** The pairing key lives in the Keychain on both devices. Remove a phone from the Mac menu to revoke it.
+- **Paired by QR code.** A new iPhone works only after you click Allow on the Mac. The phone and Mac then agree their own key, kept in the Keychain on both. To revoke a phone: Mac Settings > iPhone > Forget.
 - **Encrypted.** Every message uses ChaCha20-Poly1305 with a fresh key per connection, and replays are rejected.
 - **What does go out:** Website buttons fetch their site's name and logo, and the Mac may fetch album artwork for Media. Install and renewal use GitHub and Apple.
 
@@ -142,7 +142,7 @@ Yes. No ads, accounts, subscriptions or in-app purchases. The code is public und
 <details>
 <summary><b>Why is it not on the App Store?</b></summary>
 
-The installer builds the apps from source with Xcode and your own Apple ID instead. That keeps it free in full, with no paid developer account. The [guide](https://glasspad.sohamaggarwal.com/guide) walks through each step.
+The App Store needs Apple's paid developer program ($99 a year). Building from source with a free Apple ID keeps Glasspad free. The [guide](https://glasspad.sohamaggarwal.com/guide) walks through each step.
 </details>
 
 <details>
@@ -154,7 +154,7 @@ Apple lets a free Apple ID install apps on your own iPhone, but they stop openin
 <details>
 <summary><b>Is it private?</b></summary>
 
-Paired by QR code, encrypted, no account. Your iPhone and Mac talk only over your Wi-Fi; Website buttons fetch their site's logo and the Mac may fetch album art. Details in [SECURITY.md](SECURITY.md).
+Paired by QR code, encrypted, no account. A new iPhone works only after you click Allow on the Mac. Your iPhone and Mac talk only over your Wi-Fi; Website buttons fetch their site's logo and the Mac may fetch album art. Details in [SECURITY.md](SECURITY.md).
 </details>
 
 <details>
@@ -207,4 +207,7 @@ Bug reports, ideas and pull requests are welcome. Start with [CONTRIBUTING.md](C
 
 ## License and credits
 
-[MIT](LICENSE), copyright 2026 [Soham Aggarwal](https://sohamaggarwal.com). Music in the video: "Uplifting Electronic Indie" by WinnieTheMoog, [CC BY 4.0](https://creativecommons.org/licenses/by/4.0).
+[MIT](LICENSE), copyright 2026 [Soham Aggarwal](https://sohamaggarwal.com).
+
+- **Acknowledgements:** the now-playing helper (`Apps/Mac/Helpers/NowPlayingHelper.m`) follows the approach of [mediaremote-adapter](https://github.com/ungive/mediaremote-adapter) by Jonas van den Berg and contributors (BSD 3-Clause).
+- Music in the video: "Uplifting Electronic Indie" by WinnieTheMoog, [CC BY 4.0](https://creativecommons.org/licenses/by/4.0).
