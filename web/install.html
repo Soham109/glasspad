@@ -40,7 +40,7 @@
       </div>
       <p class="ig-note">Paste into Terminal. It waits for you at each step, and is safe to run again.</p>
 
-      <div class="ig-block">
+      <div class="ig-block" id="requirements">
         <h3 class="ig-label">You need</h3>
         <ul class="req">
           <li><b>Xcode 26 or later</b> free from the Mac App Store, a large download</li>
@@ -52,7 +52,7 @@
         </ul>
       </div>
 
-      <div class="ig-block">
+      <div class="ig-block" id="steps">
         <h3 class="ig-label" id="stp-label">What happens</h3>
         <div class="stp" id="stepper">
           <ol class="stp-list" aria-labelledby="stp-label">
@@ -95,7 +95,7 @@
                 <div class="sub" data-view="6c" data-figs="ipVpn,ipVpnTrust"><p>The script builds and installs the app. Trust it once.</p><p class="pt-t">Settings › General › VPN &amp; Device Management › your Apple ID › Trust</p><div class="stp-mf"></div></div>
               </div></div>
             </li>
-            <li class="stp-i" data-step="7">
+            <li class="stp-i" data-step="7" id="renewal">
               <button class="stp-h" type="button" aria-expanded="false" aria-controls="stp-b7"><span class="n">7</span><span class="tt"><b>Automatic renewal</b><small>Automatic</small></span><span class="ln">Your Mac keeps the app opening.</span></button>
               <div class="stp-b" id="stp-b7"><div class="stp-in">
                 <div class="sub" data-view="7" data-auto="Every hour"><p>With a free Apple ID, apps you install yourself stop opening after 7 days. Your Mac checks every hour and reinstalls Glasspad over Wi-Fi once the install is 5 days old, as long as the Mac is on and the iPhone is on the same Wi-Fi at some point. It notifies you if it can't.</p></div>
@@ -113,16 +113,17 @@
       </div>
 
       <div class="ig-more">
-        <details class="qd">
+        <details class="qd" id="troubleshooting">
           <summary>Troubleshooting</summary>
           <dl>
             <dt>The pointer does not move</dt><dd>Switch Glasspad off and on again in System Settings › Privacy &amp; Security › Accessibility. Reinstalls can reset it.</dd>
             <dt>The iPhone cannot find the Mac</dt><dd>Put both on the same Wi-Fi and allow Local Network in Settings › Privacy &amp; Security › Local Network › Glasspad.</dd>
             <dt>The app will not open after a week</dt><dd>The Mac was off or away, so it could not renew. Run the command again.</dd>
             <dt>Developer Mode is missing</dt><dd>Plug the iPhone in and run the command once. The setting appears after that.</dd>
+            <dt>Something else</dt><dd>Songs missing in Media, and other fixes once Glasspad is running, are in the <a href="/guide#help">guide's Help section</a>.</dd>
           </dl>
         </details>
-        <details class="qd">
+        <details class="qd" id="uninstall">
           <summary>Uninstall</summary>
           <ol class="un">
             <li>Drag Glasspad from Applications to the Trash.</li>
@@ -145,7 +146,7 @@
 
 <section class="pg-sec wrap pg-next" aria-labelledby="next-t">
   <h2 class="pg-h2" id="next-t">Installed?</h2>
-  <p class="pg-next-tx">Learn every mode in the <a href="/guide">guide</a>, or see what it does on the <a href="/">home page</a>.</p>
+  <p class="pg-next-tx">Learn <a href="/guide#modes">how to use every mode</a> in the guide, start with <a href="/use/iphone-as-mac-trackpad">the iPhone as a Mac trackpad</a>, or see <a href="/">everything Glasspad does</a>.</p>
 </section>
 
 </main>
