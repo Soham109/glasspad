@@ -1,3 +1,5 @@
+> **Archived.** Kept for history, not maintained, and may not match the current code. See [the archive index](../README.md).
+
 # Mac app UX review
 
 Scope: menu bar popover, Settings window, Mac first run, pairing across both devices, naming across Mac, iPhone, website and README, Mac error and empty states, accessibility, native feel. Based on snapshots in /tmp/gpmac (light and dark) and a read of Apps/Mac/Sources, Apps/iOS/Sources/Pairing, README.md and web/index.html. Not tested with a live VoiceOver session or a real first launch; those items are marked "unverified".

@@ -1,90 +1,108 @@
 # Contributing
 
-Thanks for helping. Small, focused changes are easiest to review.
+Thanks for helping. Small, focused changes are the easiest to review.
 
-## Set up
+| You want to | Go to |
+| --- | --- |
+| Ask a question or get help | [SUPPORT.md](SUPPORT.md) |
+| Report a bug or ask for a feature | [Issues](https://github.com/Soham109/glasspad/issues) (use the forms) |
+| Report a security problem | [SECURITY.md](SECURITY.md), privately |
+| Build and run the apps | [docs/development.md](docs/development.md) |
+| Understand the code | [ARCHITECTURE.md](ARCHITECTURE.md) |
+| Write or change docs | [docs/CONTRIBUTING-DOCS.md](docs/CONTRIBUTING-DOCS.md) |
 
-You need a Mac with Xcode 26 or newer for the iPhone app, which uses iOS 26's glass where it is available. The Swift packages and the Mac app also build with only the command line tools (Swift 6).
+Everyone taking part follows the [Code of Conduct](CODE_OF_CONDUCT.md).
+
+## Quick start
 
 ```bash
 git clone https://github.com/Soham109/glasspad.git
 cd glasspad
-scripts/test.sh          # every package's tests, then the installer tests
+scripts/test.sh          # every package's tests, the installer tests, the main-thread check
 scripts/build-mac.sh     # builds build/Glasspad.app (does not launch it)
-xcodegen generate        # makes Glasspad.xcodeproj from project.yml
+xcodegen generate        # makes Glasspad.xcodeproj for the iPhone app
 ```
 
-Open `Glasspad.xcodeproj` and run the **Glasspad Mac** scheme, then **Glasspad iOS** on your iPhone with your Apple ID under Signing. New files under `Apps/iOS/Sources` are picked up the next time you run `xcodegen generate`. The scripts keep their intermediate build files in `~/Library/Caches/glasspad-build` (set `GLASSPAD_BUILD_ROOT` to move them).
+Full setup, including the iPhone app and the simulator: [docs/development.md](docs/development.md).
 
-## Project layout
+## Workflow
 
-| Folder | What it holds |
+```mermaid
+flowchart LR
+  A["Branch<br/>feat/ fix/ docs/"] --> B["Change + tests<br/>+ docs"]
+  B --> C["scripts/test.sh"]
+  C --> D["Pull request<br/>(template)"]
+  D --> E["Review<br/>+ CI"]
+  E --> F["Squash merge<br/>to main"]
+```
+
+### Branches
+
+| Prefix | For | Example |
+| --- | --- | --- |
+| `feat/` | New behavior | `feat/remote-subtitles` |
+| `fix/` | A bug fix | `fix/pairing-expiry` |
+| `docs/` | Documentation only | `docs/testing-guide` |
+
+Branch from `main`. Never push to `main` directly.
+
+### Commit messages
+
+Match the existing history: `Area: what changed, and why if it is not obvious`.
+
+```text
+Installer: fix Developer Mode hang for every user, headless runs, team selection, verified downloads
+Mac app: never wait on the Automation permission check on the main thread (menu bar icon froze while Media polled Spotify or Music)
+Web: a link to Troubleshooting or Uninstall on the install page opens that section
+```
+
+- Common areas: `Mac app`, `Phone`, `Trackpad`, `Link`, `Installer`, `Tests`, `CI`, `Docs`, `Web`.
+- One short summary line. Use semicolons to list several related changes.
+- No `Co-Authored-By` lines and no tool attribution (no "Generated with ..." footers).
+
+Pull requests are squash merged, so the pull request title becomes the commit on `main`. Write it the same way.
+
+## Definition of done
+
+A change is done when every box applies or does not need to:
+
+- [ ] `scripts/test.sh` passes (CI runs it on every push and pull request).
+- [ ] The Mac app builds: `scripts/build-mac.sh`.
+- [ ] The iPhone app builds: the **Glasspad iOS** scheme in Xcode, or `scripts/visual-check.sh` (see [testing](docs/testing.md)).
+- [ ] New behavior has a test. Gesture changes need a scripted touch sequence test.
+- [ ] UI changes have screenshots or a short recording in the pull request.
+- [ ] `CHANGELOG.md` has an entry under `## [Unreleased]` if people will notice the change.
+- [ ] Docs are updated in the same pull request: [docs/SPEC.md](docs/SPEC.md) for any interface change, and the relevant page in [docs/](docs/README.md).
+
+## Review rules
+
+| Change touches | Needs |
 | --- | --- |
-| `Packages/GlasspadKit` | Code both apps share: protocol, encryption, transport, gestures, and the rules behind Layouts, themes, power, StandBy, Remote and Displays. |
-| `Packages/GlasspadMacCore` | Mac only: event synthesis, server, pairing, modes, Mac controls. |
-| `Packages/GlasspadMacros` | Mac only: macros, Shortcuts, per-app profiles, starter buttons. |
-| `Apps/Mac` | The menu bar app, as a SwiftPM package, with its own tests in `Tests/GlasspadMacSnapshots`. |
-| `Apps/iOS` | The iPhone app, its widgets and the code they share. |
-| `scripts` | Build, install, test and renewal scripts. Fake Apple tools for the installer tests are in `scripts/tests/stubs`. |
-| `docs` | The spec, the installer test notes, reviews and images. |
-| `web`, `promo` | The website and the demo film. |
+| Trackpad feel, gestures or haptics (`Gestures/`, `GestureTuning.swift`, `TouchPipeline`, `MotionScheduler`, `Haptics.swift`) | The maintainer's review, and a note at the top of the pull request |
+| The wire (`Protocol/`, `Transport/`, `Crypto/`) | Additive only. An older phone or Mac must ignore it and keep the session. `WireGoldenTests` must pass unchanged. |
+| A private macOS call | A public fallback and a run-time check |
+| The installer or renewal scripts | A case in `scripts/tests/installer-test.sh` |
+| Anything else | One approving review and green CI |
 
-[ARCHITECTURE.md](ARCHITECTURE.md) explains how the pieces fit together.
+## Code rules
 
-## Scripts
-
-| Script | What it does |
-| --- | --- |
-| `install.sh` | The one-line installer: Xcode, XcodeGen, source, signing, Mac app, iPhone app, renewal. Safe to run again. |
-| `scripts/test.sh` | Runs every package's tests and `scripts/tests/installer-test.sh`. Extra arguments go to `swift test` (for example `--filter Layout`). |
-| `scripts/build-mac.sh` | Builds the Mac app with SwiftPM into `build/Glasspad.app`, signed locally with no certificate needed. |
-| `scripts/install-mac.sh` | Builds the Mac app, installs it in Applications, signs it with your Apple Development certificate and restarts it. |
-| `scripts/install-phone.sh` | Builds the iPhone app and installs it on your iPhone, over a cable or Wi-Fi. |
-| `scripts/setup-autorefresh.sh` | Sets up the hourly job that renews the iPhone app for free Apple IDs. `--remove` takes it away. |
-| `scripts/refresh-phone.sh` | What that job runs: reinstalls the last installed version once the install is 5 days old. Logs to `~/Library/Logs/Glasspad/refresh.log`. |
-| `scripts/toolchain.sh` | Shared by the scripts: finds the toolchain and adds the flags swift-testing needs with only the command line tools. |
-| `scripts/live-check.sh` | Tries every Mac feature for real, one step at a time, and puts the Mac back after each one. Run by hand; see [docs/LIVE-CHECK.md](docs/LIVE-CHECK.md). `--install` installs this checkout first. |
-| `scripts/make-icons.swift` | Redraws the app icons. |
-
-## Tests
-
-- `scripts/test.sh` must pass. CI runs it on every push and pull request.
-- The Mac app's own tests check its wording and draw the living pairing code, then read it back with Vision:
-
-  ```bash
-  swift test --package-path Apps/Mac --scratch-path ~/Library/Caches/glasspad-build/GlasspadMacDebug
-  ```
-
-- The snapshot harness in the same target draws every Mac screen, light and dark, to PNGs in `/tmp/gpmac` (or `GLASSPAD_SNAPSHOT_DIR`). It runs only when asked:
-
-  ```bash
-  GLASSPAD_SNAPSHOTS=1 swift test --package-path Apps/Mac --scratch-path ~/Library/Caches/glasspad-build/GlasspadMacDebug
-  ```
-
-- The iPhone app has demo data for the simulator in debug builds, so it draws without a Mac: `-GPDemo <icon folder>`, `-GPMode <mode>`, `-GPTheme <theme>`, `-GPOrientation` and more (see `Apps/iOS/Sources/App/DemoData.swift` and `DebugLaunch` in `RootView.swift`).
-
-## Before you open a pull request
-
-- Read [docs/SPEC.md](docs/SPEC.md). If you change an interface, change it in the spec too.
-- Add a test for new behavior. Gesture changes need a scripted touch sequence test.
-- Tests must never post events into the live session. Build events and check their fields, or use the fakes.
-- New messages must be additive: an older phone or Mac has to ignore them and keep the session.
-- Keep gesture thresholds in `GestureTuning.swift`, not scattered in code.
-- Any private macOS call needs a public fallback and a runtime check.
+- Tests never post events into the live session. Build events and check their fields, or use the fakes.
+- Code on the main thread never blocks ([ADR 0004](docs/adr/0004-main-thread-never-blocks.md)). `scripts/check-main-thread.py` checks it.
+- Gesture thresholds live in `GestureTuning.swift`, not in the code that uses them.
 - Only public iOS APIs on the phone.
 - Views take colors from `Palette`, never hard-coded.
 - Do not copy code from projects with incompatible licenses.
 
-## Style
+## Style for words in the app and the docs
 
-- Keep the interface minimal. No extra chrome on the trackpad screen.
-- Plain words in docs and UI text, in US English. Explain any technical term where you use it.
+- Plain words, US English. Explain any technical term where you first use it.
 - Use the names macOS uses: Do Not Disturb, Mission Control, Split Screen.
-- Do not use em dashes or en dashes.
+- No em dashes or en dashes.
+- Keep the interface minimal. No extra chrome on the trackpad screen.
 
-## Reporting bugs
+## Releases
 
-Use the bug template. Include your macOS and iOS versions, iPhone model, and which gestures the Mac's Settings > Trackpad shows as using a keyboard shortcut.
+The maintainer cuts releases. In short: move the `Unreleased` entries into a new version section, set the version in `project.yml`, `CITATION.cff` and `web/site/pages.ts`, tag `vX.Y.Z` and publish a GitHub release with that section as its notes. Every step: [docs/releasing.md](docs/releasing.md).
 
 ## License
 

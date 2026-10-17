@@ -1,3 +1,5 @@
+> **Archived.** Kept for history, not maintained, and may not match the current code. See [the archive index](README.md).
+
 # Installer test, 15 Oct 2026
 
 ## How to check the installer today
@@ -19,7 +21,7 @@ iPhone".
 ## The runs
 
 What a real run of the one-line installer printed, on a Mac that already had Xcode 27, an
-Apple Development certificate (team V8PCS2UL23) and a paired iPhone on the same Wi-Fi. No
+Apple Development certificate (team ABCDE12345) and a paired iPhone on the same Wi-Fi. No
 terminal was attached (standard input was `/dev/null`, `/dev/tty` could not be opened), which is
 how the installer runs inside automation or when it is piped somewhere unusual.
 
@@ -40,7 +42,7 @@ GLASSPAD_HOME=/tmp/gp-e2e/glasspad bash -c "$(curl -fsSL https://raw.githubuserc
   ✓ /tmp/gp-e2e/glasspad
 
 4. Your Apple account (free)
-  ✓ Team V8PCS2UL23
+  ✓ Team ABCDE12345
 
 5. Mac app
 /tmp/gp-e2e/glasspad/build/Glasspad.app/Contents/Frameworks/GlasspadNowPlaying.dylib: replacing existing signature
@@ -88,7 +90,7 @@ GitHub yet.
   ✓ /tmp/gp-e2e/glass pad (f20b012)
 
 4. Your Apple account (free)
-  ✓ Team V8PCS2UL23
+  ✓ Team ABCDE12345
 
 5. Mac app
   Building the Mac app...
@@ -97,7 +99,7 @@ GitHub yet.
   System Settings > Privacy & Security > Accessibility > switch on Glasspad.
 
 6. iPhone
-  ✓ Soham’s iPhone
+  ✓ My iPhone
   Building and installing (the first build takes a while)...
   ✓ Installed f20b012
   ✓ Glasspad is open on your iPhone
@@ -109,9 +111,9 @@ GitHub yet.
 Done. What is installed:
   Xcode           27.0 (/Applications/Xcode.app)
   Source          /tmp/gp-e2e/glass pad at f20b012
-  Apple team      V8PCS2UL23
+  Apple team      ABCDE12345
   Mac app         /Applications/Glasspad.app (f20b012, installed now)
-  iPhone          Soham’s iPhone (00008160-000E614036400036), f20b012
+  iPhone          My iPhone (00008000-0000000000000000), f20b012
   Auto-renew      on (checks hourly, log: ~/Library/Logs/Glasspad/refresh.log)
 
   Pair: click Glasspad in your Mac's menu bar, choose Pair Your iPhone, then scan the code
@@ -130,7 +132,7 @@ Finished in 6 seconds, exit code 0, nothing rebuilt:
   ✓ Already installed (f20b012), nothing to do
 
 6. iPhone
-  ✓ Soham’s iPhone
+  ✓ My iPhone
   ✓ Already installed (f20b012), nothing to do
   ✓ Glasspad is open on your iPhone
 

@@ -1,3 +1,5 @@
+> **Archived.** Kept for history, not maintained, and may not match the current code. See [the archive index](../README.md).
+
 # Glasspad reliability and edge-case review
 
 Read-only review, 15 Oct 2026, against commit `7d100b1`. The 14 bugs fixed in `ab7afff` and
