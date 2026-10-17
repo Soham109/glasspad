@@ -61,7 +61,7 @@ private struct GlassButtonStyle: ViewModifier {
         if prominent {
             styled(content)
                 .tint(accent ?? palette.inkColor)
-                .foregroundStyle(accent.map(Self.label(on:)) ?? palette.solidColor)
+                .foregroundStyle(accent.map(label(on:)) ?? palette.solidColor)
         } else if let accent {
             styled(content).tint(accent)
         } else {
@@ -69,9 +69,12 @@ private struct GlassButtonStyle: ViewModifier {
         }
     }
 
-    /// White on dark accents, near black on light ones (bright teal, yellow, mint), whichever
-    /// reads better (`RGBA.labelOnFill`, checked in ThemeContrastTests).
-    static func label(on accent: Color) -> Color {
+    /// One rule for labels on filled buttons. Mono and the tinted themes use the palette's
+    /// `onFill`, the colour their own fills are drawn for. Elsewhere white on dark accents and
+    /// near black on light ones (bright teal, yellow, mint), whichever reads better
+    /// (`RGBA.labelOnFill`, checked in ThemeContrastTests).
+    private func label(on accent: Color) -> Color {
+        if palette.monochrome || palette.tinted { return palette.onFill }
         var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
         UIColor(accent).resolvedColor(with: UITraitCollection.current).getRed(&r, green: &g, blue: &b, alpha: &a)
         let label = RGBA(r: Double(r), g: Double(g), b: Double(b)).labelOnFill

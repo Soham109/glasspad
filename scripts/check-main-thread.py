@@ -53,6 +53,8 @@ BACKGROUND_TAIL = re.compile(
     r"|(DispatchQueue\s*\(\s*label[^{]*\.(async|asyncAfter)\b[^{]*$)"
     r"|(Task\.detached\b[^{]*$)|(\bThread\s*(\(\s*block\s*:)?\s*$)|(detachNewThread\b[^{]*$)"
     r"|(\b\w*[Hh]andler\s*=\s*$)|(concurrentPerform\b[^{]*$)|(\.addOperation\s*$)"
+    # A closure handed to an injected queue (`restartQueue { ... }`).
+    r"|(\b\w*Queue\s*$)"
 )
 MAIN_TAIL = re.compile(r"(DispatchQueue\.main\.(async|asyncAfter|sync)\b[^{]*$)|(MainActor\.run\b[^{]*$)|(MainActor\.assumeIsolated\b[^{]*$)")
 TYPE_DECL = re.compile(r"\b(class|struct|enum|extension|actor|protocol)\s+([A-Za-z_][\w.]*)([^{]*)$")
@@ -452,6 +454,8 @@ SELF_TESTS = [
     ("@MainActor final class A {}\nextension A { func g() { Thread.sleep(forTimeInterval: 0.1) } }", 1),
     ("@MainActor final class A { func f() { MacroStep.wait(ms: 5); x.wait(ms: 5) } }", 0),
     ("actor B { func f() { Thread.sleep(forTimeInterval: 1) } }", 0),
+    ("@MainActor final class A { let restartQueue: (@escaping () -> Void) -> Void\n"
+     "  func f() { restartQueue { p.waitUntilExit() } } }", 0),
     ("protocol P { func go() }\nfinal class L: P { func go() { p.waitUntilExit() } }\n"
      "@MainActor final class A { let p: P = L(); func f() { p.go() } }", 1),
 ]

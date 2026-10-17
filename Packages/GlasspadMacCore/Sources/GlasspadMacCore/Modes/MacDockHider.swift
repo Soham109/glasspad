@@ -101,9 +101,22 @@ public final class MacDockHider: ObservableObject {
         apply()
     }
 
-    /// App is quitting: always put the Dock back, waiting for the restart (the process ends next).
+    /// App is about to quit: put the Dock back and call `done` on the main thread once the Dock
+    /// has restarted, so the app can finish quitting then (applicationShouldTerminate answers
+    /// later). Nothing waits on the main thread meanwhile.
+    public func restoreBeforeQuit(then done: @escaping @MainActor @Sendable () -> Void) {
+        guard isHidden else {
+            done()
+            return
+        }
+        restore(then: done)
+        published = state
+    }
+
+    /// App is quitting: the last chance to put the Dock back when `restoreBeforeQuit` did not
+    /// run. The settings are written now; the restart is queued, never waited for.
     public func appWillTerminate() {
-        if isHidden { restore(wait: true) }
+        if isHidden { restore() }
         published = state
     }
 
@@ -138,7 +151,7 @@ public final class MacDockHider: ObservableObject {
         GPLog.log("mac dock: hidden (saved \(saved))")
     }
 
-    private func restore(wait: Bool = false) {
+    private func restore(then done: (@MainActor @Sendable () -> Void)? = nil) {
         let saved = own.dictionary(forKey: Self.savedKey) ?? [:]
         for key in Self.keys {
             dock.set(saved[key], forKey: key, domain: Self.domain)
@@ -146,22 +159,18 @@ public final class MacDockHider: ObservableObject {
         dock.synchronize(domain: Self.domain)
         own.removeObject(forKey: Self.savedKey)
         flushOwn()
-        restartDock(wait: wait)
+        restartDock(then: done)
         GPLog.log("mac dock: restored \(saved)")
     }
 
-    private func restartDock(wait: Bool = false) {
+    /// `done` runs on the main thread after the restart (behind any restart still queued).
+    private func restartDock(then done: (@MainActor @Sendable () -> Void)? = nil) {
         // The Dock reads these keys at start; launchd restarts it at once. The keys are already
         // written and synchronized, so the restart itself can happen off the main thread.
         nonisolated(unsafe) let runner = runner
-        let restart: @Sendable () -> Void = { _ = runner.run("/usr/bin/killall", ["Dock"]) }
-        if wait {
-            // Behind any restart still queued, so the last one to run is this one.
-            let done = DispatchSemaphore(value: 0)
-            restartQueue { restart(); done.signal() }
-            _ = done.wait(timeout: .now() + 2)
-        } else {
-            restartQueue(restart)
+        restartQueue {
+            _ = runner.run("/usr/bin/killall", ["Dock"])
+            if let done { Task { @MainActor in done() } }
         }
     }
 }

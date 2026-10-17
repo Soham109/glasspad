@@ -2,6 +2,3 @@
 # <path>|<enclosing function>|<call>   # why it is safe
 # Keep this short: a new line here needs a reason a reviewer agrees with.
 
-# `killall Dock` returns as soon as the signal is sent (a few milliseconds). Known since
-# 16 October 2026; moving it off the main thread would be better.
-Packages/GlasspadMacCore/Sources/GlasspadMacCore/Modes/MacDockHider.swift|restartDock|waitUntilExit

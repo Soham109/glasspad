@@ -49,6 +49,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if Self.model.phones.isEmpty { welcome.show(Self.model) }
     }
 
+    /// With the Mac's Dock hidden, quitting waits (without holding the main thread) until the
+    /// Dock is back, then finishes. Two seconds at most, so a stuck restart never blocks quitting.
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        guard MacDockHider.shared.isHidden else { return .terminateNow }
+        var answered = false
+        let finish = {
+            guard !answered else { return }
+            answered = true
+            NSApp.reply(toApplicationShouldTerminate: true)
+        }
+        MacDockHider.shared.restoreBeforeQuit { finish() }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) { finish() }
+        return .terminateLater
+    }
+
     func applicationWillTerminate(_ notification: Notification) {
         // Put the Mac's own Dock back before anything else.
         MacDockHider.shared.appWillTerminate()

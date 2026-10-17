@@ -2,13 +2,14 @@
 # Visual regression check for the iPhone app, in the simulator only.
 #
 # Builds the app (Debug, for the demo launch arguments), then for every screen in
-# scripts/visual-screens.txt and each theme (Paper, Graphite, Mono) installs it fresh, launches it
+# scripts/visual-screens.txt and each theme (Paper, Graphite, Mono, Blue tinted in dark, Grain;
+# `name:dark` turns the phone dark for that theme) starts it fresh, launches it
 # with that screen's arguments and sample Mac data, and takes a screenshot. Then compares them
 # with a baseline (scripts/visual-diff.py) and lists every screen that changed, with side by
 # side pictures.
 #
 #   scripts/visual-check.sh --baseline DIR [--record] [--out DIR] [--sim NAME] [--app PATH]
-#                           [--icons DIR] [--only REGEX] [--themes "paper graphite mono"]
+#                           [--icons DIR] [--only REGEX] [--themes "paper graphite mono monoBlue:dark grain"]
 #
 #   --record      take the screens into the baseline folder instead of comparing
 #   --app PATH    use a built Glasspad.app instead of building
@@ -23,7 +24,7 @@ cd "$(dirname "$0")/.."
 ROOT="$(pwd)"
 
 SIM="GP-guard"; BASELINE="${GLASSPAD_VISUAL_BASELINE:-}"; OUT="$ROOT/build/visual/now"; APP=""; RECORD=0
-ICONS="${GLASSPAD_DEMO_ICONS:-}"; ONLY=""; THEMES="paper graphite mono"; WAIT="${GLASSPAD_VISUAL_WAIT:-3}"
+ICONS="${GLASSPAD_DEMO_ICONS:-}"; ONLY=""; THEMES="paper graphite mono monoBlue:dark grain"; WAIT="${GLASSPAD_VISUAL_WAIT:-3}"
 while [ $# -gt 0 ]; do
   case "$1" in
     --baseline) BASELINE="$2"; shift 2 ;;
@@ -60,6 +61,7 @@ echo "== simulator $SIM ($UDID)"
 xcrun simctl boot "$UDID" 2>/dev/null || true
 xcrun simctl bootstatus "$UDID" >/dev/null
 xcrun simctl ui "$UDID" appearance light
+current_look=light
 trap 'xcrun simctl shutdown "$UDID" >/dev/null 2>&1 || true' EXIT
 
 # A clean install once, then before each screen the app's saved data is removed and the
@@ -86,8 +88,11 @@ while IFS='|' read -r name allow args; do
   case "$name" in ''|'#'*) continue ;; esac
   [ -n "$ONLY" ] && ! [[ "$name" =~ $ONLY ]] && continue
   [ -n "$allow" ] && ALLOW+=(--allow "$name=$allow")
-  for theme in $THEMES; do
-    file="$SHOTS/$name@$theme.png"
+  for spec in $THEMES; do
+    theme="${spec%%:*}"; look=light
+    [ "$spec" != "$theme" ] && look="${spec#*:}"
+    file="$SHOTS/$name@${spec/:/-}.png"
+    if [ "$look" != "$current_look" ]; then xcrun simctl ui "$UDID" appearance "$look"; current_look=$look; fi
     fresh_start
     # shellcheck disable=SC2086
     xcrun simctl launch "$UDID" "$BID" "${DEMO[@]}" -GPTheme "$theme" -GPStandByTime 9:41 $args >/dev/null

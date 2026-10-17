@@ -43,8 +43,8 @@ import Testing
     }
 
     /// Hiding or showing the Dock restarts it off the main thread (a process launch and wait);
-    /// quitting waits for it, since the process ends right after.
-    @Test func dockRestartRunsOffTheMainThreadButQuitWaits() throws {
+    /// quitting is told once the restart is done, still without waiting on the main thread.
+    @Test func dockRestartRunsOffTheMainThreadAndQuitHearsWhenItIsDone() async throws {
         let own = UserDefaults(suiteName: "glasspad-tests-\(UUID().uuidString)")!
         let dock = FakeDefaults()
         let runner = ThreadRecordingRunner()
@@ -57,10 +57,17 @@ import Testing
         queue.sync {}
         #expect(runner.calls == 1)
         #expect(runner.ranOnMain == false)
-        hider.appWillTerminate()
-        // Already done when quitting returns.
+        await withCheckedContinuation { (c: CheckedContinuation<Void, Never>) in
+            hider.restoreBeforeQuit { c.resume() }
+        }
+        // Done by the time quitting hears back, and off the main thread too.
         #expect(runner.calls == 2)
+        #expect(runner.ranOnMain == false)
         #expect(!hider.isHidden)
+        // Nothing hidden: quitting goes ahead at once, with no restart.
+        var answered = false
+        hider.restoreBeforeQuit { answered = true }
+        #expect(answered && runner.calls == 2)
     }
 }
 

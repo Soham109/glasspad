@@ -2,7 +2,8 @@
 #   name | allowed change | launch arguments
 # The allowed change is the share of pixels that may differ (blank: the default, 0.3%). Screens
 # with motion that never settles (the analog second hand, the cycling phone on the first
-# onboarding page) get more. Every screen is taken in Paper, Graphite and Mono; lines starting
+# onboarding page) get more. Every screen is taken in Paper, Graphite, Mono, Blue (tinted, dark)
+# and Grain; lines starting
 # with "landscape" also run turned. -GPDemo, -GPTheme and a fixed clock are added by the script.
 
 # Modes
