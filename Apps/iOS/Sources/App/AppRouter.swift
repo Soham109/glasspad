@@ -67,13 +67,14 @@ final class AppRouter {
     /// Every mode on screen: the current one, or each open pane of the layout.
     var screenModes: [AppMode] { layout?.shownModes ?? [mode] }
 
-    func show(_ requested: AppMode) {
+    /// `evenIfHidden` shows a mode left out of the pill as asked, instead of the one standing in for it.
+    func show(_ requested: AppMode, evenIfHidden: Bool = false) {
         // Clipboard and Present are tools unless they were split into modes of their own.
         if requested.isTool, requested.shown != requested {
             openTool(requested)
             return
         }
-        let newMode = requested.shown
+        let newMode = evenIfHidden ? requested : requested.shown
         remember(leaving: .mode(newMode))
         showSettings = false
         showPairing = false
@@ -137,6 +138,27 @@ final class AppRouter {
     }
 
     private func remember(leaving next: Screen) { history.moved(from: screen, to: next) }
+
+    /// Siri and Shortcuts ("Open Glasspad Mode"): that screen, over any tool or gallery open now.
+    /// A mode left out of the pill still opens; Actions, once split, opens its first part.
+    func openFromShortcut(_ requested: AppMode) {
+        closeTools()
+        show(requested, evenIfHidden: requested != .actions)
+    }
+
+    /// Siri and Shortcuts ("Open Glasspad Layout").
+    func openFromShortcut(layout: ScreenLayout) {
+        closeTools()
+        show(layout: layout)
+    }
+
+    private func closeTools() {
+        showClipboard = false
+        showPresenter = false
+        showRemote = false
+        showDisplays = false
+        showLayouts = false
+    }
 
     /// A pane of the layout on screen folded away or came back.
     func layoutPanesChanged() {
