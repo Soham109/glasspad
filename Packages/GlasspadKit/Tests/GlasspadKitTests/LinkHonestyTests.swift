@@ -45,6 +45,23 @@ import Testing
         #expect(again.send.isEmpty && again.expired.isEmpty)
     }
 
+    @Test func theSameTapAgainWhileWaitingCountsOnce() {
+        var box = TapOutbox<ModeMessage>()
+        box.hold(.presentNext, at: 10, isRepeat: TapHold.isRepeat)
+        box.hold(.presentNext, at: 10.4, isRepeat: TapHold.isRepeat)
+        box.hold(.mediaCommand(.playPause), at: 10.5, isRepeat: TapHold.isRepeat)
+        box.hold(.mediaCommand(.playPause), at: 10.6, isRepeat: TapHold.isRepeat)
+        box.hold(.presentPrevious, at: 10.7, isRepeat: TapHold.isRepeat)
+        #expect(box.drain(at: 11).send == [.presentNext, .mediaCommand(.playPause), .presentPrevious])
+        // Taps that report a result are all kept.
+        let a = UUID(), b = UUID()
+        box.hold(.remoteSystem(id: a, action: .missionControl), at: 12, isRepeat: TapHold.isRepeat)
+        box.hold(.remoteSystem(id: b, action: .missionControl), at: 12.1, isRepeat: TapHold.isRepeat)
+        box.hold(.deckRun(id: a), at: 12.2, isRepeat: TapHold.isRepeat)
+        box.hold(.deckRun(id: a), at: 12.3, isRepeat: TapHold.isRepeat)
+        #expect(box.drain(at: 12.5).send.count == 4)
+    }
+
     @Test func aTapOlderThanThreeSecondsExpiresAndIsNeverSent() {
         var box = TapOutbox<Int>()
         box.hold(1, at: 0)

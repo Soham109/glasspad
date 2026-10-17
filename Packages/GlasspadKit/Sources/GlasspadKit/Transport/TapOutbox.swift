@@ -28,6 +28,16 @@ public enum TapHold {
         }
     }
 
+    /// The same tap again while it waits counts once: Next tapped twice because nothing seemed
+    /// to happen must not skip a slide, and Play or Pause twice must not undo itself. Taps that
+    /// report a result (they carry an id) are all kept, so none waits for an answer in vain.
+    public static func isRepeat(_ new: ModeMessage, of held: ModeMessage) -> Bool {
+        switch new {
+        case .presentNext, .presentPrevious, .mediaCommand: new == held
+        default: false
+        }
+    }
+
     /// Whether a tap made now may wait for the link, or should fail at once.
     /// - Parameters:
     ///   - macSelected: a Mac is paired and chosen.
@@ -55,9 +65,12 @@ public struct TapOutbox<Item> {
     /// Everything waiting, oldest first (without taking it out).
     public var items: [Item] { held.map(\.item) }
 
-    /// Holds `item`. Returns the taps pushed out to make room (the oldest, when full).
+    /// Holds `item`, unless it repeats one already waiting (`isRepeat`). Returns the taps
+    /// pushed out to make room (the oldest, when full).
     @discardableResult
-    public mutating func hold(_ item: Item, at now: TimeInterval) -> [Item] {
+    public mutating func hold(_ item: Item, at now: TimeInterval,
+                              isRepeat: (_ new: Item, _ held: Item) -> Bool = { _, _ in false }) -> [Item] {
+        if held.contains(where: { isRepeat(item, $0.item) }) { return [] }
         held.append((item, now))
         guard held.count > TapHold.capacity else { return [] }
         let out = held.prefix(held.count - TapHold.capacity).map(\.item)

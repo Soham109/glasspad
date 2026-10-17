@@ -53,43 +53,4 @@ import Testing
         #expect(symbol(15, true) == "battery.100percent.bolt")
         #expect(PhoneBattery(percent: 42, charging: false).text == "42%")
     }
-
-    @Test func lowBatteryTellsOnceAtTwentyAndOnceAtTen() {
-        var watch = LowBatteryWatch()
-        var told: [Int] = []
-        for p in stride(from: 30, through: 3, by: -1) {
-            if let shown = watch.update(percent: p, charging: false) { told.append(shown) }
-        }
-        #expect(told == [20, 10])
-        // Jitter back up a point and down again does not repeat it.
-        #expect(watch.update(percent: 11, charging: false) == nil)
-        #expect(watch.update(percent: 10, charging: false) == nil)
-    }
-
-    @Test func lowBatteryStartsOverAfterCharging() {
-        var watch = LowBatteryWatch()
-        #expect(watch.update(percent: 20, charging: false) == 20)
-        #expect(watch.update(percent: 19, charging: true) == nil)
-        #expect(watch.update(percent: 19, charging: false) == 19)
-        // Charged while Glasspad was closed: back above 25% starts over too.
-        #expect(watch.update(percent: 60, charging: false) == nil)
-        #expect(watch.update(percent: 20, charging: false) == 20)
-    }
-
-    @Test func lowBatteryFirstSeenBelowAThresholdTellsTheRealLevel() {
-        var watch = LowBatteryWatch()
-        #expect(watch.update(percent: 15, charging: false) == 15)
-        #expect(watch.update(percent: 12, charging: false) == nil)
-        #expect(watch.update(percent: 10, charging: false) == 10)
-
-        var low = LowBatteryWatch()
-        #expect(low.update(percent: 7, charging: false) == 7)
-        #expect(low.update(percent: 6, charging: false) == nil)
-        #expect(low.update(percent: nil, charging: false) == nil)
-    }
-
-    @Test func noticeNeverWhileCharging() {
-        var watch = LowBatteryWatch()
-        for p in stride(from: 25, through: 1, by: -1) { #expect(watch.update(percent: p, charging: true) == nil) }
-    }
 }

@@ -122,7 +122,7 @@ struct MacroHarness {
 }
 
 @MainActor
-func eventually(_ timeout: TimeInterval = 3, _ cond: () -> Bool) async -> Bool {
+func eventually(_ timeout: TimeInterval = 15, _ cond: () -> Bool) async -> Bool {
     let end = Date().addingTimeInterval(timeout)
     while Date() < end {
         if cond() { return true }

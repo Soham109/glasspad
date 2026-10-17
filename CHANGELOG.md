@@ -2,6 +2,16 @@
 
 All notable changes are listed here. The format follows [Keep a Changelog](https://keepachangelog.com), and the project follows [semantic versioning](https://semver.org).
 
+## [0.2.1] - 2026-10-17
+
+### Changed
+
+- Next, Previous or Play or Pause tapped again while the phone reconnects counts once, so a slide is not skipped and play does not undo itself.
+
+### Removed
+
+- The phone's own low battery note at 20% and 10%. iOS already shows its Low Battery alert at those levels. The Mac still shows the iPhone's battery.
+
 ## [0.2.0] - 2026-10-16
 
 ### Added

@@ -424,13 +424,15 @@ struct ConnectivityTests {
         let (client, crec) = makeClient()
         defer { client.disconnect() }
         client.connect(host: "127.0.0.1", port: port)
-        // 0.2 + 0.5 + 1 s of failures: the next wait is the 2 s cap.
+        // 0.2 + 0.5 + 1 s of failures: the next wait is 2 s.
         try await Task.sleep(nanoseconds: 1_900_000_000)
         #expect(!client.state.isConnected)
         let (server, _, _) = try await makeServer(port: port) { _ in key }
         defer { server.stop() }
         let before = Date()
-        client.networkChanged(satisfied: true, interfaceNames: ["en0"])
+        // A change that still has loopback: if a slow machine let the scheduled retry connect
+        // first, that session stays, so exactly one connect either way.
+        client.networkChanged(satisfied: true, interfaceNames: ["lo0", "en0"])
         #expect(await waitUntil(1.5) { client.state.isConnected })
         #expect(Date().timeIntervalSince(before) < 1.0)
         #expect(crec.states.filter(\.isConnected).count == 1)

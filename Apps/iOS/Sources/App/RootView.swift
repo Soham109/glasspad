@@ -155,7 +155,6 @@ struct RootView: View {
             if session.isWarm {
                 WarmNotice()
             }
-            BatteryNotice()
         }
         // Every mode starts its content the same distance below the pill, so a switch is a
         // calm cross-fade with nothing jumping.

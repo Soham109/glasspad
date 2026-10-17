@@ -501,7 +501,7 @@ final class MacSession {
                                       linkGivenUp: state.isFailedState,
                                       knownAbsent: linkIssue != nil, downFor: now - (notConnectedSince ?? now))
         guard mayWait else { return failTap(message) }
-        for pushedOut in outbox.hold(message, at: now) { failTap(pushedOut) }
+        for pushedOut in outbox.hold(message, at: now, isRepeat: TapHold.isRepeat) { failTap(pushedOut) }
         scheduleOutboxExpiry()
     }
 

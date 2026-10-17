@@ -69,27 +69,3 @@ public struct PhoneBattery: Equatable, Sendable {
         }
     }
 }
-
-/// When the phone says its battery is low. Glasspad hides the status bar, so it tells once at
-/// 20% and once at 10% on the way down, never while charging. Plugging in, or a charge back
-/// above 25% (charged while Glasspad was closed), starts it over.
-public struct LowBatteryWatch: Equatable, Sendable {
-    public static let thresholds = [20, 10]
-    /// The lowest threshold told about on this discharge.
-    private var told: Int?
-
-    public init() {}
-
-    /// A new reading. Returns the percent to show when a notice is due.
-    public mutating func update(percent: Int?, charging: Bool) -> Int? {
-        guard let percent else { return nil }
-        if charging || percent > 25 {
-            told = nil
-            return nil
-        }
-        guard let reached = Self.thresholds.filter({ percent <= $0 }).min() else { return nil }
-        if let told, told <= reached { return nil }
-        told = reached
-        return percent
-    }
-}

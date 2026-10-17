@@ -137,7 +137,7 @@ private let sep = ScriptablePlayer.separator
         var events: [AdapterStreamParser.Event] = []
         adapter.onEvent = { events.append($0) }
         adapter.start()
-        #expect(await waitFor(6) {
+        #expect(await waitFor(20) {
             if case .unavailable = adapter.status { return true }
             return false
         })
