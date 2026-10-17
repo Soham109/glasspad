@@ -6,3 +6,9 @@ contact_links:
   - name: Guide
     url: https://glasspad.sohamaggarwal.com/guide
     about: Every mode, Layouts, and fixes for common problems.
+  - name: Questions
+    url: https://github.com/Soham109/glasspad/blob/main/SUPPORT.md
+    about: Where to ask, and what to include.
+  - name: Security problem
+    url: https://github.com/Soham109/glasspad/blob/main/SECURITY.md
+    about: Please report it privately, not as an issue.

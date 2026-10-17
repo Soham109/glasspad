@@ -1,0 +1,24 @@
+# Weekly update checks. The Swift packages have no outside dependencies.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    labels: ["dependencies"]
+  - package-ecosystem: npm
+    directory: /web
+    schedule:
+      interval: weekly
+    labels: ["dependencies"]
+    groups:
+      web:
+        patterns: ["*"]
+  - package-ecosystem: npm
+    directory: /promo
+    schedule:
+      interval: monthly
+    labels: ["dependencies"]
+    groups:
+      promo:
+        patterns: ["*"]
