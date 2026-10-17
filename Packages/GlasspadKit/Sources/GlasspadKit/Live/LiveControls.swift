@@ -123,6 +123,14 @@ public struct LiveControls: Codable, Hashable, Sendable {
                       length: length.flatMap { $0 > 0 ? $0 : nil })
         }
 
+        /// From Present's clock. Built from its stored dates, not the time now, so it stays the
+        /// same while the clock runs and only changes when it starts, pauses or resets.
+        public init(timer: PresentTimer, length: TimeInterval?) {
+            self.init(countingFrom: timer.startedAt.map { $0.addingTimeInterval(-timer.accumulated) },
+                      elapsed: timer.isRunning ? 0 : timer.accumulated,
+                      length: length.flatMap { $0 > 0 ? $0 : nil })
+        }
+
         public var isRunning: Bool { countingFrom != nil }
 
         /// When a running talk with a length reaches zero.
