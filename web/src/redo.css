@@ -224,9 +224,9 @@
 /* App UI recreations, in iPhone points */
 
 .u-press { transform: scale(0.94); transition: transform 120ms ease; }
-.u-keys .echo { position: absolute; left: 24px; right: 24px; top: 210px; text-align: center; font-size: 22px; color: rgba(26, 26, 26, 0.45); }
+.u-keys .echo { position: absolute; left: 24px; right: 24px; top: 210px; text-align: center; font-size: 22px; color: rgba(26, 26, 26, 0.62); }
 .u-keys .echo.typed { color: #1A1A1A; }
-.u-keys .sub { position: absolute; left: 0; right: 0; top: 258px; text-align: center; font-size: 12px; color: rgba(26, 26, 26, 0.52); }
+.u-keys .sub { position: absolute; left: 0; right: 0; top: 258px; text-align: center; font-size: 12px; color: rgba(26, 26, 26, 0.62); }
 .u-kb { position: absolute; left: 0; right: 0; bottom: 0; height: 330px; background: #D5D6DA; padding: 44px 4px 0; display: flex; flex-direction: column; gap: 12px; }
 .u-kb div { display: flex; justify-content: center; gap: 6px; }
 .u-kb div span { width: 33px; height: 42px; border-radius: 6px; background: #FDFDFD; box-shadow: 0 1px 0 rgba(0, 0, 0, 0.25); display: grid; place-items: center; font-size: 19px; }
@@ -245,7 +245,7 @@
 @keyframes blink { 50% { opacity: 0; } }
 .mm-np { position: absolute; left: 50%; top: 50%; width: 56cqw; transform: translate(-50%, -50%); padding: 4cqh; display: flex; gap: 4cqw; align-items: center; border-radius: 2cqw; background: #FBFBF9; box-shadow: 0 2cqh 6cqh -2cqh rgba(0, 0, 0, 0.35); }
 .mm-np .art { width: 18cqh; height: 18cqh; border-radius: 1.4cqw; background: #EC4F73; flex: none; }
-.mm-np b { display: block; font-size: 4.6cqh; } .mm-np span { font-size: 3.8cqh; color: rgba(26, 26, 26, 0.55); }
+.mm-np b { display: block; font-size: 4.6cqh; } .mm-np span { font-size: 3.8cqh; color: rgba(26, 26, 26, 0.62); }
 .mm-np .pb { margin-top: 2.6cqh; height: 1cqh; border-radius: 1cqh; background: rgba(26, 26, 26, 0.12); position: relative; overflow: hidden; } .mm-np .pb i { position: absolute; inset: 0 auto 0 0; background: #1A1A1A; }
 .mm-hud { position: absolute; left: 50%; bottom: 10cqh; width: 26cqw; padding: 3cqh 2cqw; transform: translateX(-50%) scale(0.9); border-radius: 2cqw; background: rgba(250, 249, 247, 0.82); opacity: 0; transition: opacity 250ms, transform 420ms var(--ease-snappy); display: flex; align-items: center; gap: 1.6cqw; }
 .mm-hud.on { opacity: 1; transform: translateX(-50%); }
@@ -290,15 +290,15 @@
 .u-media .art .a1 { left: 18%; top: 18%; width: 64%; height: 64%; border-radius: 50%; background: #F2E6D3; }
 .u-media .art .a2 { left: 0; right: 0; top: 58%; height: 42%; background: #E8655A; }
 .u-media .art .a3 { left: 44%; top: 0; width: 12%; height: 100%; background: #1F2A3A; opacity: 0.9; }
-.u-media .src { position: absolute; left: 0; right: 0; top: 400px; display: flex; justify-content: center; align-items: center; gap: 6px; font-size: 11px; font-weight: 600; letter-spacing: 0.08em; color: rgba(26, 26, 26, 0.55); }
+.u-media .src { position: absolute; left: 0; right: 0; top: 400px; display: flex; justify-content: center; align-items: center; gap: 6px; font-size: 11px; font-weight: 600; letter-spacing: 0.08em; color: rgba(26, 26, 26, 0.62); }
 .u-media .src i { width: 16px; height: 16px; border-radius: 50%; background: #1DB954; }
 .u-media .t { position: absolute; left: 0; right: 0; top: 424px; text-align: center; font-size: 21px; font-weight: 600; letter-spacing: -0.01em; }
-.u-media .a { position: absolute; left: 0; right: 0; top: 454px; text-align: center; font-size: 16px; color: rgba(26, 26, 26, 0.55); }
+.u-media .a { position: absolute; left: 0; right: 0; top: 454px; text-align: center; font-size: 16px; color: rgba(26, 26, 26, 0.62); }
 .u-media .scrub { position: absolute; left: 30px; right: 30px; top: 500px; height: 6px; border-radius: 3px; background: rgba(26, 26, 26, 0.1); }
 .u-media .scrub .prog { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 3px; background: #1A1A1A; }
 .u-media .scrub .knob { position: absolute; top: 50%; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%; background: #1A1A1A; transition: transform 300ms var(--ease-snappy); }
 .u-media .scrub .knob.held { transform: scale(1.6); }
-.u-media .times { position: absolute; left: 30px; right: 30px; top: 516px; display: flex; justify-content: space-between; font-size: 12px; color: rgba(26, 26, 26, 0.55); font-variant-numeric: tabular-nums; }
+.u-media .times { position: absolute; left: 30px; right: 30px; top: 516px; display: flex; justify-content: space-between; font-size: 12px; color: rgba(26, 26, 26, 0.62); font-variant-numeric: tabular-nums; }
 .u-media .ctl { position: absolute; left: 60px; right: 60px; top: 552px; height: 88px; display: flex; justify-content: space-between; align-items: center; }
 .u-media .ctl > svg { width: 46px; height: 30px; fill: #1A1A1A; }
 .u-media .pp { position: relative; width: 88px; height: 88px; display: grid; place-items: center; border-radius: 50%; transition: transform 140ms ease; }
@@ -327,12 +327,12 @@
 
 /* Apps */
 .u-apps .hd b { position: absolute; left: 18px; top: 140px; font-size: 34px; font-weight: 700; letter-spacing: -0.02em; }
-.u-apps .hd .sub { position: absolute; left: 18px; top: 184px; font-size: 15px; color: rgba(26, 26, 26, 0.55); }
+.u-apps .hd .sub { position: absolute; left: 18px; top: 184px; font-size: 15px; color: rgba(26, 26, 26, 0.62); }
 .u-apps .hd .more { position: absolute; right: 16px; top: 146px; width: 44px; height: 44px; border-radius: 50%; background: #FBFAF8; box-shadow: 0 0 0 1px rgba(26, 26, 26, 0.07); display: grid; place-items: center; }
 .u-apps svg { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .u-apps .hd .more svg { width: 22px; height: 22px; }
-.u-apps .search { position: absolute; left: 14px; right: 14px; top: 222px; height: 44px; border-radius: 22px; background: #FBFAF8; box-shadow: 0 0 0 1px rgba(26, 26, 26, 0.07); display: flex; align-items: center; gap: 10px; padding: 0 16px; font-size: 16px; color: rgba(26, 26, 26, 0.4); }
-.u-apps .search svg { width: 19px; height: 19px; color: rgba(26, 26, 26, 0.55); }
+.u-apps .search { position: absolute; left: 14px; right: 14px; top: 222px; height: 44px; border-radius: 22px; background: #FBFAF8; box-shadow: 0 0 0 1px rgba(26, 26, 26, 0.07); display: flex; align-items: center; gap: 10px; padding: 0 16px; font-size: 16px; color: rgba(26, 26, 26, 0.62); }
+.u-apps .search svg { width: 19px; height: 19px; color: rgba(26, 26, 26, 0.62); }
 .u-apps .grid { position: absolute; left: 10px; right: 10px; top: 288px; display: grid; grid-template-columns: repeat(4, 1fr); row-gap: 14px; }
 .u-apps .at { position: relative; display: flex; flex-direction: column; align-items: center; font-size: 12px; transition: transform 300ms var(--ease-snappy); }
 .u-apps .at .app { width: 60px; transition: transform 200ms ease; }
