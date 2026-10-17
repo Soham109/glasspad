@@ -11,11 +11,25 @@ struct OpenMissionControlIntent: AppIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult & ProvidesDialog {
+        var outcome: DeckOutcome?
         try await MacSession.shared.withConnection { session in
-            // Control + Up Arrow is the macOS shortcut for Mission Control.
-            session.send(.keysKeystroke(Keystroke(key: .special(.up), modifiers: .control)))
+            // The Mission Control button's way (through the Dock), so the Mac says whether it opened.
+            let id = UUID()
+            session.send(.remoteSystem(id: id, action: .missionControl))
+            outcome = await awaitAnswer(timeout: .seconds(2.5)) { session.deckOutcomes[id] }
+            // No answer: a Mac from before Remote, which drops that message. Control + Up Arrow
+            // is the macOS shortcut for Mission Control.
+            if outcome == nil { session.send(.keysKeystroke(Keystroke(key: .special(.up), modifiers: .control))) }
+        }
+        if let outcome, !outcome.ok {
+            throw IntentProblem(Self.sentence(outcome.message ?? "Mission Control did not open"))
         }
         return .result(dialog: "Mission Control is open.")
+    }
+
+    /// The Mac's reasons come without a full stop ("Could not open Mission Control").
+    private static func sentence(_ text: String) -> String {
+        text.hasSuffix(".") || text.hasSuffix("!") || text.hasSuffix("?") ? text : text + "."
     }
 }
 
@@ -235,6 +249,9 @@ struct GlasspadShortcuts: AppShortcutsProvider {
         AppShortcut(intent: OpenTrackpadIntent(),
                     phrases: ["Open \(.applicationName) trackpad", "Start \(.applicationName)"],
                     shortTitle: "Trackpad", systemImageName: "hand.point.up.left")
+        AppShortcut(intent: OpenModeIntent(),
+                    phrases: ["Open \(\.$mode) in \(.applicationName)", "\(.applicationName) \(\.$mode)"],
+                    shortTitle: "Open Mode", systemImageName: "rectangle.stack")
         AppShortcut(intent: OpenMissionControlIntent(),
                     phrases: ["Open Mission Control with \(.applicationName)", "\(.applicationName) Mission Control"],
                     shortTitle: "Mission Control", systemImageName: "rectangle.3.group")
