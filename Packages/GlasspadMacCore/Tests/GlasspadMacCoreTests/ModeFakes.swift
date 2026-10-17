@@ -38,7 +38,7 @@ enum FakeDockHider {
         let hider = MacDockHider(dock: dock, own: own, runner: runner, flushOwn: { [weak dock] in
             _ = own.synchronize()
             dock?.log.append("flush own")
-        })
+        }, restartQueue: { $0() })
         return (hider, dock, own, runner)
     }
 }

@@ -98,12 +98,21 @@ final class PhoneSettings {
     /// Choices for how long the trackpad waits before dimming. 0 means never.
     static let dimDelayChoices: [TimeInterval] = [30, 60, 120, 300, 0]
     static let dotSizeRange: ClosedRange<Double> = 28...72
+    /// Custom Tint before a colour is picked: a calm teal.
+    static let defaultCustomTint: UInt32 = 0x2A8C8C
 
     // Look
     var theme: ThemeChoice { didSet { defaults.set(theme.rawValue, forKey: Key.theme) } }
     /// Goes up each time a new photo is made the Photo theme's backdrop. Setting the theme to
     /// the value it already has tells no view, so screens watch this to redraw with the photo.
     var photoVersion = 0
+    /// The Custom Tint theme's colour, `0xRRGGBB`.
+    var customTint: UInt32 {
+        didSet {
+            defaults.set(Int(customTint), forKey: Key.customTint)
+            ThemeTint.custom = ThemeTint(RGBA(hex: customTint))
+        }
+    }
     var showDots: Bool { didSet { defaults.set(showDots, forKey: Key.showDots) } }
     var dotSizeChoice: DotSize { didSet { defaults.set(dotSizeChoice.rawValue, forKey: Key.dotSize) } }
     /// Points across.
@@ -141,8 +150,6 @@ final class PhoneSettings {
         didSet { if let d = try? JSONEncoder().encode(dockArrangement) { defaults.set(d, forKey: Key.dockArrangement) } }
     }
     var keysShowsShortcuts: Bool { didSet { defaults.set(keysShowsShortcuts, forKey: Key.keysShowsShortcuts) } }
-    /// Keyboard shows F1 to F12, brightness and volume in place of the shortcut row.
-    var keysShowsFunctionRow: Bool { didSet { defaults.set(keysShowsFunctionRow, forKey: Key.keysShowsFunctionRow) } }
     /// The first-run checklist was finished; it never opens by itself again.
     var setupComplete: Bool { didSet { defaults.set(setupComplete, forKey: Key.setupComplete) } }
     var presentStartsTimer: Bool { didSet { defaults.set(presentStartsTimer, forKey: Key.presentStartsTimer) } }
@@ -183,7 +190,7 @@ final class PhoneSettings {
     private let defaults: UserDefaults
 
     private enum Key {
-        static let theme = "theme", hapticStrength = "hapticStrength", showDots = "showDots"
+        static let theme = "theme", customTint = "customTint", hapticStrength = "hapticStrength", showDots = "showDots"
         static let leftHanded = "leftHanded", dimDelay = "dimDelay", hasOnboarded = "hasOnboarded"
         static let phoneName = "phoneName", lastMode = "lastMode", orientation = "orientation"
         static let dotSize = "dotSize"
@@ -191,7 +198,7 @@ final class PhoneSettings {
         static let launchMode = "launchMode", dockDensity = "dockDensity"
         static let dockShowsNames = "dockShowsNames", dockShowsRecent = "dockShowsRecent"
         static let dockArrangement = "dockArrangement", keysShowsShortcuts = "keysShowsShortcuts"
-        static let keysShowsFunctionRow = "keysShowsFunctionRow", setupComplete = "setupComplete"
+        static let setupComplete = "setupComplete"
         static let presentStartsTimer = "presentStartsTimer"
         static let deckShowsTitles = "deckShowsTitles"
         static let deckTileScale = "deckTileScale", modeList = "modeList", seenTips = "seenTips"
@@ -206,6 +213,10 @@ final class PhoneSettings {
         }
         // A theme this build does not know (from a newer build) falls back to System.
         theme = defaults.string(forKey: Key.theme).map(ThemeChoice.init(saved:)) ?? .paper
+        let tint = (defaults.object(forKey: Key.customTint) as? Int).map { UInt32(truncatingIfNeeded: $0) & 0xFFFFFF }
+            ?? Self.defaultCustomTint
+        customTint = tint
+        ThemeTint.custom = ThemeTint(RGBA(hex: tint))
         hapticStrength = double(Key.hapticStrength, 0.7, 0...1)
         showDots = bool(Key.showDots, true)
         dotSizeChoice = DotSize(points: double(Key.dotSize, DotSize.medium.rawValue, Self.dotSizeRange))
@@ -222,7 +233,6 @@ final class PhoneSettings {
         dockArrangement = defaults.data(forKey: Key.dockArrangement)
             .flatMap { try? JSONDecoder().decode(DockArrangement.self, from: $0) } ?? DockArrangement()
         keysShowsShortcuts = bool(Key.keysShowsShortcuts, true)
-        keysShowsFunctionRow = bool(Key.keysShowsFunctionRow, false)
         setupComplete = bool(Key.setupComplete, false)
         presentStartsTimer = bool(Key.presentStartsTimer, true)
         deckShowsTitles = bool(Key.deckShowsTitles, true)
@@ -269,6 +279,7 @@ final class PhoneSettings {
     /// Puts every look and feel setting back to how Glasspad ships.
     func resetLookAndFeel() {
         theme = .paper
+        customTint = Self.defaultCustomTint
         showDots = true
         dotSizeChoice = .medium
         pillPosition = .top

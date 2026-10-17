@@ -139,6 +139,9 @@ public final class GlasspadController: ObservableObject {
         phoneConnected || pairing ? 1 : 5
     }
 
+    /// A fifth of the interval: the code's countdown and a permission change still land on time.
+    nonisolated static func statusTolerance(_ interval: TimeInterval) -> TimeInterval { interval / 5 }
+
     private var statusInterval: TimeInterval {
         let connected = if case .connected = linkState { true } else { false }
         return Self.statusInterval(phoneConnected: connected, pairing: flow.phase.url != nil)
@@ -152,6 +155,8 @@ public final class GlasspadController: ObservableObject {
         let t = Timer(timeInterval: interval, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated { self?.refreshStatus() }
         }
+        // Lets macOS fire it together with other work instead of waking the Mac just for it.
+        t.tolerance = Self.statusTolerance(interval)
         RunLoop.main.add(t, forMode: .common)
         statusTimer = t
     }
@@ -279,6 +284,8 @@ public final class GlasspadController: ObservableObject {
         pipeline.cancelAll()
         modes.sessionEnded()
         connectedPhoneName = server.connectedPhone?.phoneName
+        // With no phone the trackpad prefs are not polled, so read them before sending.
+        watcher.refresh()
         server.send(.settings(settings))
         refreshAutomation()
         reportStatus(newSession: true)
@@ -358,7 +365,9 @@ public final class GlasspadController: ObservableObject {
     }
 
     private func refreshStatus() {
-        stats = server.stats
+        // Only a real change is published: every publish redraws whatever observes the model.
+        let fresh = server.stats
+        if fresh != stats { stats = fresh }
         // Every second, so turning Accessibility off in System Settings reaches the phone too.
         refreshAccessibility()
         if flow.tick(now: Date()) {

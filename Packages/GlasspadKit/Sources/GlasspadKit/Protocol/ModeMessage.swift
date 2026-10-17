@@ -392,6 +392,10 @@ public enum ModeMessage: Codable, Equatable, Sendable {
     case keysText(String)
     /// Phone -> Mac: press one key with modifiers (arrows, esc, tab, cmd shortcuts).
     case keysKeystroke(Keystroke)
+    /// Mac -> phone, when Keyboard comes on screen and when the Mac's keyboard layout changes:
+    /// what each key types there, so the phone's keyboard shows the same letters. Added Oct
+    /// 2026: an older phone drops it and keeps US letters; an older Mac never sends it.
+    case keysLayout(KeyboardLetters)
 
     // Media
     /// Phone -> Mac: send the current `mediaState` and keep sending on changes while Media is shown.
@@ -475,6 +479,10 @@ public enum ModeMessage: Codable, Equatable, Sendable {
     case displayCommand(id: UUID, command: DisplayCommand)
     /// Mac -> phone: how `windowCommand` or `displayCommand` `id` went; `message` says why on failure.
     case displaysResult(id: UUID, ok: Bool, message: String?)
+    /// Phone -> Mac: outline this window on the Mac for a moment, so the person sees which one
+    /// they picked. Nothing moves or comes forward, and there is no answer. Sent only to a Mac
+    /// whose `DisplaysState.highlightsWindows` is true (an older Mac drops unknown messages).
+    case windowHighlight(windowID: UInt32)
 
     // Macros
     /// Both ways: Macros mode (docs/SPEC-macros.md section 6). Direction is noted on each `MacroMessage` case.

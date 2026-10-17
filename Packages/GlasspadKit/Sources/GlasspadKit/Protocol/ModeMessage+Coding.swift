@@ -72,6 +72,7 @@ extension ModeMessage {
         case "macDockSet": self = .macDockSet(try f.value(MacDockState.self, "state", unlabeled: true))
         case "keysText": self = .keysText(try f.value(String.self, "text", unlabeled: true))
         case "keysKeystroke": self = .keysKeystroke(try f.value(Keystroke.self, "keystroke", unlabeled: true))
+        case "keysLayout": self = .keysLayout(try f.value(KeyboardLetters.self, "layout"))
         case "mediaRequest": self = .mediaRequest
         case "mediaState": self = .mediaState(try f.value(MediaState.self, "state", unlabeled: true))
         case "mediaCommand": self = .mediaCommand(try f.value(MediaCommand.self, "command", unlabeled: true))
@@ -117,6 +118,7 @@ extension ModeMessage {
         case "displaysResult":
             self = .displaysResult(id: try f.value(UUID.self, "id"), ok: try f.value(Bool.self, "ok"),
                                    message: try f.optional(String.self, "message"))
+        case "windowHighlight": self = .windowHighlight(windowID: try f.value(UInt32.self, "windowID"))
         case "macro": self = .macro(try f.value(MacroMessage.self, "macro", unlabeled: true))
         default:
             throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath,
@@ -157,6 +159,7 @@ extension ModeMessage {
             try put(destination, "destination")
         case .keysText(let text): try put(text, "text")
         case .keysKeystroke(let k): try put(k, "keystroke")
+        case .keysLayout(let l): try put(l, "layout")
         case .mediaState(let s): try put(s, "state")
         case .mediaCommand(let cmd): try put(cmd, "command")
         case .mediaSetVolume(let v), .mediaSetBrightness(let v): try put(v, "value")
@@ -193,6 +196,7 @@ extension ModeMessage {
             try put(id, "id")
             try put(ok, "ok")
             try c.encodeIfPresent(message, forKey: AnyCodingKey("message"))
+        case .windowHighlight(let windowID): try put(windowID, "windowID")
         case .macro(let m): try put(m, "macro")
         case .dockRequest, .mediaRequest, .deckRequest, .clipboardPull, .presentNext, .presentPrevious,
              .dockCatalogRequest, .deckCatalogRequest:
@@ -227,6 +231,7 @@ extension ModeMessage {
         case .deckImage: "deckImage"
         case .keysText: "keysText"
         case .keysKeystroke: "keysKeystroke"
+        case .keysLayout: "keysLayout"
         case .mediaRequest: "mediaRequest"
         case .mediaState: "mediaState"
         case .mediaCommand: "mediaCommand"
@@ -252,6 +257,7 @@ extension ModeMessage {
         case .windowCommand: "windowCommand"
         case .displayCommand: "displayCommand"
         case .displaysResult: "displaysResult"
+        case .windowHighlight: "windowHighlight"
         case .macro: "macro"
         }
     }

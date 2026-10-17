@@ -137,28 +137,35 @@ nonisolated(unsafe) let observedGlobal: [String: Any] = [
         #expect(watcher.settings.tapToClick == value.tapToClick)
     }
 
-    /// With no phone the prefs are read every 5 s; a phone connecting gets a fresh read at
-    /// once and the usual 2 s after that.
-    @Test @MainActor func watcherSlowsDownWithoutAPhone() {
+    /// With no phone the prefs are not polled at all (an idle Mac never wakes for them); a
+    /// phone connecting gets a fresh read at once and the usual 2 s after that.
+    @Test @MainActor func watcherStopsPollingWithoutAPhone() {
         var value = TrackpadSettings.macDefault
         let watcher = TrackpadPrefsWatcher(read: { value })
         var seen: [TrackpadSettings] = []
         watcher.onChange = { seen.append($0) }
         watcher.start()
         defer { watcher.stop() }
-        #expect(watcher.scheduledInterval == 5)
+        #expect(watcher.scheduledInterval == nil)
         value.tapToClick.toggle()
         watcher.setPhoneConnected(true)
         #expect(seen.count == 1)
         #expect(watcher.scheduledInterval == 2)
         watcher.setPhoneConnected(false)
-        #expect(watcher.scheduledInterval == 5 && watcher.currentInterval == 5)
+        #expect(watcher.scheduledInterval == nil && watcher.currentInterval == nil)
+        // Stopped, a phone connecting reads once but starts no timer.
+        watcher.stop()
+        watcher.setPhoneConnected(true)
+        #expect(watcher.scheduledInterval == nil)
     }
 
     @Test func statusChecksSlowDownWithoutAPhoneOrCode() {
         #expect(GlasspadController.statusInterval(phoneConnected: true, pairing: false) == 1)
         #expect(GlasspadController.statusInterval(phoneConnected: false, pairing: true) == 1)
         #expect(GlasspadController.statusInterval(phoneConnected: false, pairing: false) == 5)
+        // Some slack lets macOS batch the wakeup with other work.
+        #expect(GlasspadController.statusTolerance(5) == 1)
+        #expect(GlasspadController.statusTolerance(1) == 0.2)
     }
 
     @Test func liveReadDoesNotCrash() {

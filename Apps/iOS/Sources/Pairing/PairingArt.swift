@@ -228,7 +228,7 @@ private struct ActionTilesArt: View {
                     .overlay {
                         Image(systemName: symbol)
                             .font(.system(size: side * 0.42, weight: .semibold))
-                            .foregroundStyle(palette.monochrome ? palette.solidColor : .white)
+                            .foregroundStyle(palette.onFill)
                     }
             }
         }

@@ -166,7 +166,7 @@ struct SettingsView: View {
             Text("Modes")
         } footer: {
             if AppMode.visible.contains(.keys) {
-                Text("The shortcut row puts Copy, Paste, Undo and more above the arrow keys.")
+                Text("The shortcut row puts Copy, Paste, Undo and more above the keys.")
             }
         }
         .listRowBackground(palette.raisedColor)
@@ -417,11 +417,27 @@ struct ThemeSettings: View {
     @State private var failed = false
 
     var body: some View {
+        ScrollViewReader { proxy in
+            form
+                // Opens on the theme in use, wherever it sits in the list.
+                .onAppear { proxy.scrollTo(settings.theme.group, anchor: .center) }
+        }
+    }
+
+    private var form: some View {
         Form {
             ForEach(ThemeChoice.Group.allCases.filter { $0 != .photo }) { group in
-                Section(group.title) {
+                Section {
                     ThemeGrid(themes: group.themes, selection: $settings.theme)
                         .listRowInsets(EdgeInsets(top: 14, leading: 14, bottom: 12, trailing: 14))
+                        .id(group)
+                    if group == .tinted {
+                        ColorPicker("Custom Tint", selection: customTint, supportsOpacity: false)
+                    }
+                } header: {
+                    Text(group.title)
+                } footer: {
+                    if group == .tinted { Text("Everything in one color, app icons included.") }
                 }
                 .listRowBackground(palette.raisedColor)
             }
@@ -442,12 +458,28 @@ struct ThemeSettings: View {
         }
     }
 
+    /// The Custom Tint colour. Picking one switches to Custom Tint.
+    private var customTint: Binding<Color> {
+        Binding {
+            Color(hex: settings.customTint)
+        } set: { color in
+            var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+            guard UIColor(color).resolvedColor(with: UITraitCollection(userInterfaceStyle: .light))
+                .getRed(&r, green: &g, blue: &b, alpha: &a) else { return }
+            let hex = RGBA(r: min(1, max(0, r)), g: min(1, max(0, g)), b: min(1, max(0, b))).hex
+            guard hex != settings.customTint || settings.theme != .customTint else { return }
+            settings.customTint = hex
+            if settings.theme != .customTint { ThemeTransition.run { settings.theme = .customTint } }
+        }
+    }
+
     /// A photo of the person's own, blurred into the backdrop of a glass theme.
     private var photo: some View {
         Section {
             if hasPhoto {
                 ThemeGrid(themes: [.photo], selection: $settings.theme)
                     .listRowInsets(EdgeInsets(top: 14, leading: 14, bottom: 12, trailing: 14))
+                    .id(ThemeChoice.Group.photo)
             }
             // Worked out here: the picker builds its label outside the main actor.
             let title = hasPhoto ? "Choose Another Photo" : "Choose a Photo", busy = working
@@ -620,7 +652,9 @@ private struct ThemeMiniature: View {
     }
 
     @ViewBuilder private func surface(width: CGFloat, height: CGFloat) -> some View {
-        if let backdrop = palette.backdropPreview {
+        if let grain = palette.grainSurface {
+            PatternFill(color: grain)
+        } else if let backdrop = palette.backdropPreview {
             // The top left of the backdrop, as a screen shows it.
             Image(uiImage: backdrop)
                 .resizable()

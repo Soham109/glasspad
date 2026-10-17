@@ -571,6 +571,24 @@ private extension ModeMessage {
         return (r, ws, hider, { sent })
     }
 
+    @Test func keyboardOnScreenGetsTheMacsLetters() {
+        let (r, _, _, sent) = router()
+        let layouts = { sent().filter { if case .keysLayout = $0 { true } else { false } }.count }
+        r.handle(.modeSelected(.trackpad))
+        r.keys.onLayoutChange()
+        #expect(layouts() == 0)
+        r.handle(.modeSelected(.keys))
+        #expect(layouts() == 1)
+        r.keys.onLayoutChange()
+        #expect(layouts() == 2)
+        // A layout with a Keyboard pane, the trackpad followed.
+        r.handle(.modeSelected(.trackpad))
+        r.handle(.modesShown([.trackpad, .keys]))
+        #expect(layouts() == 3)
+        r.handle(.modesShown([.trackpad, .keys]))
+        #expect(layouts() == 3)
+    }
+
     @Test func dockSyncRepliesWithListAndDockState() {
         let (r, _, _, sent) = router()
         r.handle(.dockSync(iconKeys: []))

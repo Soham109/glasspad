@@ -44,7 +44,13 @@ public final class DockMode {
 
     public let workspace: DockWorkspace
     public let launcher: AppLauncher
+    /// Icons read or drawn this session, oldest first, at most `memoryIconLimit` of them. The
+    /// disk cache holds every one, so this only spares a read; it empties when the phone leaves.
+    /// `iconCacheOrder` lists the keys oldest first.
     private var iconCache: [String: Data] = [:]
+    private var iconCacheOrder: [String] = []
+    /// About 2 MB of 384 px icons: a full Dock plus a search or two.
+    public nonisolated static let memoryIconLimit = 48
     /// Icon keys the phone has: what it listed in `dockSync`, plus what this session sent.
     private var phoneIconKeys: Set<String> = []
     private let cacheDirectory: URL?
@@ -61,15 +67,25 @@ public final class DockMode {
     public nonisolated static func defaultCacheDirectory() -> URL? {
         guard let base = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first?
             .appendingPathComponent("com.soham109.glasspad", isDirectory: true) else { return nil }
-        // Icons drawn at an older size are never used again.
-        for old in [64, 256] where old != DockApp.iconPixels {
-            try? FileManager.default.removeItem(at: base.appendingPathComponent("icons-\(old)"))
+        // Icons drawn at an older size (or by the first version, in "icons") are never used again.
+        let stale = ["icons"] + [64, 256].filter { $0 != DockApp.iconPixels }.map { "icons-\($0)" }
+        for name in stale {
+            try? FileManager.default.removeItem(at: base.appendingPathComponent(name))
         }
         return base.appendingPathComponent("icons-\(DockApp.iconPixels)", isDirectory: true)
     }
 
-    /// Forget which icons the phone has (new session).
-    public func resetSession() { phoneIconKeys.removeAll() }
+    /// Forget which icons the phone has (new session), and the icons kept in memory for it
+    /// when they are on disk too.
+    public func resetSession() {
+        phoneIconKeys.removeAll()
+        guard cacheDirectory != nil else { return }
+        iconCache.removeAll()
+        iconCacheOrder.removeAll()
+    }
+
+    /// Icons held in memory now (tests).
+    var memoryIconCount: Int { iconCache.count }
 
     /// The phone listed the icons it already has.
     public func phoneHas(iconKeys: [String]) { phoneIconKeys.formUnion(iconKeys) }
@@ -249,19 +265,43 @@ public final class DockMode {
 
     func iconPNG(key: String, url: URL) -> Data? {
         if let d = iconCache[key] { return d }
-        let safe = key.replacingOccurrences(of: "/", with: "_")
-        let file = cacheDirectory?.appendingPathComponent(safe + ".png")
+        let file = cacheDirectory?.appendingPathComponent(Self.iconFileName(key))
         if let file, let d = try? Data(contentsOf: file) {
-            iconCache[key] = d
+            remember(d, for: key)
             return d
         }
         guard let png = workspace.iconPNG(for: url, pixels: Self.iconPixels) else { return nil }
-        iconCache[key] = png
+        remember(png, for: key)
         if let dir = cacheDirectory, let file {
             try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
             try? png.write(to: file, options: .atomic)
+            Self.removeOlderIcons(of: key, in: dir)
         }
         return png
+    }
+
+    private func remember(_ png: Data, for key: String) {
+        iconCache[key] = png
+        iconCacheOrder.append(key)
+        while iconCacheOrder.count > Self.memoryIconLimit {
+            iconCache[iconCacheOrder.removeFirst()] = nil
+        }
+    }
+
+    nonisolated static func iconFileName(_ key: String) -> String { key.replacingOccurrences(of: "/", with: "_") + ".png" }
+
+    /// An app that updated gets a new key (its modification date is in it); the icon drawn for
+    /// the old version is never read again, so it goes.
+    nonisolated static func removeOlderIcons(of key: String, in dir: URL) {
+        guard let at = key.lastIndex(of: "@") else { return }
+        let prefix = iconFileName(String(key[..<at])).dropLast(4) + "@"
+        let keep = iconFileName(key)
+        let names = (try? FileManager.default.contentsOfDirectory(atPath: dir.path)) ?? []
+        for name in names where name != keep && name.hasPrefix(prefix) {
+            // Only "<bundle id>@<date>-<size>.png": another app whose id starts the same way
+            // ("com.a" and "com.a.helper") never matches, since "@" follows the whole id.
+            try? FileManager.default.removeItem(at: dir.appendingPathComponent(name))
+        }
     }
 
     /// Renders an image into an exact pixel-size bitmap and encodes it as PNG. Picks the image's

@@ -14,12 +14,24 @@ public struct KeyLayout: Equatable, Sendable {
     public var plain: [String: UInt16]
     /// Character typed with Shift -> key code.
     public var shifted: [String: UInt16]
+    /// What each key types, key by key, for the phone's keyboard (`ModeMessage.keysLayout`).
+    public var letters: KeyboardLetters
 
-    public init(plain: [String: UInt16], shifted: [String: UInt16]) {
+    /// `letters` defaults to the two maps turned around (exact when no two keys type the same
+    /// character, as on US); `current()` reads it key by key.
+    public init(plain: [String: UInt16], shifted: [String: UInt16], letters: KeyboardLetters? = nil) {
         self.plain = plain
         self.shifted = shifted
         // The layout readers skip the space bar; it is the same key everywhere.
         self.plain[" "] = 49
+        self.letters = letters ?? KeyboardLetters.from(plain: Self.byCode(plain), shifted: Self.byCode(shifted))
+    }
+
+    static func byCode(_ map: [String: UInt16]) -> [UInt16: String] {
+        var out: [UInt16: String] = [:]
+        // Sorted so the result does not depend on dictionary order.
+        for (char, code) in map.sorted(by: { $0.key < $1.key }) where out[code] == nil { out[code] = char }
+        return out
     }
 
     /// US ANSI, used when the active layout cannot be read.
@@ -51,22 +63,26 @@ public struct KeyLayout: Equatable, Sendable {
     @MainActor
     public static func current() -> KeyLayout {
         // The unshifted map is the one macro recording and playback already use.
-        let plain = KeyboardLayoutMap.current().charToCode
-        guard let shifted = readShifted(), !plain.isEmpty else { return .ansi }
-        return KeyLayout(plain: plain, shifted: shifted)
+        let map = KeyboardLayoutMap.current()
+        guard let shiftedByCode = readShifted(), !map.charToCode.isEmpty else { return .ansi }
+        var shifted: [String: UInt16] = [:]
+        // Highest code first so the lowest wins: the main block beats the keypad.
+        for (code, s) in shiftedByCode.sorted(by: { $0.key > $1.key }) { shifted[s] = code }
+        return KeyLayout(plain: map.charToCode, shifted: shifted,
+                         letters: KeyboardLetters.from(plain: map.codeToChar, shifted: shiftedByCode))
     }
 
-    /// Characters typed with Shift on the active layout (UCKeyTranslate, public Carbon API).
+    /// Key code -> character typed with Shift on the active layout (UCKeyTranslate, public
+    /// Carbon API).
     @MainActor
-    private static func readShifted() -> [String: UInt16]? {
+    private static func readShifted() -> [UInt16: String]? {
         guard let source = TISCopyCurrentKeyboardLayoutInputSource()?.takeRetainedValue(),
               let raw = TISGetInputSourceProperty(source, kTISPropertyUnicodeKeyLayoutData) else { return nil }
         let data = Unmanaged<CFData>.fromOpaque(raw).takeUnretainedValue() as Data
-        var out: [String: UInt16] = [:]
+        var out: [UInt16: String] = [:]
         data.withUnsafeBytes { buffer in
             guard let layout = buffer.baseAddress?.assumingMemoryBound(to: UCKeyboardLayout.self) else { return }
-            // Highest code first so the lowest wins: the main block beats the keypad.
-            for code in (UInt16(0)..<128).reversed() where !Self.nonCharacterCodes.contains(code) {
+            for code in UInt16(0)..<128 where !Self.nonCharacterCodes.contains(code) {
                 var deadKeys: UInt32 = 0
                 var length = 0
                 var chars = [UniChar](repeating: 0, count: 4)
@@ -78,7 +94,7 @@ public struct KeyLayout: Equatable, Sendable {
                 let s = String(utf16CodeUnits: chars, count: length)
                 guard let scalar = s.unicodeScalars.first, s.count == 1,
                       !CharacterSet.controlCharacters.contains(scalar), s != " " else { continue }
-                out[s] = code
+                out[code] = s
             }
         }
         return out
@@ -94,12 +110,15 @@ public final class LiveKeyLayout: @unchecked Sendable {
     private let lock = NSLock()
     private var cached: KeyLayout?
     private var observer: NSObjectProtocol?
+    /// Called on the main thread after the user switches keyboard layouts.
+    public var onChange: (() -> Void)?
 
     public init() {
         observer = DistributedNotificationCenter.default().addObserver(
             forName: NSNotification.Name(kTISNotifySelectedKeyboardInputSourceChanged as String),
             object: nil, queue: .main) { [weak self] _ in
             self?.lock.withLock { self?.cached = nil }
+            self?.onChange?()
         }
     }
 

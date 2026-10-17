@@ -7,18 +7,19 @@ import GlasspadKit
 ///   natural scrolling changes; used by open-source scroll tools), plus two multitouch names
 ///   that are guesses, not verified on macOS 26. A silent name costs nothing.
 /// - Polling every 2 s while a phone is connected, which catches every key, including the
-///   ones with no notification. With no phone it polls every 5 s (nobody is waiting for the
-///   settings), and reads again the moment a phone connects.
+///   ones with no notification. With no phone it does not poll at all (nobody is waiting for
+///   the settings, and an idle Mac should not wake for them); it reads again the moment a
+///   phone connects.
 @MainActor
 public final class TrackpadPrefsWatcher {
     public private(set) var settings: TrackpadSettings
     public var onChange: ((TrackpadSettings) -> Void)?
 
     private let pollInterval: TimeInterval
-    private let idleInterval: TimeInterval
     private var phoneConnected = false
-    /// Seconds between reads now.
-    public var currentInterval: TimeInterval { phoneConnected ? pollInterval : idleInterval }
+    private var started = false
+    /// Seconds between reads now; nil while no phone is connected (no polling).
+    public var currentInterval: TimeInterval? { phoneConnected ? pollInterval : nil }
     private let read: () -> TrackpadSettings
     private var timer: Timer?
     private var observers: [NSObjectProtocol] = []
@@ -29,10 +30,9 @@ public final class TrackpadPrefsWatcher {
         "com.apple.MultitouchSupport.HID.ReloadPrefs",
     ]
 
-    public init(pollInterval: TimeInterval = 2, idleInterval: TimeInterval = 5,
+    public init(pollInterval: TimeInterval = 2,
                 read: @escaping () -> TrackpadSettings = TrackpadPrefsReader.read) {
         self.pollInterval = pollInterval
-        self.idleInterval = idleInterval
         self.read = read
         self.settings = read()
     }
@@ -46,6 +46,7 @@ public final class TrackpadPrefsWatcher {
             }
             observers.append(token)
         }
+        started = true
         schedule()
     }
 
@@ -54,12 +55,14 @@ public final class TrackpadPrefsWatcher {
         guard connected != phoneConnected else { return }
         phoneConnected = connected
         if connected { refresh() }
-        if timer != nil { schedule() }
+        if started { schedule() }
     }
 
     private func schedule() {
         timer?.invalidate()
-        let t = Timer(timeInterval: currentInterval, repeats: true) { [weak self] _ in
+        timer = nil
+        guard let interval = currentInterval else { return }
+        let t = Timer(timeInterval: interval, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated { self?.refresh() }
         }
         t.tolerance = 0.25
@@ -71,6 +74,7 @@ public final class TrackpadPrefsWatcher {
     var scheduledInterval: TimeInterval? { timer?.timeInterval }
 
     public func stop() {
+        started = false
         timer?.invalidate()
         timer = nil
         let center = DistributedNotificationCenter.default()

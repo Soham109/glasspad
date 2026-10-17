@@ -18,6 +18,9 @@ struct DisplaysMode: View {
     @State private var settingsFor: DisplayPick?
     @State private var closing: MacWindow?
     @State private var splitting: WindowPick?
+    /// The window just picked, outlined in the drawing (and on the Mac) for a moment.
+    @State private var lit: UInt32?
+    @State private var litTask: Task<Void, Never>?
 
     static let hintID = "displays.hint"
 
@@ -29,7 +32,7 @@ struct DisplaysMode: View {
             let pill = onClose == nil && topClearance == nil
             let top = topClearance ?? (pill && settings.pillPosition == .top ? (wide ? 44 : 60) : 12)
             let bottom: CGFloat = pill && settings.pillPosition == .bottom ? 72 : (wide ? 8 : 16)
-            VStack(alignment: .leading, spacing: wide ? 10 : 16) {
+            VStack(alignment: .leading, spacing: wide ? 8 : 16) {
                 if size.height > 320 || onClose != nil { header(compact: wide) }
                 content(wide: wide, height: size.height)
             }
@@ -75,53 +78,29 @@ struct DisplaysMode: View {
     private func header(compact: Bool) -> some View {
         HStack(alignment: .center, spacing: 12) {
             if let onClose {
-                Button(action: onClose) {
-                    Image(systemName: "xmark")
-                        .font(.body.weight(.semibold))
-                        .foregroundStyle(palette.inkSoftColor)
-                        .frame(width: 40, height: 40)
-                        .background(Circle().fill(palette.raisedColor))
-                        .overlay(Circle().strokeBorder(palette.lineColor, lineWidth: 1))
-                }
-                .buttonStyle(TileStyle())
-                .accessibilityLabel("Close")
+                Button(action: onClose) { DisplaysGlyph(symbol: "xmark") }
+                    .buttonStyle(TileStyle())
+                    .accessibilityLabel("Close")
             }
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Displays")
-                    .font(compact ? .title.bold() : .largeTitle.bold())
-                    .foregroundStyle(palette.inkColor)
-                Text(subtitle)
-                    .font(.subheadline)
-                    .foregroundStyle(palette.inkSoftColor)
-                    .contentTransition(.numericText())
-            }
-            .accessibilityElement(children: .combine)
+            Text("Displays")
+                .font(compact ? .title.bold() : .largeTitle.bold())
+                .foregroundStyle(palette.inkColor)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+                .accessibilityAddTraits(.isHeader)
             Spacer(minLength: 0)
             if let main = store.state?.shownDisplays.first(where: \.isMain) ?? store.state?.shownDisplays.first {
                 Button {
                     Haptics.shared.tap()
                     settingsFor = DisplayPick(id: main.id)
                 } label: {
-                    // Named, not just a symbol: it opens brightness, resolution and Night Shift.
-                    Text("Settings")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(palette.inkColor)
-                        .padding(.horizontal, 16)
-                        .frame(height: 40)
-                        .background(Capsule().fill(palette.raisedColor))
-                        .overlay(Capsule().strokeBorder(palette.lineColor, lineWidth: 1))
+                    DisplaysGlyph(symbol: "gearshape")
                 }
                 .buttonStyle(TileStyle())
                 .accessibilityLabel("Display Settings")
+                .accessibilityHint("Brightness, resolution, Night Shift and arrangement.")
             }
         }
-    }
-
-    private var subtitle: String {
-        let name = session.macName ?? "Your Mac"
-        guard session.isConnected, let s = store.state else { return name }
-        let displays = s.displays.count, windows = s.windows.count
-        return "\(displays == 1 ? "1 display" : "\(displays) displays") · \(windows == 1 ? "1 window" : "\(windows) windows")"
     }
 
     // MARK: Content
@@ -139,7 +118,7 @@ struct DisplaysMode: View {
                     arrangement(state)
                     if height > 240 {
                         WindowList(state: state, run: run, close: { closing = $0 }, split: split, hint: showsHint)
-                            .frame(width: 300)
+                            .frame(width: 320)
                     }
                 }
             } else if height < 460 {
@@ -158,23 +137,22 @@ struct DisplaysMode: View {
 
     /// The arrangement in its box, like System Settings > Displays.
     private func arrangement(_ state: DisplaysState) -> some View {
-        DisplaysCanvas(state: state, run: run, close: { closing = $0 }, split: split) { display in
+        DisplaysCanvas(state: state, lit: lit, run: run, close: { closing = $0 }, split: split) { display in
             Haptics.shared.tap()
             settingsFor = DisplayPick(id: display.id)
         }
-        .padding(12)
-        .background(RoundedRectangle(cornerRadius: 22, style: .continuous).fill(palette.raisedColor))
-        .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).strokeBorder(palette.lineColor, lineWidth: 1))
+        .padding(16)
+        .displaysSurface(RoundedRectangle(cornerRadius: DisplaysMetrics.corner, style: .continuous))
     }
 
     /// Upright: as tall as the arrangement needs at full width, up to half the screen.
     private func arrangementHeight(_ state: DisplaysState, height: CGFloat) -> CGFloat {
         let union = state.shownDisplays.reduce(CGRect.null) { $0.union($1.frame) }
-        let width = UIScreen.main.bounds.width - 32 - 24
+        let width = UIScreen.main.bounds.width - 32 - 32
         guard !union.isNull, union.width > 0 else { return 200 }
         let rooms = DisplaysCanvas.labelRooms(state.shownDisplays)
         let labels = rooms.top + rooms.bottom
-        return min(height * 0.5, max(160, width * union.height / union.width + labels + 24 + 2))
+        return min(height * 0.5, max(160, width * union.height / union.width + labels + 32 + 2))
     }
 
     /// Split With: the Arrange sheet, with this window first.
@@ -185,9 +163,24 @@ struct DisplaysMode: View {
     }
 
     private func run(_ command: WindowCommand, _ w: MacWindow) {
-        if command == .raise { Haptics.shared.tap() }
+        if command == .raise {
+            Haptics.shared.tap()
+            light(w)
+        }
         store.run(command, on: w)
         if !settings.seenTips.contains(Self.hintID) { settings.seenTips.insert(Self.hintID) }
+    }
+
+    /// Outlines the window here and on the Mac for a moment, so it is clear which one it was.
+    private func light(_ w: MacWindow) {
+        store.highlight(w)
+        withAnimation(.snappy(duration: 0.2)) { lit = w.id }
+        litTask?.cancel()
+        litTask = Task { @MainActor in
+            try? await Task.sleep(for: .seconds(1.2))
+            guard !Task.isCancelled else { return }
+            withAnimation(.easeOut(duration: 0.3)) { lit = nil }
+        }
     }
 
     private var showsHint: Bool {
@@ -218,6 +211,49 @@ struct WindowPick: Identifiable, Equatable {
     let id: UInt32
 }
 
+/// One corner family for Displays and Arrange: cards, then the controls inside them.
+enum DisplaysMetrics {
+    static let corner: CGFloat = 24
+    static let innerCorner: CGFloat = 12
+}
+
+/// A raised fill alone, as Apple draws grouped content; where that fill barely differs from
+/// the surface (Mono, Pure Black, High Contrast) or with Increase Contrast, a hairline edge too.
+struct DisplaysSurface<S: InsettableShape>: ViewModifier {
+    @Environment(\.palette) private var palette
+    @Environment(\.colorSchemeContrast) private var contrast
+    let shape: S
+
+    static func needsEdge(_ theme: ThemeChoice, contrast: ColorSchemeContrast) -> Bool {
+        contrast == .increased || [.mono, .pureBlack, .highContrast].contains(theme)
+    }
+
+    func body(content: Content) -> some View {
+        content
+            .background(shape.fill(palette.raisedColor))
+            .overlay { if Self.needsEdge(palette.theme, contrast: contrast) { shape.strokeBorder(palette.lineColor, lineWidth: 1) } }
+    }
+}
+
+extension View {
+    func displaysSurface<S: InsettableShape>(_ shape: S) -> some View { modifier(DisplaysSurface(shape: shape)) }
+}
+
+/// A round, icon-only button face, 44 points across.
+struct DisplaysGlyph: View {
+    @Environment(\.palette) private var palette
+    let symbol: String
+
+    var body: some View {
+        Image(systemName: symbol)
+            .font(.body.weight(.semibold))
+            .foregroundStyle(palette.inkColor)
+            .frame(width: 44, height: 44)
+            .displaysSurface(Circle())
+            .contentShape(Circle())
+    }
+}
+
 // MARK: - Canvas
 
 /// The arrangement: displays at their true size and place, windows on top. Windows are drawn
@@ -225,6 +261,8 @@ struct WindowPick: Identifiable, Equatable {
 private struct DisplaysCanvas: View {
     @Environment(\.palette) private var palette
     let state: DisplaysState
+    /// The window just picked: outlined in the accent colour.
+    let lit: UInt32?
     let run: (WindowCommand, MacWindow) -> Void
     let close: (MacWindow) -> Void
     let split: (MacWindow) -> Void
@@ -315,7 +353,7 @@ private struct DisplaysCanvas: View {
 
     private func chip(_ w: MacWindow, rect: CGRect, map: DisplayMiniature, room: CGFloat, lifted: Bool = false) -> some View {
         WindowChip(window: w, size: rect.size, scale: map.scale, icon: w.bundleID.flatMap { session.icons.image(for: $0) },
-                   front: state.windows.first?.id == w.id, lifted: lifted)
+                   front: state.windows.first?.id == w.id, lifted: lifted, lit: lit == w.id)
             .position(x: rect.midX, y: rect.midY)
             .onTapGesture { run(.raise, w) }
             .gesture(DragGesture(minimumDistance: 6, coordinateSpace: .named(Self.space))
@@ -323,7 +361,7 @@ private struct DisplaysCanvas: View {
                 .onEnded { v in drop(w, at: v.location, translation: v.translation, map: map, room: room) })
             .contextMenu { WindowMenu(window: w, state: state, run: { run($0, w) }, close: { close(w) }, split: { split(w) }) } preview: { WindowPreview(window: w, icon: w.bundleID.flatMap { session.icons.image(for: $0) }) }
             .accessibilityElement(children: .ignore)
-            .accessibilityLabel(w.title.map { $0.isEmpty || $0 == w.appName ? w.appName : "\(w.appName), \($0)" } ?? w.appName)
+            .accessibilityLabel(state.spokenName(of: w))
             .accessibilityHint("Double tap to bring it forward.")
             .accessibilityAddTraits(.isButton)
             .accessibilityActions {
@@ -354,11 +392,13 @@ private struct DisplaysCanvas: View {
         return ForEach(Array(displays.enumerated()), id: \.element.id) { i, d in
             let r = rects[i]
             let blocked = Self.nameAbove(d, among: displays)
-            Text(d.name)
+            Text(d.shortName)
                 .font(.caption2.weight(.medium))
                 .foregroundStyle(palette.inkSoftColor)
                 .lineLimit(1)
                 .frame(width: max(r.width, 40))
+                // The room for names is fixed; VoiceOver reads them from the displays themselves.
+                .dynamicTypeSize(...DynamicTypeSize.xLarge)
                 .position(x: r.midX, y: blocked ? r.minY - Self.labelRoom / 2 : r.maxY + Self.labelRoom / 2)
                 .accessibilityHidden(true)
         }
@@ -426,20 +466,19 @@ private struct WindowList: View {
         ScrollView {
             VStack(spacing: 0) {
                 ForEach(Array(state.windows.enumerated()), id: \.element.id) { i, w in
-                    if i > 0 { Rectangle().fill(palette.lineColor).frame(height: 1).padding(.leading, 60) }
+                    if i > 0 { Rectangle().fill(palette.lineColor).frame(height: 0.5).padding(.leading, 60) }
                     row(w)
                 }
             }
-            .background(RoundedRectangle(cornerRadius: 22, style: .continuous).fill(palette.raisedColor))
-            .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).strokeBorder(palette.lineColor, lineWidth: 1))
-            .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+            .displaysSurface(RoundedRectangle(cornerRadius: DisplaysMetrics.corner, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: DisplaysMetrics.corner, style: .continuous))
             if hint {
-                Text("Tap a window to bring it forward. Drag it to move it. Touch and hold for more.")
+                Text("Tap to bring forward. Drag to move. Hold for more.")
                     .font(.footnote)
                     .foregroundStyle(palette.inkSoftColor)
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: .infinity)
-                    .padding(.top, 10)
+                    .padding(.top, 8)
             }
         }
         .scrollIndicators(.hidden)
@@ -454,40 +493,38 @@ private struct WindowList: View {
             HStack(spacing: 12) {
                 Group {
                     if let icon {
-                        Image(uiImage: icon).resizable().interpolation(.high)
+                        Image(uiImage: palette.appIcon(icon)).resizable().interpolation(.high)
                     } else {
                         Image(systemName: "macwindow").font(.title3).foregroundStyle(palette.inkSoftColor)
                     }
                 }
-                .frame(width: 34, height: 34)
-                VStack(alignment: .leading, spacing: 1) {
+                .frame(width: 32, height: 32)
+                VStack(alignment: .leading, spacing: 2) {
                     Text(w.appName)
                         .font(.body)
                         .foregroundStyle(palette.inkColor)
-                    if let detail = detail(w) {
+                    // Only when the app has other windows: which one this is.
+                    if let detail = state.distinction(of: w) {
                         Text(detail)
                             .font(.footnote)
                             .foregroundStyle(palette.inkSoftColor)
+                            .truncationMode(.middle)
                     }
                 }
                 .lineLimit(1)
                 Spacer(minLength: 0)
             }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 9)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
+            .frame(minHeight: 52)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .contextMenu { WindowMenu(window: w, state: state, run: { run($0, w) }, close: { close(w) }, split: { split(w) }) }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(state.spokenName(of: w))
+        .accessibilityAddTraits(.isButton)
         .accessibilityHint("Double tap to bring it forward.")
-    }
-
-    /// The window's name, and its display when there is more than one.
-    private func detail(_ w: MacWindow) -> String? {
-        var parts: [String] = []
-        if let title = w.title, !title.isEmpty, title != w.appName { parts.append(title) }
-        if state.shownDisplays.count > 1, let d = state.display(of: w) { parts.append(d.name) }
-        return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
 }
 
@@ -562,6 +599,8 @@ private struct WindowChip: View {
     /// The Mac's front window, with the deeper shadow macOS gives it.
     let front: Bool
     let lifted: Bool
+    /// Just picked: an accent outline, so it is clear which window it was.
+    var lit = false
 
     var body: some View {
         let corner = min(max(2, 16 * scale), min(size.width, size.height) / 3)
@@ -582,6 +621,7 @@ private struct WindowChip: View {
         }
         .clipShape(shape)
         .overlay(shape.strokeBorder(palette.inkColor.opacity(front || lifted ? 0.2 : 0.13), lineWidth: 0.75))
+        .overlay { if lit { shape.strokeBorder(AppMode.displays.accent(palette), lineWidth: 2) } }
         .frame(width: max(size.width, 4), height: max(size.height, 4))
         .shadow(color: shade.opacity(lifted ? 0.35 : front ? 0.24 : 0.12), radius: lifted ? 10 : front ? 4 : 2, y: lifted ? 6 : 1)
         .scaleEffect(lifted ? 1.04 : 1)
@@ -604,7 +644,7 @@ private struct WindowChip: View {
         let side = min(min(size.width, size.height) * 0.5, 44)
         if side >= 9 {
             if let icon {
-                Image(uiImage: icon)
+                Image(uiImage: palette.appIcon(icon))
                     .resizable()
                     .interpolation(.high)
                     .frame(width: side, height: side)
@@ -626,7 +666,7 @@ private struct WindowPreview: View {
     var body: some View {
         HStack(spacing: 12) {
             if let icon {
-                Image(uiImage: icon).resizable().interpolation(.high).frame(width: 44, height: 44)
+                Image(uiImage: palette.appIcon(icon)).resizable().interpolation(.high).frame(width: 44, height: 44)
             } else {
                 Image(systemName: "macwindow").font(.title).foregroundStyle(palette.inkSoftColor).frame(width: 44, height: 44)
             }
@@ -730,10 +770,10 @@ struct DisplaysNotices: View {
 
 #if DEBUG
 /// Debug launch arguments for screenshots:
-///   -GPDisplaysDemo <one|two|three>   another sample arrangement (with -GPDemo)
-///   -GPDisplaysPending                 a change waiting for Keep
-///   -GPDisplaysSheet <main|2|...>      open a display's settings; -GPDisplaysArrange opens Arrange
-///   -GPDisplaysSplit [arrangement]     open Arrange on the front window (leftAndRight, quarters...)
+///   -GPDisplaysDemo <one|two|three|many>  another sample arrangement (with -GPDemo)
+///   -GPDisplaysPending                    a change waiting for Keep
+///   -GPDisplaysSheet <main|2|...>         open a display's settings; -GPDisplaysArrange opens Arrange
+///   -GPDisplaysSplit [arrangement]        open Arrange on the front window (leftAndRight, quarters...)
 enum DisplaysDebug {
     @MainActor static var applied = false
     @MainActor static var openArrange = false

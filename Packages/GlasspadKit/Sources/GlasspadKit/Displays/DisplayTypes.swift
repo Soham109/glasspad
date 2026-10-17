@@ -54,6 +54,9 @@ public struct MacDisplay: Codable, Equatable, Sendable, Hashable, Identifiable {
 
     /// The resolution in use.
     public var resolution: DisplayResolution? { resolutions.first { $0.id == resolutionID } }
+
+    /// "Built-in" for the Mac's own display, else its name.
+    public var shortName: String { isBuiltIn ? "Built-in" : name }
 }
 
 /// One "Looks like" choice: the size in points the desktop gets.
@@ -132,9 +135,12 @@ public struct DisplaysState: Codable, Equatable, Sendable {
     /// values, kept as text so a newer Mac's are skipped). nil from a Mac from before them,
     /// which splits two windows only.
     public var arrangements: [String]?
+    /// The Mac outlines a window for `ModeMessage.windowHighlight`; nil from a Mac from before it.
+    public var highlightsWindows: Bool?
 
     public init(displays: [MacDisplay], windows: [MacWindow], nightShift: Bool? = nil, canArrangeWindows: Bool = true,
-                tileMargin: Double = 0, pending: PendingDisplayChange? = nil, arrangements: [String]? = nil) {
+                tileMargin: Double = 0, pending: PendingDisplayChange? = nil, arrangements: [String]? = nil,
+                highlightsWindows: Bool? = nil) {
         self.displays = displays
         self.windows = windows
         self.nightShift = nightShift
@@ -142,6 +148,7 @@ public struct DisplaysState: Codable, Equatable, Sendable {
         self.tileMargin = tileMargin
         self.pending = pending
         self.arrangements = arrangements
+        self.highlightsWindows = highlightsWindows
     }
 
     /// The arrangements the Mac takes that this build knows; empty for an older Mac.
@@ -160,6 +167,55 @@ public struct DisplaysState: Codable, Equatable, Sendable {
     public func display(of window: MacWindow) -> MacDisplay? {
         let shown = shownDisplays
         return DisplayGeometry.displayIndex(for: window.frame, in: shown.map(\.frame)).map { shown[$0] }
+    }
+
+    /// What tells a window apart from its app's other windows, for a line under the app's name:
+    /// its title ("Apple · Studio Display"), or its place front to back when the titles do not
+    /// help ("2nd window"), with its display when there are several. nil when it is the app's
+    /// only window: the app's name says it all.
+    public func distinction(of window: MacWindow) -> String? {
+        let siblings = windows.filter { $0.isSameApp(as: window) }
+        guard siblings.count > 1 else { return nil }
+        var parts: [String] = []
+        let title = window.ownTitle
+        if let title, siblings.filter({ $0.ownTitle == title }).count == 1 {
+            parts.append(title)
+        } else {
+            let place = siblings.firstIndex { $0.id == window.id } ?? 0
+            parts.append(place == 0 ? "Front window" : "\(Self.ordinal(place + 1)) window")
+        }
+        if shownDisplays.count > 1, let d = display(of: window) { parts.append(d.shortName) }
+        return parts.joined(separator: " · ")
+    }
+
+    /// The app's name, with what tells the window apart when the app has others, for VoiceOver.
+    public func spokenName(of window: MacWindow) -> String {
+        distinction(of: window).map { "\(window.appName), \($0.replacingOccurrences(of: " · ", with: ", "))" } ?? window.appName
+    }
+
+    /// "2nd", "3rd", "11th", "21st".
+    static func ordinal(_ n: Int) -> String {
+        let suffix = switch (n % 10, n % 100) {
+        case (_, 11...13): "th"
+        case (1, _): "st"
+        case (2, _): "nd"
+        case (3, _): "rd"
+        default: "th"
+        }
+        return "\(n)\(suffix)"
+    }
+}
+
+extension MacWindow {
+    /// The window's own title: not empty and not just the app's name.
+    var ownTitle: String? {
+        guard let t = title?.trimmingCharacters(in: .whitespacesAndNewlines), !t.isEmpty, t != appName else { return nil }
+        return t
+    }
+
+    func isSameApp(as other: MacWindow) -> Bool {
+        if let a = bundleID, let b = other.bundleID { return a == b }
+        return appName == other.appName
     }
 }
 

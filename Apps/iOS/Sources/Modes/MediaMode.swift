@@ -197,7 +197,7 @@ struct MediaMode: View {
         if let name = state.sourceName {
             HStack(spacing: 6) {
                 if let icon = store.sourceIcon {
-                    Image(uiImage: icon)
+                    Image(uiImage: palette.appIcon(icon))
                         .resizable()
                         .interpolation(.high)
                         .frame(width: 18, height: 18)

@@ -225,13 +225,12 @@ struct FaceView: View {
         if let icon = face.appIcon {
             // macOS icons leave a margin around the rounded square; draw them a little larger
             // so the visible icon matches the discs around it.
-            Image(uiImage: icon)
+            Image(uiImage: palette.appIcon(icon))
                 .resizable()
                 .interpolation(.high)
                 .antialiased(true)
                 .aspectRatio(contentMode: .fit)
                 .frame(width: diameter * 1.2, height: diameter * 1.2)
-                .saturation(palette.monochrome ? 0 : 1)
         } else if let link = face.website {
             WebsiteLogo(link: link, tint: face.tint, size: diameter * 0.9)
         } else {
