@@ -692,7 +692,7 @@ func isCase(_ m: ModeMessage, _ tag: String) -> Bool { m.tag == tag }
             s.router.workspaceChanged(activated: bundle, name: "App", url: nil)
             var missing: [String] = []
             let name = modes.map(\.rawValue).joined(separator: "+")
-            if modes.contains(where: [.dock, .deck, .remote].contains) {
+            if modes.contains(where: { [GlasspadMode.dock, .deck, .remote].contains($0) }) {
                 let got = await eventually(0.5) { s.inbox.messages.dropFirst(start).contains(.frontmostApp(bundleID: bundle)) }
                 if !got { missing.append("\(name): no frontmost app") }
             }

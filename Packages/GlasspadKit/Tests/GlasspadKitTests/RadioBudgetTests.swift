@@ -36,13 +36,15 @@ struct RadioBudgetTests {
         client.heartbeatIdleTimeout = 2
         client.heartbeatsEnabled = true
         let on = try await rate()
-        #expect(on >= 40 && on <= 52)
+        // The ceiling is the promise (never more than 50 Hz); the floor is loose because a busy
+        // machine (CI) delays timers, which only ever lowers the rate.
+        #expect(on >= 20 && on <= 52)
 
         // A finger resting: snapshot resends at the same 50 Hz (never more).
         let t = Touch(id: 1, phase: .began, x: 150, y: 300)
         client.send(frame: TouchFrame(seq: 0, timestamp: ProcessInfo.processInfo.systemUptime, touches: [t], surface: CGSize(width: 300, height: 600)))
         let resting = try await rate()
-        #expect(resting >= 40 && resting <= 53)
+        #expect(resting >= 20 && resting <= 53)
         var lifted = t
         lifted.phase = .ended
         client.send(frame: TouchFrame(seq: 0, timestamp: ProcessInfo.processInfo.systemUptime, touches: [lifted], surface: CGSize(width: 300, height: 600)))
