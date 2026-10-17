@@ -111,21 +111,28 @@ final class MediaStore {
         file(id).flatMap { try? Data(contentsOf: $0) }
     }
 
+    /// Covers on disk: the last 40, and no more than 30 MB (a cover is up to 1.5 MB).
+    nonisolated static let diskLimit = DiskCacheLimit(maxFiles: 40, maxBytes: 30_000_000)
+
+    /// Written off the main thread, so a large cover never costs a frame. Read back only when
+    /// it has left the memory cache, long after the write has finished.
     private func writeDisk(_ data: Data, id: String) {
         guard let url = file(id), let folder = diskFolder else { return }
-        try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        try? data.write(to: url, options: .atomic)
-        pruneDisk(folder)
+        Task.detached(priority: .utility) {
+            try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+            try? data.write(to: url, options: .atomic)
+            Self.pruneDisk(folder)
+        }
     }
 
-    private func pruneDisk(_ folder: URL) {
-        let keys: [URLResourceKey] = [.contentModificationDateKey]
-        guard let files = try? FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: keys),
-              files.count > 40 else { return }
-        let dated = files.map { ($0, (try? $0.resourceValues(forKeys: Set(keys)).contentModificationDate) ?? .distantPast) }
-        for (url, _) in dated.sorted(by: { $0.1 < $1.1 }).prefix(files.count - 40) {
-            try? FileManager.default.removeItem(at: url)
+    private nonisolated static func pruneDisk(_ folder: URL) {
+        let keys: Set<URLResourceKey> = [.contentModificationDateKey, .fileSizeKey]
+        guard let urls = try? FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: Array(keys)) else { return }
+        let files = urls.map { url in
+            let values = try? url.resourceValues(forKeys: keys)
+            return DiskCacheLimit.File(id: url, modified: values?.contentModificationDate ?? .distantPast, bytes: values?.fileSize ?? 0)
         }
+        for url in diskLimit.overflow(files) { try? FileManager.default.removeItem(at: url) }
     }
 
     // MARK: Taps
@@ -236,10 +243,13 @@ final class MediaStore {
         playback.receive(state, at: Date())
     }
 
-    /// Flat colour blocks, no gradients: stands in for a real cover.
+    /// Flat colour blocks, no gradients: stands in for a real cover. 1000 pixels, like the
+    /// covers a Mac sends (at most 1200), not 1000 points at the screen's scale.
     private static func demoArtwork() -> UIImage {
         let size = CGSize(width: 1000, height: 1000)
-        return UIGraphicsImageRenderer(size: size).image { ctx in
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        return UIGraphicsImageRenderer(size: size, format: format).image { ctx in
             UIColor(hex: 0x1E2A3A).setFill()
             ctx.fill(CGRect(origin: .zero, size: size))
             UIColor(hex: 0xE8C547).setFill()

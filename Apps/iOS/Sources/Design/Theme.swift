@@ -156,16 +156,26 @@ struct Palette: Equatable, Sendable {
     private final class Cache: @unchecked Sendable {
         let lock = NSLock()
         var palettes: [String: Palette] = [:]
+        /// The window palettes, which hold a full-size glass backdrop or photo (about 5 MB
+        /// each): only the theme on screen and the one before it, light and dark, are kept,
+        /// so trying every theme in Settings does not keep every backdrop.
+        var windows = RecentKeys<String>(limit: 4)
     }
 
     private static let cache = Cache()
 
-    fileprivate static func cached(_ key: String, _ make: () -> Palette) -> Palette {
+    /// `window`: a palette for the window, with its full-size surface (see `Cache.windows`).
+    fileprivate static func cached(_ key: String, window: Bool = false, _ make: () -> Palette) -> Palette {
         cache.lock.lock()
         defer { cache.lock.unlock() }
+        if window { for old in cache.windows.use(key) { cache.palettes[old] = nil } }
         if let p = cache.palettes[key] { return p }
         // Each Custom Tint colour tried makes palettes of its own; start over now and then.
-        if cache.palettes.count > 160 { cache.palettes.removeAll() }
+        if cache.palettes.count > 160 {
+            cache.palettes.removeAll()
+            cache.windows.removeAll()
+            if window { cache.windows.use(key) }
+        }
         let p = make()
         cache.palettes[key] = p
         return p
@@ -175,14 +185,14 @@ struct Palette: Equatable, Sendable {
     /// the colours themselves follow whatever appearance they are drawn in.
     static func themed(_ theme: ThemeChoice = .paper, dark: Bool) -> Palette {
         if theme == .photo, let photo = PhotoBackdrop.shared.current {
-            return cached("photo.\(photo.version)") {
+            return cached("photo.\(photo.version)", window: true) {
                 var p = Palette(light: photo.tone.tokens, dark: photo.tone.tokens, theme: theme, isDark: photo.tone.isDark,
                                 patternBackdrop: false)
                 p.background = UIColor(patternImage: photo.tile)
                 return p
             }
         }
-        return cached("\(theme.cacheName).\(dark)") {
+        return cached("\(theme.cacheName).\(dark)", window: true) {
             Palette(light: theme.tokens(dark: false), dark: theme.tokens(dark: true), theme: theme, isDark: dark, patternBackdrop: true)
         }
     }
@@ -306,6 +316,9 @@ enum Backdrop {
     private final class Cache: @unchecked Sendable {
         let lock = NSLock()
         var images: [String: UIImage] = [:]
+        /// Full size tiles are about 5 MB each: only the last few used are kept. Previews are
+        /// small and all kept.
+        var tiles = RecentKeys<String>(limit: 4)
     }
 
     private static let cache = Cache()
@@ -326,6 +339,7 @@ enum Backdrop {
         let key = "\(backdrop.hashValue).\(side)"
         cache.lock.lock()
         defer { cache.lock.unlock() }
+        if side == Self.side { for old in cache.tiles.use(key) { cache.images[old] = nil } }
         if let image = cache.images[key] { return image }
         let image = render(backdrop, side: side, region: scale)
         cache.images[key] = image

@@ -669,6 +669,13 @@ As built, UX pass (Oct 2026):
   minutes; 3 in Low Power Mode or warm; 1 when critical). Pointer traffic, click haptics and
   taps are never slowed. The haptic engine rests while dimmed or in the background. Tests:
   `PowerPolicyTests`.
+  Memory and storage (Oct 2026): only the theme on screen and the one before it keep their
+  full-size glass backdrop or photo in memory (`RecentKeys`, about 5 MB each), so trying every
+  theme keeps no more than four. Covers are written to disk off the main thread and stay
+  within 40 files and 30 MB (`DiskCacheLimit`). Debug builds measure it:
+  `-GPTour [rounds]` visits every mode, tool, sheet, layout and theme and comes back, and
+  `-GPLaunchClock` prints the time to the first frame. Tests: `RecentKeysTests`,
+  `DiskCacheLimitTests`.
 - Pairing: camera QR scan (`AVCaptureVideoDataOutput` frames read with Vision through
   `PairingCodeReader`, section 3), or a pasted `glasspad://pair` link; Keychain storage
   (this device only).

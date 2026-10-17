@@ -70,8 +70,10 @@ struct KeysMode: View {
             if !session.isConnected { ModeOfflineMessage(mode: .keys).background(SurfaceBackground()) }
         }
         .onAppear {
-            keyboard.send = { session.send($0) }
-            keyboard.letters = { session.keyboardLetters }
+            // The session only, never this view: the view holds the controller in its state,
+            // so capturing it here would keep every controller alive after the view is gone.
+            keyboard.send = { [session] in session.send($0) }
+            keyboard.letters = { [session] in session.keyboardLetters }
             #if DEBUG
             applyDebugLaunch()
             #endif
