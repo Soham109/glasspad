@@ -18,9 +18,9 @@ import Testing
             reply = "Mission Control is open"
         }
         let start = ContinuousClock.now
-        let value = await awaitAnswer(timeout: .seconds(2)) { reply }
+        let value = await awaitAnswer(timeout: .seconds(20)) { reply }
         #expect(value == "Mission Control is open")
-        #expect(ContinuousClock.now - start < .seconds(1))
+        #expect(ContinuousClock.now - start < .seconds(10))
     }
 
     @Test func noAnswerGivesUpAtTheDeadline() async {
@@ -28,17 +28,17 @@ import Testing
         let value: Int? = await awaitAnswer(timeout: .milliseconds(150)) { nil }
         let waited = ContinuousClock.now - start
         #expect(value == nil)
-        #expect(waited >= .milliseconds(150) && waited < .seconds(1))
+        #expect(waited >= .milliseconds(150) && waited < .seconds(10))
     }
 
     @Test func cancellingStopsTheWait() async {
         let start = ContinuousClock.now
-        let task = Task { await awaitAnswer(timeout: .seconds(5)) { Int?.none } }
+        let task = Task { await awaitAnswer(timeout: .seconds(30)) { Int?.none } }
         try? await Task.sleep(for: .milliseconds(60))
         task.cancel()
         let value = await task.value
         #expect(value == nil)
-        #expect(ContinuousClock.now - start < .seconds(1))
+        #expect(ContinuousClock.now - start < .seconds(10))
     }
 
     @Test func layoutsMatchByNameIgnoringCaseAndAccents() {

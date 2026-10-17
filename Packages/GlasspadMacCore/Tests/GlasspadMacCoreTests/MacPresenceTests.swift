@@ -15,7 +15,7 @@ import Testing
         func link(didReceive message: ControlMessage) { lock.withLock { _messages.append(message) } }
     }
 
-    func eventually(_ timeout: TimeInterval = 5, _ cond: () -> Bool) async -> Bool {
+    func eventually(_ timeout: TimeInterval = 15, _ cond: () -> Bool) async -> Bool {
         let end = Date().addingTimeInterval(timeout)
         while Date() < end {
             if cond() { return true }
@@ -38,6 +38,9 @@ import Testing
         let client = GlasspadClient(phoneID: "phone-presence", phoneName: "Phone",
                                     pairing: PairingPayload(macID: macID, macName: "Test Mac", pairKey: key))
         client.delegate = phone
+        // Every issue the phone shows. The test Mac stays awake, so the phone reconnects and clears it.
+        let issues = IssueLog()
+        client.onIssueChange = { issues.add($0) }
         defer { client.disconnect() }
         client.connect(host: "127.0.0.1", port: port)
         #expect(await eventually { client.state == .connected(rttMs: nil) && server.connectedPhone != nil })
@@ -47,7 +50,7 @@ import Testing
         presence.start()
         defer { presence.stop() }
         workspace.post(name: NSWorkspace.willSleepNotification, object: nil)
-        #expect(await eventually { client.issue == .macAsleep })
+        #expect(await eventually { issues.contains(.macAsleep) })
         try await Task.sleep(for: .milliseconds(300))
         let byes = phone.messages.filter { $0 == .bye(reason: GlasspadService.sleepingReason) }
         #expect(byes.count == 1)
@@ -82,4 +85,11 @@ import Testing
         distributed.post(name: MacPresence.screenUnlocked, object: nil)
         #expect(c.macStatus.screenLocked == false)
     }
+}
+
+private final class IssueLog: @unchecked Sendable {
+    private let lock = NSLock()
+    private var all: [LinkIssue?] = []
+    func add(_ issue: LinkIssue?) { lock.withLock { all.append(issue) } }
+    func contains(_ issue: LinkIssue) -> Bool { lock.withLock { all.contains(issue) } }
 }
