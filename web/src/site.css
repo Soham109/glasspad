@@ -347,3 +347,15 @@ html.gn-locked, html.gn-locked body { overflow: hidden; }
    underline shows on hover and keyboard focus. */
 a.ql { color: inherit; text-decoration: none; }
 a.ql:hover, a.ql:focus-visible { text-decoration: underline; text-underline-offset: 3px; }
+
+/* About, Privacy and Terms: plain reading pages. */
+.pg-prose { max-width: 720px; padding-bottom: clamp(80px, 10vw, 128px); }
+.pg-prose h2 { margin: 40px 0 10px; font-size: 22px; letter-spacing: -0.02em; }
+.pg-prose h2:first-child { margin-top: 0; }
+.pg-prose p, .pg-prose li { color: var(--ink-2); font-size: 17px; line-height: 1.6; }
+.pg-prose ul { padding-left: 20px; margin: 8px 0; }
+.pg-prose li { margin: 6px 0; }
+.pg-prose b { color: var(--ink); }
+.pg-prose a { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
+.pg-text .pg-hero + .pg-prose { padding-top: clamp(8px, 2vw, 24px); }
+.pg-prose p + p, .pg-prose ul + p { margin-top: 12px; }

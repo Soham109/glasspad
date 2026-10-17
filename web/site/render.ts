@@ -65,8 +65,8 @@ export function footer(p: Page): string {
         ${col("Product", [["Overview", "/", p.path === "/"], ["Install", "/install", p.path === "/install"], ["Demo film", "/#film"], ["Questions", "/#questions"]])}
         ${col("Features", featurePages().map(q => [q.nav!, q.path, p === q]))}
         ${col("Compare", comparePages().map(q => [q.nav!.replace(/^vs /, ""), q.path, p === q]))}
-        ${col("Resources", [["Guide", "/guide", p.path === "/guide"], ["GitHub", REPO], ["Releases", `${REPO}/releases`], ["Changelog", `${REPO}/blob/main/CHANGELOG.md`]])}
-        ${col("Legal", [["MIT License", `${REPO}/blob/main/LICENSE`]])}
+        ${col("Resources", [["Guide", "/guide", p.path === "/guide"], ["GitHub", REPO], ["Releases", `${REPO}/releases`], ["Changelog", `${REPO}/blob/main/CHANGELOG.md`], ["About", "/about", p.path === "/about"]])}
+        ${col("Legal", [["Privacy", "/privacy", p.path === "/privacy"], ["Terms", "/terms", p.path === "/terms"], ["MIT License", `${REPO}/blob/main/LICENSE`]])}
       </nav>
     </div>
     <div class="gf-base">${crumbs}<p class="gf-by">Made by <a href="https://sohamaggarwal.com">Soham Aggarwal</a>. Free and open source.</p></div>

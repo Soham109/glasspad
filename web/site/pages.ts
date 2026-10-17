@@ -79,6 +79,25 @@ export const pages: Page[] = [
     ogType: "article",
   },
 
+  {
+    path: "/about", file: "about.html", crumb: "About", lastmod: "2026-10-17", ogType: "website",
+    title: "About Glasspad and its developer, Soham Aggarwal",
+    description: "Glasspad is a free, open source iPhone and Mac app made by Soham Aggarwal. Who makes it, how to get in touch, and where the code lives.",
+    summary: "Who makes Glasspad, how to contact the developer, and where the source code is.",
+  },
+  {
+    path: "/privacy", file: "privacy.html", crumb: "Privacy", lastmod: "2026-10-17", ogType: "website",
+    title: "Glasspad Privacy Policy: no accounts, no tracking",
+    description: "Glasspad collects no data. The iPhone and Mac apps talk only over your Wi-Fi, encrypted, with no account, analytics or tracking. The site uses no cookies.",
+    summary: "Privacy policy: no data collection, no account, encrypted Wi-Fi link, no cookies on the site.",
+  },
+  {
+    path: "/terms", file: "terms.html", crumb: "Terms", lastmod: "2026-10-17", ogType: "website",
+    title: "Glasspad Terms of Use",
+    description: "Glasspad is free, open source software under the MIT license, provided as it is. The terms for using the apps and this website.",
+    summary: "Terms of use: MIT license, no warranty, not affiliated with Apple or other companies named.",
+  },
+
   // Features, in nav order
   {
     path: "/use/iphone-as-mac-trackpad", file: "use/iphone-as-mac-trackpad.html", group: "feature", icon: "trackpad",
