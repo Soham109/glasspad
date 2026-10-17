@@ -58,7 +58,7 @@ import Testing
         let shown = DisplaysState(displays: [], windows: [], nightShift: true, canArrangeWindows: false, tileMargin: 4,
                                   pending: PendingDisplayChange(summary: "Studio Display looks like 2560 by 1440", secondsLeft: 12))
         all += [.displaysWatch(on: true), .displaysWatch(on: false), .displaysState(shown),
-                .displaysResult(id: id, ok: false, message: "That display is not connected any more.")]
+                .displaysResult(id: id, ok: false, message: "That display is not connected any more."), .windowHighlight(windowID: 42)]
         all += ([.raise, .split(with: 7), .move(display: 2, origin: nil), .move(display: 2, origin: CGPoint(x: 1, y: 2)),
                  .minimize, .close, .fullScreen, .arrange(.leftAndRight, windows: [42, 7], display: 1)]
                 + WindowTile.allCases.map(WindowCommand.tile))
@@ -80,7 +80,7 @@ import Testing
              .deckRunConfirmed, .deckCatalogRequest, .deckCatalog, .deckImage, .clipboardPush, .clipboardPull,
              .clipboardContent, .clipboardPushResult, .clipboardPullRefused, .presentNext, .presentPrevious, .presentLaser,
              .presentLaserPosition, .remoteSystem, .displaysWatch, .displaysState, .windowCommand, .displayCommand,
-             .displaysResult, .macro:
+             .displaysResult, .windowHighlight, .macro:
             m.tag
         }
     }

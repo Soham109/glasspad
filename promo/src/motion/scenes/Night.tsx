@@ -85,7 +85,7 @@ const Displays: React.FC<{ t: number }> = ({ t }) => {
 };
 
 /* ---------- StandBy, sideways: Clock beside Now Playing (StandByMode.swift) ---------- */
-const StandBy: React.FC<{ t: number }> = ({ t }) => {
+export const StandBy: React.FC<{ t: number }> = ({ t }) => {
   const red = E(t, NT.red, 1.2, INOUT);
   const mm = t < NT.tick ? "09" : "10";
   const flip = E(t, NT.tick - 0.15, 0.3);

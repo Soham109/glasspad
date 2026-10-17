@@ -10,6 +10,10 @@ public enum ThemeChoice: String, CaseIterable, Identifiable, Sendable {
     case glass, glassDark, clear, aurora, ocean, dusk, rose, mint, lavender, ember, citrus, smoke
     // Colour
     case sand, midnight, forest, plum, slate, espresso, solar, frost, dawn
+    // Grain
+    case grain, grainDark, risograph, film
+    // Tinted: one colour for everything
+    case monoBlue, monoGreen, monoRose, monoAmber, monoViolet, monoSlate, customTint
     // A photo the person picks, blurred into the backdrop
     case photo
 
@@ -49,12 +53,23 @@ public enum ThemeChoice: String, CaseIterable, Identifiable, Sendable {
         case .solar: "Solar"
         case .frost: "Frost"
         case .dawn: "Dawn"
+        case .grain: "Grain"
+        case .grainDark: "Grain Dark"
+        case .risograph: "Risograph"
+        case .film: "Film"
+        case .monoBlue: "Mono Blue"
+        case .monoGreen: "Mono Green"
+        case .monoRose: "Mono Rose"
+        case .monoAmber: "Mono Amber"
+        case .monoViolet: "Mono Violet"
+        case .monoSlate: "Mono Slate"
+        case .customTint: "Custom Tint"
         case .photo: "Photo"
         }
     }
 
     public enum Group: String, CaseIterable, Identifiable, Sendable {
-        case classic, glass, colour, photo
+        case classic, glass, colour, grain, tinted, photo
 
         public var id: String { rawValue }
 
@@ -63,6 +78,8 @@ public enum ThemeChoice: String, CaseIterable, Identifiable, Sendable {
             case .classic: "Classic"
             case .glass: "Glass"
             case .colour: "Color"
+            case .grain: "Grain"
+            case .tinted: "Tinted"
             case .photo: "Photo"
             }
         }
@@ -75,6 +92,8 @@ public enum ThemeChoice: String, CaseIterable, Identifiable, Sendable {
         case .system, .paper, .graphite, .mono, .pureBlack, .highContrast: .classic
         case .glass, .glassDark, .clear, .aurora, .ocean, .dusk, .rose, .mint, .lavender, .ember, .citrus, .smoke: .glass
         case .sand, .midnight, .forest, .plum, .slate, .espresso, .solar, .frost, .dawn: .colour
+        case .grain, .grainDark, .risograph, .film: .grain
+        case .monoBlue, .monoGreen, .monoRose, .monoAmber, .monoViolet, .monoSlate, .customTint: .tinted
         case .photo: .photo
         }
     }
@@ -89,14 +108,30 @@ public enum ThemeChoice: String, CaseIterable, Identifiable, Sendable {
         switch self {
         // Photo follows the phone only until a photo is picked; then the photo decides.
         case .system, .mono, .highContrast, .clear, .photo: .followsPhone
-        case .paper, .glass, .ocean, .rose, .mint, .lavender, .citrus, .sand, .slate, .solar, .dawn: .light
+        case .monoBlue, .monoGreen, .monoRose, .monoAmber, .monoViolet, .monoSlate, .customTint: .followsPhone
+        case .paper, .glass, .ocean, .rose, .mint, .lavender, .citrus, .sand, .slate, .solar, .dawn,
+             .grain, .risograph: .light
         case .graphite, .pureBlack, .glassDark, .aurora, .dusk, .ember, .smoke,
-             .midnight, .forest, .plum, .espresso, .frost: .dark
+             .midnight, .forest, .plum, .espresso, .frost, .grainDark, .film: .dark
         }
     }
 
     /// No colour anywhere: tiles, symbols and accents all draw in the ink.
     public var isMonochrome: Bool { self == .mono }
+
+    /// One hue for everything, app icons included. Nil in every other theme.
+    public var tint: ThemeTint? {
+        switch self {
+        case .monoBlue: ThemeTint(hue: 216 / 360, saturation: 0.82)
+        case .monoGreen: ThemeTint(hue: 148 / 360, saturation: 0.5)
+        case .monoRose: ThemeTint(hue: 346 / 360, saturation: 0.68)
+        case .monoAmber: ThemeTint(hue: 36 / 360, saturation: 0.86)
+        case .monoViolet: ThemeTint(hue: 262 / 360, saturation: 0.58)
+        case .monoSlate: ThemeTint(hue: 212 / 360, saturation: 0.2)
+        case .customTint: .custom
+        default: nil
+        }
+    }
 
     /// Translucent surfaces over a soft coloured backdrop (or the person's photo).
     public var isGlass: Bool { group == .glass || self == .photo }
@@ -107,7 +142,8 @@ public enum ThemeChoice: String, CaseIterable, Identifiable, Sendable {
     /// The colours in one appearance. A theme with a single appearance returns the same
     /// colours for both, so nothing can resolve to another theme's colour.
     public func tokens(dark: Bool) -> ThemeTokens {
-        switch appearance {
+        if let tint { return tint.tokens(dark: dark) }
+        return switch appearance {
         case .light: lightTokens
         case .dark: darkTokens
         case .followsPhone: dark ? darkTokens : lightTokens
@@ -130,6 +166,8 @@ public enum ThemeChoice: String, CaseIterable, Identifiable, Sendable {
         case .slate: .slate
         case .solar: .solar
         case .dawn: .dawn
+        case .grain: .grainPaper
+        case .risograph: .risograph
         default: darkTokens
         }
     }
@@ -151,6 +189,8 @@ public enum ThemeChoice: String, CaseIterable, Identifiable, Sendable {
         case .plum: .plum
         case .espresso: .espresso
         case .frost: .frost
+        case .grainDark: .grainCharcoal
+        case .film: .film
         default: lightTokens
         }
     }
@@ -219,9 +259,13 @@ public struct ThemeTokens: Hashable, Sendable {
     public var accent: RGBA
     /// The Photo theme: colours sampled across the blurred photo, standing for its surface.
     public var photoSamples: [RGBA]? = nil
+    /// The grain themes: the still grain over the surface.
+    public var grain: ThemeGrain? = nil
+    /// The tinted themes: the one hue everything is drawn in.
+    public var tint: ThemeTint? = nil
 
     /// Plain colours for every part of the surface.
-    public var surfaces: [RGBA] { photoSamples ?? backdrop?.samples ?? [background] }
+    public var surfaces: [RGBA] { photoSamples ?? backdrop?.samples ?? grain?.samples(of: background) ?? [background] }
 
     /// Raised cards as they look over every part of the surface.
     public var raisedSurfaces: [RGBA] { surfaces.map { raised.over($0) } }
@@ -368,6 +412,32 @@ extension ThemeTokens {
     static let smoke = glass(dark: true, ThemeBackdrop(base: 0x0D0E10, corner: 0x2E3138, middle: 0x3A3C42,
                                                        side: 0x23272D, edge: 0x34363B),
                              solid: 0x111214, ink: 0xF2F3F5, accent: 0xF2F3F5, soft: 0.72)
+
+    /// A grain theme: a plain surface under a still grain, with cards of the surface lightened
+    /// (or, when dark, lifted) just enough that the grain still shows through them.
+    static func grain(dark: Bool, background: UInt32, ink: UInt32, accent: UInt32, soft: Double, amount: Double,
+                      raised: Double? = nil, pressed: Double? = nil) -> ThemeTokens {
+        let i = RGBA(hex: ink)
+        return ThemeTokens(isDark: dark, background: RGBA(hex: background), backdrop: nil,
+                           raised: RGBA(white: 1, alpha: raised ?? (dark ? 0.06 : 0.5)),
+                           raisedPressed: dark ? RGBA(white: 1, alpha: pressed ?? 0.12) : i.alpha(pressed ?? 0.07),
+                           line: i.alpha(dark ? 0.12 : 0.1),
+                           ink: i, inkSoft: i.alpha(soft),
+                           dot: i.alpha(dark ? 0.2 : 0.15),
+                           solid: RGBA(hex: background), accent: RGBA(hex: accent),
+                           grain: ThemeGrain(amount: amount))
+    }
+
+    // Grain
+
+    /// Warm uncoated paper with a deep editorial red.
+    static let grainPaper = grain(dark: false, background: 0xECE7DD, ink: 0x1E1A15, accent: 0xA0361E, soft: 0.7, amount: 0.07)
+    /// Charcoal, like a matte print, with warm ochre.
+    static let grainCharcoal = grain(dark: true, background: 0x1A1917, ink: 0xEEEAE2, accent: 0xE3B47E, soft: 0.66, amount: 0.06)
+    /// A soft pink stock printed in riso blue, with fluorescent pink.
+    static let risograph = grain(dark: false, background: 0xF2DFD6, ink: 0x1D3478, accent: 0xC4245F, soft: 0.84, amount: 0.075)
+    /// Deep teal shadows and warm highlights, like a graded film still.
+    static let film = grain(dark: true, background: 0x0F1716, ink: 0xF2E8D9, accent: 0xEFA35F, soft: 0.66, amount: 0.065)
 
     // Colour
 

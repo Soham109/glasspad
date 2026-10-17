@@ -209,6 +209,7 @@ public final class ModeRouter {
         case .displaysWatch(let on): displays?.watch(on)
         case .windowCommand(let id, let window, let command): displays?.handle(id: id, windowID: window, command: command)
         case .displayCommand(let id, let command): displays?.handle(id: id, command: command)
+        case .windowHighlight(let window): displays?.highlight(windowID: window)
         case .macro(let m): macros?.handle(m)
         // Mac -> phone messages: ignore if echoed back.
         case .keysLayout, .dockList, .mediaState, .deckButtons, .deckResult, .clipboardContent, .dockOpenResult,

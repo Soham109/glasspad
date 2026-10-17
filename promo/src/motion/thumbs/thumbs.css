@@ -1,0 +1,31 @@
+/* Thumbnails: the headline, the desk, and the Arrange sheet (ArrangeSheet.swift) as drawn on the
+   phone in iPhone points. */
+.th-head { position: absolute; left: 104px; top: 92px; z-index: 50; font-family: "SF Pro Display", system-ui, -apple-system, BlinkMacSystemFont, sans-serif; font-size: 128px; font-weight: 800; line-height: 1.0; letter-spacing: -0.045em; white-space: nowrap; }
+.th-desk { position: absolute; left: 0; right: 0; bottom: 0; }
+
+.th-sheetwrap { position: absolute; inset: 0; overflow: hidden; background: #F2F1EE; }
+.th-under { position: absolute; inset: 0; }
+.th-dim { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.26); }
+.th-sheet { position: absolute; left: 8px; right: 8px; bottom: 8px; padding: 0 16px 16px; border-radius: 44px; background: #F7F6F3; box-shadow: 0 0 0 0.5px rgba(26, 26, 26, 0.1), 0 -10px 40px -16px rgba(0, 0, 0, 0.3); color: #1A1A1A; }
+.th-nav { position: relative; height: 64px; display: flex; align-items: center; justify-content: center; }
+.th-nav b { font-size: 17px; font-weight: 600; letter-spacing: -0.02em; }
+.th-x { position: absolute; left: 0; top: 10px; width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; background: rgba(26, 26, 26, 0.06); }
+.th-x svg { width: 20px; height: 20px; fill: none; stroke: #1A1A1A; stroke-width: 2.2; stroke-linecap: round; }
+.th-opts { display: flex; gap: 6px; margin-top: 8px; }
+.th-opt { flex: 1 1 0; min-width: 0; height: 62px; border-radius: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; font-size: 11px; color: rgba(26, 26, 26, 0.55); white-space: nowrap; }
+.th-opt.on { background: #FFFFFF; box-shadow: inset 0 0 0 1px rgba(26, 26, 26, 0.1); color: #1A1A1A; font-weight: 600; }
+.th-mini { position: relative; margin-top: 16px; width: 100%; aspect-ratio: 1512 / 982; border-radius: 10px; background: #CFCBC3; box-shadow: inset 0 0 0 1.5px rgba(26, 26, 26, 0.5); overflow: hidden; }
+.th-mbar { position: absolute; left: 0; right: 0; top: 0; height: 9px; background: rgba(250, 249, 247, 0.75); }
+.th-card { position: absolute; top: 13px; bottom: 4px; border-radius: 8px; background: #FBFBF9; box-shadow: 0 0 0 0.75px rgba(26, 26, 26, 0.18), 0 1px 3px rgba(26, 26, 26, 0.18); overflow: hidden; }
+.th-card.l { left: 4px; right: calc(50% + 2px); } .th-card.r { left: calc(50% + 2px); right: 4px; }
+.th-card .tb { height: 22px; display: flex; align-items: center; gap: 4px; padding-left: 10px; background: rgba(26, 26, 26, 0.05); }
+.th-card .tb i { width: 7px; height: 7px; border-radius: 50%; background: rgba(26, 26, 26, 0.2); }
+.th-card .lb { position: absolute; left: 0; right: 0; top: 22px; bottom: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; }
+.th-card .lb b { display: flex; align-items: center; gap: 3px; font-size: 15px; font-weight: 600; letter-spacing: -0.02em; }
+.th-card .lb small { margin-top: -5px; font-size: 12px; color: rgba(26, 26, 26, 0.55); }
+.th-chev { width: 11px; height: 11px; fill: none; stroke: rgba(26, 26, 26, 0.55); stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
+.th-swap { position: absolute; left: calc(50% - 17px); top: calc(50% - 17px + 6px); width: 34px; height: 34px; border-radius: 50%; background: #FFFFFF; box-shadow: 0 0 0 1px rgba(26, 26, 26, 0.1), 0 1px 4px rgba(26, 26, 26, 0.18); display: grid; place-items: center; }
+.th-swap svg { width: 16px; height: 16px; fill: none; stroke: #1A1A1A; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.th-primary { margin-top: 16px; height: 50px; border-radius: 25px; display: grid; place-items: center; color: #fff; font-size: 17px; font-weight: 600; letter-spacing: -0.02em; }
+/* the mode menu as iOS draws it: frosted glass over the screen under it */
+.th-menu .fm-menu { background: rgba(251, 251, 249, 0.82); backdrop-filter: blur(18px) saturate(1.4); }
