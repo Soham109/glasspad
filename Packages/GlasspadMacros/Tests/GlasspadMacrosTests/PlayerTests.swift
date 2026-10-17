@@ -83,6 +83,9 @@ struct PlayerTests {
         let started = ContinuousClock.now
         let task = Task { await h.player.run(macro) }
         while h.log.all.isEmpty { await Task.yield() }
+        // Into the 30 s wait before cancelling: cancelling right after the key press could land
+        // before the player moved on to step 1 (it failed that way when run alone).
+        try? await Task.sleep(for: .milliseconds(200))
         task.cancel()
         let result = await task.value
         #expect(result.outcome == .cancelled)
