@@ -79,8 +79,15 @@ enum AppMode: String, CaseIterable, Identifiable, Sendable {
         }
     }
 
-    /// Clipboard, Present, Remote and Displays: small tools in the mode menu unless shown as modes.
+    /// Clipboard, Present, Remote and Displays open on top of the screen unless shown as modes.
     var isTool: Bool { self == .clipboard || self == .present || self == .remote || self == .displays }
+
+    /// The tools with a tile in the mode menu: Present, Remote and Displays. Clipboard opens from
+    /// Keyboard's shortcut row and from a Pinned button instead (the Library has it).
+    var inToolsRow: Bool { isTool && self != .clipboard }
+
+    /// The link that opens Clipboard on this iPhone, for the Pinned button.
+    static let clipboardLink = "glasspad://mode/clipboard"
 
     /// The tool's spoken hint in the mode menu (its tile uses the mode's own symbol).
     var toolHint: String {

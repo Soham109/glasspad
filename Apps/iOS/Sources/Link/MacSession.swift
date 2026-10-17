@@ -547,7 +547,7 @@ final class MacSession {
             received(mode)
         case .macStatus(let status):
             receivedStatus(status)
-        case .bye, .ping, .pong, .unknown:
+        case .bye, .ping, .pong, .phoneStatus, .unknown:
             break
         }
     }

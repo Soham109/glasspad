@@ -308,6 +308,9 @@ struct ActionLibrary: View {
                         button: DeckButton(title: "", symbol: "globe", action: .openURL("https://"), color: "#0A84FF")),
             LibraryItem(id: "o.file", title: "File or Folder", detail: "Anything in Finder", isReady: false,
                         button: DeckButton(title: "", symbol: "folder.fill", action: .openFile(path: "~/Downloads"), color: "#34C759")),
+            LibraryItem(id: "o.clipboard", title: "Clipboard", detail: "Copy between this iPhone and your Mac", isReady: true,
+                        button: DeckButton(title: "Clipboard", symbol: "doc.on.clipboard.fill", action: .openURL(AppMode.clipboardLink),
+                                           color: "#34C759")),
         ] + SettingsPanes.all.map { name, pane in
             LibraryItem(id: "o.pane.\(pane)", title: "\(name) Settings", detail: "", isReady: true,
                         button: DeckButton(title: name, symbol: "gearshape.fill", action: .openURL(SettingsPanes.prefix + pane), color: "#8E8E93"))

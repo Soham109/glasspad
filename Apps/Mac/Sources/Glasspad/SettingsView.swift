@@ -173,8 +173,13 @@ struct IPhonePane: View {
                 }
                 ForEach(model.phones) { phone in
                     LabeledContent {
-                        Button("Forget…") { confirmForget = phone }
-                            .accessibilityLabel("Forget \(phone.phoneName)")
+                        HStack(spacing: 10) {
+                            if isConnected(phone), let battery = model.phoneBattery {
+                                PhoneBatteryLabel(battery: battery)
+                            }
+                            Button("Forget…") { confirmForget = phone }
+                                .accessibilityLabel("Forget \(phone.phoneName)")
+                        }
                     } label: {
                         RowLabel(title: phone.phoneName, detail: detail(for: phone),
                                  symbol: "iphone", color: isConnected(phone) ? .green : .gray)
@@ -191,8 +196,24 @@ struct IPhonePane: View {
                     .disabled(model.isPaused)
                 }
             }
+
+            if let install = model.phoneInstall {
+                Section {
+                    LabeledContent {
+                        if install.lastCheck?.result.isProblem == true {
+                            Button(RenewalCopy.showLog) { model.actions.showRenewalLog() }
+                        }
+                    } label: {
+                        RowLabel(title: RenewalCopy.title(install), detail: RenewalCopy.detail(install),
+                                 symbol: "arrow.triangle.2.circlepath", color: renewalColor(install))
+                    }
+                } header: {
+                    Text(RenewalCopy.section)
+                }
+            }
         }
         .formStyle(.grouped)
+        .onAppear { model.actions.loadPhoneInstall() }
         .sheet(isPresented: Binding(get: { model.pairing.isActive },
                                     set: { if !$0 { model.actions.cancelPairing() } })) {
             PairingSheet()
@@ -204,6 +225,11 @@ struct IPhonePane: View {
         } message: { _ in
             Text("It disconnects now and has to be paired again to use this Mac.")
         }
+    }
+
+    /// Green while it looks after itself, orange when it needs a hand.
+    private func renewalColor(_ install: PhoneInstallStatus) -> Color {
+        install.renewsByItself && install.lastCheck?.result.isProblem != true ? .green : .orange
     }
 
     private func isConnected(_ phone: StoredPhone) -> Bool {

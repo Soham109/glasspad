@@ -118,3 +118,46 @@ import Testing
                                   keepAwakeLimit: 600, blocked: true) == IdleDeadline.blockedPoll)
     }
 }
+
+@Suite struct TalkKeepAwakeTests {
+    let talk = KeepAwakeInputs(sceneActive: true, enabled: true, screenNeedsIt: true,
+                               coveredBySheet: false, connected: true, idle: 3_600, presenting: true)
+
+    @Test func aTalkKeepsTheScreenOnPastTheLimit() {
+        #expect(PowerPolicy().keepsScreenAwake(talk))
+        #expect(PowerPolicy(lowPower: true).keepsScreenAwake(talk))
+        #expect(PowerPolicy(heat: .serious).keepsScreenAwake(talk))
+    }
+
+    @Test func criticalHeatStillLetsGo() {
+        #expect(!PowerPolicy(heat: .critical).keepsScreenAwake(talk))
+        var s = talk; s.idle = 59
+        #expect(PowerPolicy(heat: .critical).keepsScreenAwake(s))
+        #expect(!PowerPolicy(heat: .critical).ignoresIdleLimit(presenting: true))
+    }
+
+    @Test func notPresentingIsUnchanged() {
+        var s = talk; s.presenting = false
+        #expect(!PowerPolicy().keepsScreenAwake(s))
+        s.idle = 599
+        #expect(PowerPolicy().keepsScreenAwake(s))
+        #expect(!PowerPolicy().ignoresIdleLimit(presenting: false))
+        // The default, for callers that do not know about talks.
+        #expect(!KeepAwakeInputs(sceneActive: true, enabled: true, screenNeedsIt: true,
+                                 coveredBySheet: false, connected: true, idle: 0).presenting)
+    }
+
+    @Test func aTalkStillNeedsEverythingElse() {
+        let p = PowerPolicy()
+        var s = talk; s.connected = false
+        #expect(!p.keepsScreenAwake(s))
+        s = talk; s.coveredBySheet = true
+        #expect(!p.keepsScreenAwake(s))
+        s = talk; s.sceneActive = false
+        #expect(!p.keepsScreenAwake(s))
+        s = talk; s.enabled = false
+        #expect(!p.keepsScreenAwake(s))
+        s = talk; s.screenNeedsIt = false
+        #expect(!p.keepsScreenAwake(s))
+    }
+}

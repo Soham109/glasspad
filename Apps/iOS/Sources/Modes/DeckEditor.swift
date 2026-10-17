@@ -32,6 +32,8 @@ struct ActionCategory: Identifiable {
                 T.make("file", "Open File or Folder", "Anything in Finder", "folder.fill", "#34C759", .openFile(path: "~/Downloads")),
                 T.make("settings", "Open System Settings", "Go straight to a settings page", "gearshape.fill", "#8E8E93",
                        .openURL("x-apple.systempreferences:com.apple.Displays-Settings.extension")),
+                T.make("clipboard", "Clipboard", "Copy between this iPhone and your Mac", "doc.on.clipboard.fill", "#34C759",
+                       .openURL(AppMode.clipboardLink)),
             ]),
             ActionCategory(id: "screen", title: "Screen", symbol: "camera.viewfinder", items: [
                 T.make("shot", "Screenshot", "Captures every display at once", "camera.viewfinder", "#0A84FF", .screenshot(DeckScreenshot(area: .fullScreen))),
@@ -73,6 +75,7 @@ struct ActionCategory: Identifiable {
         let items = all.flatMap(\.items)
         switch action {
         case .openApp: return items.first { $0.id == "app" }
+        case .openURL(let s) where s == AppMode.clipboardLink: return items.first { $0.id == "clipboard" }
         case .openURL(let s): return items.first { $0.id == (s.hasPrefix("x-apple.systempreferences:") ? "settings" : "url") }
         case .openFile: return items.first { $0.id == "file" }
         case .screenshot(let s): return items.first { $0.id == ["fullScreen": "shot", "frontWindow": "window", "selection": "area"][s.area.rawValue] }
@@ -303,6 +306,9 @@ private struct ActionOptions: View {
             } label: {
                 LabeledContent("App", value: appName(id))
             }
+        case .openURL(let s) where s == AppMode.clipboardLink:
+            // Opens Clipboard on this iPhone: nothing to choose.
+            EmptyView()
         case .openURL(let s) where s.hasPrefix(SettingsPanes.prefix):
             Picker("Page", selection: Binding(get: { String(s.dropFirst(SettingsPanes.prefix.count)) },
                                               set: { action = .openURL(SettingsPanes.prefix + $0) })) {

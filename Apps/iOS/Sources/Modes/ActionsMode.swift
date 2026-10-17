@@ -14,8 +14,8 @@ import GlasspadKit
 /// screen, sideways and in a split-screen pane. When there is room side by side (wider than
 /// tall), the front app and Pinned sit in two columns.
 ///
-/// Clipboard and Present are small tools in the mode menu now (or full modes when Actions is
-/// split up in Settings). Deck mode, for people who split, is this same screen.
+/// Present is a small tool in the mode menu now, and Clipboard opens from Keyboard's shortcut
+/// row or a Pinned button (either is a full mode when Actions is split up in Settings). Deck mode, for people who split, is this same screen.
 struct ActionsMode: View {
     @Environment(\.palette) private var palette
     @Environment(\.modeTopClearance) private var topClearance
@@ -695,6 +695,12 @@ struct ActionsMode: View {
         }
         if !button.action.isSupported {
             session.deckNeedsUpdate()
+            return
+        }
+        // Glasspad's own links (Clipboard) open here on the iPhone, not on the Mac.
+        if let link = button.action.phoneLink {
+            Haptics.shared.tap()
+            router.open(link)
             return
         }
         if button.needsConfirmation {

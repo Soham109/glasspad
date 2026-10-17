@@ -71,10 +71,16 @@ public struct PowerPolicy: Equatable, Sendable {
 
     /// Whether the screen should be held on now. Only a screen that needs it (the trackpad or
     /// Present), only with nothing on top, only while connected (nothing to control otherwise),
-    /// and only until the user has left it alone for `keepAwakeLimit`.
+    /// and only until the user has left it alone for `keepAwakeLimit`, except during a talk.
     public func keepsScreenAwake(_ s: KeepAwakeInputs) -> Bool {
         s.sceneActive && s.enabled && s.screenNeedsIt && !s.coveredBySheet && s.connected
-            && s.idle < keepAwakeLimit
+            && (s.idle < keepAwakeLimit || ignoresIdleLimit(presenting: s.presenting))
+    }
+
+    /// A talk is on (Present's timer runs with Present on screen): a speaker does not touch the
+    /// phone for minutes, so leaving it alone does not let it lock. Not at critical heat.
+    public func ignoresIdleLimit(presenting: Bool) -> Bool {
+        presenting && heat != .critical
     }
 }
 
@@ -92,15 +98,18 @@ public struct KeepAwakeInputs: Equatable, Sendable {
     public var connected: Bool
     /// Seconds since the last touch on the screen.
     public var idle: TimeInterval
+    /// Present's timer runs with Present on screen.
+    public var presenting: Bool
 
     public init(sceneActive: Bool, enabled: Bool, screenNeedsIt: Bool, coveredBySheet: Bool,
-                connected: Bool, idle: TimeInterval) {
+                connected: Bool, idle: TimeInterval, presenting: Bool = false) {
         self.sceneActive = sceneActive
         self.enabled = enabled
         self.screenNeedsIt = screenNeedsIt
         self.coveredBySheet = coveredBySheet
         self.connected = connected
         self.idle = idle
+        self.presenting = presenting
     }
 }
 

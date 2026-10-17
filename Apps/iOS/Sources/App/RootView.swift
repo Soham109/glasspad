@@ -23,6 +23,7 @@ struct GlasspadApp: App {
             ScreenAwake.sceneActive = active
             ScreenAwake.update()
             MacSession.shared.setForeground(phase != .background)
+            BatteryReporter.shared.setForeground(phase != .background)
             // Inactive (Control Center, a notification pulled down) keeps the link: not paused.
             LiveActivityController.shared.sceneChanged(active: phase != .background)
         }
@@ -154,6 +155,7 @@ struct RootView: View {
             if session.isWarm {
                 WarmNotice()
             }
+            BatteryNotice()
         }
         // Every mode starts its content the same distance below the pill, so a switch is a
         // calm cross-fade with nothing jumping.
@@ -315,10 +317,11 @@ private struct WarmNotice: View {
 ///   -GPActionsPage <library|front|folder|clipboard|present|remote|displays>  open that Actions sheet or tool; -GPEdit starts editing
 ///   -GPFilm <trackpad|menu|actions|media>  play a scripted scene for the demo film (DemoScript.swift)
 ///   -GPSetup / -GPSetupTest / -GPSetupReset  open the setup checklist, start its trackpad test, or mark it unfinished
-///   -GPSettingsPage <connection|setup>  open Settings on that page
+///   -GPSettingsPage <connection|setup|about|...>  open Settings on that page
 ///   -GPKeysFn / -GPKeysLock             Keyboard with fn on (the F-keys), or with Command locked and Shift latched
 ///   -GPKeysSymbols / -GPKeysSystem      Keyboard on its numbers page, or with the iPhone keyboard up
 ///   -GPKeysHold <key id> / -GPKeysEcho <text>  a key held down with its pop, or text already typed
+///   -GPExpiry <ISO 8601 date | +20h>    pretend this install stops working then (InstallExpiry.swift)
 enum DebugLaunch {
     @MainActor static func apply() {
         let args = ProcessInfo.processInfo.arguments

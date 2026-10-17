@@ -216,7 +216,7 @@ private struct RemoteScreen: View {
         }
     }
 
-    /// Sleep Display and Do Not Disturb: small things for the couch, out of the way.
+    /// Sleep Display, Do Not Disturb and Sound Output: small things for the couch, out of the way.
     private var moreMenu: some View {
         Menu {
             ForEach([DeckSystemAction.sleepDisplay, .doNotDisturb], id: \.self) { action in
@@ -226,6 +226,7 @@ private struct RemoteScreen: View {
                     Label(action.title, systemImage: action.symbol)
                 }
             }
+            soundOutput
         } label: {
             Image(systemName: "ellipsis")
                 .font(.body.weight(.semibold))
@@ -236,6 +237,27 @@ private struct RemoteScreen: View {
                 .contentShape(Circle())
         }
         .accessibilityLabel("More")
+    }
+
+    /// The Mac's sound outputs as Media lists them, with a check on the one in use. Hidden
+    /// when the Mac sends none.
+    @ViewBuilder private var soundOutput: some View {
+        let outputs = store.playback.outputs(at: Date())
+        if !outputs.isEmpty {
+            Divider()
+            // A menu-style picker is a submenu that names the current output under its title.
+            Picker(selection: Binding(get: { outputs.first(where: \.isCurrent)?.id ?? "" }, set: { id in
+                Haptics.shared.tap()
+                store.selectOutput(id)
+            })) {
+                ForEach(outputs) { output in
+                    Label(output.name, systemImage: OutputPicker.symbol(for: output)).tag(output.id)
+                }
+            } label: {
+                Label("Sound Output", systemImage: "airplayaudio")
+            }
+            .pickerStyle(.menu)
+        }
     }
 
     private func noticeLine(_ notice: RemoteNotice) -> some View {

@@ -13,6 +13,8 @@ final class AppRouter {
     private(set) var mode: AppMode
     /// The split-screen layout on screen, if any. While one shows, `mode` is its first pane's.
     private(set) var layoutID: UUID?
+    /// The screen before this one, for the sideways swipe on the pill. Only this run of the app.
+    private var history = BackAndForth<Screen>()
     /// The layout gallery (templates and the person's own).
     var showLayouts = false
     /// The layout editor, opened straight from the mode menu.
@@ -72,6 +74,7 @@ final class AppRouter {
             return
         }
         let newMode = requested.shown
+        remember(leaving: .mode(newMode))
         showSettings = false
         showPairing = false
         showSetup = false
@@ -86,6 +89,7 @@ final class AppRouter {
 
     /// Shows a layout: several modes on one screen.
     func show(layout: ScreenLayout) {
+        remember(leaving: .layout(layout.id))
         showSettings = false
         showPairing = false
         showSetup = false
@@ -95,6 +99,44 @@ final class AppRouter {
         mode = layout.shownModes.first ?? .trackpad
         screenChanged()
     }
+
+    /// What is on screen: one mode, or a layout.
+    enum Screen: Equatable, Sendable {
+        case mode(AppMode)
+        case layout(UUID)
+    }
+
+    var screen: Screen { layoutID.map(Screen.layout) ?? .mode(mode) }
+
+    /// Where the sideways swipe on the pill goes: the screen before this one, while it still
+    /// exists (a mode still shown, a layout not deleted). Nil when there is none.
+    var previous: Screen? {
+        switch history.previous {
+        case .mode(let m)?:
+            let shown = m.shown
+            return Screen.mode(shown) == screen ? nil : .mode(shown)
+        case .layout(let id)?:
+            return LayoutStore.shared.layout(id) == nil || .layout(id) == screen ? nil : .layout(id)
+        case nil:
+            return nil
+        }
+    }
+
+    /// Flips back to the screen before this one, like the swipe along the iPhone's Home bar.
+    /// Swiping again comes back. Returns false when there is nowhere to go.
+    @discardableResult
+    func showPrevious() -> Bool {
+        switch previous {
+        case .mode(let m)?: show(m)
+        case .layout(let id)?:
+            guard let layout = LayoutStore.shared.layout(id) else { return false }
+            show(layout: layout)
+        case nil: return false
+        }
+        return true
+    }
+
+    private func remember(leaving next: Screen) { history.moved(from: screen, to: next) }
 
     /// A pane of the layout on screen folded away or came back.
     func layoutPanesChanged() {
@@ -208,7 +250,9 @@ final class AppRouter {
         dimTimer = nil
         guard dimWatching else { return }
         let wait = IdleDeadline.next(idle: idleTime, dimDelay: PhoneSettings.shared.dimDelay, dimmed: isDimmed,
-                                     holdingAwake: UIApplication.shared.isIdleTimerDisabled,
+                                     // During a talk leaving it alone does not let go; only dimming is ahead.
+                                     holdingAwake: UIApplication.shared.isIdleTimerDisabled
+                                        && !PowerMonitor.shared.policy.ignoresIdleLimit(presenting: ScreenAwake.presenting),
                                      keepAwakeLimit: PowerMonitor.shared.policy.keepAwakeLimit,
                                      blocked: idleCheckBlocked)
         guard let wait else { return }
@@ -253,6 +297,12 @@ enum ScreenAwake {
     /// Held on except that nobody touched it for too long; the next touch holds it on again.
     private(set) static var releasedForIdle = false
 
+    /// A talk is on: Present's timer runs and Present is on screen.
+    static var presenting: Bool {
+        let router = AppRouter.shared
+        return PresentClock.shared.isRunning && (router.screenModes.contains(.present) || router.showPresenter)
+    }
+
     static func update() {
         let router = AppRouter.shared
         let settings = PhoneSettings.shared
@@ -262,7 +312,7 @@ enum ScreenAwake {
             screenNeedsIt: router.dims,
             coveredBySheet: router.showSettings || router.showPairing || router.showClipboard || router.showSetup
                 || router.showLayouts || router.layoutDraft != nil,
-            connected: true, idle: 0)
+            connected: true, idle: 0, presenting: presenting)
         // Dimming runs whenever the screen would be held on apart from the link and idle time,
         // so a dimmed screen stays dimmed until a touch or until the phone locks.
         let dims = policy.keepsScreenAwake(inputs)

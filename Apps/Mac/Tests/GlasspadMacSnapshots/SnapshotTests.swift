@@ -46,6 +46,15 @@ final class SnapshotTests: XCTestCase {
         fair.connectedPhoneName = "Soham's iPhone"
         try shoot(PopoverView(), model: fair, width: w, name: "popover-fair-signal", chrome: .popover)
 
+        // The iPhone's battery at the end of its row: 42%, low, and charging.
+        for (percent, charging, name) in [(42, false, "42"), (15, false, "15"), (64, true, "charging")] {
+            let battery = Fixtures.model(macros)
+            battery.link = .connected(rttMs: 3.1)
+            battery.connectedPhoneName = "Soham's iPhone"
+            battery.phoneBattery = PhoneBattery(percent: percent, charging: charging)
+            try shoot(PopoverView(), model: battery, width: w, name: "popover-battery-\(name)", chrome: .popover)
+        }
+
         let setup = Fixtures.model(macros)
         setup.link = .searching
         setup.accessibilityTrusted = false
@@ -199,10 +208,31 @@ final class SnapshotTests: XCTestCase {
         try shoot(GeneralPane(), model: needs, size: SettingsTab.general.size,
                   name: "settings-general-needs-permissions", chrome: .window)
 
+        // Settings > iPhone with the install's renewal: looking after itself, a failed run,
+        // and never set up (the main shot above has no install recorded, so no section).
+        let installed = Date(timeIntervalSince1970: 1_789_394_400)   // a fixed day, never "today"
+        let renewing = Fixtures.model(macros)
+        renewing.phoneInstall = PhoneInstallStatus(installedAt: installed, renewsByItself: true,
+                                                   lastCheck: .init(checkedAt: installed + 3 * 3600 + 42 * 60, result: .tooEarly))
+        try shoot(IPhonePane(), model: renewing, size: SettingsTab.iphone.size, name: "settings-iphone-renews", chrome: .window)
+        let failed = Fixtures.model(macros)
+        failed.phoneInstall = PhoneInstallStatus(installedAt: installed, renewsByItself: true,
+                                                 lastCheck: .init(checkedAt: installed + 5 * 86_400 + 600, result: .notReachable))
+        try shoot(IPhonePane(), model: failed, size: SettingsTab.iphone.size, name: "settings-iphone-renew-failed", chrome: .window)
+        let manual = Fixtures.model(macros)
+        manual.phoneInstall = PhoneInstallStatus(installedAt: installed, renewsByItself: false)
+        try shoot(IPhonePane(), model: manual, size: SettingsTab.iphone.size, name: "settings-iphone-renew-off", chrome: .window)
+
         let empty = Fixtures.model(macros)
         empty.link = .searching
         empty.phones = []
         try shoot(IPhonePane(), model: empty, size: SettingsTab.iphone.size, name: "settings-iphone-empty", chrome: .window)
+
+        let battery = Fixtures.model(macros)
+        battery.link = .connected(rttMs: 3.1)
+        battery.connectedPhoneName = "Soham's iPhone"
+        battery.phoneBattery = PhoneBattery(percent: 42, charging: false)
+        try shoot(IPhonePane(), model: battery, size: SettingsTab.iphone.size, name: "settings-iphone-battery", chrome: .window)
 
         let pairing = Fixtures.model(macros)
         pairing.pairing = Fixtures.waiting

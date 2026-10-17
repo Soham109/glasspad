@@ -28,6 +28,7 @@ displays-sheet  |      | -GPMode displays -GPDisplaysDemo two -GPDisplaysSheet m
 arrange         |      | -GPMode displays -GPDisplaysDemo two -GPDisplaysArrange
 split-sheet     |      | -GPMode displays -GPDisplaysDemo two -GPDisplaysSplit leftAndRight
 menu            |      | -GPMode trackpad -GPMenu
+menu-last-day   | 1    | -GPMode trackpad -GPMenu -GPExpiry +20h
 
 # Actions pages
 actions-edit    |      | -GPMode actions -GPEdit
@@ -68,6 +69,7 @@ settings-advanced|     | -GPMode trackpad -GPSettingsPage advanced
 settings-haptics|      | -GPMode trackpad -GPSettingsPage haptics
 settings-pointer|      | -GPMode trackpad -GPSettingsPage pointer
 settings-dock   |      | -GPMode trackpad -GPSettingsPage dock
+settings-about  |      | -GPMode trackpad -GPSettingsPage about -GPExpiry 2027-10-22T15:10:00Z
 setup           |      | -GPMode trackpad -GPSetup
 setup-test      |      | -GPMode trackpad -GPSetup -GPSetupTest -GPSetupTravel 0.4
 

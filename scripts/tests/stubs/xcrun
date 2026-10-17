@@ -43,6 +43,6 @@ case "$1 $2" in
       locked) echo "ERROR: The request was denied by service delegate (SBMainWorkspace) for reason: Locked (\"Unable to launch com.soham109.glasspad.ios because the device was not, or could not be, unlocked\")." >&2; exit 1 ;;
       *) echo "ERROR: something else broke" >&2; exit 1 ;;
     esac ;;
-  "device install") touch "$STUB/app_installed"; exit 0 ;;
+  "device install") [ -f "$STUB/install_fails" ] && { echo "ERROR: install failed" >&2; exit 1; }; touch "$STUB/app_installed"; exit 0 ;;
 esac
 exit 0
