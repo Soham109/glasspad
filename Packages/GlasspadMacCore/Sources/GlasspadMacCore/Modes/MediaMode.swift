@@ -380,8 +380,24 @@ public final class MediaMode {
     }
 
     private static let liveFetchArtwork: @Sendable (URL) async -> Data? = { url in
-        guard let (data, response) = try? await URLSession.shared.data(from: url),
-              (response as? HTTPURLResponse)?.statusCode ?? 200 == 200 else { return nil }
+        await fetchArtwork(url, session: .shared)
+    }
+
+    /// Stands in for "the link the person typed" in `SiteFetch`: no real host, so every local
+    /// address is refused.
+    private static let artworkSite = URL(string: "https://artwork.invalid")!
+
+    /// Most bytes of album artwork downloaded.
+    static let maxArtworkBytes = 2_000_000
+
+    /// The artwork at `url`, over HTTPS only and at most `maxArtworkBytes`. Like the phone's
+    /// website logos (`SiteFetch`), never from (or redirected to) an address on the local
+    /// network: nobody typed this link, the player reported it.
+    static func fetchArtwork(_ url: URL, session: URLSession) async -> Data? {
+        guard SiteFetch.mayFetch(url, site: artworkSite) else { return nil }
+        guard let (data, response) = await SiteFetch.data(for: URLRequest(url: url), site: artworkSite,
+                                                         limit: maxArtworkBytes, session: session),
+              response.statusCode == 200 else { return nil }
         return data
     }
 }

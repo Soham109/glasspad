@@ -362,14 +362,31 @@ struct ControlMessageTests {
         }
     }
 
+    /// Protocol 1, as 0.2.x phones and Macs still send it.
     @Test func handshakeShapesMatchSpec() throws {
-        let hello = PhoneHello(phoneID: "p", phoneName: "Phone", macID: UUID(), nonce: Data(repeating: 1, count: 16))
+        let hello = PhoneHello(v: 1, phoneID: "p", phoneName: "Phone", macID: UUID(), nonce: Data(repeating: 1, count: 16))
         let obj = try JSONSerialization.jsonObject(with: JSONEncoder().encode(hello)) as! [String: Any]
         #expect(obj["t"] as? String == "hello")
         #expect(obj["v"] as? Int == 1)
         #expect(Set(obj.keys) == ["t", "v", "phoneID", "phoneName", "macID", "nonce"])
-        let mac = try JSONSerialization.jsonObject(with: JSONEncoder().encode(MacHello(nonce: Data(count: 16), udpPort: 9))) as! [String: Any]
+        let mac = try JSONSerialization.jsonObject(with: JSONEncoder().encode(MacHello(v: 1, nonce: Data(count: 16), udpPort: 9))) as! [String: Any]
         #expect(Set(mac.keys) == ["t", "v", "nonce", "udpPort"])
+    }
+
+    /// Protocol 2 adds the X25519 public keys and the rekey flag.
+    @Test func protocol2HandshakeShapes() throws {
+        let hello = PhoneHello(phoneID: "p", phoneName: "Phone", macID: UUID(), nonce: Data(repeating: 1, count: 16),
+                               kx: Data(repeating: 9, count: 32), rekey: true)
+        let obj = try JSONSerialization.jsonObject(with: JSONEncoder().encode(hello)) as! [String: Any]
+        #expect(obj["v"] as? Int == 2)
+        #expect(Set(obj.keys) == ["t", "v", "phoneID", "phoneName", "macID", "nonce", "kx", "rekey"])
+        let agreed = PhoneHello(phoneID: "p", phoneName: "Phone", macID: UUID(), nonce: Data(count: 16), kx: Data(count: 32))
+        let agreedObj = try JSONSerialization.jsonObject(with: JSONEncoder().encode(agreed)) as! [String: Any]
+        #expect(Set(agreedObj.keys) == ["t", "v", "phoneID", "phoneName", "macID", "nonce", "kx"])
+        let mac = try JSONSerialization.jsonObject(with: JSONEncoder().encode(
+            MacHello(nonce: Data(count: 16), udpPort: 9, kx: Data(count: 32), rekey: false))) as! [String: Any]
+        #expect(Set(mac.keys) == ["t", "v", "nonce", "udpPort", "kx", "rekey"])
+        #expect(mac["v"] as? Int == 2)
     }
 
     @Test func frameAccumulatorSplitsAndJoins() throws {

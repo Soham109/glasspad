@@ -6,8 +6,12 @@ public enum PairingPhase: Equatable, Sendable {
     case idle
     /// The QR code is up and the pending key is armed until `expiresAt`.
     case waiting(url: URL, expiresAt: Date)
+    /// A phone proved it scanned the code; the Mac is asking whether to allow it.
+    case approving(phoneName: String)
     /// A phone proved it scanned the code and was saved.
     case paired(phoneName: String)
+    /// The person chose Don't Allow (or did not answer) for this phone.
+    case declined(phoneName: String)
     /// The code was up for `PairingFlow.codeLifetime` without a scan; the key is disarmed.
     case expired
     /// Pairing could not finish (for example the Keychain refused the new phone).
@@ -21,6 +25,8 @@ public enum PairingPhase: Equatable, Sendable {
 
     /// Something to show: the code, or the result of the last attempt.
     public var isActive: Bool { self != .idle }
+
+    public var isDeclined: Bool { if case .declined = self { true } else { false } }
 }
 
 /// The pairing state machine, kept free of the transport and the clock so it can be tested.
@@ -52,6 +58,20 @@ public struct PairingFlow: Equatable, Sendable {
     }
 
     public mutating func completed(phoneName: String) { phase = .paired(phoneName: phoneName) }
+
+    /// A phone holds the code: the code is used up while the Mac asks about it.
+    public mutating func approving(phoneName: String) { phase = .approving(phoneName: phoneName) }
+
+    public mutating func declined(phoneName: String) { phase = .declined(phoneName: phoneName) }
+
+    /// A phone's name as the Mac shows it in a question: the phone chose it, so it is cut to one
+    /// short line with no control characters (no extra lines that read like the Mac's own words).
+    public static func displayName(_ raw: String) -> String {
+        let flat = raw.unicodeScalars.map { CharacterSet.controlCharacters.contains($0) || CharacterSet.newlines.contains($0) ? " " : String($0) }.joined()
+        let trimmed = flat.split(separator: " ", omittingEmptySubsequences: true).joined(separator: " ")
+        let name = trimmed.isEmpty ? "An iPhone" : trimmed
+        return name.count > 40 ? String(name.prefix(39)) + "…" : name
+    }
 
     public mutating func failed(_ message: String) { phase = .failed(message: message) }
 

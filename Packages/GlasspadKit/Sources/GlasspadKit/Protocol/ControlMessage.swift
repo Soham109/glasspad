@@ -84,21 +84,32 @@ public enum ControlMessage: Codable, Equatable, Sendable {
 // MARK: - Plaintext handshake (the only unsealed messages)
 
 /// Phone -> Mac, first frame on a new TCP connection.
+///
+/// Protocol 2 adds `kx` (the phone's X25519 public key for this connection) and `rekey` (true
+/// when the phone's key still is the one from a pairing code, so both sides should agree a new
+/// one). A protocol 1 hello has neither; a 0.2.x Mac ignores them but refuses `v: 2`.
 struct PhoneHello: Codable, Equatable {
     var t = "hello"
-    var v = 1
+    var v = GlasspadService.protocolVersion
     var phoneID: String
     var phoneName: String
     var macID: UUID
     var nonce: Data
+    var kx: Data?
+    var rekey: Bool?
 }
 
 /// Mac -> phone answer when the phone is known (or a pending pairing matches).
+///
+/// Protocol 2 adds `kx` (the Mac's X25519 public key for this connection) and `rekey` (the Mac's
+/// decision: true when this connection replaces the pair key).
 struct MacHello: Codable, Equatable {
     var t = "hello"
-    var v = 1
+    var v = GlasspadService.protocolVersion
     var nonce: Data
     var udpPort: UInt16
+    var kx: Data?
+    var rekey: Bool?
 }
 
 /// Mac -> phone when it refuses the connection; the Mac closes right after.
@@ -120,3 +131,17 @@ struct HandshakeTag: Codable { var t: String }
 /// First sealed frame each way after Hello. Proves both sides derived the same key
 /// before the Mac stores a new pairing or the phone reports `connected`.
 let handshakeConfirmToken = Data("glasspad confirm v1".utf8)
+
+/// Protocol 2, Mac -> phone, sealed, in place of the confirmation while the person at the Mac
+/// decides whether to allow a new phone. The phone keeps waiting (up to
+/// `GlasspadService.approvalTimeout` and a little more) for the confirmation or a refusal.
+let approvalWaitToken = Data("glasspad approval wait v2".utf8)
+
+/// Protocol 2, Mac -> phone, sealed: the person at the Mac chose Don't Allow, or did not answer.
+let approvalDeniedToken = Data("glasspad approval denied v2".utf8)
+
+/// Protocol 2, phone -> Mac, sealed, after a rekey: the phone saved the new pair key, so the Mac
+/// can forget the old one. Handled inside the transport, never delivered as a `ControlMessage`.
+struct KeySaved: Codable, Equatable {
+    var t = "keySaved"
+}

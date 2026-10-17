@@ -122,6 +122,29 @@ As built (GlasspadKit):
   `PairingPatternTests` and the Mac's `PairingCodeRenderTests` render the moving code in light
   and dark and read it back. Copy Link and Share (AirDrop) carry the same `glasspad://pair` link.
 
+### Protocol 2 (Oct 2026): key agreement, Allow, migration
+
+The code's key no longer becomes the phone's key. Everything above still describes protocol 1,
+which a Mac keeps for phones paired by 0.2.x.
+
+| Step | Protocol 2 |
+| --- | --- |
+| Phone hello | adds `kx` (X25519 public key, fresh per connection) and `rekey: true` while its key is still a code's key; `v: 2` |
+| Mac hello | adds `kx` and `rekey` (its decision); `v: 2` |
+| Keys | `ikm = X25519 || pairKey`, `salt = nonce_p || nonce_m`; `sessionKey = HKDF(ikm, salt, "glasspad v2 session" || rekey || kx_p || kx_m)`; with rekey also `newPairKey = HKDF(ikm, salt, "glasspad v2 pair" || kx_p || kx_m)` (`KeyAgreement`) |
+| New phone | after the phone's confirmation the Mac sends sealed `"glasspad approval wait v2"`, asks "Allow ... to control this Mac?" (30 s, then Don't Allow), then saves `newPairKey` and confirms, or sends sealed `"glasspad approval denied v2"` |
+| Phone saves | after the Mac's confirmation: stores `newPairKey`, then sends sealed `{"t":"keySaved"}`; the Mac then drops the key it replaced |
+
+- Every protocol 2 session key needs that connection's X25519 keys: forward secrecy.
+- The code works once, for 5 minutes, checked by the server itself (`armPairing(key:expiresAt:)`).
+- Old installs: a Mac on 2 accepts a protocol 1 hello only from a phone stored with a code's key
+  (`agreed == nil`), and never for a new pairing (it answers "Update Glasspad on this iPhone").
+  An updated phone connecting to it is moved to an agreed key on that connection, with no
+  question asked. An updated phone that meets a 0.2.x Mac ("unsupported version 2") falls back
+  to protocol 1 while its key is still a code's key. Until the phone confirms it saved the new
+  key, the Mac also accepts the replaced key, but only for another rekey.
+- Frozen in `WireGolden_2026_10_17_Handshake.swift`, with known answers for the key agreement.
+
 ## 4. Transport (GlasspadKit/Transport)
 
 - Mac advertises Bonjour `_glasspad._tcp` with TXT `id=<macID>`, `v=1`.

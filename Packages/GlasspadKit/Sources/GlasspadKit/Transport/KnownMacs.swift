@@ -9,6 +9,10 @@ public struct KnownMac: Codable, Equatable, Sendable, Identifiable {
     public var lastConnectedAt: Date?
     /// From the Mac's last handshake; nil until the first connect (or for a Mac on loopback).
     public var wakeTarget: WakeTarget?
+    /// True once `pairing.pairKey` is a key agreed with the Mac (protocol 2), not the one from the
+    /// pairing code. nil (every Mac paired by 0.2.x and earlier, and a fresh scan) means a code's
+    /// key, which the next protocol 2 connection replaces.
+    public var keyAgreed: Bool?
 
     public var id: UUID { pairing.macID }
     public var name: String { pairing.macName }
@@ -67,6 +71,13 @@ public struct KnownMacs: Codable, Equatable, Sendable {
         guard let i = macs.firstIndex(where: { $0.id == id }) else { return }
         macs[i].lastConnectedAt = date
         lastUsedID = id
+    }
+
+    /// The Mac and this phone agreed a new pair key: it replaces the code's key for good.
+    public mutating func setAgreedKey(_ key: Data, for id: UUID) {
+        guard let i = macs.firstIndex(where: { $0.id == id }) else { return }
+        macs[i].pairing.pairKey = key
+        macs[i].keyAgreed = true
     }
 
     public mutating func setWakeTarget(_ target: WakeTarget?, for id: UUID) {
@@ -167,6 +178,16 @@ public final class KnownMacsStore: @unchecked Sendable {
     /// Applies a change and saves it. Returns the closure's result. The save happens under the
     /// lock so saves land in the same order as the changes (otherwise a slower save of an older
     /// state could overwrite a newer one).
+    /// Like `update`, and says whether the change reached storage (a pair key that did not
+    /// must not be reported as saved).
+    public func updateAndSave(_ change: (inout KnownMacs) -> Void) -> Bool {
+        lock.withLock {
+            change(&value)
+            guard let d = try? JSONEncoder().encode(value) else { return false }
+            return (try? storage.save(d)) != nil
+        }
+    }
+
     @discardableResult
     public func update<R>(_ change: (inout KnownMacs) -> R) -> R {
         lock.withLock {

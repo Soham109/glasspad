@@ -149,9 +149,14 @@ public final class MacConnector: @unchecked Sendable {
     public func connect(to macID: UUID) {
         guard let mac = store.current[macID] else { return }
         store.update { $0.select(macID) }
-        let client = GlasspadClient(phoneID: phoneID, phoneName: phoneName, pairing: mac.pairing, delegateQueue: delegateQueue)
+        let client = GlasspadClient(phoneID: phoneID, phoneName: phoneName, pairing: mac.pairing,
+                                    keyAgreed: mac.keyAgreed == true, delegateQueue: delegateQueue)
         let proxy = Proxy(owner: self, macID: macID)
         client.delegate = proxy
+        // Synchronous: the key is in the Keychain before the Mac is told it was saved.
+        client.onNewPairKey = { [weak self] key in
+            self?.store.updateAndSave { $0.setAgreedKey(key, for: macID) } ?? false
+        }
         client.onWakeTarget = { [weak self] target in
             self?.store.update { $0.setWakeTarget(target, for: macID) }
         }

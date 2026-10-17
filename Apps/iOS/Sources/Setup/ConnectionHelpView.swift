@@ -11,6 +11,12 @@ enum ConnectionWords {
             return "This Mac no longer has this iPhone's key. Pair again: on the Mac, choose Pair Your iPhone."
         }
         if r.contains("wrong mac") { return "A different Mac answered. Pair again with the one you want." }
+        if reason == GlasspadService.notAllowedFailure || r.contains("no answer from the mac") {
+            return "Your Mac did not allow this iPhone. To pair, show a new code on the Mac and choose Allow."
+        }
+        if reason == GlasspadService.updatePhoneReason {
+            return "This Mac has a newer Glasspad. Update Glasspad on this iPhone, then pair again."
+        }
         if r.contains("unsupported version") { return "The Glasspad on your Mac is a different version. Update both to the same version." }
         if r.contains("handshake timeout") || r.contains("unreachable") || r.contains("timed out") {
             return "Your Mac was found but did not answer. A guest or office Wi-Fi, a VPN or a firewall on the Mac can block it."

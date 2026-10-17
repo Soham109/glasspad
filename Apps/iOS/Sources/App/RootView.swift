@@ -276,6 +276,7 @@ extension TrackpadStatus {
         switch session.linkIssue {
         case .localNetworkDenied?: return "Turn on Local Network for Glasspad in Settings."
         case .networkBlocksDevices?: return "\(name) was found, but this Wi-Fi keeps devices apart. Guest Wi-Fi and VPNs often do."
+        case .awaitingApproval?: return "On \(name), click Allow to let this iPhone control it."
         case .macAsleep?, .macTurnedOff?, nil: break
         }
         if case .connecting = session.state { return name }

@@ -154,11 +154,11 @@ extension AppModel {
             SystemSettings.openAccessibility()
         }
         a.openAutomationSettings = { media.openAutomationSettings() }
-        a.copyPairingLink = { url in
-            let board = NSPasteboard.general
-            board.clearContents()
-            board.writeObjects([url as NSURL])
-            board.setString(url.absoluteString, forType: .string)
+        // Marked private and short-lived for clipboard history apps, and cleared when pairing ends.
+        let linkBoard = PairingLinkPasteboard()
+        a.copyPairingLink = { url in linkBoard.copy(url) }
+        controller.approvalPrompt = { name, timeout, answer in
+            ApprovalPrompt.ask(phoneName: name, timeout: timeout, answer: answer)
         }
         a.requestAutomation = {
             ref.model?.automationHint = nil
@@ -253,6 +253,9 @@ extension AppModel {
         controller.$settings.removeDuplicates().assign(to: &model.$settings)
         controller.$accessibilityTrusted.removeDuplicates().assign(to: &model.$accessibilityTrusted)
         controller.$pairingPhase.removeDuplicates().assign(to: &model.$pairing)
+        model.watchers.append(controller.$pairingPhase.map { $0.url == nil }.removeDuplicates().sink { ended in
+            if ended { MainActor.assumeIsolated { linkBoard.clear() } }
+        })
         controller.$automation.removeDuplicates().assign(to: &model.$automation)
         controller.$lastError.removeDuplicates().assign(to: &model.$lastError)
         controller.$clipboardRefusal.removeDuplicates().assign(to: &model.$clipboardRefusal)

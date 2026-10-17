@@ -28,6 +28,15 @@ public final class GlasspadController: ObservableObject {
     /// The user's per-gesture choices (Settings > Trackpad, "If a gesture stops working").
     @Published public private(set) var gesturePreferences: GesturePreferences
 
+    /// Asks the person at the Mac whether a new phone may control it: shows the question with
+    /// the phone's name (already made safe to show), calls `answer` once with the choice, and
+    /// counts as Don't Allow after `timeout`. Returns a way to take the question down early (the
+    /// phone left). nil (no app around it, as in tests) refuses every new phone.
+    public typealias ApprovalPrompt = @MainActor (_ phoneName: String, _ timeout: TimeInterval,
+                                                  _ answer: @escaping @MainActor (Bool) -> Void) -> @MainActor () -> Void
+    public var approvalPrompt: ApprovalPrompt?
+    private var dismissApproval: (@MainActor () -> Void)?
+
     public let pairing: PairingStore
     public let macName: String
     /// Macros: the engine, the Settings editor's data, and the phone's Macros screen.
@@ -79,9 +88,10 @@ public final class GlasspadController: ObservableObject {
         self.macros = MacroCoordinator.live(poster: poster)
         self.modes.macros = macros
         let store = pairing
-        self.server = GlasspadServer(macID: pairing.macID, macName: macName) { phoneID in
-            store.storedKey(for: phoneID)
-        }
+        // Runs on the server's queue; the Keychain is safe to use from there.
+        self.server = GlasspadServer(macID: pairing.macID, macName: macName,
+                                     keyLookup: { store.phoneKey(for: $0) },
+                                     saveKey: { phone, key in try store.saveKey(phone, key) })
         self.phones = pairing.phones
         self.accessibilityTrusted = axMonitor.trusted
         modes.clipboard.onRefusalChange = { [weak self] reason in self?.clipboardRefusal = reason }
@@ -115,6 +125,15 @@ public final class GlasspadController: ObservableObject {
         server.delegate = bridge
         server.onPaired = { [weak self] phone in
             MainActor.assumeIsolated { self?.paired(phone) }
+        }
+        server.approveNewPhone = { [weak self] phone, answer in
+            MainActor.assumeIsolated {
+                guard let self else { return answer(false) }
+                self.askToAllow(phone, answer: answer)
+            }
+        }
+        server.onPairingFailed = { [weak self] phone, why in
+            MainActor.assumeIsolated { self?.pairingFailed(phone, why) }
         }
         pipeline.setDisplayWidth(Double(NSScreen.screens.first?.frame.width ?? 0))
         modes.send = { [weak self] message in self?.server.send(.mode(message)) }
@@ -187,8 +206,10 @@ public final class GlasspadController: ObservableObject {
     /// Shows a fresh code (also "Show a New Code" after one expired or failed).
     public func beginPairing() {
         let payload = pairing.beginPairing(macName: macName)
-        server.pendingPairKey = payload.pairKey
-        flow.begin(url: payload.url, now: Date())
+        let now = Date()
+        flow.begin(url: payload.url, now: now)
+        // The server keeps the same end itself, so a late timer cannot stretch the code's life.
+        server.armPairing(key: payload.pairKey, expiresAt: now.addingTimeInterval(PairingFlow.codeLifetime))
         publishPairing()
         if statusTimer != nil { scheduleStatus() }
     }
@@ -196,6 +217,7 @@ public final class GlasspadController: ObservableObject {
     /// Cancel a code on screen, or dismiss the result of the last attempt.
     public func cancelPairing() {
         disarmPairingKey()
+        takeDownApproval()
         flow.reset()
         publishPairing()
     }
@@ -216,12 +238,48 @@ public final class GlasspadController: ObservableObject {
         phones = pairing.phones
     }
 
+    /// The server already saved the phone (`saveKey`), after the person allowed it.
     private func paired(_ phone: PairedPhone) {
-        do {
-            try pairing.save(phoneID: phone.phoneID, phoneName: phone.phoneName, pairKey: phone.pairKey)
-            flow.completed(phoneName: phone.phoneName)
-        } catch {
-            flow.failed("This Mac could not save the pairing to the Keychain.")
+        takeDownApproval()
+        flow.completed(phoneName: phone.phoneName)
+        disarmPairingKey()
+        publishPairing()
+        phones = pairing.phones
+    }
+
+    /// A phone proved it holds the code: ask before it may control this Mac.
+    private func askToAllow(_ phone: PairedPhone, answer: @escaping @Sendable (Bool) -> Void) {
+        disarmPairingKey()
+        let name = PairingFlow.displayName(phone.phoneName)
+        flow.approving(phoneName: name)
+        publishPairing()
+        takeDownApproval()
+        guard let prompt = approvalPrompt else {
+            GPLog.log("pairing: no way to ask, so \(name) is not allowed")
+            return answer(false)
+        }
+        var answered = false
+        dismissApproval = prompt(name, GlasspadService.approvalTimeout) { [weak self] allowed in
+            guard !answered else { return }
+            answered = true
+            self?.dismissApproval = nil
+            answer(allowed)
+        }
+    }
+
+    private func takeDownApproval() {
+        let dismiss = dismissApproval
+        dismissApproval = nil
+        dismiss?()
+    }
+
+    private func pairingFailed(_ phone: PairedPhone, _ why: PairingFailure) {
+        takeDownApproval()
+        let name = PairingFlow.displayName(phone.phoneName)
+        switch why {
+        case .notAllowed: flow.declined(phoneName: name)
+        case .phoneLeft: flow.failed("\(name) stopped pairing before you answered.")
+        case .notSaved: flow.failed("This Mac could not save the pairing to the Keychain.")
         }
         disarmPairingKey()
         publishPairing()

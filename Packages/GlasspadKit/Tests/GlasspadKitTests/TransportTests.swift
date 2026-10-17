@@ -34,6 +34,21 @@ extension LinkState {
     var failure: String? { if case .failed(let s) = self { return s }; return nil }
 }
 
+/// What the Mac's Keychain would hold, for servers that save keys.
+final class KeyBook: @unchecked Sendable {
+    private let lock = NSLock()
+    private var keys: [String: PhoneKey]
+    private var _saves = 0
+    init(_ keys: [String: PhoneKey] = [:]) { self.keys = keys }
+    subscript(id: String) -> PhoneKey? { lock.withLock { keys[id] } }
+    var saves: Int { lock.withLock { _saves } }
+    var lookup: @Sendable (String) -> PhoneKey? { { [self] id in self[id] } }
+    var save: @Sendable (PairedPhone, PhoneKey) throws -> Void {
+        { [self] phone, key in lock.withLock { keys[phone.phoneID] = key; _saves += 1 } }
+    }
+    func remove(_ id: String) { _ = lock.withLock { keys.removeValue(forKey: id) } }
+}
+
 final class PairedBox: @unchecked Sendable {
     private let lock = NSLock()
     private var _phones: [PairedPhone] = []
@@ -261,7 +276,9 @@ struct TransportTests {
         client.connect(host: "127.0.0.1", port: port)
         #expect(await waitUntil { client.state.isConnected && server.state.isConnected })
         #expect(await waitUntil { paired.phones.count == 1 })
-        #expect(paired.phones.first == PairedPhone(phoneID: "new-phone", phoneName: "Test Phone", pairKey: key))
+        // The phone's key is agreed on this connection, never the one in the code.
+        #expect(paired.phones.first == PairedPhone(phoneID: "new-phone", phoneName: "Test Phone", pairKey: client.pairKey))
+        #expect(client.pairKey != key && client.keyAgreed)
         #expect(server.pendingPairKey == nil)
     }
 
@@ -269,7 +286,12 @@ struct TransportTests {
     /// for that Mac). The Mac still holds the old key, so it must accept the pending one.
     @Test func pairedPhoneCanPairAgainWithNewQRCode() async throws {
         let oldKey = PairingPayload.generateKey()
-        let (server, _, port) = try await makeServer { $0 == "phone-1" ? oldKey : nil }
+        let book = KeyBook(["phone-1": PhoneKey(key: oldKey, agreed: true)])
+        let server = GlasspadServer(macID: macID, macName: "Test Mac", advertise: false, delegateQueue: q,
+                                    keyLookup: book.lookup, saveKey: book.save)
+        try server.start()
+        #expect(await waitUntil { server.ports != nil })
+        let port = try #require(server.ports).tcp
         defer { server.stop() }
         let paired = PairedBox()
         server.onPaired = { paired.add($0) }
@@ -279,7 +301,8 @@ struct TransportTests {
         client.connect(host: "127.0.0.1", port: port)
         #expect(await waitUntil { client.state.isConnected && server.state.isConnected })
         #expect(await waitUntil { paired.phones.count == 1 })
-        #expect(paired.phones.first == PairedPhone(phoneID: "phone-1", phoneName: "Test Phone", pairKey: key))
+        #expect(paired.phones.first == PairedPhone(phoneID: "phone-1", phoneName: "Test Phone", pairKey: client.pairKey))
+        #expect(book["phone-1"]?.key == client.pairKey && client.pairKey != key)
         #expect(server.pendingPairKey == nil)
     }
 
