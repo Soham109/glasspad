@@ -108,7 +108,7 @@ struct ControlsLiveActivity: Widget {
                 }
                 DynamicIslandExpandedRegion(.trailing) {
                     if let present = controls.present {
-                        TalkClock(present: present, isStale: context.isStale)
+                        LiveClock(present: present, isStale: context.isStale)
                             .font(.title2.weight(.semibold).monospacedDigit())
                             .padding(.trailing, 4)
                     }
@@ -145,7 +145,7 @@ private struct LiveLockScreenView: View {
                 Headline(controls: controls, leading: true)
                 Spacer(minLength: 4)
                 if let present = controls.present {
-                    TalkClock(present: present, isStale: isStale)
+                    LiveClock(present: present, isStale: isStale)
                         .font(.title.weight(.semibold).monospacedDigit())
                 }
             }
@@ -256,7 +256,7 @@ private struct LiveButton<Intent: LiveActivityIntent>: View {
 
 /// The talk timer: counts up, or down to the talk length and then the time over in red. The
 /// system draws it from dates, so the app sends nothing while it counts.
-private struct TalkClock: View {
+private struct LiveClock: View {
     let present: LiveControls.Present
     let isStale: Bool
 
@@ -289,7 +289,7 @@ private struct CompactState: View {
 
     var body: some View {
         if let present = controls.present {
-            TalkClock(present: present, isStale: isStale)
+            LiveClock(present: present, isStale: isStale)
                 .font(.caption.weight(.semibold).monospacedDigit())
                 .frame(maxWidth: 52)
         } else if let remote = controls.remote {
