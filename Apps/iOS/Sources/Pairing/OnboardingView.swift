@@ -25,7 +25,7 @@ struct OnboardingView: View {
             case .hello:
                 // A non-breaking hyphen keeps Wi-Fi on one line where the sentence wraps.
                 SetupPage(title: "Your Mac, at\nYour Fingertips",
-                          detail: "Your Mac, at your fingertips. Your iPhone and Mac talk only over your Wi\u{2011}Fi.",
+                          detail: "Your iPhone and Mac talk only over your Wi\u{2011}Fi.",
                           primary: "Continue", primaryAction: { go(.mac) }) {
                     IPhoneArt(height: 250)
                 }

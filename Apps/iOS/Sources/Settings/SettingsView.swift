@@ -50,6 +50,7 @@ struct SettingsView: View {
                 case "pointer": PointerSettings()
                 case "dock": ModeDetailSettings(mode: .dock)
                 case "theme": ThemeSettings()
+                case "about": AboutSettings()
                 default: ConnectionHelpView()
                 }
             }
@@ -358,9 +359,10 @@ struct AdvancedSettings: View {
     }
 }
 
-/// Version, source and the privacy promise.
+/// Version, how long this install lasts, source and the privacy promise.
 struct AboutSettings: View {
     @Environment(\.palette) private var palette
+    var expiry = InstallExpiry.shared
 
     var body: some View {
         Form {
@@ -377,6 +379,17 @@ struct AboutSettings: View {
                 Text("Glasspad is free and open source. It talks only to your paired Mac, encrypted with a key only the two of them share. No accounts, no servers, no tracking.")
             }
             .listRowBackground(palette.raisedColor)
+            if let until = expiry.date {
+                Section {
+                    LabeledContent("Works Until") {
+                        Text(until.formatted(.dateTime.weekday(.wide).month(.abbreviated).day()))
+                            .foregroundStyle(expiry.isLastDay() ? AnyShapeStyle(palette.caution) : AnyShapeStyle(.secondary))
+                    }
+                } footer: {
+                    Text("Your Mac renews it when both are on the same Wi-Fi.")
+                }
+                .listRowBackground(palette.raisedColor)
+            }
         }
         .scrollContentBackground(.hidden)
         .background(SurfaceBackground())
