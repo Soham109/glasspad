@@ -8,7 +8,8 @@ ROOT="$(pwd)"
 # shellcheck source=scripts/toolchain.sh
 source scripts/toolchain.sh
 
-VERSION="${GLASSPAD_VERSION:-0.1.0}"
+# One version for both apps: project.yml's MARKETING_VERSION.
+VERSION="${GLASSPAD_VERSION:-$(sed -nE 's/^ *MARKETING_VERSION: *"?([0-9.]+)"?.*/\1/p' project.yml | head -1)}"
 BUILD_NUMBER="${GLASSPAD_BUILD_NUMBER:-1}"
 SCRATCH="$GP_BUILD_ROOT/GlasspadMac"
 APP="$ROOT/build/Glasspad.app"
