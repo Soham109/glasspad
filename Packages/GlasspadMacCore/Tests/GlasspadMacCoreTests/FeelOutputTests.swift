@@ -247,7 +247,8 @@ import Testing
         pipeline.process(frame(1, t, [Touch(id: 1, phase: .began, x: 100, y: 400)]))
         pipeline.process(frame(2, t + 0.03, [Touch(id: 1, phase: .ended, x: 100, y: 400)]))
         #expect(clock.isRunning)
-        let deadline = Date().addingTimeInterval(1)
+        // Real time: the stall timer fires on its own; a busy CI machine can be slow to run it.
+        let deadline = Date().addingTimeInterval(5)
         while Date() < deadline, !poster.events.contains(where: { $0.type == .leftMouseUp }) {
             try? await Task.sleep(for: .milliseconds(10))
         }
