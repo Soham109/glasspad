@@ -82,7 +82,7 @@ targets:
           - CFBundleURLName: com.soham109.glasspad.ios
             CFBundleURLSchemes: [glasspad]
 
-  # Control Center control, Lock Screen widget and the connection Live Activity.
+  # Control Center control, Lock Screen widget and the Remote and Present Live Activity.
   Glasspad Widgets:
     type: app-extension
     platform: iOS
@@ -90,6 +90,8 @@ targets:
     sources:
       - path: Apps/iOS/Widgets
       - path: Apps/iOS/Shared
+    dependencies:
+      - package: GlasspadKit
     settings:
       base:
         PRODUCT_NAME: GlasspadWidgets
