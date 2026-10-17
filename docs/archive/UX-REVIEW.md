@@ -1,3 +1,5 @@
+> **Archived.** Kept for history, not maintained, and may not match the current code. See [the archive index](README.md).
+
 # UX review: first-time user walkthrough
 
 iPhone 18 Pro simulator, against a stand-in Mac running the kit's `GlasspadServer` with fake

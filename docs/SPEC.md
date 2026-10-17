@@ -40,6 +40,7 @@ glasspad/
       Displays/                  display and window types, frame math
       Layout/                    tile grids
       Media/, Keys/, Web/        playback clock, keyboard input, website icons
+      Present/, Live/, Install/  talk timer, Lock Screen controls, install expiry
     Tests/GlasspadKitTests/
   Packages/GlasspadMacCore/      Mac-only logic as a package (macOS 14+)
     Sources/GlasspadMacCore/
@@ -48,6 +49,7 @@ glasspad/
       Server/                    controller, pairing store and flow, touch pipeline, Mac status
       Modes/                     Dock, Keys, Media, Deck, Clipboard, Present, Displays, Mac controls, tiling
       Macros/                    bridge between Macros mode and GlasspadMacros
+      LiveCheck/, Install/       the guided live check, renewal status for Settings
     Tests/GlasspadMacCoreTests/
   Packages/GlasspadMacros/       macros engine (macOS 14+), see docs/SPEC-macros.md
   Apps/Mac/                      menu bar app (SwiftUI + AppKit), a SwiftPM package
@@ -57,7 +59,7 @@ glasspad/
   project.yml                    XcodeGen project for both apps
   install.sh                     one-line installer
   scripts/                       test.sh, build-mac.sh, install and renewal scripts, tests/
-  docs/                          SPEC, install test notes, reviews, images
+  docs/                          developer docs (start at docs/README.md), SPEC, ADRs, images
   web/, promo/                   website and demo film
 ```
 
@@ -141,7 +143,9 @@ As built (GlasspadKit):
 - RTT: Mac sends `ping` on TCP each second, phone answers `pong` with the
   same id; the Mac turns median and p95 RTT into signal bars on the iPhone row of its menu
   bar popover (`SignalQuality`).
-- Reconnect automatically with backoff (0.2, 0.5, 1, 2 s cap).
+- Reconnect automatically with backoff (`ReconnectBackoff.steps`: 0.2, 0.5, 1, 2, 5, 10, 30 s, the last
+  repeating; waits of 5 s and more move by up to 20% either way, and a quiet Bonjour browse tries
+  at once when the Mac's service comes back).
 
 Public API (both sides use these; names are fixed):
 ```swift
@@ -257,8 +261,11 @@ public enum ControlMessage: Codable, Equatable, Sendable {
   case haptic(HapticKind)                         // mac -> phone, e.g. space snapped
   case mode(ModeMessage)                          // both ways, see section 8
   case bye(reason: String)
+  case macStatus(MacStatus)                       // mac -> phone, see below
+  case phoneStatus(PhoneStatus)                   // phone -> mac, see below
+  case unknown(type: String)                      // a type from a newer build, ignored
 }
-public enum HapticKind: String, Codable, Sendable { case click, forceClick, detent, snap, error }
+public enum HapticKind: String, Codable, Sendable { case click, forceClick, detent, snap, error, dragLock }
 ```
 
 As built (GlasspadKit):
@@ -335,15 +342,21 @@ As built (GlasspadKit):
   (`DisplayGeometry.isReachableArrangement`), naming each display with its own picture once; a
   display that copies another cannot be copied (no mirroring loops or chains). `ArrangementTests`.
 - `ControlMessage.macStatus(MacStatus)` (Oct 2026, additive), Mac -> phone, JSON
-  `{"t":"macStatus","status":{"accessibilityTrusted":false,"automationMedia":"notDetermined","macName":"Soham's MacBook Pro"}}`.
+  `{"t":"macStatus","status":{"accessibilityTrusted":false,"automationMedia":"notDetermined","macName":"My MacBook Pro"}}`.
   `MacStatus` (`Protocol/MacStatus.swift`): `accessibilityTrusted: Bool` (required; when false the
   Mac drops every touch, so the pointer cannot move), `automationMedia: AutomationState?`
   (`granted`, `denied`, `notDetermined`, `notNeeded`; Spotify and Music control, optional) and
-  `macName: String?`. The Mac sends it right after each handshake and again whenever a field
+  `macName: String?`, plus `followsAllPanes: Bool?` (the Mac follows every pane of a layout from
+  `modesShown`, so the phone stops polling) and `screenLocked: Bool?` (the Mac's screen is
+  locked). The Mac sends it right after each handshake and again whenever a field
   changes (`GlasspadMacCore` `MacStatusReporter`). Accessibility is re-read every second both
   ways (`AccessibilityMonitor`) while a phone is connected or a pairing code is up, so turning
   it off in System Settings while connected reaches the phone within a second; with no phone
   and no code it is read every 5 seconds. Unknown fields and unknown `automationMedia` values are ignored.
+- `ControlMessage.phoneStatus(PhoneStatus)` (Oct 2026, additive), phone -> Mac, JSON
+  `{"t":"phoneStatus","status":{"batteryPercent":42,"charging":false}}`. Sent after connecting
+  and whenever a field changes, so the Mac shows the iPhone's battery on its row. Every field is
+  optional; a value out of range reads as unknown. A Mac without it reads `.unknown` and ignores it.
 - `ControlMessage.unknown(type:)`: a `t` this build does not know decodes to this no-op instead
   of throwing, and both ends ignore it without ending the session (a known `t` with broken
   fields still throws and counts as malformed). Builds from before this change dropped any
@@ -403,7 +416,7 @@ public final class GestureRecognizer {
 public enum SwipeKind: Sendable { case spaces, missionControl, appExpose, launchpad, showDesktop }
 ```
 
-Behaviour notes:
+Behavior notes:
 - iPhones have no pressure sensor, so: tap = click (always on, even if the
   Mac has tap to click off, because a phone cannot be pressed down; show this
   in Settings). Press and hold still for 450 ms = force click (haptic ramp at
@@ -574,7 +587,7 @@ Each mode is a `ModeMessage` case pair handled by `GlasspadMacCore/Modes`.
 | Dock | the Mac's Dock and nothing else: Dock apps + running apps in Dock order, running dots, long-press Quit / Hide / Show in Finder / Keep, phone-side order and hiding. Apps outside the Dock are pinned in Actions | read Dock prefs + NSWorkspace, icons as 384 px PNG (3x the largest icon the phone draws) keyed by bundle id + app modification date + size, sent once (`dockSync`), in messages of at most 1.5 MB of icons, launch / activate / reopen (`AppLauncher`), hide the Mac Dock (`MacDockHider`) |
 | Keyboard (stored as `keys`) | text field that streams typed text; arrows, esc, tab, cmd shortcuts row, modifier keys, F1 to F12; dictation works | CGEvent keyboard unicode strings; shortcuts press the key that types that character on the Mac's keyboard layout (`KeyLayout`) |
 | Media | now playing title/artist/art, play/pause/next/prev, scrubbing, shuffle and repeat, sound output, volume, brightness | MediaRemote through `Apps/Mac/Helpers/NowPlayingHelper.m` (since macOS 15.4 MediaRemote answers only Apple processes, so the helper runs inside `/usr/bin/perl`), AppleScript to Spotify and Music, media key events for commands, volume via CoreAudio |
-| Actions (Deck) | one screen: the front app's best buttons (6 by default, up to 8 chosen and ordered per app) above Pinned (favourites of every kind, + opens a searchable Library whose Apps group lists every installed Mac app); folders, sizes, colours, edit on the phone. Sideways it splits: front app on the left half, Pinned on the right. Present is a tool in the mode menu; Clipboard opens from Keyboard's shortcut row or a Pinned button. Older Decks move into Pinned once, losslessly (`PinnedDeck.migrated`) | executes actions directly (screencapture, pmset, CoreAudio...), config v3 on the Mac, phone edits via `deckSave` (never shell) |
+| Actions (Deck) | one screen: the front app's best buttons (6 by default, up to 8 chosen and ordered per app) above Pinned (favorites of every kind, + opens a searchable Library whose Apps group lists every installed Mac app); folders, sizes, colors, edit on the phone. Sideways it splits: front app on the left half, Pinned on the right. Present is a tool in the mode menu; Clipboard opens from Keyboard's shortcut row or a Pinned button. Older Decks move into Pinned once, losslessly (`PinnedDeck.migrated`) | executes actions directly (screencapture, pmset, CoreAudio...), config v3 on the Mac, phone edits via `deckSave` (never shell) |
 | Macros | the Mac's macros, the set for the app in front, record on the Mac | GlasspadMacros (docs/SPEC-macros.md) |
 | Clipboard | send phone clipboard to Mac, pull Mac clipboard to phone (text, images) | NSPasteboard |
 | Present | big next/previous buttons, timer, laser dot (move a highlight on the Mac) | arrow keys + transparent overlay window for the laser |
@@ -615,7 +628,7 @@ As built, UX pass (Oct 2026):
 - Tile grids (Actions, Pinned, folders, the Library's Pinned preview, Dock) size themselves from
   the space they get, not the screen (`TileGridMetrics`, `BalancedRows` in GlasspadKit): tiles near
   the preferred size and never under 44 pt, rows that differ by at most one (7 is 4 + 3, 6 is
-  3 + 3), every row centred. Mac controls in the Library come from `DeckSystemCatalog`, grouped.
+  3 + 3), every row centered. Mac controls in the Library come from `DeckSystemCatalog`, grouped.
 - Website buttons show the site's own logo: the phone reads the page's icon links, then
   `/apple-touch-icon.png` and `/favicon.ico`, keeps the largest, caches it by host, and falls back
   to the site's first letter. It asks the site only (no favicon services). A new Website button is
@@ -642,7 +655,7 @@ As built, UX pass (Oct 2026):
   second. It logs `touch rate: ... callbacks (/s), samples (/s), frames sent (/s)` per touch.
 - Hides the status bar and home indicator, defers system edge gestures
   (SwiftUI `defersSystemGestures(on: .all)` while a trackpad shows, alone or in a layout pane).
-- Mode switching: a small pill at the top centre (or the bottom, in Settings) that fades out
+- Mode switching: a small pill at the top center (or the bottom, in Settings) that fades out
   after 2 s, revealed by touching the edge it sits on. Tap it for the mode menu, long press it
   for Settings, swipe it sideways to flip back to the mode or layout before (again to return;
   a light tap is felt; VoiceOver action "Previous Mode"). As built (Oct 2026): the pill and the
@@ -682,26 +695,26 @@ As built, UX pass (Oct 2026):
 - Themes: Paper (#F2F1EE background, dots #1A1A1A at 14% opacity) and
   Graphite (#141414, dots white at 18%). Dots 44 pt, soft edge, fade on lift.
   As built (Oct 2026): also System (Paper or Graphite with the phone), Mono (pure white or black
-  with the phone, no colour anywhere: accents, tiles and icons draw in the ink), Sand (warm light)
+  with the phone, no color anywhere: accents, tiles and icons draw in the ink), Sand (warm light)
   and Midnight (deep blue dark). Settings shows a live miniature of each.
   Themes (Oct 2026): 27 themes plus Photo, in groups on Settings > Theme. Classic: System, Paper,
   Graphite, Mono, Pure Black (true black for OLED), High Contrast (text at 7:1 or more). Glass
-  (frosted cards over a soft backdrop of colour pools): Glass, Glass Dark, Clear, Aurora, Ocean,
-  Dusk, Rose, Mint, Lavender, Ember, Citrus, Smoke. Colour: Sand, Midnight, Forest, Plum, Slate,
+  (frosted cards over a soft backdrop of color pools): Glass, Glass Dark, Clear, Aurora, Ocean,
+  Dusk, Rose, Mint, Lavender, Ember, Citrus, Smoke. Color: Sand, Midnight, Forest, Plum, Slate,
   Espresso, Solar, Frost, Dawn. Photo blurs a picked photo (PhotosPicker, no permission prompt)
   into the backdrop and veils it just enough for text to read (`PhotoTone`). Every theme defines
-  every colour (GlasspadKit `ThemeCatalog`), including its own accent (app tint, Trackpad's mode
-  colour); a test checks text, secondary text, accent, button labels and status colours reach
-  WCAG AA on every surface. Mode accents and status colours are Apple's system colours, moved
+  every color (GlasspadKit `ThemeCatalog`), including its own accent (app tint, Trackpad's mode
+  color); a test checks text, secondary text, accent, button labels and status colors reach
+  WCAG AA on every surface. Mode accents and status colors are Apple's system colors, moved
   toward the ink only as far as a theme needs for 3:1. Unknown saved themes fall back to System.
   Remote and StandBy stay dark.
   Grain and Tinted (Oct 2026): 38 themes plus Photo. Grain: Grain (warm paper), Grain Dark
   (charcoal), Risograph (pink stock, riso blue), Film (teal shadows, warm highlights), each with a
   still grain from a fixed seed drawn once at the screen's pixel density. Tinted: Mono Blue, Green,
-  Rose, Amber, Violet, Slate, light and dark with the phone, and Custom Tint (a colour picker on
-  the Theme page). One hue for everything: surface, cards, text, accents, mode colours, and app
-  icons and website logos, recoloured along the hue by their brightness like the tinted Home
-  Screen. Status colours in the tinted themes work as in Mono. Remote uses the tinted dark colours.
+  Rose, Amber, Violet, Slate, light and dark with the phone, and Custom Tint (a color picker on
+  the Theme page). One hue for everything: surface, cards, text, accents, mode colors, and app
+  icons and website logos, recolored along the hue by their brightness like the tinted Home
+  Screen. Status colors in the tinted themes work as in Mono. Remote uses the tinted dark colors.
   `scripts/web-themes.sh` regenerates the website's theme list from the catalog.
 - Layouts (Oct 2026): one to three modes on one screen (GlasspadKit `Layouts/`, views in
   `Apps/iOS/Sources/Layouts`). `ScreenLayout` keeps panes by mode name (unknown names
@@ -752,7 +765,8 @@ As built (Oct 2026 UX pass):
 ## 11. Definition of done
 
 - `scripts/test.sh` green for every package and the installer tests.
-- `swift test --package-path Apps/Mac` green (wording and pairing code render tests).
+- Mac app tests green (wording and pairing code render tests); the command is in
+  [docs/testing.md](testing.md#mac-app-tests).
 - Mac app builds into `build/Glasspad.app` with `scripts/build-mac.sh`.
 - iOS app builds in Xcode once installed (project generated by XcodeGen).
 - A loopback test: `GlasspadClient` (macOS) pairs with `GlasspadServer` in one

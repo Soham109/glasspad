@@ -1,3 +1,5 @@
+> **Archived.** Kept for history, not maintained, and may not match the current code. See [the archive index](README.md).
+
 # Glasspad 0.1.0
 
 A control surface for your Mac, on your iPhone. A small menu bar app on the Mac and an app on the iPhone, on the same Wi-Fi. Free, private and open source.

@@ -13,7 +13,7 @@ folder with `swift test --scratch-path /tmp/glasspad-macros-build`.
 
 ## 1. Model
 
-A macro is a named list of steps with an SF Symbol and a colour.
+A macro is a named list of steps with an SF Symbol and a color.
 
 ```swift
 public struct Macro: Identifiable, Codable, Sendable {

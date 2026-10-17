@@ -1,3 +1,5 @@
+> **Archived.** Kept for history, not maintained, and may not match the current code. See [the archive index](../README.md).
+
 # Glasspad product review (15 Oct 2026)
 
 Read-only review. Sources: README, docs/SPEC.md, docs/UX-REVIEW.md, docs/SPEC-requests.md, a skim of Apps/iOS and Packages. Nothing in the code was changed.

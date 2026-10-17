@@ -3,6 +3,11 @@
 Requests from one part of Glasspad to another. Add a request at the bottom, and mark it
 done (with the shipped names) when it lands. Open follow-ups are listed first.
 
+"Reliability review" items refer to [archive/review/reliability.md](archive/review/reliability.md).
+Entries under Done describe the change when it landed; later changes may have moved on (for
+example the Mac no longer sends `.haptic(.snap)`, and Diagnostics left Advanced). The current
+behavior is in [SPEC.md](SPEC.md).
+
 ## Open
 
 ### A. Typed pairing code for VoiceOver users (from: Mac app, to: GlasspadKit)
