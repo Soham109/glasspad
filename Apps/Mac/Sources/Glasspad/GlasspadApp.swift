@@ -1,4 +1,5 @@
 import AppKit
+import GlasspadKit
 import GlasspadMacCore
 import SwiftUI
 
@@ -42,6 +43,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             liveCheck.show(router: Self.controller.modeRouter)
             return
         }
+        ActivityLog.shared.start()
+        ActivityLog.shared.record("app", ["side": "mac", "version": Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String,
+                                          "os": ProcessInfo.processInfo.operatingSystemVersionString])
         Self.controller.start()
         recordingIndicator.observe(Self.controller.macros)
         // First launch (or every phone forgotten): open a window with the code and the steps

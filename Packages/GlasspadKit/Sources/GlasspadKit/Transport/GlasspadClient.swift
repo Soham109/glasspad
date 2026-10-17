@@ -667,6 +667,7 @@ public final class GlasspadClient: @unchecked Sendable {
     private func lost(_ gen: Int, reason: String) {
         GPLog.log("lost (gen \(gen) vs \(generation)): \(reason)")
         guard gen == generation else { return }
+        ActivityLog.shared.record("link", ["side": "phone", "event": "lost", "reason": reason])
         teardown()
         scheduleReconnect(after: ReconnectBackoff.delay(attempt: attempt, reachedMac: reachedMac))
     }
@@ -878,6 +879,7 @@ public final class GlasspadClient: @unchecked Sendable {
         }
         guard changed else { return }
         GPLog.log("issue -> \(new.map { "\($0)" } ?? "none")")
+        ActivityLog.shared.record("link", ["side": "phone", "issue": new.map { "\($0)" } ?? "none"])
         let handler = issueHandler.get()
         delegateQueue.async { handler?(new) }
     }
@@ -890,6 +892,7 @@ public final class GlasspadClient: @unchecked Sendable {
         }
         guard changed else { return }
         GPLog.log("state -> \(new)")
+        ActivityLog.shared.record("link", ["side": "phone", "state": new.logName, "reason": new.failureReason])
         delegateQueue.async { [weak self] in self?.delegate?.link(didChangeState: new) }
     }
 }

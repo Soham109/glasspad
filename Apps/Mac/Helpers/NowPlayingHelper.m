@@ -18,6 +18,7 @@
 // Protocol:
 //   stdout: one JSON object per line. "payload" is null when nothing is playing.
 //           {"type":"error","message":"..."} when MediaRemote cannot be used.
+//           {"type":"sent","command":2,"ok":true} after each "send", with MediaRemote's answer.
 //   stdin:  one command per line: "send <MRCommand>", "seek <seconds>", "shuffle <1-3>",
 //           "repeat <1-3>", "refresh". End of input (Glasspad quit) exits the process, and so
 //           does Glasspad's exit itself (watched by pid, in case the pipe stays open).
@@ -51,6 +52,9 @@ static NSData *gLastArtwork;
 static NSString *gLastArtworkBase64;
 static BOOL gRefreshScheduled;
 static dispatch_source_t gParentWatch;
+/// The 5-second refresh. Held here: under ARC a timer kept only in a local variable is freed
+/// when the function's scope ends, and it then never fires (no first state, no refreshes).
+static dispatch_source_t gRefreshTimer;
 
 static void emitLine(NSString *line) {
     if ([line isEqualToString:gLastLine]) return;
@@ -164,7 +168,10 @@ static void handleCommand(NSString *line) {
     NSString *verb = parts[0];
     double arg = parts.count > 1 ? parts[1].doubleValue : 0;
     if ([verb isEqualToString:@"send"] && parts.count > 1) {
-        gSendCommand((int)arg, nil);
+        bool ok = gSendCommand((int)arg, nil);
+        // Not through emitLine: the same answer twice must still be printed twice.
+        fprintf(stdout, "{\"type\":\"sent\",\"command\":%d,\"ok\":%s}\n", (int)arg, ok ? "true" : "false");
+        fflush(stdout);
     } else if ([verb isEqualToString:@"seek"] && parts.count > 1 && gSetElapsedTime) {
         gSetElapsedTime(MAX(0, arg));
     } else if ([verb isEqualToString:@"shuffle"] && parts.count > 1 && gSetShuffleMode) {
@@ -251,6 +258,7 @@ __attribute__((visibility("default"))) void glasspad_nowplaying_run(void *perl, 
         dispatch_source_set_timer(timer, dispatch_time(DISPATCH_TIME_NOW, 0), 5 * NSEC_PER_SEC, NSEC_PER_SEC / 2);
         dispatch_source_set_event_handler(timer, ^{ refreshNow(); });
         dispatch_resume(timer);
+        gRefreshTimer = timer;
 
         readCommands();
         watchParent();

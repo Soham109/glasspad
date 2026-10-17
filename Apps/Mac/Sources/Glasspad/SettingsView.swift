@@ -333,6 +333,17 @@ struct AdvancedPane: View {
             } header: {
                 Text("Actions and Macros")
             }
+
+            Section {
+                LabeledContent {
+                    Button(RenewalCopy.showLog) { model.actions.showActivityLog() }
+                } label: {
+                    Text("Activity log")
+                    Text("Connections and media commands, kept on this Mac. No titles or typed text.")
+                }
+            } header: {
+                Text("Troubleshooting")
+            }
         }
         .formStyle(.grouped)
     }

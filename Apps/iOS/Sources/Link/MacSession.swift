@@ -399,6 +399,9 @@ final class MacSession {
 
     func send(_ message: ModeMessage) {
         guard requests.shouldSend(message, now: ProcessInfo.processInfo.systemUptime) else { return }
+        if case .mediaCommand(let c) = message {
+            ActivityLog.shared.record("media", ["side": "phone", "cmd": c.rawValue, "connected": isConnected ? "true" : "false"])
+        }
         if !isConnected, TapHold.holds(message) { return hold(message) }
         transmit(message)
     }

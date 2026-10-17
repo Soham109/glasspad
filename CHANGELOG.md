@@ -2,6 +2,18 @@
 
 All notable changes are listed here. The format follows [Keep a Changelog](https://keepachangelog.com), and the project follows [semantic versioning](https://semver.org).
 
+## [Unreleased]
+
+### Added
+
+- **Activity log:** connections and media commands (which route each took and whether it worked) go to `~/Library/Logs/Glasspad/activity.log` on the Mac, capped at 256 KB, with no titles or typed text. Mac Settings > Advanced > Show Log opens it. The iPhone keeps the same log in the app's own storage.
+
+### Fixed
+
+- **Media and Remote:** the Mac's now-playing helper sends what plays as soon as it starts and refreshes every 5 seconds again. Before, it stayed silent until the player changed, so the phone could show an old state.
+- **Media and Remote:** with the helper stopped, play or pause no longer goes to a paused Spotify or Music while a browser was the Mac's now playing app. It goes to the Mac's now playing instead.
+- **Media and Remote:** on macOS 15.4 and later, the media key is used when the helper is not running, since macOS ignores Glasspad's own MediaRemote commands there.
+
 ## [0.2.1] - 2026-10-17
 
 ### Changed
