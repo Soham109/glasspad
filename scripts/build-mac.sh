@@ -84,7 +84,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <string>Glasspad listens on your local network so your paired iPhone can connect and work as a trackpad.</string>
   <key>NSAppleEventsUsageDescription</key>
   <string>Glasspad shows what Spotify or Music is playing on your iPhone and controls playback, and opens Notification Center when you swipe in from the right edge.</string>
-  <key>NSHumanReadableCopyright</key><string>MIT License</string>
+  <key>NSHumanReadableCopyright</key><string>Copyright 2026 Soham Aggarwal. MIT licensed.</string>
 </dict>
 </plist>
 PLIST
