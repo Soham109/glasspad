@@ -1,0 +1,12 @@
+/* Glasspad brand colors. Same values as web/src/style.css :root. */
+:root {
+  --gp-paper: #F2F1EE;
+  --gp-ink: #1A1A1A;
+  --gp-surface: #FBFBF9;
+  --gp-tile: #EDECE8;
+  --gp-graphite: #141414;
+  --gp-on-dark: #F2F1EE;
+  --gp-ink-2: rgba(26, 26, 26, 0.64);
+  --gp-on-dark-2: rgba(242, 241, 238, 0.62);
+  --gp-font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", "Segoe UI", Roboto, Arial, sans-serif;
+}

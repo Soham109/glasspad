@@ -1,0 +1,29 @@
+{
+  "_source": "web/src/style.css (:root) and Packages/GlasspadKit/Sources/GlasspadKit/Theme/ThemeCatalog.swift (paper, graphite), app icon from scripts/make-icons.swift",
+  "brand": {
+    "paper":    { "hex": "#F2F1EE", "use": "Main light background (site and app Paper theme)" },
+    "ink":      { "hex": "#1A1A1A", "use": "Text and marks on light; the icon's finger dot" },
+    "surface":  { "hex": "#FBFBF9", "use": "Cards and raised surfaces on light (site)" },
+    "tile":     { "hex": "#EDECE8", "use": "Tiles and quiet fills on light (site)" },
+    "graphite": { "hex": "#141414", "use": "Main dark background (site bands and app Graphite theme)" },
+    "on-dark":  { "hex": "#F2F1EE", "use": "Text and marks on dark" }
+  },
+  "app": {
+    "paper":    { "background": "#F2F1EE", "raised": "#FBFAF8", "pressed": "#E6E4DF", "ink": "#1A1A1A" },
+    "graphite": { "background": "#141414", "raised": "#1F1F1F", "pressed": "#2C2C2C", "ink": "#F2F1EE" }
+  },
+  "icon": {
+    "light": { "outer": "#E3E1DC", "surface": "#FCFBFA", "dot": "#1A1A1A" },
+    "dark":  { "outer": "#0A0A0A", "surface": "#282828", "dot": "#F2F1EE" }
+  },
+  "text": {
+    "ink-2": "rgba(26, 26, 26, 0.64)",
+    "line": "rgba(26, 26, 26, 0.10)",
+    "on-dark-2": "rgba(242, 241, 238, 0.62)",
+    "line-dark": "rgba(242, 241, 238, 0.12)"
+  },
+  "font": {
+    "sans": "-apple-system, BlinkMacSystemFont, \"SF Pro Text\", \"SF Pro Display\", \"Helvetica Neue\", \"Segoe UI\", Roboto, Arial, sans-serif",
+    "mono": "ui-monospace, \"SF Mono\", Menlo, Consolas, monospace"
+  }
+}
