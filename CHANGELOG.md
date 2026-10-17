@@ -2,6 +2,34 @@
 
 All notable changes are listed here. The format follows [Keep a Changelog](https://keepachangelog.com), and the project follows [semantic versioning](https://semver.org).
 
+## [0.2.0] - 2026-10-16
+
+### Added
+
+- **Themes:** 39 in all, including Grain (Grain, Grain Dark, Risograph, Film) and Tinted themes where everything takes one colour.
+- **Present:** a laser pointer on the slides' display, a talk clock with a tap at 5 and 1 minute left, and the screen stays on during a talk.
+- **Lock Screen controls:** the Live Activity shows Remote's Back 10, Play or Pause and Forward 10 with what is playing, or Present's Back, Next and the running timer.
+- **Siri and Shortcuts:** Open Glasspad Mode and Open Glasspad Layout. Mission Control from Siri works and says what happened.
+- **Mode menu:** swipe the pill sideways to flip back to the previous mode or layout.
+- **Keyboard:** Glasspad draws its own Mac keyboard, sized to fit, with the Mac's letters.
+- **Window highlight:** pick a window on the phone and the Mac outlines it for a second.
+- **Battery:** the Mac shows the iPhone's battery, and the phone mentions it once at 20% and 10%.
+- **Remote:** the More menu lists the Mac's sound outputs.
+- **Renewal:** iPhone Settings > About shows when the app needs renewing. Mac Settings > iPhone shows the last renewal and any problem in plain words.
+- **Website:** Features and Compare menus, six feature pages and three comparisons, one footer everywhere, and Install as the main button.
+
+### Changed
+
+- The connection to the Mac recovers faster. Taps wait briefly for a quick reconnect, and the phone says why the Mac is away: asleep, Glasspad off, locked, or this iPhone forgotten.
+- Displays and Arrange are calmer, with less text.
+- iPhone installs are optimised builds, lighter on battery.
+
+### Fixed
+
+- Leaving Keyboard no longer leaves memory behind, and trying themes holds far less memory.
+- Lower idle cost on the Mac and the iPhone: fewer redraws, no needless checks, timers only when needed.
+- A macro stopped right after a step reports the right step.
+
 ## [0.1.2] - 2026-10-16
 
 ### Added
