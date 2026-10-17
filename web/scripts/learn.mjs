@@ -4,6 +4,7 @@
 import { writeFileSync, mkdirSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { pages as SITE_PAGES, VERSION, RELEASE } from "../site/pages.ts";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const SITE = "https://glasspad.sohamaggarwal.com";
@@ -28,18 +29,8 @@ const SHOT = {
   menu: { w: 350, h: 644, alt: "The mode menu: Trackpad, Keyboard, Media, Dock and Actions, then Layouts, then Clipboard, Present, Remote and Displays" },
 };
 
-/* The Learn list in every footer, in this order. */
-const PAGES = [
-  { path: "/use/iphone-as-mac-trackpad", label: "iPhone as a Mac trackpad" },
-  { path: "/use/iphone-as-mac-keyboard", label: "iPhone as a Mac keyboard" },
-  { path: "/use/iphone-remote-for-mac", label: "iPhone remote for Mac" },
-  { path: "/use/stream-deck-alternative-mac", label: "Free Stream Deck alternative" },
-  { path: "/use/mac-split-screen-from-iphone", label: "Split screen from iPhone" },
-  { path: "/use/control-mac-displays-from-iphone", label: "Displays and windows" },
-  { path: "/compare/remote-mouse", label: "Glasspad vs Remote Mouse" },
-  { path: "/compare/stream-deck-mobile", label: "Glasspad vs Stream Deck Mobile" },
-  { path: "/compare/universal-control", label: "Glasspad vs Universal Control" },
-];
+/* The Learn list in every footer: the pages with `learn` in site/pages.ts, in that order. */
+const PAGES = SITE_PAGES.filter(p => p.learn).map(p => ({ path: p.path, label: p.learn }));
 
 const esc = s => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const plain = html => html.replace(/<[^>]+>/g, "").replace(/&amp;/g, "&").replace(/&rsaquo;/g, "›").replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim();
@@ -104,12 +95,11 @@ function page(p) {
       {
         "@type": "SoftwareApplication", "@id": SITE + "/#app", name: "Glasspad", url: SITE + "/",
         description: "A control surface for your Mac, on your iPhone: a trackpad, keyboard, media remote and button deck, over your Wi-Fi.",
-        applicationCategory: "UtilitiesApplication", operatingSystem: "macOS 14 or later, iOS 18 or later",
+        applicationCategory: "UtilitiesApplication", operatingSystem: "macOS 14+, iOS 18+", softwareVersion: VERSION, downloadUrl: RELEASE,
         softwareRequirements: "Xcode 26 or later and a free Apple ID to install; iPhone and Mac on the same Wi-Fi",
         license: "https://opensource.org/licenses/MIT", isAccessibleForFree: true,
         offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
-        codeRepository: "https://github.com/Soham109/glasspad",
-        author: { "@type": "Person", name: "Soham Aggarwal", url: "https://sohamaggarwal.com" },
+        author: { "@type": "Person", "@id": SITE + "/#soham", name: "Soham Aggarwal", url: "https://sohamaggarwal.com" },
       },
     ],
   };
@@ -126,8 +116,11 @@ function page(p) {
 <meta name="description" content="${esc(p.desc)}">
 <meta name="theme-color" content="#F2F1EE">
 <script>document.documentElement.classList.add("js")</script>
+<link rel="icon" href="/favicon.ico" sizes="48x48">
 <link rel="icon" href="/icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+<link rel="alternate" type="text/plain" href="/llms.txt" title="llms.txt">
 <link rel="canonical" href="${url}">
 <meta property="og:title" content="${esc(p.og || p.h1)}">
 <meta property="og:description" content="${esc(p.desc)}">
@@ -140,6 +133,7 @@ function page(p) {
 <meta property="og:type" content="article">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:image" content="${SITE}/og-light.png">
+<meta name="twitter:image:alt" content="Glasspad: a control surface for your Mac, on your iPhone">
 <script type="application/ld+json">${JSON.stringify(ld)}</script>
 </head>
 <body>

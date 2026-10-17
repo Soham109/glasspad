@@ -23,6 +23,7 @@
 .g-cmd .copy { top: 50%; transform: translateY(-50%); }
 .g-cmd .copy:active { transform: translateY(-50%) scale(0.94); }
 .g-more { display: block; font-size: 15px; }
+.g-card .g-more { margin-top: 12px; color: var(--ink-2); }
 
 .g-fig { margin: 0; }
 .g-fig img { display: block; width: 100%; height: auto; }
@@ -35,9 +36,9 @@
 .g-grid.three .g-card { grid-template-columns: 1fr; align-items: start; }
 .g-grid.three .g-fig { max-width: 240px; margin: 0 auto; }
 
-.g-help { margin: 0; display: grid; grid-template-columns: minmax(0, 320px) minmax(0, 1fr); gap: 0 40px; max-width: 980px; }
-.g-help dt { padding: 18px 0; font-weight: 600; border-top: 1px solid var(--line); }
-.g-help dd { margin: 0; padding: 18px 0; color: var(--ink-2); border-top: 1px solid var(--line); }
+.g-help, .g .faq { margin: 0; display: grid; grid-template-columns: minmax(0, 320px) minmax(0, 1fr); gap: 0 40px; max-width: 980px; }
+.g-help dt, .g .faq dt { padding: 18px 0; font-weight: 600; border-top: 1px solid var(--line); }
+.g-help dd, .g .faq dd { margin: 0; padding: 18px 0; color: var(--ink-2); border-top: 1px solid var(--line); }
 
 @media (max-width: 980px) {
   .g-grid, .g-grid.three { grid-template-columns: 1fr; }
@@ -48,9 +49,10 @@
   .g-card, .g-grid.three .g-card, .g-row { grid-template-columns: 1fr; }
   .g-card .g-fig, .g-row .g-fig { max-width: 220px; margin: 0 auto; }
   .g-card.wide .g-fig, .g-row.land .g-fig { max-width: none; }
-  .g-help { grid-template-columns: 1fr; }
-  .g-help dd { border-top: 0; padding-top: 0; }
+  .g-help, .g .faq { grid-template-columns: 1fr; }
+  .g-help dd, .g .faq dd { border-top: 0; padding-top: 0; }
   .g-cmd { padding-right: 20px; padding-bottom: 60px; }
   .g-cmd .copy { top: auto; bottom: 12px; transform: none; }
 }
 .g-fig.hud { align-self: center; } .g-fig.hud img { border-radius: 22px; }
+

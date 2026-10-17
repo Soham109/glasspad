@@ -1,0 +1,5 @@
+# Everyone is welcome, search engines and AI assistants alike.
+User-agent: *
+Allow: /
+
+Sitemap: https://glasspad.sohamaggarwal.com/sitemap.xml
