@@ -198,12 +198,24 @@
 .mp-row.t { justify-content: space-between; }
 .mp-row .tg { font-size: 0.8em; }
 
+/* ---------- Questions (site/content.ts) ---------- */
+.questions { padding-top: 0; }
+.faq { display: grid; grid-template-columns: minmax(0, 320px) minmax(0, 1fr); gap: 0 40px; max-width: 980px; margin: 0 auto; }
+.faq dt { padding: 18px 0; font-size: 17px; font-weight: 600; letter-spacing: -0.01em; border-top: 1px solid var(--line); }
+.faq dd { margin: 0; padding: 18px 0; color: var(--ink-2); font-size: 16px; border-top: 1px solid var(--line); }
+.faq a { color: var(--ink); text-underline-offset: 3px; }
+@media (max-width: 600px) {
+  .faq { grid-template-columns: 1fr; }
+  .faq dd { border-top: 0; padding-top: 0; }
+}
+
 /* ---------- Footer: a giant wordmark cut by the bottom of the page ---------- */
 .foot { padding: 0; overflow: hidden; background: var(--paper); color: var(--ink); border-top: 1px solid var(--line); }
 .foot-links { display: flex; flex-wrap: wrap; gap: 8px 28px; padding-top: 36px; padding-bottom: clamp(16px, 3vw, 32px); font-size: 15px; }
 .foot-links a { color: var(--ink-2); text-decoration: none; transition: color 200ms; }
 .foot-links a:hover { color: var(--ink); }
 .foot-by { margin-left: auto; }
+.foot-learn { margin-top: -8px; padding-top: 0; }
 .foot-credit { margin-top: -8px; padding-bottom: clamp(16px, 3vw, 28px); font-size: 13px; color: var(--ink-2); }
 .foot-credit a { color: inherit; text-underline-offset: 2px; }
 .foot-mark { display: flex; justify-content: center; height: 0.6em; overflow: hidden; font-size: 22vw; line-height: 1; user-select: none; }

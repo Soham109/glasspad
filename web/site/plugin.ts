@@ -1,0 +1,237 @@
+/* Builds what search engines and language models read, from pages.ts and content.ts:
+   - in each page: <!--site:head--> (title, description, canonical, icons, social cards, JSON-LD),
+     <!--site:faq--> (the page's questions), <!--site:learn--> (the footer's Learn links),
+     and <picture> with AVIF and WebP for images that have light copies (scripts/sync-screens.mjs);
+   - sitemap.xml, llms.txt and llms-full.txt. */
+
+import type { Plugin } from "vite";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
+import { SITE, REPO, RELEASE, RELEASED, VERSION, pages, type Page } from "./pages";
+import { DEFINITION, FAQS, HOWTO, NEEDS, FEATURES, FILM, INSTALL, LINKS } from "./content";
+
+const NAME = "Glasspad";
+const TAGLINE = "A control surface for your Mac, on your iPhone.";
+const OG = { url: `${SITE}/og-light.png`, width: 1200, height: 630, alt: "Glasspad: a control surface for your Mac, on your iPhone" };
+const PERSON = { "@type": "Person", "@id": `${SITE}/#soham`, name: "Soham Aggarwal", url: "https://sohamaggarwal.com", sameAs: ["https://github.com/Soham109"] };
+
+const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+const plain = (html: string) => html.replace(/<[^>]+>/g, "").replace(/&amp;/g, "&").replace(/&rsaquo;/g, "›");
+const url = (p: Page) => SITE + p.path;
+const json = (o: unknown) => JSON.stringify(o).replace(/</g, "\\u003c");
+
+/** Vite input names: index.html keeps "main"; others are their path, "use/trackpad.html" -> "use-trackpad". */
+export const inputs = () => Object.fromEntries(pages.map(p => [p.file === "index.html" ? "main" : p.file.replace(/\.html$/, "").replace(/\//g, "-"), p.file]));
+
+function schema(p: Page): object {
+  const home = pages[0];
+  const app = {
+    "@type": "SoftwareApplication", "@id": `${SITE}/#app`, name: NAME, url: url(home),
+    description: `${DEFINITION} ${TAGLINE}`,
+    applicationCategory: "UtilitiesApplication", operatingSystem: "macOS 14+, iOS 18+",
+    softwareVersion: VERSION, datePublished: RELEASED,
+    offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+    isAccessibleForFree: true, license: "https://opensource.org/licenses/MIT",
+    downloadUrl: RELEASE, installUrl: `${SITE}/#get`, softwareRequirements: NEEDS.join(", "),
+    featureList: FEATURES.map(([k]) => k),
+    screenshot: ["trackpad", "actions", "remote", "media"].map(s => `${SITE}/img/screens/${s}.png`),
+    image: OG.url, author: { "@id": PERSON["@id"] }, sameAs: [REPO],
+  };
+  const graph: object[] = [
+    { "@type": "WebSite", "@id": `${SITE}/#site`, name: NAME, url: url(home), inLanguage: "en", publisher: { "@id": PERSON["@id"] } },
+    PERSON,
+    app,
+    { "@type": "SoftwareSourceCode", "@id": `${SITE}/#code`, name: NAME, codeRepository: REPO, programmingLanguage: "Swift", license: "https://opensource.org/licenses/MIT", author: { "@id": PERSON["@id"] }, targetProduct: { "@id": app["@id"] } },
+    {
+      "@type": "WebPage", "@id": `${url(p)}#page`, url: url(p), name: p.title, description: p.description,
+      isPartOf: { "@id": `${SITE}/#site` }, about: { "@id": app["@id"] }, dateModified: p.lastmod, inLanguage: "en",
+      primaryImageOfPage: { "@type": "ImageObject", url: OG.url, width: OG.width, height: OG.height },
+      ...(p.crumb ? { breadcrumb: { "@id": `${url(p)}#crumbs` } } : {}),
+    },
+  ];
+  if (p.crumb) graph.push({
+    "@type": "BreadcrumbList", "@id": `${url(p)}#crumbs`,
+    itemListElement: [{ name: NAME, item: url(home) }, { name: p.crumb, item: url(p) }].map((c, i) => ({ "@type": "ListItem", position: i + 1, ...c })),
+  });
+  if (p.faq) graph.push({
+    "@type": "FAQPage", "@id": `${url(p)}#faq`, url: url(p),
+    mainEntity: FAQS[p.faq].map(f => ({ "@type": "Question", name: f.q, acceptedAnswer: { "@type": "Answer", text: plain(f.a) } })),
+  });
+  if (p === home) graph.push(
+    {
+      "@type": "HowTo", "@id": `${SITE}/#install`, name: "How to install Glasspad", description: "Install Glasspad on your Mac and iPhone with one command in Terminal.",
+      tool: NEEDS.map(n => ({ "@type": "HowToTool", name: n })),
+      step: HOWTO.map((s, i) => ({ "@type": "HowToStep", position: i + 1, name: s.name, text: s.text, url: `${SITE}/#get` })),
+    },
+    {
+      "@type": "VideoObject", "@id": `${SITE}/#film`, name: FILM.name, description: FILM.description,
+      thumbnailUrl: `${SITE}/film.jpg`, uploadDate: FILM.uploadDate, duration: FILM.duration,
+      embedUrl: `https://www.youtube-nocookie.com/embed/${FILM.id}`, url: `https://www.youtube.com/watch?v=${FILM.id}`,
+      about: { "@id": app["@id"] },
+    },
+  );
+  graph.push(...(p.schema ?? []));
+  return { "@context": "https://schema.org", "@graph": graph };
+}
+
+function head(p: Page): string {
+  const u = url(p);
+  return [
+    `<title>${esc(p.title)}</title>`,
+    `<meta name="description" content="${esc(p.description)}">`,
+    `<link rel="canonical" href="${u}">`,
+    `<meta name="theme-color" content="#F2F1EE">`,
+    `<link rel="icon" href="/favicon.ico" sizes="48x48">`,
+    `<link rel="icon" href="/icon.svg" type="image/svg+xml">`,
+    `<link rel="apple-touch-icon" href="/apple-touch-icon.png">`,
+    `<link rel="manifest" href="/site.webmanifest">`,
+    `<link rel="alternate" type="text/plain" href="/llms.txt" title="llms.txt">`,
+    `<meta property="og:type" content="${p.ogType ?? "website"}">`,
+    `<meta property="og:site_name" content="${NAME}">`,
+    `<meta property="og:locale" content="en_US">`,
+    `<meta property="og:url" content="${u}">`,
+    `<meta property="og:title" content="${esc(p.title)}">`,
+    `<meta property="og:description" content="${esc(p.description)}">`,
+    `<meta property="og:image" content="${OG.url}">`,
+    `<meta property="og:image:type" content="image/png">`,
+    `<meta property="og:image:width" content="${OG.width}">`,
+    `<meta property="og:image:height" content="${OG.height}">`,
+    `<meta property="og:image:alt" content="${esc(OG.alt)}">`,
+    `<meta name="twitter:card" content="summary_large_image">`,
+    `<meta name="twitter:title" content="${esc(p.title)}">`,
+    `<meta name="twitter:description" content="${esc(p.description)}">`,
+    `<meta name="twitter:image" content="${OG.url}">`,
+    `<meta name="twitter:image:alt" content="${esc(OG.alt)}">`,
+    `<script type="application/ld+json">${json(schema(p))}</script>`,
+  ].join("\n");
+}
+
+const faq = (p: Page) => `<dl class="faq">\n${FAQS[p.faq!].map(f => `<dt>${esc(f.q)}</dt>\n<dd>${f.a}</dd>`).join("\n")}\n</dl>`;
+
+function learn(): string {
+  const list = pages.filter(p => p.learn);
+  if (!list.length) return "";
+  return `<nav class="foot-links foot-learn wrap" aria-label="Learn"><span class="foot-h">Learn</span>${list.map(p => `<a href="${p.path}">${esc(p.learn!)}</a>`).join("")}</nav>`;
+}
+
+/** <img src="/x.png"> becomes <picture> with AVIF and WebP when /img/x.avif and .webp exist in public/. */
+function pictures(html: string, pub: string): string {
+  return html.replace(/<img\b[^>]*\bsrc="(\/[^"]+)\.(png|jpe?g)"[^>]*>/g, (tag, base: string) => {
+    const light = base.startsWith("/img/") ? base : "/img" + base;
+    if (!["avif", "webp"].every(x => existsSync(join(pub, `${light}.${x}`)))) return tag;
+    return `<picture><source type="image/avif" srcset="${light}.avif"><source type="image/webp" srcset="${light}.webp">${tag}</picture>`;
+  });
+}
+
+function sitemap(): string {
+  const rows = pages.map(p => `  <url>\n    <loc>${url(p)}</loc>\n    <lastmod>${p.lastmod}</lastmod>\n  </url>`);
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${rows.join("\n")}\n</urlset>\n`;
+}
+
+const facts = () => [
+  `- Made for: iPhone (iOS 18 or later) and Mac (macOS 14 or later)`,
+  `- Price: free. License: MIT. Source: ${REPO}`,
+  `- Latest version: ${VERSION}, released ${RELEASED}`,
+  `- Not on the App Store: one command in Terminal builds it with Xcode and installs it with a free Apple ID`,
+  `- Private: paired by QR code, encrypted, talks only over your Wi-Fi, no account`,
+  `- Made by Soham Aggarwal (https://sohamaggarwal.com)`,
+];
+
+function llms(): string {
+  return [
+    `# ${NAME}`,
+    "",
+    `> ${DEFINITION} It is a trackpad, a keyboard, media controls, your Dock, buttons for the app in front, a couch remote, a slide clicker, your displays, and layouts with up to three modes on one screen.`,
+    "",
+    ...facts(),
+    "",
+    "## Pages",
+    "",
+    ...pages.map(p => `- [${p.crumb ?? "Home"}](${url(p)}): ${p.summary}`),
+    "",
+    "## Links",
+    "",
+    ...LINKS.map(([t, h, d]) => `- [${t}](${h}): ${d}`),
+    "",
+  ].join("\n");
+}
+
+function llmsFull(): string {
+  const qa = (k: string) => FAQS[k].flatMap(f => [`### ${f.q}`, "", plain(f.a), ""]);
+  return [
+    `# ${NAME}`,
+    "",
+    `> ${DEFINITION} ${TAGLINE}`,
+    "",
+    "A small menu bar app on your Mac and an app on your iPhone, on the same Wi-Fi.",
+    "",
+    ...facts(),
+    "",
+    "## Features",
+    "",
+    ...FEATURES.map(([k, v]) => `- ${k}: ${v}`),
+    "",
+    "## Requirements",
+    "",
+    ...NEEDS.map(n => `- ${n}`),
+    "",
+    "## Install",
+    "",
+    "Paste this into Terminal on your Mac:",
+    "",
+    "```bash",
+    INSTALL,
+    "```",
+    "",
+    ...HOWTO.slice(1).map((s, i) => `${i + 1}. ${s.name}: ${s.text}`),
+    "",
+    "With a free Apple ID, apps you install yourself stop opening after 7 days. Your Mac checks every hour and reinstalls Glasspad over Wi-Fi once the install is 5 days old, as long as the Mac is on and the iPhone is on the same Wi-Fi at some point. It notifies you if it can't.",
+    "",
+    "## Questions",
+    "",
+    ...qa("home"),
+    ...qa("guide"),
+    "## Pages",
+    "",
+    ...pages.map(p => `- [${p.crumb ?? "Home"}](${url(p)}): ${p.summary}`),
+    "",
+    "## Links",
+    "",
+    ...LINKS.slice(0, -1).map(([t, h, d]) => `- [${t}](${h}): ${d}`),
+    "",
+  ].join("\n");
+}
+
+const FILES: Record<string, [string, () => string]> = {
+  "sitemap.xml": ["application/xml", sitemap],
+  "llms.txt": ["text/plain; charset=utf-8", llms],
+  "llms-full.txt": ["text/plain; charset=utf-8", llmsFull],
+};
+
+export function site(): Plugin {
+  let pub = "";
+  return {
+    name: "glasspad-site",
+    configResolved(c) { pub = c.publicDir; },
+    transformIndexHtml(html, ctx) {
+      const file = ctx.path.replace(/^\//, "");
+      const p = pages.find(x => x.file === file);
+      if (!p) throw new Error(`site: ${file} is not in site/pages.ts`);
+      for (const m of ["<!--site:head-->", "<!--site:learn-->"]) if (!html.includes(m)) throw new Error(`site: ${file} has no ${m}`);
+      if (p.faq && !html.includes("<!--site:faq-->")) throw new Error(`site: ${file} has no <!--site:faq-->`);
+      html = html.replace("<!--site:head-->", head(p)).replace("<!--site:learn-->", learn());
+      if (p.faq) html = html.replace("<!--site:faq-->", faq(p));
+      return pictures(html, pub);
+    },
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        const f = FILES[(req.url ?? "").replace(/^\//, "").split("?")[0]];
+        if (!f) return next();
+        res.setHeader("Content-Type", f[0]); res.end(f[1]());
+      });
+    },
+    generateBundle() {
+      for (const [fileName, [, make]] of Object.entries(FILES)) this.emitFile({ type: "asset", fileName, source: make() });
+    },
+  };
+}

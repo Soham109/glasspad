@@ -3,23 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Glasspad: a control surface for your Mac</title>
-<meta name="description" content="Glasspad turns your iPhone into a control surface for your Mac: a trackpad you can feel, a keyboard, media controls, your Dock, buttons for the app in front, a couch remote, a slide clicker, your displays and split screen layouts. Free, private and open source.">
-<meta name="theme-color" content="#F2F1EE">
 <script>document.documentElement.classList.add("js")</script>
-<link rel="icon" href="/icon.svg" type="image/svg+xml">
-<link rel="apple-touch-icon" href="/apple-touch-icon.png">
-<meta property="og:title" content="Glasspad">
-<meta property="og:description" content="A control surface for your Mac, on your iPhone. Free, private and open source.">
-<link rel="canonical" href="https://glasspad.sohamaggarwal.com/">
-<meta property="og:url" content="https://glasspad.sohamaggarwal.com/">
-<meta property="og:image" content="https://glasspad.sohamaggarwal.com/og-light.png">
-<meta property="og:image:width" content="1200">
-<meta property="og:image:height" content="630">
-<meta property="og:image:alt" content="Glasspad: a control surface for your Mac, on your iPhone">
-<meta name="twitter:image" content="https://glasspad.sohamaggarwal.com/og-light.png">
-<meta property="og:type" content="website">
-<meta name="twitter:card" content="summary_large_image">
+<!--site:head-->
 </head>
 <body>
 <a class="skip" href="#main">Skip to content</a>
@@ -118,7 +103,7 @@
   <div class="wrap">
     <div class="section-head center">
       <h2 id="try-title" class="reveal">Feel the trackpad.</h2>
-      <p class="lede reveal" data-touch-copy="Real gestures, and a tap you can feel on every click. Put one, two or three fingers on the phone." data-mouse-copy="Real gestures, and a tap you can feel on every click. Try it on the phone.">Real gestures, and a tap you can feel on every click. Try it on the phone.</p>
+      <p class="lede reveal" data-touch-copy="Your iPhone as a Mac trackpad: real gestures, and a tap you can feel on every click. Put one, two or three fingers on the phone." data-mouse-copy="Your iPhone as a Mac trackpad: real gestures, and a tap you can feel on every click. Try it on the phone.">Your iPhone as a Mac trackpad: real gestures, and a tap you can feel on every click. Try it on the phone.</p>
     </div>
 
     <div class="stage">
@@ -168,7 +153,7 @@
   <div class="wrap">
     <div class="section-head center">
       <h2 id="modes-title" class="reveal">Everything else, one touch away.</h2>
-      <p class="lede reveal">Switch modes with the button at the top of the screen.</p>
+      <p class="lede reveal">A keyboard, a remote, your Dock and more. Switch with the button at the top of the screen.</p>
     </div>
   </div>
   <div class="modes-scroll" id="modesScroll">
@@ -201,7 +186,7 @@
       <h2 id="dp-title" class="reveal">Every display, every window.</h2>
       <p class="lede reveal">Your displays as in System Settings, with every window on them. Drag a window to another display, touch and hold to tile it, and set brightness, resolution and Night Shift.</p>
     </div>
-    <div class="dp-stage" id="dpStage" aria-hidden="true"></div>
+    <div class="dp-stage" id="dpStage" role="img" aria-label="Displays on an iPhone held sideways: Mail is dragged from the MacBook to the Studio Display, then fills it"></div>
   </div>
 </section>
 
@@ -236,7 +221,7 @@
       <p class="lede reveal">Pair once with a QR code. Everything is encrypted, and your iPhone and Mac talk only over your Wi-Fi.</p>
     </div>
 
-    <div class="pair-stage" id="pairStage" aria-hidden="true"></div>
+    <div class="pair-stage" id="pairStage" role="img" aria-label="The Glasspad menu on a Mac shows a pairing code, and an iPhone scans it"></div>
 
   </div>
 </section>
@@ -365,6 +350,16 @@
   </div>
 </section>
 
+<!-- Questions: the list lives in site/content.ts -->
+<section class="questions" id="questions" aria-labelledby="faq-title">
+  <div class="wrap">
+    <div class="section-head center">
+      <h2 id="faq-title" class="reveal">Questions.</h2>
+    </div>
+    <!--site:faq-->
+  </div>
+</section>
+
 </main>
 
 <footer class="foot">
@@ -375,6 +370,7 @@
     <a href="https://github.com/Soham109/glasspad/blob/main/LICENSE">MIT License</a>
     <a class="foot-by" href="https://sohamaggarwal.com">Made by Soham Aggarwal</a>
   </nav>
+  <!--site:learn-->
   <p class="foot-credit wrap">Music in the film: <a href="https://commons.wikimedia.org/wiki/File:Uplifting_Electronic_Indie_by_WinnieTheMoog.ogg">&ldquo;Uplifting Electronic Indie&rdquo; by WinnieTheMoog</a>, <span style="white-space:nowrap">CC BY 4.0</span></p>
   <div class="foot-mark" aria-hidden="true"><span id="footMark">Glasspad</span></div>
 </footer>

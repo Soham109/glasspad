@@ -50,6 +50,7 @@ img, svg { display: block; }
 a { color: inherit; }
 button { font: inherit; color: inherit; }
 h1, h2, h3, p { margin: 0; }
+picture { display: contents; } /* <picture> wrappers added at build (site/plugin.ts) leave layout to the <img> */
 .sr-sprite { position: absolute; }
 :focus-visible { outline: 2px solid currentColor; outline-offset: 3px; border-radius: 6px; }
 
@@ -401,6 +402,8 @@ kbd { font-family: var(--font); }
 .foot-links { display: flex; gap: 24px; flex-wrap: wrap; font-size: 15px; }
 .foot-links a { text-decoration: none; color: var(--on-dark-2); transition: color 200ms; }
 .foot-links a:hover { color: var(--on-dark); }
+.foot-learn { margin-top: 16px; }
+.foot-h { font-weight: 600; }
 
 /* Responsive */
 @media (max-width: 860px) {
