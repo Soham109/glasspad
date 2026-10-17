@@ -22,6 +22,7 @@ final class LiveActivityController {
         }
     }
 
+    /// `active` is false only once the app is in the background (that is when the link drops).
     func sceneChanged(active: Bool) {
         sceneActive = active
         if active {

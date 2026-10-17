@@ -131,7 +131,8 @@ struct PairingFlowTests {
         flag.on = false
         c.refreshAccessibility()
         #expect(!c.accessibilityTrusted)
-        #expect(c.macStatus == MacStatus(accessibilityTrusted: false, automationMedia: c.automation, macName: "Test Mac"))
+        #expect(c.macStatus == MacStatus(accessibilityTrusted: false, automationMedia: c.automation, macName: "Test Mac",
+                                       followsAllPanes: true))
     }
 
     /// Reliability H5: a gesture choice in Settings applies at once (no restart), is saved, and

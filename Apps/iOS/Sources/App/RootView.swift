@@ -23,7 +23,8 @@ struct GlasspadApp: App {
             ScreenAwake.sceneActive = active
             ScreenAwake.update()
             MacSession.shared.setForeground(phase != .background)
-            LiveActivityController.shared.sceneChanged(active: active)
+            // Inactive (Control Center, a notification pulled down) keeps the link: not paused.
+            LiveActivityController.shared.sceneChanged(active: phase != .background)
         }
     }
 }

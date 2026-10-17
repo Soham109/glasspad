@@ -103,3 +103,31 @@ public struct KeepAwakeInputs: Equatable, Sendable {
         self.idle = idle
     }
 }
+
+/// When the dimming screens' idle check should look next. Touches only note the time; the
+/// check runs at the next moment something can change (the screen dims, or Keep Screen On lets
+/// go), finds out how long the screen has really been left alone, and sets itself again.
+public enum IdleDeadline {
+    /// While a sheet or the editor is on top nothing dims, but whether it is still there is
+    /// looked at this often (closing one also starts a fresh look).
+    public static let blockedPoll: TimeInterval = 5
+    /// Never sooner than this, so a deadline just passed does not spin.
+    public static let minimumWait: TimeInterval = 0.25
+
+    /// Seconds until the next look, or nil when nothing can change before the next touch.
+    /// - Parameters:
+    ///   - idle: seconds since the last touch.
+    ///   - dimDelay: the Dim After setting, 0 for never.
+    ///   - dimmed: the screen is dimmed already.
+    ///   - holdingAwake: Keep Screen On holds the phone awake now.
+    ///   - keepAwakeLimit: `PowerPolicy.keepAwakeLimit`.
+    ///   - blocked: something on top holds the screen as it is.
+    public static func next(idle: TimeInterval, dimDelay: TimeInterval, dimmed: Bool, holdingAwake: Bool,
+                            keepAwakeLimit: TimeInterval, blocked: Bool) -> TimeInterval? {
+        if blocked { return blockedPoll }
+        var waits: [TimeInterval] = []
+        if !dimmed, dimDelay > 0 { waits.append(dimDelay - idle) }
+        if holdingAwake { waits.append(keepAwakeLimit - idle) }
+        return waits.min().map { max(minimumWait, $0) }
+    }
+}

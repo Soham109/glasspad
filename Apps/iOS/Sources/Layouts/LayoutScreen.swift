@@ -98,6 +98,7 @@ struct LayoutScreen: View {
         #endif
         // The Mac follows one pane; a Dock pane it does not follow asks for the list again
         // every few seconds, so running apps stay current. Stops when the pane or link goes.
+        // A Mac that reads `modesShown` pushes Dock changes to every pane, so it needs no asking.
         .task(id: refreshesDock && session.isConnected) {
             guard refreshesDock && session.isConnected else { return }
             while !Task.isCancelled {
@@ -136,6 +137,7 @@ struct LayoutScreen: View {
 
     private var refreshesDock: Bool {
         LayoutWirePlan(modes: layout.shownModes.map(\.wireMode)).refreshesDock
+            && session.macStatus?.followsAllPanes != true
     }
 
     /// Light: a soft grey line. Dark: the panes sit a shade apart on a slightly lighter well.
