@@ -87,7 +87,7 @@ import Testing
 
     @Test func everyMessageAndPayloadRoundTripsOnTheWire() throws {
         let all = Self.everyMessage
-        #expect(Set(all.map(Self.covered)).count == 51)      // every case at least once
+        #expect(Set(all.map(Self.covered)).count == 52)      // every case at least once
         for m in all {
             let data = try ControlMessage.mode(m).jsonData()
             #expect(try ControlMessage.from(jsonData: data) == .mode(m), "\(m.tag)")
