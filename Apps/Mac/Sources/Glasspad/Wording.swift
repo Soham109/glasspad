@@ -26,7 +26,9 @@ enum PairingCopy {
     static func heading(_ phase: PairingPhase) -> String {
         switch phase {
         case .idle, .waiting: title
+        case .approving(let name): "Allow \(name)?"
         case .paired(let name): "Paired with \(name)"
+        case .declined: "Not Allowed"
         case .expired: "Code Expired"
         case .failed: "Pairing Did Not Finish"
         }
@@ -35,11 +37,21 @@ enum PairingCopy {
     static func detail(_ phase: PairingPhase) -> String {
         switch phase {
         case .idle, .waiting: instruction
+        case .approving: "Choose Allow or Don't Allow in the message on this Mac."
         case .paired: "Your iPhone now controls this Mac. Glasspad stays in the menu bar."
+        case .declined(let name): "\(name) cannot control this Mac. To pair an iPhone, show a new code."
         case .expired: "Codes work for \(Int(PairingFlow.codeLifetime / 60)) minutes. Show a new one to pair."
         case .failed(let message): "\(message) Try again, and keep both on the same Wi-Fi."
         }
     }
+}
+
+/// The question the Mac asks before a new iPhone may control it (ApprovalPrompt.swift).
+enum ApprovalCopy {
+    static func title(_ phoneName: String) -> String { "Allow \u{201C}\(phoneName)\u{201D} to control this Mac?" }
+    static let detail = "It can move the pointer, click and type on this Mac. Allow only your own iPhone."
+    static let allow = "Allow"
+    static let dontAllow = "Don't Allow"
 }
 
 // MARK: - Welcome

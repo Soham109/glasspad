@@ -9,6 +9,11 @@ public struct StoredPhone: Codable, Equatable, Sendable, Identifiable {
     public var phoneName: String
     public var pairKey: Data
     public var pairedAt: Date
+    /// True once `pairKey` was agreed with the phone (protocol 2). nil for a key copied from a
+    /// pairing code: every phone paired by 0.2.x and earlier, until its next protocol 2 connection.
+    public var agreed: Bool?
+    /// The key `pairKey` replaced, kept only until the phone says it saved the new one.
+    public var previousKey: Data?
     public var id: String { phoneID }
 
     public init(phoneID: String, phoneName: String, pairKey: Data, pairedAt: Date = Date()) {
@@ -143,6 +148,23 @@ public final class PairingStore: @unchecked Sendable {
 
     /// Stored key only (the transport handles the pending key itself).
     public func storedKey(for phoneID: String) -> Data? { phone(phoneID)?.pairKey }
+
+    /// What the transport needs for a phone (`GlasspadServer.keyLookup`).
+    public func phoneKey(for phoneID: String) -> PhoneKey? {
+        phone(phoneID).map { PhoneKey(key: $0.pairKey, agreed: $0.agreed == true, previous: $0.previousKey) }
+    }
+
+    /// Stores a key from the transport (`GlasspadServer.saveKey`): a new phone the person
+    /// allowed, an agreed key replacing a code's key, or dropping the key it replaced. A phone
+    /// already listed keeps when it was first paired.
+    public func saveKey(_ phone: PairedPhone, _ key: PhoneKey) throws {
+        var stored = self.phone(phone.phoneID) ?? StoredPhone(phoneID: phone.phoneID, phoneName: phone.phoneName, pairKey: key.key)
+        stored.phoneName = phone.phoneName
+        stored.pairKey = key.key
+        stored.agreed = key.agreed ? true : nil
+        stored.previousKey = key.previous
+        try store.set(try JSONEncoder().encode(stored), for: Self.phonePrefix + phone.phoneID)
+    }
 
     /// Saves a phone the transport just paired (GlasspadServer.onPaired) and clears the pending key.
     @discardableResult

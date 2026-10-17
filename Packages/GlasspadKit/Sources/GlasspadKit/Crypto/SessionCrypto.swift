@@ -36,11 +36,21 @@ public struct SessionCrypto: Sendable {
     /// Bit i set = counter (udpHighest - i) has been seen.
     private var udpSeen: UInt64 = 0
 
+    /// Protocol 1: the session key comes from the pair key and the two nonces only.
     public init(pairKey: Data, phoneNonce: Data, macNonce: Data, role: Role) {
         var salt = phoneNonce
         salt.append(macNonce)
-        key = HKDF<SHA256>.deriveKey(inputKeyMaterial: SymmetricKey(data: pairKey), salt: salt,
-                                     info: Self.info, outputByteCount: 32)
+        self.init(key: HKDF<SHA256>.deriveKey(inputKeyMaterial: SymmetricKey(data: pairKey), salt: salt,
+                                              info: Self.info, outputByteCount: 32), role: role)
+    }
+
+    /// Protocol 2: a session key from `KeyAgreement.derive`.
+    public init(sessionKey: Data, role: Role) {
+        self.init(key: SymmetricKey(data: sessionKey), role: role)
+    }
+
+    private init(key: SymmetricKey, role: Role) {
+        self.key = key
         let p2m: [UInt8] = Array("P2M\0".utf8), m2p: [UInt8] = Array("M2P\0".utf8)
         let p2mu: [UInt8] = Array("P2MU".utf8), m2pu: [UInt8] = Array("M2PU".utf8)
         switch role {

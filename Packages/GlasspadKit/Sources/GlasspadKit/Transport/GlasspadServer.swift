@@ -5,11 +5,16 @@ import Network
 /// Mac side of the link: TCP control listener + UDP touch listener, Bonjour advertising,
 /// handshake, one active phone session, ping/pong RTT stats.
 ///
-/// Pairing: `pairKeyLookup(phoneID)` returns the stored key for a known phone. If it returns nil
-/// and `pendingPairKey` is set (the QR code is on screen), the phone is accepted with that key
-/// once it proves it holds it; then `onPaired` fires and `pendingPairKey` is cleared. The app
-/// stores the new phone. `pairKeyLookup` runs on the server's private queue; it must not call
-/// back into the server synchronously.
+/// Pairing: `keyLookup(phoneID)` returns the stored key for a known phone. If there is none and
+/// a pairing code is armed (`armPairing`, the QR code is on screen and not expired), a phone that
+/// proves it holds the code's key is a new phone. With protocol 2 the two sides then agree a new
+/// pair key (`KeyAgreement`), `approveNewPhone` asks the person at the Mac, `saveKey` stores the
+/// agreed key, and `onPaired` fires. The code's key is never kept as the phone's key.
+///
+/// Phones paired before protocol 2 keep their code's key until their next protocol 2
+/// connection, which replaces it the same way (no question asked: they were allowed already).
+/// `keyLookup` and `saveKey` run on the server's private queue; they must not call back into the
+/// server synchronously.
 ///
 /// Thread safety: every public member may be called from any thread.
 public final class GlasspadServer: @unchecked Sendable {
@@ -20,10 +25,28 @@ public final class GlasspadServer: @unchecked Sendable {
         get { delegateBox.get().value }
         set { delegateBox.set(WeakDelegate(value: newValue)) }
     }
-    /// The key in the QR code currently shown, accepted once for a phone the Mac does not know yet.
+    /// The key in the QR code currently shown, accepted once for a phone the Mac does not know yet,
+    /// and only until the code expires (nil once it has). Setting it arms it for
+    /// `GlasspadService.pairingCodeLifetime`; `armPairing` takes an explicit end.
     public var pendingPairKey: Data? {
-        get { pendingKey.get() }
-        set { pendingKey.set(newValue) }
+        get { pendingKey.get().flatMap { Date() < $0.expiresAt ? $0.key : nil } }
+        set { pendingKey.set(newValue.map { ($0, Date().addingTimeInterval(GlasspadService.pairingCodeLifetime)) }) }
+    }
+    /// Arms a pairing code's key until `expiresAt` (wall-clock time, so a Mac that slept past it,
+    /// or a main thread that stalled, cannot keep the code alive).
+    public func armPairing(key: Data, expiresAt: Date) { pendingKey.set((key, expiresAt)) }
+    /// Asked on the delegate queue before a new phone is saved: answer true to allow it. Answer
+    /// within `GlasspadService.approvalTimeout`; later, or never, counts as no. nil allows every
+    /// phone that proved it holds the code (tests only).
+    public var approveNewPhone: (@Sendable (PairedPhone, @escaping @Sendable (Bool) -> Void) -> Void)? {
+        get { approver.get() }
+        set { approver.set(newValue) }
+    }
+    /// Called on the delegate queue when a new phone that proved it holds the code was not
+    /// saved: Don't Allow, no answer, the phone left while waiting, or the key could not be saved.
+    public var onPairingFailed: (@Sendable (PairedPhone, PairingFailure) -> Void)? {
+        get { failedHandler.get() }
+        set { failedHandler.set(newValue) }
     }
     /// Called on the delegate queue after a new phone completed pairing.
     public var onPaired: (@Sendable (PairedPhone) -> Void)? {
@@ -58,7 +81,8 @@ public final class GlasspadServer: @unchecked Sendable {
     /// True once mDNSResponder confirmed the Bonjour service is published.
     public var isAdvertising: Bool { advertisingBox.get() }
 
-    private let pairKeyLookup: @Sendable (String) -> Data?
+    private let keyLookup: @Sendable (String) -> PhoneKey?
+    private let saveKey: (@Sendable (PairedPhone, PhoneKey) throws -> Void)?
     private let requestedTCPPort: UInt16
     private let requestedUDPPort: UInt16
     private let advertise: Bool
@@ -66,7 +90,9 @@ public final class GlasspadServer: @unchecked Sendable {
     private let delegateQueue: DispatchQueue
 
     private let delegateBox = Locked(WeakDelegate())
-    private let pendingKey = Locked<Data?>(nil)
+    private let pendingKey = Locked<(key: Data, expiresAt: Date)?>(nil)
+    private let approver = Locked<(@Sendable (PairedPhone, @escaping @Sendable (Bool) -> Void) -> Void)?>(nil)
+    private let failedHandler = Locked<(@Sendable (PairedPhone, PairingFailure) -> Void)?>(nil)
     private let pairedHandler = Locked<(@Sendable (PairedPhone) -> Void)?>(nil)
     private let sessionHandler = Locked<(@Sendable (PairedPhone) -> Void)?>(nil)
     private let wakeOverride = Locked<WakeTarget?>(nil)
@@ -110,15 +136,28 @@ public final class GlasspadServer: @unchecked Sendable {
     static let maxPendingHandshakes = 8
 
     final class Session: @unchecked Sendable {
-        enum Phase { case awaitingHello, awaitingConfirm, authenticated }
+        enum Phase { case awaitingHello, awaitingConfirm, awaitingApproval, authenticated }
+        /// Where a key the phone might hold came from.
+        enum KeySource { case stored, previous, pending }
+        /// One key the phone might hold, with the session keys it gives. The phone's
+        /// confirmation shows which one it is.
+        struct Candidate {
+            var source: KeySource
+            var key: Data
+            var crypto: SessionCrypto
+            /// The pair key agreed on this connection (protocol 2 with rekey).
+            var newKey: Data?
+        }
         let channel: ControlChannel
         var phase = Phase.awaitingHello
         var crypto: SessionCrypto?
-        /// A known phone while the QR code is up: the session keys from the pending key, tried
-        /// when the stored key fails (the phone scanned the QR code again and replaced its key).
-        var pendingCrypto: (crypto: SessionCrypto, key: Data)?
+        var candidates: [Candidate] = []
+        /// The candidate the phone's confirmation matched.
+        var matched: Candidate?
         var phone: PairedPhone?
         var isNewPairing = false
+        /// After a rekey: the phone has not said it saved the new key yet.
+        var awaitingKeySaved = false
         var udp: NWConnection?
         let acceptedAt = uptime()
         init(channel: ControlChannel) { self.channel = channel }
@@ -127,16 +166,29 @@ public final class GlasspadServer: @unchecked Sendable {
     /// - Parameters:
     ///   - tcpPort, udpPort: 0 picks free ports.
     ///   - advertise: publish `_glasspad._tcp` over Bonjour (tests turn it off).
-    ///   - pairKeyLookup: phoneID -> stored pair key, nil if unknown or revoked.
+    ///   - keyLookup: phoneID -> what is stored for that phone, nil if unknown or revoked.
+    ///   - saveKey: stores a phone's key (a new phone after it was allowed, an agreed key that
+    ///     replaces a code's key, or the same key once the old one can go). Throwing refuses the
+    ///     connection. nil keeps nothing: then only new phones get an agreed key (in `onPaired`).
     public init(macID: UUID, macName: String, tcpPort: UInt16 = 0, udpPort: UInt16 = 0, advertise: Bool = true,
-                delegateQueue: DispatchQueue = .main, pairKeyLookup: @escaping @Sendable (String) -> Data?) {
+                delegateQueue: DispatchQueue = .main, keyLookup: @escaping @Sendable (String) -> PhoneKey?,
+                saveKey: (@Sendable (PairedPhone, PhoneKey) throws -> Void)?) {
         self.macID = macID
         self.macName = macName
         self.requestedTCPPort = tcpPort
         self.requestedUDPPort = udpPort
         self.advertise = advertise
         self.delegateQueue = delegateQueue
-        self.pairKeyLookup = pairKeyLookup
+        self.keyLookup = keyLookup
+        self.saveKey = saveKey
+    }
+
+    /// Tests: phones with fixed keys from pairing codes, and nothing saved.
+    public convenience init(macID: UUID, macName: String, tcpPort: UInt16 = 0, udpPort: UInt16 = 0, advertise: Bool = true,
+                            delegateQueue: DispatchQueue = .main, pairKeyLookup: @escaping @Sendable (String) -> Data?) {
+        self.init(macID: macID, macName: macName, tcpPort: tcpPort, udpPort: udpPort, advertise: advertise,
+                  delegateQueue: delegateQueue, keyLookup: { id in pairKeyLookup(id).map { PhoneKey(key: $0, agreed: false) } },
+                  saveKey: nil)
     }
 
     deinit {
@@ -373,7 +425,7 @@ public final class GlasspadServer: @unchecked Sendable {
         }
         s.channel.start()
         queue.asyncAfter(deadline: .now() + handshakeTimeout) { [weak s] in
-            guard let s, s.phase != .authenticated else { return }
+            guard let s, s.phase == .awaitingHello || s.phase == .awaitingConfirm else { return }
             s.channel.close("handshake timeout")
         }
     }
@@ -383,35 +435,10 @@ public final class GlasspadServer: @unchecked Sendable {
         case .awaitingHello:
             handleHello(data, from: s)
         case .awaitingConfirm:
-            let alt = s.pendingCrypto
-            s.pendingCrypto = nil
-            if var c = s.crypto, let plain = try? c.openTCP(data), plain == handshakeConfirmToken {
-                s.crypto = c
-            } else if var c = alt?.crypto, let key = alt?.key, let plain = try? c.openTCP(data), plain == handshakeConfirmToken {
-                s.crypto = c
-                s.phone?.pairKey = key
-                s.isNewPairing = true
-            } else {
-                statsBox.mutate { $0.authFailures += 1 }
-                s.channel.close("key confirmation failed")
-                return
-            }
-            guard let phone = s.phone else { return }
-            // The phone may have been revoked since its hello: ask again, so a Forget that lands
-            // mid-handshake never lets the phone in for the whole session.
-            if !s.isNewPairing, pairKeyLookup(phone.phoneID) != phone.pairKey {
-                s.channel.close("revoked during handshake")
-                return
-            }
-            s.phase = .authenticated
-            s.channel.maxIncomingFrame = GlasspadService.maxFrameLength
-            if s.isNewPairing {
-                pendingKey.mutate { if $0 == phone.pairKey { $0 = nil } }
-                let handler = pairedHandler.get()
-                delegateQueue.async { handler?(phone) }
-            }
-            sendRaw(handshakeConfirmToken, on: s)
-            activate(s)
+            handleConfirm(data, from: s)
+        case .awaitingApproval:
+            // The phone sends nothing more until the Mac answers.
+            s.channel.close("unexpected frame while waiting for approval")
         case .authenticated:
             guard s.crypto != nil else { return }
             let plain: Data
@@ -430,7 +457,10 @@ public final class GlasspadServer: @unchecked Sendable {
                 return
             }
             switch msg {
-            case .unknown: return      // a newer phone's message: ignore it, keep the session
+            case .unknown(let type):
+                // The phone saved the agreed key; anything else is a newer phone's message.
+                if type == "keySaved" { keySaved(on: s) }
+                return
             case .pong(let id): handlePong(id)
             case .ping(let id): send(.pong(id: id), on: s)
             case .bye:
@@ -444,33 +474,189 @@ public final class GlasspadServer: @unchecked Sendable {
         }
     }
 
+    /// Tests only: refuse protocol 2 the way a 0.2.x Mac does. Set before phones connect.
+    var acceptsOnlyProtocol1ForTesting = false
+
     private func handleHello(_ data: Data, from s: Session) {
         guard let hello = try? JSONDecoder().decode(PhoneHello.self, from: data), hello.t == "hello" else {
             return reject(s, "bad hello")
         }
-        guard hello.v == GlasspadService.protocolVersion else { return reject(s, "unsupported version \(hello.v)") }
+        let legacy = hello.v == GlasspadService.legacyProtocolVersion
+        guard hello.v == GlasspadService.protocolVersion || legacy, !(acceptsOnlyProtocol1ForTesting && !legacy) else {
+            return reject(s, "unsupported version \(hello.v)")
+        }
         guard hello.macID == macID else { return reject(s, "wrong mac") }
         guard hello.nonce.count == 16 else { return reject(s, "bad nonce") }
         guard let udpPort else { return reject(s, "not ready") }
-        var key = pairKeyLookup(hello.phoneID)
-        var isNew = false
-        if key == nil, let pend = pendingKey.get() {
-            key = pend
-            isNew = true
-        }
-        guard let key else { return reject(s, "not paired") }
+        let stored = keyLookup(hello.phoneID)
+        let pending = pendingPairKey
         let macNonce = randomBytes(16)
-        s.crypto = SessionCrypto(pairKey: key, phoneNonce: hello.nonce, macNonce: macNonce, role: .mac)
-        s.phone = PairedPhone(phoneID: hello.phoneID, phoneName: hello.phoneName, pairKey: key)
-        s.isNewPairing = isNew
-        if !isNew, let pend = pendingKey.get(), pend != key {
-            s.pendingCrypto = (SessionCrypto(pairKey: pend, phoneNonce: hello.nonce, macNonce: macNonce, role: .mac), pend)
+        let reply: MacHello
+        if legacy {
+            // A 0.2.x phone: only a key it was paired with before, and only while that key is
+            // still a code's key. Pairing (or a phone already moved to an agreed key) needs 2.
+            if acceptsOnlyProtocol1ForTesting, stored == nil, let pending {
+                // As 0.2.x did: the code's key becomes the phone's key.
+                s.candidates = [Session.Candidate(source: .pending, key: pending,
+                                                  crypto: SessionCrypto(pairKey: pending, phoneNonce: hello.nonce,
+                                                                        macNonce: macNonce, role: .mac))]
+            }
+            guard let stored else {
+                if !s.candidates.isEmpty {
+                    return finishHello(s, hello, MacHello(v: GlasspadService.legacyProtocolVersion, nonce: macNonce, udpPort: udpPort))
+                }
+                return reject(s, pending == nil ? "not paired" : GlasspadService.updatePhoneReason)
+            }
+            guard !stored.agreed else { return reject(s, GlasspadService.updatePhoneReason) }
+            s.candidates = [Session.Candidate(source: .stored, key: stored.key,
+                                              crypto: SessionCrypto(pairKey: stored.key, phoneNonce: hello.nonce,
+                                                                    macNonce: macNonce, role: .mac))]
+            reply = MacHello(v: GlasspadService.legacyProtocolVersion, nonce: macNonce, udpPort: udpPort)
+        } else {
+            guard let phonePublic = hello.kx, phonePublic.count == KeyAgreement.publicKeyLength else {
+                return reject(s, "bad key")
+            }
+            // Rekey when the phone's key is still a code's key. Without a place to save keys
+            // (tests) only a brand new phone is rekeyed, as `onPaired` hands its key over.
+            let rekey = hello.rekey == true && (saveKey != nil || stored == nil)
+            var keys: [(Session.KeySource, Data)] = []
+            if let stored { keys.append((.stored, stored.key)) }
+            if rekey, let previous = stored?.previous, previous != stored?.key { keys.append((.previous, previous)) }
+            if rekey, let pending, pending != stored?.key { keys.append((.pending, pending)) }
+            guard !keys.isEmpty else { return reject(s, "not paired") }
+            let mine = KeyAgreement.makeKeyPair()
+            let macPublic = mine.publicKey.rawRepresentation
+            do {
+                s.candidates = try keys.map { source, key in
+                    let derived = try KeyAgreement.derive(privateKey: mine, peerPublicKey: phonePublic, pairKey: key,
+                                                          phoneNonce: hello.nonce, macNonce: macNonce,
+                                                          phonePublicKey: phonePublic, macPublicKey: macPublic, rekey: rekey)
+                    return Session.Candidate(source: source, key: key,
+                                             crypto: SessionCrypto(sessionKey: derived.sessionKey, role: .mac),
+                                             newKey: derived.newPairKey)
+                }
+            } catch {
+                return reject(s, "bad key")
+            }
+            reply = MacHello(nonce: macNonce, udpPort: udpPort, kx: macPublic, rekey: rekey)
         }
+        finishHello(s, hello, reply)
+    }
+
+    private func finishHello(_ s: Session, _ hello: PhoneHello, _ reply: MacHello) {
+        s.phone = PairedPhone(phoneID: hello.phoneID, phoneName: hello.phoneName, pairKey: Data())
         s.phase = .awaitingConfirm
         if active == nil { setState(.connecting) }
-        if let json = try? JSONEncoder().encode(MacHello(nonce: macNonce, udpPort: udpPort)) {
+        if let json = try? JSONEncoder().encode(reply) {
             s.channel.send(json)
         }
+    }
+
+    /// The phone's key confirmation: find which key it holds, then let it in (a new phone once
+    /// the person at the Mac allows it).
+    private func handleConfirm(_ data: Data, from s: Session) {
+        var found: Session.Candidate?
+        for var c in s.candidates {
+            if let plain = try? c.crypto.openTCP(data), plain == handshakeConfirmToken {
+                found = c
+                break
+            }
+        }
+        s.candidates = []
+        guard let match = found, var phone = s.phone else {
+            statsBox.mutate { $0.authFailures += 1 }
+            s.channel.close("key confirmation failed")
+            return
+        }
+        s.crypto = match.crypto
+        s.matched = match
+        s.isNewPairing = match.source == .pending
+        phone.pairKey = match.newKey ?? match.key
+        s.phone = phone
+        if !s.isNewPairing {
+            // The phone may have been revoked since its hello: ask again, so a Forget that lands
+            // mid-handshake never lets the phone in for the whole session.
+            let now = keyLookup(phone.phoneID)
+            let still = match.source == .stored ? now?.key == match.key : now?.previous == match.key
+            guard still else {
+                s.channel.close("revoked during handshake")
+                return
+            }
+            return admit(s)
+        }
+        // A new phone: the code is used up, whatever the answer.
+        pendingKey.mutate { if $0?.key == match.key { $0 = nil } }
+        guard let approve = approver.get() else { return admit(s) }
+        s.phase = .awaitingApproval
+        sendRaw(approvalWaitToken, on: s)
+        GPLog.log("server: asking whether to allow \(phone.phoneName)")
+        queue.asyncAfter(deadline: .now() + GlasspadService.approvalTimeout + 5) { [weak self, weak s] in
+            guard let self, let s else { return }
+            self.approvalAnswered(s, allowed: false)
+        }
+        let answer: @Sendable (Bool) -> Void = { [weak self, weak s] allowed in
+            guard let server = self else { return }
+            server.queue.async { [weak s] in
+                guard let s else { return }
+                server.approvalAnswered(s, allowed: allowed)
+            }
+        }
+        delegateQueue.async { approve(phone, answer) }
+    }
+
+    private func approvalAnswered(_ s: Session, allowed: Bool) {
+        guard s.phase == .awaitingApproval, handshaking[ObjectIdentifier(s)] === s, let phone = s.phone else { return }
+        if allowed { return admit(s) }
+        GPLog.log("server: \(phone.phoneName) was not allowed")
+        s.phase = .awaitingHello      // so closing it reports nothing more
+        pairingFailed(phone, .notAllowed)
+        guard s.crypto != nil, let sealed = try? s.crypto!.sealTCP(approvalDeniedToken) else {
+            return s.channel.close("not allowed")
+        }
+        s.channel.sendThenClose(sealed, reason: "not allowed")
+    }
+
+    /// Saves what changed, confirms to the phone and makes the session the active one.
+    private func admit(_ s: Session) {
+        guard let match = s.matched, let phone = s.phone else { return }
+        if let newKey = match.newKey {
+            if let saveKey {
+                do {
+                    try saveKey(phone, PhoneKey(key: newKey, agreed: true, previous: match.key))
+                } catch {
+                    GPLog.log("server: could not save the key for \(phone.phoneName): \(error)")
+                    if s.isNewPairing { pairingFailed(phone, .notSaved) }
+                    s.phase = .awaitingHello
+                    return s.channel.close("could not save the key")
+                }
+            }
+            s.awaitingKeySaved = saveKey != nil
+        } else if match.source == .stored, let saveKey, let now = keyLookup(phone.phoneID), now.previous != nil {
+            // The phone connected with the agreed key, so it has it: the old one can go.
+            try? saveKey(phone, PhoneKey(key: now.key, agreed: now.agreed))
+        }
+        s.phase = .authenticated
+        s.channel.maxIncomingFrame = GlasspadService.maxFrameLength
+        if s.isNewPairing {
+            let handler = pairedHandler.get()
+            delegateQueue.async { handler?(phone) }
+        }
+        sendRaw(handshakeConfirmToken, on: s)
+        activate(s)
+    }
+
+    /// The phone saved the agreed key: forget the one it replaced (unless the phone was
+    /// forgotten or paired again meanwhile).
+    private func keySaved(on s: Session) {
+        guard s.awaitingKeySaved, let phone = s.phone, let saveKey else { return }
+        s.awaitingKeySaved = false
+        guard let now = keyLookup(phone.phoneID), now.key == phone.pairKey, now.previous != nil else { return }
+        try? saveKey(phone, PhoneKey(key: now.key, agreed: true))
+    }
+
+    private func pairingFailed(_ phone: PairedPhone, _ why: PairingFailure) {
+        let handler = failedHandler.get()
+        delegateQueue.async { handler?(phone, why) }
     }
 
     private func reject(_ s: Session, _ reason: String) {
@@ -527,6 +713,10 @@ public final class GlasspadServer: @unchecked Sendable {
 
     private func closed(_ s: Session, reason: String?) {
         handshaking.removeValue(forKey: ObjectIdentifier(s))
+        if s.phase == .awaitingApproval, let phone = s.phone {
+            s.phase = .awaitingHello
+            pairingFailed(phone, .phoneLeft)
+        }
         guard s === active else {
             if active == nil, running, case .connecting = stateBox.get(), handshaking.isEmpty { setState(restingState) }
             return

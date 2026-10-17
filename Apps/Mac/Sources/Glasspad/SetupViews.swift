@@ -185,7 +185,7 @@ struct PairingPanel: View {
         case .paired:
             PairingCodeView(message: lastMessage ?? Self.placeholder, size: qrSize,
                             phase: .gathered(since: pairedAt ?? .distantPast), fixedTime: fixedTime)
-        case .expired, .failed:
+        case .approving, .declined, .expired, .failed:
             PairingCodeView(message: lastMessage ?? Self.placeholder, size: qrSize, phase: .resting, fixedTime: fixedTime)
         }
     }
@@ -226,7 +226,7 @@ struct PairingPanel: View {
                 try? await Task.sleep(for: .seconds(Self.finishDelay - PairingPattern.gatherDuration * 0.7))
                 if case .paired = model.pairing { onFinished() }
             }
-        case .expired, .failed:
+        case .approving:
             VStack(spacing: 4) {
                 Text(PairingCopy.heading(model.pairing))
                     .font(.headline)
@@ -238,7 +238,21 @@ struct PairingPanel: View {
             }
             .multilineTextAlignment(.center)
             .accessibilityElement(children: .combine)
-            Button(model.pairing == .expired ? PairingCopy.newCode : PairingCopy.tryAgain) { model.actions.beginPairing() }
+        case .declined, .expired, .failed:
+            VStack(spacing: 4) {
+                Text(PairingCopy.heading(model.pairing))
+                    .font(.headline)
+                    .accessibilityAddTraits(.isHeader)
+                Text(PairingCopy.detail(model.pairing))
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .multilineTextAlignment(.center)
+            .accessibilityElement(children: .combine)
+            Button(model.pairing == .expired || model.pairing.isDeclined ? PairingCopy.newCode : PairingCopy.tryAgain) {
+                model.actions.beginPairing()
+            }
                 .keyboardShortcut(.defaultAction)
         }
     }

@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 import Network
 
@@ -23,7 +24,20 @@ import Network
 public final class GlasspadClient: @unchecked Sendable {
     public let phoneID: String
     public let phoneName: String
+    /// The Mac and the key this client started with (`pairKey` may have moved on since).
     public let pairing: PairingPayload
+    /// Called on the client's queue, before the session is reported connected, when this
+    /// connection agreed a new pair key with the Mac. Save it at once and return whether that
+    /// worked: only then is the Mac told, and it forgets the old key. Keep it quick: it holds the
+    /// connection up. nil keeps the key in memory only (tests).
+    public var onNewPairKey: (@Sendable (Data) -> Bool)? {
+        get { newKeyHandler.get() }
+        set { newKeyHandler.set(newValue) }
+    }
+    /// The pair key in use: the pairing's, or the one agreed since.
+    public var pairKey: Data { keyBox.get().key }
+    /// True once the key in use was agreed with the Mac (protocol 2), not copied from a code.
+    public var keyAgreed: Bool { keyBox.get().agreed }
 
     public weak var delegate: (any GlasspadLinkDelegate)? {
         get { delegateBox.get().value }
@@ -92,11 +106,21 @@ public final class GlasspadClient: @unchecked Sendable {
     private let pathBox = Locked<LinkPath?>(nil)
     private let issueBox = Locked<LinkIssue?>(nil)
     private let issueHandler = Locked<(@Sendable (LinkIssue?) -> Void)?>(nil)
+    private let newKeyHandler = Locked<(@Sendable (Data) -> Bool)?>(nil)
+    private let keyBox: Locked<(key: Data, agreed: Bool)>
+    /// The Mac refused protocol 2 (a 0.2.x Mac): say hello in protocol 1 from now on. Only while
+    /// the key is still a code's key; an agreed key never goes back (queue-confined).
+    private var useLegacyHello = false
+    /// The Mac is asking the person there whether to allow this phone (queue-confined).
+    private var awaitingApproval = false
+    /// The pair key this connection agreed, kept until the Mac's confirmation (queue-confined).
+    private var agreedKey: Data?
     /// Connections that failed before TCP even opened, in a row (queue-confined).
     private var connectFailures = ConnectFailureTracker()
 
     private enum Target { case bonjour, direct(host: String, port: UInt16) }
-    private enum Phase { case hello(nonce: Data), confirm, connected }
+    /// `key` is this connection's X25519 private key (nil for a protocol 1 hello).
+    private enum Phase { case hello(nonce: Data, key: Curve25519.KeyAgreement.PrivateKey?), confirm, connected }
 
     // Queue-confined state.
     private var target: Target?
@@ -171,10 +195,14 @@ public final class GlasspadClient: @unchecked Sendable {
     /// Snapshot resends stop after this long without a frame from the app.
     static let maxResendAge: TimeInterval = 30
 
-    public init(phoneID: String, phoneName: String, pairing: PairingPayload, delegateQueue: DispatchQueue = .main) {
+    /// - Parameter keyAgreed: the pairing's key was agreed with the Mac before (`onNewPairKey`);
+    ///   false for a key straight from a pairing code, which the first connection replaces.
+    public init(phoneID: String, phoneName: String, pairing: PairingPayload, keyAgreed: Bool = false,
+                delegateQueue: DispatchQueue = .main) {
         self.phoneID = phoneID
         self.phoneName = phoneName
         self.pairing = pairing
+        self.keyBox = Locked((pairing.pairKey, keyAgreed))
         self.delegateQueue = delegateQueue
     }
 
@@ -465,7 +493,7 @@ public final class GlasspadClient: @unchecked Sendable {
         }
         ch.start()
         queue.asyncAfter(deadline: .now() + GlasspadService.handshakeTimeout) { [weak self] in
-            guard let self, gen == self.generation else { return }
+            guard let self, gen == self.generation, !self.awaitingApproval else { return }
             if case .connected = self.phase { return }
             self.channel?.close("handshake timeout")
         }
@@ -521,7 +549,7 @@ public final class GlasspadClient: @unchecked Sendable {
             }
             self.sendHello()
             self.queue.asyncAfter(deadline: .now() + Self.probeHandshakeTimeout) { [weak self] in
-                guard let self, gen == self.generation, self.channelFromLastAddress else { return }
+                guard let self, gen == self.generation, self.channelFromLastAddress, !self.awaitingApproval else { return }
                 if case .connected = self.phase { return }
                 GPLog.log("tcp: no handshake on the last address, looking the Mac up instead")
                 self.retryWithoutLastAddress()
@@ -552,23 +580,46 @@ public final class GlasspadClient: @unchecked Sendable {
         open()
     }
 
+    /// Tests only: behave like a 0.2.x phone (protocol 1 hellos, whatever the key). Set before
+    /// connecting.
+    var speaksOnlyProtocol1ForTesting = false
+
     private func sendHello() {
         let nonce = randomBytes(16)
-        phase = .hello(nonce: nonce)
-        let hello = PhoneHello(phoneID: phoneID, phoneName: phoneName, macID: pairing.macID, nonce: nonce)
+        let agreed = keyBox.get().agreed
+        let hello: PhoneHello
+        if (useLegacyHello && !agreed) || speaksOnlyProtocol1ForTesting {
+            phase = .hello(nonce: nonce, key: nil)
+            hello = PhoneHello(v: GlasspadService.legacyProtocolVersion, phoneID: phoneID, phoneName: phoneName,
+                               macID: pairing.macID, nonce: nonce)
+        } else {
+            let mine = KeyAgreement.makeKeyPair()
+            phase = .hello(nonce: nonce, key: mine)
+            hello = PhoneHello(phoneID: phoneID, phoneName: phoneName, macID: pairing.macID, nonce: nonce,
+                               kx: mine.publicKey.rawRepresentation, rekey: agreed ? nil : true)
+        }
         if let json = try? JSONEncoder().encode(hello) { channel?.send(json) }
     }
 
     private func handleFrame(_ data: Data) {
         lastReceived = uptime()
         switch phase {
-        case .hello(let nonce)?:
+        case .hello(let nonce, let mine)?:
             guard let tag = try? JSONDecoder().decode(HandshakeTag.self, from: data) else {
                 channel?.close("bad hello")
                 return
             }
             if tag.t == "reject" {
                 let reason = (try? JSONDecoder().decode(HandshakeReject.self, from: data))?.reason ?? "rejected"
+                if mine != nil, !keyBox.get().agreed, reason.hasPrefix("unsupported version") {
+                    // A Mac on 0.2.x. It still knows this phone by the code's key: talk to it as
+                    // before. The key is replaced once that Mac speaks protocol 2.
+                    GPLog.log("tcp: the Mac does not know protocol \(GlasspadService.protocolVersion), using \(GlasspadService.legacyProtocolVersion)")
+                    useLegacyHello = true
+                    teardown()
+                    open()
+                    return
+                }
                 if channelFromLastAddress {
                     // Something else lives at that address now (another Mac). Not a refusal
                     // from this Mac: look it up properly.
@@ -584,14 +635,63 @@ public final class GlasspadClient: @unchecked Sendable {
                 channel?.close("bad hello")
                 return
             }
-            crypto = SessionCrypto(pairKey: pairing.pairKey, phoneNonce: nonce, macNonce: hello.nonce, role: .phone)
+            let key = keyBox.get().key
+            if let mine {
+                // Protocol 2: a Mac that sends no public key is not the Mac this phone asked.
+                let phonePublic = mine.publicKey.rawRepresentation
+                guard hello.v == GlasspadService.protocolVersion, let macPublic = hello.kx,
+                      let keys = try? KeyAgreement.derive(privateKey: mine, peerPublicKey: macPublic, pairKey: key,
+                                                          phoneNonce: nonce, macNonce: hello.nonce,
+                                                          phonePublicKey: phonePublic, macPublicKey: macPublic,
+                                                          rekey: hello.rekey == true)
+                else {
+                    channel?.close("bad hello")
+                    return
+                }
+                crypto = SessionCrypto(sessionKey: keys.sessionKey, role: .phone)
+                agreedKey = keys.newPairKey
+            } else {
+                crypto = SessionCrypto(pairKey: key, phoneNonce: nonce, macNonce: hello.nonce, role: .phone)
+            }
             udpPort = hello.udpPort
             phase = .confirm
             sendRaw(handshakeConfirmToken)
         case .confirm?:
-            guard crypto != nil, let plain = try? crypto!.openTCP(data), plain == handshakeConfirmToken else {
+            guard crypto != nil, let plain = try? crypto!.openTCP(data) else {
                 channel?.close("mac failed key confirmation")
                 return
+            }
+            if plain == approvalWaitToken {
+                // A new phone: the Mac is asking whether to allow it. Wait for the answer.
+                guard !awaitingApproval else { return }
+                awaitingApproval = true
+                setIssue(.awaitingApproval)
+                let gen = generation
+                queue.asyncAfter(deadline: .now() + GlasspadService.approvalTimeout + 10) { [weak self] in
+                    guard let self, gen == self.generation, self.awaitingApproval else { return }
+                    self.channel?.close("no answer from the Mac")
+                }
+                return
+            }
+            if plain == approvalDeniedToken {
+                target = nil                       // do not retry a refusal
+                teardown()
+                setState(.failed(GlasspadService.notAllowedFailure))
+                return
+            }
+            guard plain == handshakeConfirmToken else {
+                channel?.close("mac failed key confirmation")
+                return
+            }
+            awaitingApproval = false
+            if let agreed = agreedKey {
+                // The Mac saved the agreed key before confirming. Save it here, then say so, so
+                // the Mac can forget the code's key.
+                agreedKey = nil
+                keyBox.set((agreed, true))
+                let saved = newKeyHandler.get()?(agreed) ?? true
+                if saved, let json = try? JSONEncoder().encode(KeySaved()) { sendRaw(json) }
+                if !saved { GPLog.log("pairing: the agreed key could not be saved; the Mac keeps the old one too") }
             }
             phase = .connected
             attempt = 0
@@ -741,6 +841,11 @@ public final class GlasspadClient: @unchecked Sendable {
         ch?.close(nil)
         phase = nil
         crypto = nil
+        agreedKey = nil
+        if awaitingApproval {
+            awaitingApproval = false
+            if issue == .awaitingApproval { setIssue(nil) }
+        }
         pathBox.set(nil)
         pingSent = [:]
         lastSnapshot = nil
@@ -912,10 +1017,14 @@ public enum LinkIssue: Equatable, Sendable {
     case macAsleep
     /// Glasspad on the Mac was paused or quit (`GlasspadService.stoppedReason`). Kept the same way.
     case macTurnedOff
+    /// This phone is new to the Mac, and the Mac is asking the person there whether to allow it.
+    case awaitingApproval
 
     /// A sentence for the phone to show.
     public var message: String {
         switch self {
+        case .awaitingApproval:
+            "On your Mac, click Allow to let this iPhone control it."
         case .macAsleep:
             "Your Mac is asleep. Wake it, and Glasspad connects again."
         case .macTurnedOff:

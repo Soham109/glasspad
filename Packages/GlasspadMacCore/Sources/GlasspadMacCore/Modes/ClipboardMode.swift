@@ -45,7 +45,14 @@ public final class ClipboardMode {
         /// The person set Glasspad's pasteboard access to Deny in System Settings, so every
         /// read comes back empty.
         case notAllowed
+        /// A password manager marked what is on the pasteboard as private
+        /// (`org.nspasteboard.ConcealedType`, set by 1Password, Bitwarden, Keychain Access and
+        /// others for passwords). It never leaves the Mac.
+        case concealed
     }
+
+    /// The marker password managers put next to a copied password (nspasteboard.org).
+    public static let concealedType = NSPasteboard.PasteboardType("org.nspasteboard.ConcealedType")
 
     /// Puts the content on the pasteboard and returns nil, or returns why it did not (and leaves
     /// the pasteboard as it was). For an image the PNG is there at once; a TIFF copy (many apps
@@ -114,6 +121,8 @@ public final class ClipboardMode {
         let result: PullResult
         if accessDenied(pasteboard) {
             result = .notAllowed
+        } else if pasteboard.types?.contains(Self.concealedType) == true {
+            result = .concealed
         } else if let png = pasteboard.data(forType: .png) {
             result = await Self.offMain { Self.fitting(png) }.map { .content(.imagePNG($0)) } ?? .imageNotSendable
         } else if let tiff = pasteboard.data(forType: .tiff) {
@@ -133,6 +142,9 @@ public final class ClipboardMode {
         case .notAllowed:
             lastRefusal = ClipboardLimits.notAllowed
             GPLog.log("clipboard: pasteboard access is set to deny for Glasspad")
+        case .concealed:
+            lastRefusal = ClipboardLimits.concealed
+            GPLog.log("clipboard: not sending a password a password manager marked as private")
         case .content, .empty:
             lastRefusal = nil
         }
@@ -231,4 +243,5 @@ public enum ClipboardLimits {
     static let unreadableImage = "Your Mac could not read this image. Try copying it again."
     static let notWritten = "The Mac clipboard did not take it. Try again."
     static let notAllowed = "Your Mac does not let Glasspad read its clipboard. Allow it in System Settings > Privacy & Security."
+    static let concealed = "The Mac clipboard holds a password, so Glasspad did not send it. Copy something else to send it to your iPhone."
 }

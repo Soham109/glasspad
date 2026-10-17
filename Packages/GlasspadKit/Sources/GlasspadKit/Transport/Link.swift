@@ -54,9 +54,51 @@ public struct PairedPhone: Equatable, Sendable {
     }
 }
 
+/// What the Mac keeps for one paired phone, as the transport needs it.
+public struct PhoneKey: Equatable, Sendable {
+    public var key: Data
+    /// True for a key the phone and Mac agreed with X25519 (protocol 2). False for a key that
+    /// came straight from a pairing code (every phone paired by 0.2.x and earlier): the next
+    /// protocol 2 connection replaces it.
+    public var agreed: Bool
+    /// The key `key` replaced, accepted only for another rekey until the phone says it saved the
+    /// new one (a connection lost at the wrong moment must not lock the phone out).
+    public var previous: Data?
+
+    public init(key: Data, agreed: Bool, previous: Data? = nil) {
+        self.key = key
+        self.agreed = agreed
+        self.previous = previous
+    }
+}
+
+/// Why a new phone that proved it holds the pairing code was not saved.
+public enum PairingFailure: Equatable, Sendable {
+    /// The person at the Mac chose Don't Allow, or did not answer in time.
+    case notAllowed
+    /// The phone went away while the Mac was asking.
+    case phoneLeft
+    /// The Mac could not store the key (the Keychain refused it).
+    case notSaved
+}
+
 public enum GlasspadService {
     public static let bonjourType = "_glasspad._tcp"
-    public static let protocolVersion = 1
+    /// 2 since October 2026: an X25519 key agreement on every connection, and a new pair key
+    /// agreed the first time (see `KeyAgreement`). A Mac still accepts protocol 1 from a phone it
+    /// paired before and has not moved to an agreed key; a phone falls back to 1 only for a Mac
+    /// that refuses 2 and only while its own key is still a code's key.
+    public static let protocolVersion = 2
+    /// Phones on 0.2.x and earlier.
+    public static let legacyProtocolVersion = 1
+    /// How long a pairing code works when the caller does not say (the Mac shows its own end).
+    public static let pairingCodeLifetime: TimeInterval = 5 * 60
+    /// How long the Mac's "Allow this iPhone?" question waits before it counts as Don't Allow.
+    public static let approvalTimeout: TimeInterval = 30
+    /// `reject` reason for a phone that must update before it can pair (or connect again).
+    public static let updatePhoneReason = "Update Glasspad on this iPhone to use it with this Mac."
+    /// Failure the phone reports when the Mac chose Don't Allow (or nobody answered).
+    public static let notAllowedFailure = "not allowed on the Mac"
     /// Reconnect delays in seconds; the last one repeats (jittered by `ReconnectBackoff`).
     public static var backoff: [TimeInterval] { ReconnectBackoff.steps }
     /// Keep-awake heartbeat interval.
