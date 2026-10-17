@@ -124,7 +124,7 @@ html.gn-locked, html.gn-locked body { overflow: hidden; }
   .gn-sheet.open { opacity: 1; visibility: visible; transition: opacity 220ms ease, visibility 0s; }
   .gn-sheet-in { display: grid; gap: 28px; padding-top: 92px; padding-bottom: 40px; transform: translateY(-8px); transition: transform 480ms var(--ease-snappy); }
   .gn-sheet.open .gn-sheet-in { transform: none; }
-  .gn-sec h2 { margin: 0 0 4px; font-size: 13px; font-weight: 600; letter-spacing: 0; color: var(--ink-2); max-width: none; line-height: 1.4; }
+  .gn-h { margin: 0 0 4px; font-size: 13px; font-weight: 600; line-height: 1.4; color: var(--ink-2); }
   .gn-sec ul { margin: 0; padding: 0; list-style: none; }
   .gn-sec a { display: flex; align-items: center; gap: 14px; min-height: 52px; border-bottom: 1px solid var(--line); font-size: 19px; font-weight: 600; letter-spacing: -0.02em; text-decoration: none; }
   .gn-sec a[aria-current="page"]::after { content: ""; width: 7px; height: 7px; margin-left: auto; border-radius: 50%; background: var(--ink); }
@@ -177,6 +177,8 @@ html.gn-locked, html.gn-locked body { overflow: hidden; }
 .pg-demo { margin-top: clamp(24px, 4vw, 48px); padding-top: clamp(72px, 9vw, 112px); }
 .pg-demo .section-head { margin-bottom: clamp(32px, 4vw, 56px); }
 .pg-mode { display: grid; grid-template-columns: minmax(0, 260px) minmax(0, 520px); justify-content: center; align-items: center; gap: clamp(32px, 6vw, 96px); padding: clamp(32px, 5vw, 64px) clamp(16px, 4vw, 48px); border-radius: 32px; background: var(--tile); }
+.pgm-phone { aspect-ratio: 71.9 / 150; }
+.pgm-mac { aspect-ratio: 1.5 / 1.04; }
 .pgm-phone .iphone { width: 100%; }
 .pgm-phone .ms { position: absolute; inset: 0; }
 .pgm-phone .ms .pt { background: #F2F1EE; }
@@ -192,7 +194,8 @@ html.gn-locked, html.gn-locked body { overflow: hidden; }
 .pg-label { margin: 0 0 14px; font-size: 15px; font-weight: 600; line-height: 1.4; letter-spacing: 0; color: var(--ink-2); }
 .pg-answer { font-size: clamp(17px, 1.5vw, 19px); line-height: 1.6; text-wrap: pretty; }
 .pg-facts { margin-top: 18px; padding-top: 18px; border-top: 1px solid var(--line); font-size: 15px; color: var(--ink-2); }
-.pg-shot { margin: 0; display: flex; justify-content: center; }
+.pg-shot { margin: 0; display: flex; flex-direction: column; align-items: center; gap: 14px; }
+.pg-shot figcaption { max-width: 30ch; text-align: center; font-size: 14px; line-height: 1.45; color: var(--ink-2); }
 .pg-shot img { width: auto; max-width: 100%; height: auto; max-height: 520px; }
 .pg-shot.land img { width: 100%; max-height: none; }
 

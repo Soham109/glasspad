@@ -35,8 +35,10 @@ export interface Feature {
   visualLabel: string;
   /** the answer quoted in "In short": what it is and how Glasspad does it, in a few sentences */
   answer: string;
-  /** the real app screen beside the answer */
+  /** the real app screen beside the answer, one the drawing above does not already show */
   shot: Shot;
+  /** a line under that screen */
+  caption: string;
   /** the matching part of the guide: [href, link text] */
   guide: [string, string];
   /** three or four benefits */
@@ -80,6 +82,7 @@ export const CONTENT: Record<string, Feature | Comparison> = {
     visualLabel: "Try it: an iPhone held sideways as a trackpad beside a Mac",
     answer: "macOS has no built-in way to use an iPhone as a trackpad, so you need an app on both devices. Glasspad is a free, open source one: it turns your iPhone into a trackpad for your Mac over Wi-Fi. One finger moves the pointer, a tap clicks and you feel it, two fingers scroll and pinch, and three fingers swipe between Spaces or open Mission Control, following your Mac's own trackpad settings.",
     shot: "trackpad",
+    caption: "Trackpad in the app, held sideways.",
     guide: ["/guide#modes", "Trackpad in the guide"],
     tiles: [
       { icon: "haptic", title: "A click you can feel", text: "Every tap clicks, and the iPhone taps back." },
@@ -109,7 +112,8 @@ export const CONTENT: Record<string, Feature | Comparison> = {
     visual: "keys",
     visualLabel: "Keyboard on an iPhone: the words typed on it appear in Notes on a Mac",
     answer: "To type on your Mac from your iPhone, you need an app on both. Glasspad is a free, open source one: in its Keyboard mode, what you type or dictate on the iPhone lands wherever the cursor is on your Mac, over Wi-Fi. It has control, option, command and shift, the usual shortcuts, arrows, and F1 to F12, and it works with any Mac keyboard layout.",
-    shot: "keyboard",
+    shot: "clipboard",
+    caption: "Clipboard in the app: Send to Mac and Get from Mac.",
     guide: ["/guide#modes", "Keyboard in the guide"],
     tiles: [
       { icon: "keyboard", title: "Type anywhere", text: "Text lands wherever the cursor is on the Mac." },
@@ -138,7 +142,8 @@ export const CONTENT: Record<string, Feature | Comparison> = {
     visual: "couch",
     visualLabel: "A film on a TV plugged into a Mac, and Remote on an iPhone in hand: a swipe skips ahead, a slide turns it up, a tap pauses",
     answer: "Glasspad's Remote mode turns your iPhone into a remote for whatever plays on your Mac, much like a Siri Remote: tap the pad to play or pause, swipe sideways to skip 10 seconds, and up or down for volume. Its buttons follow the player, such as Skip Intro on Netflix and Subtitles and Next on YouTube. It works with YouTube, Netflix, Prime Video, Disney+, Apple TV, QuickTime Player, IINA, VLC, Infuse, Spotify and Music. Glasspad is free and open source.",
-    shot: "remote",
+    shot: "media",
+    caption: "Media shows what is playing, with volume, sound output and brightness.",
     guide: ["/guide#modes", "Remote in the guide"],
     tiles: [
       { icon: "hand", title: "A pad like the Siri Remote", text: "Tap to pause. Swipe to skip 10 seconds, up or down for volume." },
@@ -167,7 +172,8 @@ export const CONTENT: Record<string, Feature | Comparison> = {
     visual: "studio",
     visualLabel: "Final Cut Pro on a MacBook, and its buttons on an iPhone on a stand: Play, Blade at Playhead and Mark In edit the timeline",
     answer: "Glasspad turns your iPhone into a deck of buttons for your Mac, free. Its Actions mode shows buttons for the app in front, ready made for more than 70 apps, and below them your own: apps, websites, keyboard shortcuts, recorded macros, shortcuts from the Shortcuts app, and Mac controls like Do Not Disturb, Night Shift, Keep Awake and Split Screen. There are no key limits, ads or subscriptions, and it is open source (MIT). It has no physical keys and no plugins for tools like OBS, so for live streaming a Stream Deck is still the better fit.",
-    shot: "actions",
+    shot: "library",
+    caption: "The Library: every app, Mac control, macro, shortcut and website.",
     guide: ["/guide#yours", "Actions in the guide"],
     tiles: [
       { icon: "actions", title: "Follows the app in front", text: "Ready-made buttons for more than 70 apps." },
@@ -198,6 +204,7 @@ export const CONTENT: Record<string, Feature | Comparison> = {
     visualLabel: "A Mac desk with a display, a MacBook and an iPhone on a stand: tapping Split Screen on the iPhone puts Safari and Xcode side by side",
     answer: "On a Mac you split the screen from the green button at the top left of a window, or, on macOS 15 and later, by pressing fn, control and the left or right arrow. Glasspad puts this on your iPhone: tap Split Screen, choose Left &amp; Right, Top &amp; Bottom, Quarters or Full Screen (Split View), pick the windows and the display, and see where each one will go before anything moves. Window buttons put the front window on a half or a quarter, Fill or Center.",
     shot: "folder",
+    caption: "Window buttons in a folder in Actions.",
     guide: ["/guide#yours", "Actions in the guide"],
     tiles: [
       { icon: "halves", title: "Four ways to split", text: "Left &amp; Right, Top &amp; Bottom, Quarters or Full Screen." },
@@ -228,6 +235,7 @@ export const CONTENT: Record<string, Feature | Comparison> = {
     visualLabel: "Displays on an iPhone held sideways: Mail is dragged from the MacBook to the Studio Display, then fills it",
     answer: "Glasspad's Displays mode shows your Mac's displays on your iPhone the way System Settings draws them, with every window on them. Tap a window to bring it forward, drag it to another display, or touch and hold it to tile, split, enter full screen, minimize or close it. Its settings set brightness, resolution, Night Shift, the main display, mirroring and the arrangement, and a new resolution goes back after 15 seconds unless you keep it.",
     shot: "displays",
+    caption: "Displays in the app: your displays, and every window on them.",
     guide: ["/guide#modes", "Displays in the guide"],
     tiles: [
       { icon: "displays", title: "As in System Settings", text: "Your displays, drawn where they sit, with every window on them." },

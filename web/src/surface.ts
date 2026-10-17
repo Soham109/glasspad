@@ -70,7 +70,7 @@ export function initLayouts() {
     panes.splice(0).forEach(p => p.remove()); divs.splice(0).forEach(d => d.remove());
     t.panes.forEach(k => {
       const p = document.createElement("div"); p.className = "lp-pane" + (PANES[k].dark ? " dk" : ""); p.dataset.pane = k;
-      p.innerHTML = PANES[k].html(); pt.appendChild(p); panes.push(p);
+      p.innerHTML = PANES[k].html(); p.inert = true; pt.appendChild(p); panes.push(p); // drawn panes; the dividers stay live
     });
     t.panes.slice(1).forEach((_, j) => {
       const d = document.createElement("div"); d.className = "lp-div" + (j ? " inner" : "");

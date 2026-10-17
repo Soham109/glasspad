@@ -270,6 +270,8 @@ export function initScenes() {
   const stage = document.getElementById("ucStage"), tabs = document.getElementById("ucTabs"), cap = document.getElementById("ucCap");
   if (!stage || !tabs || !cap) return;
   stage.innerHTML = SCENES.map(c => c.html()).join("");
+  // the rooms are drawings: out of the tab order and the accessibility tree (the stage names them)
+  stage.querySelectorAll<HTMLElement>(".scene").forEach(s => { s.inert = true; });
   fitAll(stage);
   const panes = Array.from(stage.children) as HTMLElement[];
   const btns: HTMLButtonElement[] = [];
@@ -278,6 +280,7 @@ export function initScenes() {
   const fresh = (i: number) => {
     const box = document.createElement("div"); box.innerHTML = SCENES[i].html();
     const el = box.firstElementChild as HTMLElement;
+    el.inert = true;
     el.classList.toggle("on", i === cur); el.setAttribute("aria-hidden", String(i !== cur));
     panes[i].replaceWith(el); panes[i] = el; fitAll(el);
     return el;
@@ -326,7 +329,7 @@ export function mountRoom(root: HTMLElement, key: string) {
   const draw = () => {
     root.innerHTML = room.html();
     const el = root.firstElementChild as HTMLElement;
-    el.classList.add("on"); el.setAttribute("aria-hidden", "true"); fitAll(el);
+    el.classList.add("on"); el.inert = true; fitAll(el);
     return el;
   };
   draw();

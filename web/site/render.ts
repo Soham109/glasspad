@@ -26,7 +26,7 @@ export function nav(p: Page): string {
       <button class="gn-top${active ? " is-active" : ""}" type="button" aria-expanded="false" aria-controls="${id}">${label}${icon("chevron", 12, "gn-chev")}</button>
       <div class="gn-panel" id="${id}">${body}</div>
     </div>`;
-  const sheetList = (list: Page[], withIcon: boolean) => `<ul>${list.map(q => `<li><a href="${q.path}"${cur(p, q)}>${withIcon ? `<span class="gn-ic">${icon(q.icon!, 20)}</span>` : ""}${esc(q.nav!)}</a></li>`).join("")}</ul>`;
+  const sheetList = (label: string, list: Page[], withIcon: boolean) => `<p class="gn-h" aria-hidden="true">${label}</p><ul aria-label="${label}">${list.map(q => `<li><a href="${q.path}"${cur(p, q)}>${withIcon ? `<span class="gn-ic">${icon(q.icon!, 20)}</span>` : ""}${esc(q.nav!)}</a></li>`).join("")}</ul>`;
   return `<header class="nav gn" id="nav">
   <a class="brand" href="/"${p.path === "/" ? ' aria-current="page"' : ""}>${BRAND}</a>
   <nav class="gn-links" aria-label="Main" id="navLinks">
@@ -42,9 +42,9 @@ export function nav(p: Page): string {
 </header>
 <div class="gn-sheet" id="navSheet">
   <nav class="gn-sheet-in wrap" aria-label="Menu">
-    <div class="gn-sec"><h2>Features</h2>${sheetList(feats, true)}</div>
-    <div class="gn-sec"><h2>Compare</h2>${sheetList(comps, false)}</div>
-    <div class="gn-sec"><h2>More</h2><ul><li><a href="/">Home</a></li><li><a href="/guide"${p.path === "/guide" ? ' aria-current="page"' : ""}>Guide</a></li><li><a href="${REPO}">GitHub</a></li></ul></div>
+    <div class="gn-sec">${sheetList("Features", feats, true)}</div>
+    <div class="gn-sec">${sheetList("Compare", comps, false)}</div>
+    <div class="gn-sec"><p class="gn-h" aria-hidden="true">More</p><ul aria-label="More"><li><a href="/">Home</a></li><li><a href="/guide"${p.path === "/guide" ? ' aria-current="page"' : ""}>Guide</a></li><li><a href="${REPO}">GitHub</a></li></ul></div>
   </nav>
 </div>`;
 }
@@ -167,7 +167,7 @@ function visual(f: Feature): string {
   switch (f.visual) {
     case "trackpad": return DEMO;
     case "displays": return `<div class="pg-visual wrap"><div class="dp-stage" id="dpStage" role="img" aria-label="${label}"></div></div>`;
-    case "keys": return `<div class="pg-visual wrap"><div class="pg-mode" data-mode="keys" role="img" aria-label="${label}"></div></div>`;
+    case "keys": return `<div class="pg-visual wrap"><div class="pg-mode" data-mode="keys" role="img" aria-label="${label}"><div class="pgm-phone"></div><div class="pgm-mac"></div></div></div>`;
     default: return `<div class="pg-visual wrap"><div class="uc-stage pg-stage" data-room="${f.visual}" role="img" aria-label="${label}"></div></div>`;
   }
 }
@@ -186,7 +186,7 @@ ${visual(f)}
       <p class="pg-answer">${f.answer}</p>
       <p class="pg-facts">${FACTS}</p>
     </div>
-    <figure class="pg-shot${SHOTS[f.shot].w > SHOTS[f.shot].h ? " land" : ""}">${shot(f.shot)}</figure>
+    <figure class="pg-shot${SHOTS[f.shot].w > SHOTS[f.shot].h ? " land" : ""}">${shot(f.shot)}<figcaption>${f.caption}</figcaption></figure>
   </div>
 </section>
 

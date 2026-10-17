@@ -156,8 +156,8 @@ function pageList(): string[] {
   const line = (p: Page) => `- [${p.crumb ?? "Home"}](${url(p)}): ${p.summary}`;
   return [
     "## Pages", "", ...pages.filter(p => !p.group).map(line), "",
-    "## Features", "", ...pages.filter(p => p.group === "feature").map(line), "",
-    "## Compare", "", ...pages.filter(p => p.group === "compare").map(line), "",
+    "## Feature pages", "", ...pages.filter(p => p.group === "feature").map(line), "",
+    "## Comparison pages", "", ...pages.filter(p => p.group === "compare").map(line), "",
   ];
 }
 

@@ -34,7 +34,8 @@ const html = () => `<div class="scene uc uc-dp on"><div class="uc-wall"></div><d
 
 export function initDisplays() {
   const root = document.getElementById("dpStage"); if (!root) return;
-  const reset = () => { root.innerHTML = html(); fitAll(root); };
+  // a drawing: the stage names it (role="img"), its insides stay out of the accessibility tree
+  const reset = () => { root.innerHTML = html(); (root.firstElementChild as HTMLElement).inert = true; fitAll(root); };
   loopInView(root, root, root, async s => {
     const scene = root.querySelector<HTMLElement>(".uc-dp")!;
     await s.wait(900);
