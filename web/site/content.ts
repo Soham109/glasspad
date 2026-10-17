@@ -6,13 +6,13 @@ import { themesLine } from "../src/themes";
 
 export const INSTALL = "curl -fsSL https://raw.githubusercontent.com/Soham109/glasspad/main/install.sh | bash";
 
-export const DEFINITION = "Glasspad is a free, open source app that turns your iPhone into a control surface for your Mac.";
+export const DEFINITION = "Glasspad is a free, open source (MIT) app that turns an iPhone into a trackpad, keyboard, media remote and button deck for a Mac, over Wi-Fi, with no account.";
 
 export const FAQS: Record<string, { q: string; a: string }[]> = {
   home: [
     {
       q: "What is Glasspad?",
-      a: `${DEFINITION} It is a trackpad you can feel, a keyboard, media controls, your Dock, buttons for the app in front, a couch remote, a slide clicker, your displays, and layouts with up to three modes on one screen.`,
+      a: `${DEFINITION} It has 11 modes: Trackpad, Keyboard, Media, Dock, Actions, Pinned, Macros, Clipboard, Present, Remote and Displays. Actions has ready-made buttons for more than 70 apps, Layouts put up to three modes on one screen, and there are 39 themes. It is made by Soham Aggarwal.`,
     },
     {
       q: "Is Glasspad free?",
@@ -37,24 +37,48 @@ export const FAQS: Record<string, { q: string; a: string }[]> = {
   ],
   guide: [
     {
+      q: "Can I use my iPhone as a trackpad for my Mac?",
+      a: 'Yes, with an app on both devices; macOS has no built-in way, and Universal Control does not work with iPhone. Glasspad is a free, open source one: one finger moves the pointer, a tap clicks and the iPhone taps back, two fingers scroll and pinch, and three fingers swipe between Spaces or open Mission Control. More in <a href="/use/iphone-as-mac-trackpad">iPhone as a Mac trackpad</a>.',
+    },
+    {
+      q: "How do I control my Mac from my iPhone?",
+      a: 'Install an app on both. If you are away from the Mac and need to see its screen, use a screen sharing app. If you are in the same room, Glasspad makes the iPhone a trackpad, keyboard, media remote and button deck for the Mac: install it with one Terminal command, pair the iPhone by QR code, and both talk over your Wi-Fi. See <a href="/install">Install</a>.',
+    },
+    {
+      q: "Can I use my iPhone as a keyboard for my Mac?",
+      a: 'Yes. In Glasspad\'s Keyboard mode, what you type or dictate on the iPhone lands where the cursor is on the Mac. It has control, option, command and shift, arrows, and F1 to F12, and works with any Mac keyboard layout. More in <a href="/use/iphone-as-mac-keyboard">iPhone as a Mac keyboard</a>.',
+    },
+    {
       q: "Can I use my iPhone as a remote for Netflix or YouTube on my Mac?",
-      a: 'Yes. Remote is a touch pad like the Siri Remote: tap to play or pause, swipe sideways to skip 10 seconds, up or down for volume. The buttons follow the player, like Skip Intro on Netflix. More in <a href="/use/iphone-remote-for-mac">iPhone remote for Mac</a>.',
+      a: 'Yes. Glasspad\'s Remote is a touch pad like the Siri Remote: tap to play or pause, swipe sideways to skip 10 seconds, up or down for volume. Its buttons follow 11 players: YouTube, Netflix, Prime Video, Disney+, Apple TV, QuickTime Player, IINA, VLC, Infuse, Spotify and Music, with Skip Intro on Netflix. More in <a href="/use/iphone-remote-for-mac">iPhone remote for Mac</a>.',
     },
     {
       q: "Can I split the screen on my Mac from my iPhone?",
       a: 'Yes. Add Split Screen to Actions to put windows side by side, or touch and hold a window in Displays for the halves, Fill, Center and Split With. More in <a href="/use/mac-split-screen-from-iphone">Split screen from iPhone</a>.',
     },
     {
-      q: "Is Glasspad a free Stream Deck alternative?",
-      a: 'Stream Deck is a keypad from Elgato with buttons you program. Actions in Glasspad puts buttons on your iPhone instead, for free: they follow the app in front, and you can pin your own, with macros, shortcuts and websites. It has no physical keys. More in <a href="/compare/stream-deck-mobile">Glasspad vs Stream Deck Mobile</a>.',
+      q: "What is a free Stream Deck alternative for Mac?",
+      a: 'Glasspad is one: a free, open source iPhone app that puts buttons for your Mac on the phone, with no key limit. Its Actions mode has ready-made buttons for more than 70 apps that follow the app in front, and you can pin your own: apps, websites, keyboard shortcuts, macros, Shortcuts and Mac controls. Elgato\'s <a href="https://apps.apple.com/us/app/elgato-stream-deck-mobile/id1440014184">Stream Deck Mobile</a> is free for 6 keys and $2.99 a month for up to 64. Glasspad has no physical keys and no streaming plugins, so for OBS or Twitch a Stream Deck fits better. More in <a href="/compare/stream-deck-mobile">Glasspad vs Stream Deck Mobile</a>.',
     },
     {
       q: "How is Glasspad different from Universal Control?",
-      a: 'Universal Control is built into macOS: it lets the keyboard and trackpad of one Mac work on a nearby Mac or iPad. It does not use an iPhone. Glasspad makes your iPhone the trackpad, keyboard and remote for your Mac. More in <a href="/compare/universal-control">Glasspad vs Universal Control</a>.',
+      a: 'Universal Control is built into macOS: it lets one Mac\'s keyboard and trackpad control up to two nearby Macs or iPads. <a href="https://support.apple.com/102459">Apple lists no iPhone support</a>. Glasspad makes your iPhone the trackpad, keyboard and remote for your Mac, and works alongside Universal Control. More in <a href="/compare/universal-control">Glasspad vs Universal Control</a>.',
     },
     {
       q: "How is Glasspad different from Remote Mouse?",
-      a: 'Remote Mouse turns a phone into a mouse and keyboard for a Mac or PC, on iPhone and Android. Glasspad is only for iPhone and Mac, is free and open source, and adds buttons for the app in front, a couch remote, a slide clicker, your displays and layouts. More in <a href="/compare/remote-mouse">Glasspad vs Remote Mouse</a>.',
+      a: '<a href="https://www.remotemouse.net/">Remote Mouse</a> turns a phone into a mouse and keyboard for a Mac, Windows or Linux computer, on iPhone and Android, and is free with ads and paid extras. Glasspad is only for iPhone and Mac, is free with no ads or purchases, is open source, and adds buttons for the app in front, a couch remote, a slide clicker, your displays and layouts. More in <a href="/compare/remote-mouse">Glasspad vs Remote Mouse</a>.',
+    },
+    {
+      q: "Can I use my iPhone as a presentation clicker for my Mac?",
+      a: "Yes. Glasspad's Present mode has Next and Back, a timer, and a laser pointer you steer with one finger, for slides in Keynote, PowerPoint and other apps on the Mac. Next, Back and the timer also show on the iPhone's Lock Screen.",
+    },
+    {
+      q: "Does Glasspad work with Windows, Android or iPad?",
+      a: "No. Glasspad works only with an iPhone on iOS 18 or later and a Mac on macOS 14 or later.",
+    },
+    {
+      q: "Is Glasspad safe?",
+      a: 'Glasspad pairs once by QR code, keeps the pairing key in the Keychain on both devices, and encrypts every message (ChaCha20-Poly1305) with a fresh key for each connection. There is no account or server. The code is open to read on <a href="https://github.com/Soham109/glasspad">GitHub</a>, and the details are in <a href="https://github.com/Soham109/glasspad/blob/main/SECURITY.md">SECURITY.md</a>.',
     },
   ],
 };
@@ -75,20 +99,21 @@ export const HOWTO: { name: string; text: string }[] = [
 export const NEEDS = ["A Mac on macOS 14 or later", "Xcode 26 or later", "An iPhone on iOS 18 or later", "A free Apple ID", "A USB cable for the first install", "One Wi-Fi for the Mac and the iPhone"];
 
 export const FEATURES: [string, string][] = [
-  ["Trackpad", "Move, click, scroll, pinch and swipe between Spaces, with a tap you can feel on every click."],
-  ["Keyboard", "Type or dictate. Modifier keys, shortcuts, arrows and F1 to F12."],
+  ["Trackpad", "Move, click, scroll, pinch, swipe between Spaces and open Mission Control, with a tap you can feel on every click. It follows your Mac's own trackpad settings."],
+  ["Keyboard", "Type or dictate. Modifier keys, shortcuts, arrows and F1 to F12, with any Mac keyboard layout."],
   ["Media", "What is playing in Spotify, Music or a browser: artwork, scrubbing, sound output, volume and screen brightness."],
   ["Dock", "Your Mac's Dock. Tap to open, hold to hide or quit, and hide the Mac's own Dock."],
   ["Actions", "Buttons that follow the app in front, for more than 70 apps."],
   ["Pinned", "Your own buttons: Do Not Disturb, Night Shift, Keep Awake, Split Screen and window tiling, screenshots, apps, and websites with their real logos. Folders keep them tidy; the Library finds anything."],
   ["Macros", "Record steps on your Mac once, replay them with a tap."],
   ["Shortcuts", "Run any shortcut from the Shortcuts app on your Mac."],
-  ["Remote", "A touch pad like the Siri Remote: tap to pause, swipe to skip 10 seconds, up or down for volume. The keys follow the player, and Search types on the Mac."],
+  ["Remote", "A touch pad like the Siri Remote: tap to pause, swipe to skip 10 seconds, up or down for volume. The keys follow 11 players, among them YouTube, Netflix, Prime Video, Disney+, VLC and Spotify, and Search types on the Mac."],
   ["Present", "Next and Back, a timer, and a laser you steer with one finger."],
   ["Clipboard", "Text and images, both ways."],
   ["Displays", "Every display and its windows. Move a window to another display or tile it, and set brightness, resolution and Night Shift."],
   ["Layouts", "Up to three modes on one screen. The divider rests on thirds and the middle; your layouts sit in the mode menu."],
   ["StandBy", "A clock beside Now Playing or your calendar while the iPhone charges, in dim red at night."],
+  ["Siri and Shortcuts", "Open a mode or a layout from Siri or the Shortcuts app, plus a Control Center control, a Lock Screen widget and a Live Activity with Remote or Present keys."],
   ["Themes", themesLine()],
   ["Private", "Paired by QR code, encrypted, no account. Nothing leaves your Wi-Fi, except Website buttons fetching their site's name and logo."],
 ];
