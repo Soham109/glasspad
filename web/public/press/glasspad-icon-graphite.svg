@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- Graphite variant. -->
+  <rect width="1024" height="1024" fill="#0E0E0E"/>
+  <rect x="102" y="222" width="820" height="580" rx="140" fill="#1B1B1B" stroke="#FFFFFF" stroke-opacity="0.10" stroke-width="4"/>
+    <!-- Finger glide: fading trail, then the finger dot (rendered as stacked discs) -->
+  <line x1="300" y1="610" x2="660" y2="440" stroke="#FFFFFF" stroke-opacity="0.1" stroke-width="90" stroke-linecap="round"/>
+  <circle cx="660" cy="440" r="74" fill="#FFFFFF" fill-opacity="0.62"/>
+</svg>

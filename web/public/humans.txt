@@ -1,0 +1,19 @@
+/* TEAM */
+Developer: Soham Aggarwal
+Site: https://sohamaggarwal.com
+GitHub: https://github.com/Soham109
+LinkedIn: https://linkedin.com/in/soham-aggarwal5/
+Contact: hello@sohamaggarwal.com
+
+/* SITE */
+Last update: 2026/10/17
+Language: English
+Standards: HTML, CSS, TypeScript
+Components: Vite
+Hosting: Vercel
+Source: https://github.com/Soham109/glasspad/tree/main/web
+
+/* APPS */
+Glasspad for iPhone (iOS 18 or later) and Mac (macOS 14 or later)
+Language: Swift, SwiftUI
+License: MIT

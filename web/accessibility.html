@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<script>document.documentElement.classList.add("js")</script>
+<!--site:head-->
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<svg width="0" height="0" class="sr-sprite" aria-hidden="true"><defs>
+  <symbol id="i-github" viewBox="0 0 16 16"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8.5" y="8.5" width="11" height="11" rx="2.5"/><path d="M15.5 8.5V6.5A2 2 0 0 0 13.5 4.5h-7a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h2"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></symbol>
+</defs></svg>
+
+<!--site:nav-->
+
+<main id="main" class="pg pg-text">
+
+<header class="pg-hero wrap">
+  <p class="pg-eye">Accessibility</p>
+  <h1>How accessible Glasspad is</h1>
+  <p class="pg-sub">What Glasspad supports today, what it does not yet, and how to tell me what to fix. Last updated 17 October 2026.</p>
+</header>
+
+<section class="pg-sec wrap px-first" aria-labelledby="apps-t">
+  <h2 class="pg-h2" id="apps-t">In the apps</h2>
+  <table class="px-table px-marks">
+    <thead><tr><th scope="col">Setting</th><th scope="col">Support</th></tr></thead>
+    <tbody>
+      <tr><th scope="row">VoiceOver</th><td><span class="cmp-mk yes" role="img" aria-label="Supported"><i data-icon="check" data-size="14"></i></span>Controls have labels and hints, with extra actions such as Edit on a button and skip on Remote's pad. Pairing and connection changes are spoken. The trackpad, Remote and Present pads still take your touches while VoiceOver is on.</td></tr>
+      <tr><th scope="row">Reduce Motion</th><td><span class="cmp-mk yes" role="img" aria-label="Supported"><i data-icon="check" data-size="14"></i></span>The mode menu, pairing, Remote, Media, StandBy and the Mac's pairing code and window outline move less or not at all.</td></tr>
+      <tr><th scope="row">Larger text</th><td><span class="cmp-mk part" role="img" aria-label="Partly supported"><i data-icon="part" data-size="14"></i></span>Text follows your text size. Dense controls, such as keys and button grids, stop growing at a set size so they still fit on screen.</td></tr>
+      <tr><th scope="row">Contrast</th><td><span class="cmp-mk yes" role="img" aria-label="Supported"><i data-icon="check" data-size="14"></i></span>Automated tests check every theme, light and dark, for text contrast of at least 4.5 to 1 (WCAG AA). The High Contrast theme is held to 7 to 1 (AAA).</td></tr>
+      <tr><th scope="row">Increase Contrast</th><td><span class="cmp-mk part" role="img" aria-label="Partly supported"><i data-icon="part" data-size="14"></i></span>Some controls draw stronger outlines when it is on. For more, pick the High Contrast theme.</td></tr>
+      <tr><th scope="row">Haptics</th><td><span class="cmp-mk yes" role="img" aria-label="Supported"><i data-icon="check" data-size="14"></i></span>Optional. Turn them off or change their strength in the iPhone's Settings.</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section class="pg-sec wrap" aria-labelledby="site-t">
+  <h2 class="pg-h2" id="site-t">On this website</h2>
+  <table class="px-table px-marks">
+    <thead><tr><th scope="col">Need</th><th scope="col">Support</th></tr></thead>
+    <tbody>
+      <tr><th scope="row">Keyboard</th><td><span class="cmp-mk yes" role="img" aria-label="Supported"><i data-icon="check" data-size="14"></i></span>Every link, menu and button works from the keyboard, with a visible focus ring and a Skip to content link.</td></tr>
+      <tr><th scope="row">Screen readers</th><td><span class="cmp-mk yes" role="img" aria-label="Supported"><i data-icon="check" data-size="14"></i></span>Pages use headings, landmarks and labeled menus. Screenshots have text descriptions.</td></tr>
+      <tr><th scope="row">Reduce Motion</th><td><span class="cmp-mk yes" role="img" aria-label="Supported"><i data-icon="check" data-size="14"></i></span>Animations stop or shorten when your device asks for less motion.</td></tr>
+      <tr><th scope="row">Contrast</th><td><span class="cmp-mk yes" role="img" aria-label="Supported"><i data-icon="check" data-size="14"></i></span>Body text is near black on off white. Gray text is at least 4.6 to 1 (WCAG AA).</td></tr>
+      <tr><th scope="row">Dark mode</th><td><span class="cmp-mk no" role="img" aria-label="Not supported"><i data-icon="cross" data-size="14"></i></span>The site is light only for now.</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section class="pg-sec wrap" aria-labelledby="gaps-t">
+  <h2 class="pg-h2" id="gaps-t">Not there yet</h2>
+  <ul class="pg-tiles n3">
+    <li><span class="pg-tile-ic"><i data-icon="globe"></i></span><h3>English only</h3><p>The apps and the site are in English.</p></li>
+    <li><span class="pg-tile-ic"><i data-icon="hand"></i></span><h3>Not yet tested</h3><p>Voice Control, Switch Control, and full keyboard use of the Mac app.</p></li>
+    <li><span class="pg-tile-ic"><i data-icon="search"></i></span><h3>No outside audit</h3><p>Everything above is checked by me, not by an independent auditor.</p></li>
+  </ul>
+</section>
+
+<section class="pg-sec wrap px-last" aria-labelledby="tell-t">
+  <h2 class="pg-h2" id="tell-t">Something in the way?</h2>
+  <p class="px-lede">Tell me what you were trying to do and what stopped you: <a href="mailto:hello@sohamaggarwal.com?subject=Glasspad%20accessibility">hello@sohamaggarwal.com</a> or a <a href="https://github.com/Soham109/glasspad/issues/new?template=bug_report.md">GitHub issue</a>. Accessibility problems are treated as bugs.</p>
+</section>
+
+</main>
+
+<footer class="foot">
+  <!--site:footer-->
+</footer>
+
+<script type="module" src="/src/pro.ts"></script>
+</body>
+</html>

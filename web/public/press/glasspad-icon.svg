@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- Paper variant. Flat colours only. Rendered by scripts/make-icons.swift with the same numbers. -->
+  <rect width="1024" height="1024" fill="#EDECE8"/>
+  <rect x="102" y="222" width="820" height="580" rx="140" fill="#FBFBF9" stroke="#1A1A1A" stroke-opacity="0.10" stroke-width="4"/>
+    <!-- Finger glide: fading trail, then the finger dot (rendered as stacked discs) -->
+  <line x1="300" y1="610" x2="660" y2="440" stroke="#1A1A1A" stroke-opacity="0.1" stroke-width="90" stroke-linecap="round"/>
+  <circle cx="660" cy="440" r="74" fill="#1A1A1A" fill-opacity="0.62"/>
+</svg>
