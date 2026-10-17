@@ -1,14 +1,313 @@
+# Checks every push to main, every pull request, and once a week.
+#   changes    decides which of the jobs below this change needs
+#   lint       checks the workflow files, scripts and web types
+#   test       runs every test (branch protection requires this exact name)
+#   build-ios  builds the iPhone app, unsigned
+#   build-mac  builds the Mac app, ad hoc signed
+#   web        builds the website and checks its structured data, links, speed and accessibility
+#   all-green  one result that says whether everything above passed or was rightly skipped
+# Each job is explained in plain words just above it.
+#
+# Actions are pinned to a full commit SHA with the version in a comment, so a moved tag cannot
+# change what runs. Dependabot (.github/dependabot.yml) proposes updates.
+# There is no paid Apple Developer account, so nothing here signs for distribution, notarizes,
+# or uploads to the App Store. People install with install.sh and a free Apple ID.
+
 name: CI
 
 on:
   push:
     branches: [main]
   pull_request:
+  schedule:
+    # Mondays at 06:17 UTC: catches breakage from new runner images, Xcode or outside links.
+    - cron: "17 6 * * 1"
+  workflow_dispatch:
+
+# Least privilege: every job can only read the repository.
+permissions:
+  contents: read
+
+# A newer push to the same branch or pull request cancels the run it replaces.
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
 
 jobs:
-  test:
-    runs-on: macos-latest
+  # Looks at which files changed and tells the other jobs whether they need to run: a change to
+  # only the website skips the Swift jobs, and a change to only the apps skips the web job.
+  # Weekly and manual runs do everything, and so does any push it cannot compare.
+  changes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      swift: ${{ steps.filter.outputs.swift }}
+      web: ${{ steps.filter.outputs.web }}
     steps:
-      - uses: actions/checkout@v4
-      - name: Run tests
-        run: scripts/test.sh
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - id: filter
+        env:
+          EVENT: ${{ github.event_name }}
+          BEFORE: ${{ github.event.before }}
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          all() { { echo "swift=true"; echo "web=true"; } >> "$GITHUB_OUTPUT"; echo "Running everything: $1"; exit 0; }
+          case "$EVENT" in
+            pull_request) from="$(git merge-base "$BASE" HEAD)" || all "no merge base" ;;
+            push)
+              from="$BEFORE"
+              if [ -z "$from" ] || [ "$from" = 0000000000000000000000000000000000000000 ] \
+                 || ! git cat-file -e "$from^{commit}" 2>/dev/null; then all "no earlier commit to compare with"; fi ;;
+            *) all "$EVENT run" ;;
+          esac
+          changed="$(git diff --name-only "$from" HEAD)"
+          echo "Changed files:"; printf '%s\n' "$changed" | sed 's/^/  /'
+          # What the website build reads: web/, docs/img/ (app screens), CHANGELOG.md, and its checks.
+          web_re='^(web/|docs/img/|CHANGELOG\.md$|scripts/release/(check-[a-z]+\.mjs|lighthouserc\.json)$|\.github/workflows/ci\.yml$)'
+          # Files that cannot change what the apps build or how the tests run.
+          not_swift_re='^(web/|docs/|promo/|scripts/release/(check-[a-z]+\.mjs|lighthouserc\.json|notes\.sh|package\.sh)$|\.github/(ISSUE_TEMPLATE/|pull_request_template\.md$|dependabot\.yml$|workflows/release\.yml$)|[^/]+\.md$|[^/]+/README\.md$|LICENSE$|CITATION\.cff$)'
+          web=false; swift=false
+          if printf '%s\n' "$changed" | grep -qE "$web_re"; then web=true; fi
+          if printf '%s\n' "$changed" | grep -v '^$' | grep -qvE "$not_swift_re"; then swift=true; fi
+          { echo "swift=$swift"; echo "web=$web"; } >> "$GITHUB_OUTPUT"
+          echo "Swift jobs: $swift. Web job: $web."
+
+  # Checks the workflow files with actionlint (a checker for GitHub Actions files), then runs
+  # `make lint` (shell and Python syntax, shellcheck) when the Makefile has it.
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: actionlint
+        env:
+          VERSION: 1.7.12
+          SHA256: 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8
+        run: |
+          file="actionlint_${VERSION}_linux_amd64.tar.gz"
+          curl -fsSL --retry 3 -o "$RUNNER_TEMP/$file" "https://github.com/rhysd/actionlint/releases/download/v$VERSION/$file"
+          echo "$SHA256  $RUNNER_TEMP/$file" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/$file" -C "$RUNNER_TEMP" actionlint
+          "$RUNNER_TEMP/actionlint" -color
+      - name: make lint
+        run: |
+          if [ -f Makefile ] && grep -q '^lint:' Makefile; then make lint
+          else echo "This checkout has no make lint yet; skipped."; fi
+
+  # Runs every package's tests, the installer tests and the main thread check (`make test`, which
+  # runs scripts/test.sh). On CI only, a failed test gets one more run on its own, because hosted
+  # machines sometimes stall long enough to trip timing tests; the log names any retried test.
+  test:
+    needs: changes
+    if: needs.changes.outputs.swift == 'true'
+    runs-on: macos-26
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # restore-mtimes.sh reads the history
+          persist-credentials: false
+      - name: Tool versions
+        id: tools
+        run: |
+          xcodebuild -version; swift --version
+          echo "key=$(xcodebuild -version | tr -s ' \n' '-')$(swift --version 2>&1 | shasum | cut -c1-8)" >> "$GITHUB_OUTPUT"
+          echo "GLASSPAD_BUILD_ROOT=$HOME/glasspad-build" >> "$GITHUB_ENV"
+      # The cache keeps SwiftPM's build folder between runs. File times are set to each file's
+      # last commit, so files that did not change are not rebuilt. Only main saves the cache;
+      # pull requests start from main's.
+      - name: Restore file times
+        run: scripts/release/restore-mtimes.sh
+      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ env.GLASSPAD_BUILD_ROOT }}
+          key: spm-test-${{ steps.tools.outputs.key }}-${{ github.sha }}
+          restore-keys: spm-test-${{ steps.tools.outputs.key }}-
+      - name: Test
+        run: |
+          if [ -f Makefile ] && grep -q '^test:' Makefile; then make test; else scripts/test.sh; fi
+      # The Mac app's own tests (menu bar status, pairing code, wording). scripts/test.sh covers
+      # the packages only; this step steps aside once it covers Apps/Mac too.
+      - name: Mac app tests
+        run: |
+          if grep -q 'Apps/Mac' scripts/test.sh; then echo "scripts/test.sh already ran them."; exit 0; fi
+          source scripts/toolchain.sh
+          swift test --package-path Apps/Mac --scratch-path "$GP_BUILD_ROOT/GlasspadMacDebug" ${GP_SWIFT_FLAGS[@]+"${GP_SWIFT_FLAGS[@]}"}
+      - if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ env.GLASSPAD_BUILD_ROOT }}
+          key: spm-test-${{ steps.tools.outputs.key }}-${{ github.sha }}
+
+  # Builds the iPhone app and its widget for real iPhones in Release, the way install.sh builds
+  # it, but unsigned (CODE_SIGNING_ALLOWED=NO). It proves the app compiles; it makes nothing to
+  # install, since installing needs signing with the user's own Apple ID.
+  build-ios:
+    needs: changes
+    if: needs.changes.outputs.swift == 'true'
+    runs-on: macos-26
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Tool versions
+        id: tools
+        run: |
+          xcodebuild -version
+          echo "key=$(xcodebuild -version | tr -s ' \n' '-')" >> "$GITHUB_OUTPUT"
+          echo "DERIVED_DATA=$HOME/glasspad-dd-ios" >> "$GITHUB_ENV"
+      # The same XcodeGen version and checksum as install.sh, read from it so they never drift.
+      - name: Install XcodeGen
+        run: |
+          version="$(sed -nE 's/^XCODEGEN_VERSION="([^"]+)"/\1/p' install.sh)"
+          sum="$(sed -nE 's/^XCODEGEN_SHA256="([0-9a-f]{64})"/\1/p' install.sh)"
+          if [ -z "$version" ] || [ -z "$sum" ]; then echo "Could not read XcodeGen's version from install.sh"; exit 1; fi
+          curl -fsSL --retry 3 -o "$RUNNER_TEMP/xcodegen.zip" "https://github.com/yonaskolb/XcodeGen/releases/download/$version/xcodegen.zip"
+          echo "$sum  $RUNNER_TEMP/xcodegen.zip" | shasum -a 256 -c -
+          unzip -q "$RUNNER_TEMP/xcodegen.zip" -d "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/xcodegen/bin" >> "$GITHUB_PATH"
+      - name: Restore file times
+        run: scripts/release/restore-mtimes.sh
+      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ env.DERIVED_DATA }}
+          key: dd-ios-${{ steps.tools.outputs.key }}-${{ github.sha }}
+          restore-keys: dd-ios-${{ steps.tools.outputs.key }}-
+      - name: Build
+        run: |
+          xcodegen generate --quiet
+          xcodebuild -project Glasspad.xcodeproj -scheme "Glasspad iOS" -configuration Release \
+            -destination "generic/platform=iOS" -derivedDataPath "$DERIVED_DATA" \
+            CODE_SIGNING_ALLOWED=NO -quiet build
+          app="$DERIVED_DATA/Build/Products/Release-iphoneos/Glasspad.app"
+          test -x "$app/Glasspad" && test -d "$app/PlugIns/GlasspadWidgets.appex"
+          echo "Built $app"
+      - if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ env.DERIVED_DATA }}
+          key: dd-ios-${{ steps.tools.outputs.key }}-${{ github.sha }}
+
+  # Builds the Mac menu bar app with scripts/build-mac.sh (ad hoc signed: it runs on the Mac
+  # that built it, but is not notarized) and keeps it as a download on the run page for 7 days,
+  # for trying a change by hand. It is not offered as a release download: macOS blocks apps
+  # from the internet that are not notarized, and notarizing needs a paid Apple account.
+  build-mac:
+    needs: changes
+    if: needs.changes.outputs.swift == 'true'
+    runs-on: macos-26
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Tool versions
+        id: tools
+        run: |
+          xcodebuild -version; swift --version
+          echo "key=$(xcodebuild -version | tr -s ' \n' '-')$(swift --version 2>&1 | shasum | cut -c1-8)" >> "$GITHUB_OUTPUT"
+          echo "GLASSPAD_BUILD_ROOT=$HOME/glasspad-build" >> "$GITHUB_ENV"
+      - name: Restore file times
+        run: scripts/release/restore-mtimes.sh
+      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ env.GLASSPAD_BUILD_ROOT }}
+          key: spm-mac-${{ steps.tools.outputs.key }}-${{ github.sha }}
+          restore-keys: spm-mac-${{ steps.tools.outputs.key }}-
+      - name: Build
+        env:
+          GLASSPAD_BUILD_NUMBER: ${{ github.run_number }}
+        run: |
+          if [ -f Makefile ] && grep -q '^build-mac:' Makefile; then make build-mac; else scripts/build-mac.sh; fi
+      - name: Check the app
+        run: |
+          app=build/Glasspad.app
+          plutil -lint "$app/Contents/Info.plist"
+          codesign --verify --strict --verbose=2 "$app"
+          lipo -archs "$app/Contents/MacOS/Glasspad"
+          ditto -c -k --keepParent "$app" build/Glasspad-mac-adhoc.zip
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: Glasspad-mac-${{ github.sha }}
+          path: build/Glasspad-mac-adhoc.zip
+          retention-days: 7
+          if-no-files-found: error
+      - if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ env.GLASSPAD_BUILD_ROOT }}
+          key: spm-mac-${{ steps.tools.outputs.key }}-${{ github.sha }}
+
+  # Builds the website the way the host does (npm ci, then npm run build), then checks:
+  #   - structured data: every page's JSON-LD (what search engines read) uses real schema.org
+  #     types and properties, and every reference points at something on the page;
+  #   - links: every link inside the site reaches a page or file, and every #part exists;
+  #     weekly and manual runs also try every link to other sites;
+  #   - Lighthouse (Google's page quality tool) on five pages, against budgets for speed,
+  #     accessibility, best practices, search basics and page weight
+  #     (scripts/release/lighthouserc.json). The reports are kept on the run page for 14 days.
+  web:
+    needs: changes
+    if: needs.changes.outputs.web == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Install
+        working-directory: web
+        run: npm ci --no-audit --no-fund
+      - name: Build
+        working-directory: web
+        run: npm run build
+      - name: Structured data
+        run: node scripts/release/check-jsonld.mjs web/dist
+      - name: Links
+        env:
+          OUTSIDE: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
+        run: |
+          if [ "$OUTSIDE" = true ]; then node scripts/release/check-links.mjs web/dist --external
+          else node scripts/release/check-links.mjs web/dist; fi
+      - name: Lighthouse
+        run: npx --yes @lhci/cli@0.15.1 autorun --config=scripts/release/lighthouserc.json
+      - if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: lighthouse-${{ github.sha }}
+          path: .lighthouseci
+          retention-days: 14
+          if-no-files-found: ignore
+
+  # One check that sums up the run: it fails when any job above failed or was cancelled, and
+  # passes when each one passed or was skipped because the change did not need it.
+  all-green:
+    if: always()
+    needs: [changes, lint, test, build-ios, build-mac, web]
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "Results: $RESULTS"
+          for r in $RESULTS; do
+            case "$r" in success|skipped) ;; *) echo "A job ended with: $r"; exit 1 ;; esac
+          done
