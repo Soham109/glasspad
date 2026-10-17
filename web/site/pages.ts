@@ -11,7 +11,7 @@
 
 export const SITE = "https://glasspad.sohamaggarwal.com";
 export const REPO = "https://github.com/Soham109/glasspad";
-export const VERSION = "0.2.1";
+export const VERSION = "0.3.0";
 export const RELEASE = `${REPO}/releases/tag/v${VERSION}`;
 export const RELEASED = "2026-10-17";
 

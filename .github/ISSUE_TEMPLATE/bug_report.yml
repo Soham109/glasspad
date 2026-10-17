@@ -24,7 +24,7 @@ body:
     attributes:
       label: Glasspad version
       description: Mac Settings > About, or iPhone Settings > About.
-      placeholder: "0.2.1 (1)"
+      placeholder: "0.3.0 (1)"
     validations:
       required: true
   - type: input

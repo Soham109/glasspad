@@ -23,6 +23,8 @@ Every protocol change is additive:
 
 `WireGoldenTests` holds every message exactly as a released build wrote it. Each test run checks that the message still reads, and is written back the same. After each release, the wire is frozen again ([releasing](../releasing.md#after-the-release)).
 
+The protocol 2 handshake (0.3.0) keeps this decision: old peers are never refused while they are already paired, since they fall back to protocol 1. Only new pairings need both sides updated ([protocol.md](../security/protocol.md#3a-protocol-1-and-old-installs)).
+
 ## Consequences
 
 | Good | Cost |

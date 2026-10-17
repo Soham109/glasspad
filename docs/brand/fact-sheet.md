@@ -7,7 +7,7 @@
 | What it is | An iPhone app plus a small Mac menu bar app. They talk over your Wi-Fi. |
 | Price | Free. No ads, no in-app purchases, no account. |
 | License | MIT (open source) |
-| Current version | 0.2.1, released 2026-10-17 |
+| Current version | 0.3.0, released 2026-10-17 |
 | First release | 0.1.0, 2026-10-16 |
 | Needs | A Mac on macOS 14 or later, an iPhone on iOS 18 or later, Xcode 26 (free) and a free Apple ID |
 | How to get it | Not on the App Store. One Terminal command builds and installs both apps: glasspad.sohamaggarwal.com/install |

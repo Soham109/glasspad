@@ -40,7 +40,8 @@ On CI only (`CI` set), a failed test gets one more run on its own, at most five 
 | Area | Example suites |
 | --- | --- |
 | Wire format and compatibility | `ProtocolTests`, `WireGoldenTests`, `CompatibilityTests` |
-| Encryption and pairing | `CryptoTests`, `PairingPatternTests`, `PairingFlowTests` |
+| Encryption and pairing | `CryptoTests`, `KeyAgreementTests`, `PairingUpgradeTests`, `HandshakeGoldenTests`, `PairingSecurityTests`, `PairingPatternTests`, `PairingFlowTests` |
+| Activity log and media routing | `ActivityLogTests`, `MediaRoutingTests`, `ProgressTicksTests` |
 | Connection over a real loopback | `TransportTests`, `ConnectivityTests`, `LoopbackEndToEndTests` |
 | Gestures and feel | `GestureTests`, `FeelTests`, `PrecisionTests`, `PipelineTests`, `GapHidingTests` |
 | Mac modes, through the real router | `ModesTests`, `DeckModeTests`, `DisplaysModeTests`, `RemoteRouterTests` |

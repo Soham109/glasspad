@@ -1,6 +1,6 @@
 # Glasspad copy
 
-The one place for Glasspad's words. Copy from here; do not rewrite from memory. Every fact below was checked in the code on 17 Oct 2026 (version 0.2.1). If a fact changes, change it here first, then everywhere in [Where the copy disagrees](#where-the-copy-disagrees).
+The one place for Glasspad's words. Copy from here; do not rewrite from memory. Every fact below was checked in the code on 17 Oct 2026 (version 0.3.0). If a fact changes, change it here first, then everywhere in [Where the copy disagrees](#where-the-copy-disagrees).
 
 ## Names
 
@@ -183,4 +183,4 @@ Checked: README.md, the site (`web/site/content.ts`, `pages.ts`, `plugin.ts`, th
 | 13 | SEO Kit `00-before-you-submit.md` | "One line, 120 characters" | It is 114 | Label it "under 120" |
 | 14 | YouTube description, `FILM.description` | "wireless trackpad, keyboard and remote... no cloud" | Fine, but a different wording | Leave: it matches what is already live on YouTube |
 
-These agree already: version 0.2.1, MIT, macOS 14 / iOS 18 / Xcode 26, more than 70 apps, 39 themes, 11 players, 7-day renewal, contact address.
+These agree already: version 0.3.0, MIT, macOS 14 / iOS 18 / Xcode 26, more than 70 apps, 39 themes, 11 players, 7-day renewal, contact address.

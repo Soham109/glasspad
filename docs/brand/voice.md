@@ -88,7 +88,7 @@ Counting: Glasspad has 11 modes (the list above, without Arrange). Five show in 
 
 ### Product facts that must match everywhere
 
-- Version: 0.2.1
+- Version: 0.3.0
 - Free, MIT, no account, no ads, no in-app purchases
 - Starter buttons for 74 apps, written as "more than 70 apps" or "70+ apps"
 - Remote follows 11 players

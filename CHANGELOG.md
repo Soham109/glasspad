@@ -2,17 +2,38 @@
 
 All notable changes are listed here. The format follows [Keep a Changelog](https://keepachangelog.com), and the project follows [semantic versioning](https://semver.org).
 
-## [Unreleased]
+## [0.3.0] - 2026-10-17
+
+### Security
+
+- **Pairing:** the iPhone and Mac now agree their own key on the first connection (an X25519 key exchange mixed with the QR code's secret). Once your iPhone has paired, a copy of the QR code or the pairing link is useless.
+- **Allow on the Mac:** before a new iPhone can control your Mac, the Mac asks whether to allow it. Allow needs a click; pressing Return does not answer it. No answer within 30 seconds counts as Don't Allow.
+- **Every connection:** each connection adds a fresh key exchange, so a key stolen later cannot unlock traffic recorded earlier.
+- **Pairing code:** the Mac itself ends the code after 5 minutes, even if its window stays open or the Mac sleeps.
+- **Copy Link:** the link is marked private, so clipboard history apps skip it, and it is cleared when pairing ends.
+- **Clipboard:** Get from Mac never sends an item that a password manager marked private, and the iPhone says why.
+- **Album artwork:** downloads use HTTPS only, at most 2 MB, and never come from an address on your local network.
+- **Installer:** it refuses sources that are not HTTPS and downloads only over HTTPS.
 
 ### Added
 
-- **Activity log:** connections and media commands (which route each took and whether it worked) go to `~/Library/Logs/Glasspad/activity.log` on the Mac, capped at 256 KB, with no titles or typed text. Mac Settings > Advanced > Show Log opens it. The iPhone keeps the same log in the app's own storage.
+- **Activity log:** connections and media commands (which route each took and whether it worked) go to `~/Library/Logs/Glasspad/activity.log` on the Mac, capped at 256 KB, with no titles or typed text. Mac Settings > Advanced > Troubleshooting > Show Log opens it.
+- **Live Activity:** it also shows on Apple Watch (in the Smart Stack) and in CarPlay.
+- **Install a fixed release:** `GLASSPAD_REF=v0.3.0` builds that release instead of the newest code. See [Install](https://glasspad.sohamaggarwal.com/install).
+
+### Changed
+
+- **Update both apps:** iPhones already paired keep working and move to the new key on their next connection, with no question asked. A 0.2.x iPhone cannot pair anew with an updated Mac until it is updated, and it says so. An updated iPhone still works with a 0.2.x Mac.
+- **Mac icon:** redrawn to match the iPhone icon.
+- **Live Activity:** it fits the narrow Dynamic Island in landscape.
+- **Wording:** one name for each thing, US spelling, clearer errors and shorter help text. Left-Handed now says it moves Present's buttons. The Photos prompt no longer says "Deck". About mentions album artwork.
 
 ### Fixed
 
 - **Media and Remote:** the Mac's now-playing helper sends what plays as soon as it starts and refreshes every 5 seconds again. Before, it stayed silent until the player changed, so the phone could show an old state.
 - **Media and Remote:** with the helper stopped, play or pause no longer goes to a paused Spotify or Music while a browser was the Mac's now playing app. It goes to the Mac's now playing instead.
 - **Media and Remote:** on macOS 15.4 and later, the media key is used when the helper is not running, since macOS ignores Glasspad's own MediaRemote commands there.
+- **iPhone memory and battery:** less memory and less work when idle. The Photo theme keeps its full-size photo only while it is on screen, Dock icons and website logos are capped, and screens that are still stop redrawing.
 
 ## [0.2.1] - 2026-10-17
 
@@ -138,6 +159,7 @@ The first release. Changed and Fixed compare it with the test builds made before
 - Website logos use less memory and are released when the iPhone runs low on memory.
 - Setup text is no longer cut off at the sides, and the Mac's menu bar window no longer clips.
 
+[0.3.0]: https://github.com/Soham109/glasspad/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/Soham109/glasspad/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/Soham109/glasspad/compare/v0.1.2...v0.2.0
 [0.1.2]: https://github.com/Soham109/glasspad/compare/v0.1.1...v0.1.2

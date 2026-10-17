@@ -23,26 +23,51 @@ glasspad://pair?v=1&id=<Mac ID>&name=<Mac name>&k=<pair key, base64url>
 
 as a QR code, a link to copy, or a link to share. The key is armed on the Mac for 5 minutes (`PairingFlow.codeLifetime`) and for one phone; then it is dropped. The phone checks the version, the ID, and that the key is exactly 32 bytes. A link opened from outside the app asks the user before it is used.
 
-The pair key in the code becomes that phone's stored key on both sides (Keychain, `AfterFirstUnlockThisDeviceOnly`). It is not replaced after pairing.
+The code's key opens the first connection only (see 3a). Both sides then keep the agreed key in the Keychain (`AfterFirstUnlockThisDeviceOnly`). The server checks the code's 5 minute end itself (`GlasspadServer.armPairing(key:expiresAt:)`), on the wall clock.
 
 ## 3. Handshake (TCP)
 
 ```
-phone -> Mac   hello   {phoneID, phoneName, macID, nonce_p (16 bytes), v: 1}      not encrypted
-Mac   -> phone hello   {nonce_m (16 bytes), udpPort}                              not encrypted
-                       or a reject {reason}
-both           sessionKey = HKDF-SHA256(ikm: pairKey, salt: nonce_p || nonce_m,
-                                        info: "glasspad v1 session", 32 bytes)
-phone -> Mac   seal("glasspad confirm v1")    proves the phone holds the key
-Mac   -> phone seal("glasspad confirm v1")    proves the Mac holds the key
+phone -> Mac   hello  {phoneID, phoneName, macID, nonce_p, kx_p, rekey?, v: 2}    not encrypted
+Mac   -> phone hello  {nonce_m, udpPort, kx_m, rekey, v: 2}  or a reject {reason}  not encrypted
+both           ikm        = X25519(phone, Mac) || pairKey
+               salt       = nonce_p || nonce_m
+               sessionKey = HKDF-SHA256(ikm, salt, "glasspad v2 session" || rekey || kx_p || kx_m)
+               newPairKey = HKDF-SHA256(ikm, salt, "glasspad v2 pair" || kx_p || kx_m)   when rekey
+phone -> Mac   seal("glasspad confirm v1")
+Mac   -> phone seal("glasspad approval wait v2")    new phone only, while the Mac asks
+Mac            saves newPairKey (keeps the old key until keySaved)
+Mac   -> phone seal("glasspad confirm v1")          or seal("glasspad approval denied v2")
+phone          saves newPairKey
+phone -> Mac   seal({"t":"keySaved"})               the Mac drops the old key
 ```
 
-- The Mac looks up the stored key for `phoneID`. If there is none and a code is armed, it tries the code's key, and saves the phone only after the phone's proof checks out. A known phone that scanned a new code is checked against both keys.
+- The Mac looks up the stored key for `phoneID`. If there is none and a code is armed, it tries the code's key, and saves the phone only after the phone's proof checks out and someone clicks Allow on the Mac (30 seconds, then it counts as Don't Allow). A known phone that scanned a new code is checked against both keys.
 - Before accepting, the Mac asks the Keychain again, so a phone forgotten during the handshake is refused.
 - The phone accepts the session only after the Mac's proof checks out.
 - Handshake messages are limited to 8 KB, at most 8 handshakes run at once, and each must finish within 5 seconds.
 
-Because both nonces go into the key, every connection has its own key, and a recorded handshake cannot be replayed.
+Because both nonces and a fresh key exchange go into the key, every connection has its own key, and a recorded handshake cannot be replayed.
+
+### 3a. Protocol 1 and old installs
+
+- `kx` is a fresh X25519 key pair per connection; the private half is never stored. Every session key needs it, so a key learned later cannot open a recorded session (forward secrecy).
+- Both public keys and the rekey flag are in the HKDF info: changing either unencrypted hello breaks the key confirmation.
+- The phone asks for `rekey` while its key is a code's key. A new phone is always rekeyed.
+- A Mac on protocol 2 accepts a protocol 1 hello only from a phone it stored with a code's key, and never to pair. An updated phone falls back to protocol 1 only when the Mac answers "unsupported version 2" and its own key is still a code's key.
+- A forged "unsupported version" reply can keep a phone that has not moved yet on protocol 1 until the app restarts. That is the same security 0.2.x had, and it cannot be used to pair.
+- Frozen in `WireGolden_2026_10_17_Handshake.swift`, with known answers for the key derivation.
+
+Protocol 1, used by 0.2.x:
+
+```
+phone -> Mac   hello   {phoneID, phoneName, macID, nonce_p (16 bytes), v: 1}
+Mac   -> phone hello   {nonce_m (16 bytes), udpPort}  or a reject {reason}
+both           sessionKey = HKDF-SHA256(ikm: pairKey, salt: nonce_p || nonce_m,
+                                        info: "glasspad v1 session", 32 bytes)
+phone -> Mac   seal("glasspad confirm v1")
+Mac   -> phone seal("glasspad confirm v1")
+```
 
 ## 4. Encrypted messages
 
@@ -64,4 +89,4 @@ labels: "P2M\0" phone to Mac, TCP   "M2P\0" Mac to phone, TCP
 
 - The two hellos and a reject are readable by anyone on the network: the phone ID, phone name, Mac ID, both nonces, and the UDP port.
 - The UDP port in the Mac's hello is not signed. Changing it only breaks touches for that connection.
-- There is no forward secrecy: every session key comes from the pair key, so someone who later gets the pair key and recorded the traffic can decrypt it. A key exchange during pairing (planned, see the threat model) would fix this and the reuse of the code as the long-term key.
+- Protocol 1 sessions (a 0.2.x phone or Mac) have no forward secrecy: every session key comes from the pair key.

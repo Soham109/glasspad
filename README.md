@@ -44,7 +44,7 @@ Then click Glasspad in the Mac menu bar, choose **Pair Your iPhone…** and scan
 To build a fixed release instead of the newest code:
 
 ```bash
-curl --proto '=https' --tlsv1.2 -fsSL https://raw.githubusercontent.com/Soham109/glasspad/main/install.sh | GLASSPAD_REF=v0.2.1 bash
+curl --proto '=https' --tlsv1.2 -fsSL https://raw.githubusercontent.com/Soham109/glasspad/main/install.sh | GLASSPAD_REF=v0.3.0 bash
 ```
 
 - **You need:** a Mac on macOS 14+, an iPhone on iOS 18+, Xcode 26+ (free), a free Apple ID, and a cable for the first install.

@@ -114,15 +114,19 @@ sequenceDiagram
   autonumber
   participant P as iPhone
   participant M as Mac
-  M->>M: Pair Your iPhone: new 32-byte key, living QR code for 5 minutes
+  M->>M: Pair Your iPhone: new 32-byte code key, living QR code for 5 minutes
   P->>M: scan the code (Vision) or paste the glasspad://pair link
   P->>M: find _glasspad._tcp with Bonjour, open TCP
-  P->>M: Hello (plaintext): phone ID, Mac ID, 16 random bytes
-  M->>P: Hello (plaintext): 16 random bytes, UDP port, or a refusal
-  Note over P,M: both derive the session key with HKDF-SHA256
-  P->>M: sealed "glasspad confirm v1"
-  M->>P: sealed "glasspad confirm v1"
-  Note over M: a new phone is saved only now
+  P->>M: Hello v2 (plaintext): phone ID, Mac ID, nonce, X25519 public key, rekey
+  M->>P: Hello v2 (plaintext): nonce, UDP port, X25519 public key, rekey, or a refusal
+  Note over P,M: both mix X25519 with the code key (HKDF-SHA256): session key, and a new pair key when rekey
+  P->>M: sealed "glasspad confirm v1" (key confirmation)
+  M->>P: sealed "approval wait v2" (new phone only)
+  Note over M: Allow "phone" to control this Mac? (30 s, then Don't Allow)
+  M->>M: Allow: save the new pair key, keep the old one until keySaved
+  M->>P: sealed "glasspad confirm v1", or "approval denied v2"
+  P->>P: save the new pair key in the Keychain
+  P->>M: sealed keySaved: the Mac drops the old key
   M->>P: macStatus, settings, wake target
   P-->>M: touches over UDP, everything else over TCP
 ```
@@ -130,10 +134,13 @@ sequenceDiagram
 | Piece | How | Code |
 | --- | --- | --- |
 | Pairing link | `glasspad://pair?v=1&id=<macID>&name=<name>&k=<base64url key>` | `Crypto/PairingPayload.swift` |
-| Code lifetime | 5 minutes, then the key is disarmed and the Mac shows Code Expired | `PairingFlow.codeLifetime` |
+| Code lifetime | 5 minutes, checked by the server on the wall clock, then the code key is disarmed and the Mac shows Code Expired | `PairingFlow.codeLifetime`, `GlasspadServer.armPairing(key:expiresAt:)` |
 | Living code | A real QR code drawn as drifting dots. Tests render it and read it back with Vision. | `Pairing/PairingPattern.swift`, `PairingCodeReader.swift` |
-| Key storage | Keychain on both devices | `PairingStore` (Mac), `KnownMacsStore` (phone) |
-| Session key | `HKDF-SHA256(pairKey, salt: phoneNonce + macNonce, info: "glasspad v1 session")` | `Crypto/SessionCrypto.swift` |
+| Key agreement | A fresh X25519 key pair per connection, mixed with the pair key. On the first connection (rekey) both sides derive a new pair key, so the code is useless afterwards. | `Crypto/KeyAgreement.swift` |
+| Allow | A new phone waits while the Mac asks Allow or Don't Allow. Return does not answer it; no answer in 30 s counts as Don't Allow. | `GlasspadServer`, `ApprovalPrompt.swift` |
+| Key storage | Keychain on both devices (`AfterFirstUnlockThisDeviceOnly`). The Mac keeps the old key until the phone sends keySaved. | `PairingStore` (Mac), `KnownMacsStore` (phone) |
+| Session key | `HKDF-SHA256(X25519 + pairKey, salt: phoneNonce + macNonce, info: "glasspad v2 session" + rekey + both public keys)` | `Crypto/KeyAgreement.swift`, `Crypto/SessionCrypto.swift` |
+| Old peers | A 0.2.x peer already paired still connects with protocol 1 (`"glasspad v1 session"`, no key exchange). New pairings need both sides on protocol 2. | [protocol.md](docs/security/protocol.md#3a-protocol-1-and-old-installs) |
 | Sealing | ChaCha20-Poly1305. The nonce is a 4-byte direction tag plus an 8-byte counter. | `SessionCrypto` |
 | Replays | TCP counters must rise. UDP accepts a 64-wide sliding window and rejects duplicates. | `SessionCrypto.openUDP` |
 | Bad frames | Dropped silently and counted (`LinkStats.authFailures`, `replayDrops`) | `GlasspadServer` |
@@ -186,7 +193,7 @@ flowchart TB
 | App state is `@MainActor`: `GlasspadController`, `TouchPipeline`, `ModeRouter` on the Mac, `MacSession` on the phone. | Swift 6 strict concurrency checks it when compiling. |
 | **Main-thread rule:** code on the main thread never makes a call that can block: no `waitUntilExit`, semaphore or group `wait`, `Thread.sleep`, `sleep`, or `AEDeterminePermissionToAutomateTarget`. | The menu bar icon froze once when an Automation permission check ran on the main thread ([ADR 0004](docs/adr/0004-main-thread-never-blocks.md)). |
 | `scripts/check-main-thread.py` enforces it in every test run. Reviewed exceptions go in `scripts/main-thread-allowlist.txt` with a reason. | So it cannot come back. |
-| `pairKeyLookup` runs on the server's own queue and must not call back into the server. | Avoids a deadlock. |
+| `keyLookup` and `saveKey` run on the server's own queue and must not call back into the server. | Avoids a deadlock. |
 
 ## Staying compatible across versions
 

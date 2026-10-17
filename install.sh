@@ -10,7 +10,7 @@
 #
 # Options (environment variables):
 #   GLASSPAD_HOME=path     Where the source goes. Default: ~/Projects/glasspad
-#   GLASSPAD_REF=tag       Build this release tag or commit (for example v0.2.1) instead of the
+#   GLASSPAD_REF=tag       Build this release tag or commit (for example v0.3.0) instead of the
 #                          newest code on main. Run again with another tag to move to it.
 #   GLASSPAD_SKIP_PHONE=1  Set up only the Mac (no iPhone at hand, or a run without a person).
 #   GLASSPAD_TEAM=ID       Which Apple team to sign with, when you have more than one.

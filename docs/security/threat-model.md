@@ -6,7 +6,7 @@ Short version:
 
 - A paired iPhone can do anything a keyboard and mouse plugged into your Mac can do. Pair only your own phone, and use Forget on the Mac for any phone you no longer have.
 - Someone else on your Wi-Fi cannot send input to your Mac, read what you type, or replay what they captured. They can see that a Glasspad Mac and phone are there, and they can interrupt the connection.
-- The pairing code (the QR code, or the link from Copy Link or Share) is the phone's long-term secret, not a one-time password. Treat it like a password.
+- The pairing code (the QR code, or the link from Copy Link or Share) works once, for 5 minutes, and only after you click Allow on the Mac. Once your phone has paired, the code is useless: the phone and Mac agree a new key that the code does not reveal.
 - The installer downloads code from GitHub and builds it on your Mac. You are trusting GitHub, the Glasspad repository, and Apple's tools.
 
 ## What Glasspad is
@@ -24,7 +24,7 @@ There is no server and no account. Nothing between the phone and the Mac leaves 
 | Asset | Why it matters |
 | --- | --- |
 | Control of the Mac | A paired phone types and clicks as you. Whoever controls it can open Terminal and run anything you can. |
-| The pair key | 32 random bytes shared by one phone and one Mac. Whoever holds it, plus that phone's ID, can act as that phone. |
+| The pair key | 32 bytes shared by one phone and one Mac, agreed on the first connection (protocol 2). Whoever holds it, plus that phone's ID, can act as that phone. |
 | What you type on the phone | Passwords typed through the phone keyboard travel over the network. |
 | The Mac's clipboard | The phone can ask for it, and it may hold a password copied from a password manager. |
 | Your build and install | The installer runs code from the internet with your user account, and asks for your password once (for Xcode's license). |
@@ -37,7 +37,7 @@ They can see and send any network traffic, but they have never seen your pairing
 
 What stops them:
 
-- Every message after the two opening "hello" messages is encrypted and signed with ChaCha20-Poly1305 (a standard cipher that also detects any change to the data). The key for each connection is made fresh from the pair key and two random values, one from each side (HKDF-SHA256, a standard way to turn one secret into another).
+- Every message after the two opening "hello" messages is encrypted and signed with ChaCha20-Poly1305 (a standard cipher that also detects any change to the data). The key for each connection is made fresh from the pair key, a new X25519 key exchange, and two random values, one from each side (HKDF-SHA256, a standard way to turn one secret into another).
 - Before the Mac accepts a phone, the phone must prove it holds the key, and the Mac then proves it too. A guess fails, and a failed proof closes the connection.
 - Each encrypted message carries a counter. The Mac drops a message whose counter it has already seen (on the touch channel it keeps a window of the last 64), so a recorded message cannot be sent again. A recorded connection cannot be replayed either: the Mac picks a new random value each time, so the old messages do not fit the new key.
 - Touch packets that do not decrypt are dropped and counted. They never move the pointer.
@@ -52,9 +52,9 @@ What they can still do:
 
 The code holds the Mac's ID and the pair key. It is shown while you pair, and can be copied as a link or shared with AirDrop or Messages.
 
-- **While the code is valid (5 minutes)** they can pair their own phone with your Mac. The Mac does not ask you to approve a new phone, and the code works for one phone only, so if theirs lands first, yours fails and the Mac's list of phones shows theirs.
-- **After your phone has paired** the same key stays your phone's key for as long as it is paired. Someone who kept a copy of the code (a screenshot, a screen recording, a screen share during pairing, a clipboard history app, the link in a chat) and who later learns your phone's ID (it is sent unencrypted every time your phone connects, see above) can connect as your phone. Expiry after 5 minutes stops new pairings only, not this.
-- **What fixes it today:** on the Mac, Settings > iPhone > Forget… the phone, then pair again with a new code that nobody else has seen.
+- **While the code is valid (5 minutes)** they can try to pair their own phone. The Mac asks "Allow *phone name* to control this Mac?" first, and the code works for one phone only. Click Don't Allow for any phone that is not yours. No answer within 30 seconds counts as Don't Allow.
+- **After your phone has paired** the code is worthless. On that first connection the phone and Mac run a key exchange (X25519) and mix it with the code's key, so the key they keep cannot be worked out from the code, a screenshot, or a copied link.
+- **Phones paired by 0.2.x** still use the code's key until their next connection with an updated phone and Mac, which replaces it the same way. An old phone that is not updated keeps the code's key until you pair it again.
 
 Pairing links that arrive from outside the iPhone app (a web page, a message, the Camera) always ask "Pair with *name*?" first. The name comes from the link itself, so a link can claim any Mac name.
 
@@ -78,6 +78,7 @@ Anyone who can unlock your iPhone and open Glasspad has the same power. Use a pa
 Code that already runs under your account can do most of what Glasspad does. Two things are worth knowing:
 
 - **Glasspad's permissions carry over to what it starts.** macOS counts a shell command button, a macro script, and the now-playing helper as Glasspad's own work, so they get Glasspad's Accessibility, Automation and Screen Recording permission. Other software that can edit `deck.json`, the macros, or the state files in `~/Library/Application Support/Glasspad` could use that to borrow those permissions. Shell buttons stay off until you turn them on, which limits this.
+- **The clipboard.** Copy Link marks the link private and short-lived (`org.nspasteboard.ConcealedType` and `TransientType`), so clipboard history apps skip it, and clears it when pairing ends. It still reaches your iPhone through Universal Clipboard, which is how Paste the Link Instead works. When the phone asks for the Mac's clipboard, anything a password manager marked private is not sent.
 - **The renewal job runs a script from your Glasspad folder every hour** (`~/Projects/glasspad/scripts/refresh-phone.sh` by default) and reads its saved settings by running `phone-install.env` as shell code. Anything that can change those files runs code at that time. Do not keep the Glasspad folder somewhere other people or devices can write, such as a shared or synced folder.
 
 The pair keys are in the Keychain on both devices, marked "this device only, after first unlock", so they are not copied into backups or iCloud Keychain.
@@ -85,7 +86,7 @@ The pair keys are in the Keychain on both devices, marked "this device only, aft
 ### 5. The internet: websites, GitHub, downloads
 
 - **Website buttons.** When you add a Website button, the iPhone fetches that site's page and logo. It uses HTTPS only, sends no cookies, reads at most 400 KB of the page, and refuses logos and redirects that point at local network addresses (such as `192.168.1.1`, `printer.local` or `localhost`) unless the link you typed is that device. A site whose public name points at a local address could get past the name check, but the request still has to pass HTTPS certificate checks, which home devices almost never do. Logos are redrawn as plain images before they are kept.
-- **Album artwork.** For Spotify, the Mac downloads the artwork link that Spotify reports.
+- **Album artwork.** For Spotify, the Mac downloads the artwork link that Spotify reports, over HTTPS only, at most 2 MB, and never from an address on the local network.
 - **The installer.** See the next section.
 
 ### 6. The install and update path
@@ -95,12 +96,12 @@ The pair keys are in the Keychain on both devices, marked "this device only, aft
 - Everything sits inside one `main` function that is called only on the last line. If the download stops partway, bash reads an unfinished function and runs nothing. The test suite checks this by running cut-off copies.
 - The source is cloned over HTTPS. `GLASSPAD_REPO_URL` must start with `https://` (or be a folder on the Mac); `http://` and `git://` are refused.
 - XcodeGen, the one outside build tool, is a fixed version, downloaded over HTTPS only (also after GitHub's redirect), and checked against its published SHA-256 checksum before it is unpacked. If the check fails it is thrown away; the installer then tries Homebrew, which checks its own downloads.
-- `GLASSPAD_REF=v0.2.1` builds that release tag instead of the newest code on `main`. Later runs stay on that tag until you name another one.
+- `GLASSPAD_REF=v0.3.0` builds that release tag instead of the newest code on `main`. Later runs stay on that tag until you name another one.
 
 What you still trust:
 
 - **GitHub and the repository owner.** Without `GLASSPAD_REF`, the installer builds whatever is newest on `main`. Releases are tagged, but tags are not signed, so a tag proves only that it came from the repository, not from a particular person.
-- **The script you pipe in.** The short command fetches `install.sh` from `main`. For a fixed script too, fetch it from the tag: `https://raw.githubusercontent.com/Soham109/glasspad/v0.2.1/install.sh`.
+- **The script you pipe in.** The short command fetches `install.sh` from `main`. For a fixed script too, fetch it from the tag: `https://raw.githubusercontent.com/Soham109/glasspad/v0.3.0/install.sh`.
 - **Apple's tools.** The build runs Xcode and asks for your Mac password once, only to accept Xcode's license and finish its first-run setup.
 - **Updates** happen only when you run the installer again. The renewal job reinstalls the exact commit you last installed and never downloads new code.
 
@@ -117,12 +118,11 @@ Some features use parts of macOS that Apple does not document: bringing a window
 
 ## Known gaps and planned fixes
 
-These are open. Each is tracked as a proposal for the code; none has been fixed yet.
+These are open. Earlier gaps (the code as the long-term key, no Allow step, the clipboard) were fixed in 0.3.0.
 
-1. The pairing code is also the long-term key (section 2). Plan: agree a fresh key during the first connection with a key exchange (X25519), mixed with the code's key, so a copy of the code is useless once pairing is done.
-2. A new phone is accepted without a click on the Mac. Plan: the Mac asks "Allow *phone name* to control this Mac?" before saving it.
-3. The phone ID and phone name are sent unencrypted. Plan: send them inside the encrypted channel, or use a per-Mac ID.
-4. The pairing link copied on the Mac goes onto the normal clipboard, which Universal Clipboard and clipboard history apps can keep. Plan: mark it as private and short-lived so those apps skip it.
-5. A clipboard pull from the phone also sends text that a password manager marked as private. Plan: skip such items, or ask first.
+1. The phone ID and phone name are sent unencrypted. Plan: send them inside the encrypted channel, or use a per-Mac ID.
+2. A 0.2.x phone that was paired before keeps the code's key until it is updated or paired again.
+3. Between the Mac saving a new phone's key and the phone confirming its own save, the code's key can still be used once to agree a new key, without asking Allow. This normally lasts one round trip.
+4. The name in the Allow question is the one the phone sends, so a stranger's phone can use your phone's name. Pair only while you hold your phone.
 
 This project has not had an independent security audit.
