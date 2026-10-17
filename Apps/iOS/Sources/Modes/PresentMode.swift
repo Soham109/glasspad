@@ -12,7 +12,7 @@ struct PresentMode: View {
     var session = MacSession.shared
     private var accent: Color { AppMode.present.accent(palette) }
 
-    @State private var timer = PresentTimer()
+    private var timer = PresentClock.shared
 
     var body: some View {
         Group {
@@ -84,13 +84,10 @@ struct PresentMode: View {
         HStack(spacing: 12) {
             // Ticks only while the timer runs.
             TimelineView(.periodic(from: .now, by: timer.isRunning ? 1 : 3600)) { context in
-                Text(MediaMode.clock(timer.elapsed(at: context.date)))
-                    .font(.system(.largeTitle, design: .rounded).weight(.medium).monospacedDigit())
-                    .foregroundStyle(timer.isRunning ? palette.inkColor : palette.inkSoftColor)
-                    .contentTransition(reduceMotion ? .identity : .numericText(countsDown: false))
-                    .animation(.snappy, value: Int(timer.elapsed(at: context.date)))
-                    .accessibilityLabel("Elapsed time \(MediaMode.clock(timer.elapsed(at: context.date)))")
+                clock(at: context.date)
             }
+            .contentShape(Rectangle())
+            .contextMenu { talkLengthMenu }
             Spacer()
             Button {
                 Haptics.shared.tap()
@@ -118,6 +115,39 @@ struct PresentMode: View {
             .glassButton()
             .buttonBorderShape(.circle)
             .accessibilityLabel(timer.isRunning ? "Pause timer" : "Start timer")
+        }
+    }
+
+    /// Counts up, or down from the talk length when one is set: orange in the last minute,
+    /// then red with a plus once over.
+    private func clock(at date: Date) -> some View {
+        let remaining = timer.remaining(at: date)
+        let text = remaining.map(TalkClock.text) ?? MediaMode.clock(timer.elapsed(at: date))
+        let stage = remaining.map(TalkClock.stage) ?? .normal
+        let color: Color = switch stage {
+        case .normal: timer.isRunning ? palette.inkColor : palette.inkSoftColor
+        case .warning: palette.caution
+        case .over: palette.bad
+        }
+        return Text(text)
+            .font(.system(.largeTitle, design: .rounded).weight(.medium).monospacedDigit())
+            .foregroundStyle(color)
+            .contentTransition(reduceMotion ? .identity : .numericText(countsDown: remaining.map { $0 > 0 } ?? false))
+            .animation(.snappy, value: text)
+            .accessibilityLabel(remaining.map(TalkClock.spoken) ?? "Elapsed time \(text)")
+            .accessibilityHint("Touch and hold to set the talk length")
+    }
+
+    private var talkLengthMenu: some View {
+        Section("Talk Length") {
+            Picker("Talk Length", selection: Bindable(timer).lengthMinutes) {
+                Text("Off").tag(0)
+                ForEach(TalkClock.lengths, id: \.self) { minutes in
+                    Text("\(minutes) Minutes").tag(minutes)
+                }
+            }
+            .pickerStyle(.inline)
+            .labelsHidden()
         }
     }
 
@@ -208,33 +238,5 @@ private struct LaserPad: View {
         .accessibilityLabel("Laser pointer pad")
         .accessibilityHint("Touch and move to show a red dot on your Mac screen")
         .accessibilityAddTraits(.allowsDirectInteraction)
-    }
-}
-
-/// Elapsed time that survives pausing.
-struct PresentTimer {
-    private(set) var isRunning = false
-    private var startedAt: Date?
-    private var accumulated: TimeInterval = 0
-
-    var hasTime: Bool { isRunning || accumulated > 0 }
-
-    func elapsed(at date: Date) -> TimeInterval {
-        accumulated + (startedAt.map { date.timeIntervalSince($0) } ?? 0)
-    }
-
-    mutating func toggle() {
-        if isRunning {
-            accumulated = elapsed(at: .now)
-            startedAt = nil
-        } else {
-            startedAt = .now
-        }
-        isRunning.toggle()
-    }
-
-    mutating func reset() {
-        accumulated = 0
-        startedAt = isRunning ? .now : nil
     }
 }
