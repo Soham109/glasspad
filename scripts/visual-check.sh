@@ -105,7 +105,9 @@ while IFS='|' read -r name allow args; do
     if [ "$look" != "$current_look" ]; then xcrun simctl ui "$UDID" appearance "$look"; current_look=$look; fi
     fresh_start
     # shellcheck disable=SC2086
-    xcrun simctl launch "$UDID" "$BID" "${DEMO[@]}" -GPTheme "$theme" -GPStandByTime 9:41 $args >/dev/null
+    # Once more after a moment if the launch does not take (the preferences daemon restarting).
+    xcrun simctl launch "$UDID" "$BID" "${DEMO[@]}" -GPTheme "$theme" -GPStandByTime 9:41 $args >/dev/null 2>&1 \
+      || { sleep 3; xcrun simctl launch "$UDID" "$BID" "${DEMO[@]}" -GPTheme "$theme" -GPStandByTime 9:41 $args >/dev/null; }
     sleep "$WAIT"
     # Keep taking it until two in a row match (launch finished, animations settled), at most 6 s more.
     xcrun simctl io "$UDID" screenshot "$file" >/dev/null 2>&1 || echo "could not take $name@$theme" >&2
