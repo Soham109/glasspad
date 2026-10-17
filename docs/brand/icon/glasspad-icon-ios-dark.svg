@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <title>Glasspad</title>
+  <rect width="1024" height="1024" fill="#0A0A0A"/>
+  <rect x="84" y="204" width="856" height="616" rx="132" fill="#282828"/>
+  <g fill="#F2F1EE" opacity="0.16">
+    <circle cx="276" cy="628" r="26"/>
+    <polygon points="261.00,606.76 614.93,356.85 696.28,519.54 283.99,652.74"/>
+  </g>
+  <circle cx="668" cy="432" r="92" fill="#F2F1EE"/>
+</svg>
