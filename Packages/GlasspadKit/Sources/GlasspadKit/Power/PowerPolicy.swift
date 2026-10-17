@@ -32,8 +32,10 @@ public struct PowerPolicy: Equatable, Sendable {
     public var allowsHeartbeats: Bool { !isWarm }
 
     /// Heartbeats stop after this long without a touch.
-    public var heartbeatIdleTimeout: TimeInterval {
-        lowPower ? Self.lowPowerHeartbeatIdle : GlasspadService.heartbeatIdleTimeout
+    public var heartbeatIdleTimeout: TimeInterval { heartbeatIdleTimeout(rest: .standard) }
+    /// The same with the battery experiment's choice; Low Power Mode's shorter limit still wins.
+    public func heartbeatIdleTimeout(rest: HeartbeatRest) -> TimeInterval {
+        min(lowPower ? Self.lowPowerHeartbeatIdle : GlasspadService.heartbeatIdleTimeout, rest.idleTimeout)
     }
     public static let lowPowerHeartbeatIdle: TimeInterval = 10
 

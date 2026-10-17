@@ -77,6 +77,13 @@ public enum GlasspadService {
     /// reports `failed(replacedFailure)`.
     public static let replacedReason = "replaced by another connection"
     public static let replacedFailure = "Another iPhone is now using this Mac"
+    /// `bye` reason the Mac sends when Glasspad there is paused or quits. The phone keeps
+    /// looking for it and says that Glasspad is off (`LinkIssue.macTurnedOff`). Every Mac build
+    /// has sent this string.
+    public static let stoppedReason = "server stopped"
+    /// `bye` reason the Mac sends just before it goes to sleep (`LinkIssue.macAsleep`). An
+    /// older phone treats it as any other bye.
+    public static let sleepingReason = "mac going to sleep"
     /// The phone treats the link as dead after this long without any frame from the Mac (the Mac
     /// pings every second), and reconnects at once.
     public static let clientSilenceTimeout: TimeInterval = 3.5

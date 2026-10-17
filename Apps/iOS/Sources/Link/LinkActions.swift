@@ -1,7 +1,8 @@
 import SwiftUI
 
 /// What the user can do about a link that is not up: take the Mac back from another iPhone,
-/// or wake a sleeping Mac. Shows nothing when neither applies.
+/// pair again with a Mac that forgot this iPhone, or wake a sleeping Mac. Shows nothing when
+/// none applies.
 struct LinkActions: View {
     @Environment(\.palette) private var palette
     var session = MacSession.shared
@@ -20,7 +21,16 @@ struct LinkActions: View {
                 .glassButton(prominent: true)
                 .controlSize(.large)
                 .accessibilityHint("Takes the Mac back. The other iPhone disconnects.")
-            } else if !session.isConnected, store.selected?.wakeTarget?.lastIPv4 != nil {
+            } else if session.absence?.kind == .forgotPhone {
+                Button("Pair Again") {
+                    Haptics.shared.tap()
+                    AppRouter.shared.showPairing = true
+                }
+                .glassButton(prominent: true)
+                .controlSize(.large)
+                .accessibilityHint("Pairs this iPhone with your Mac again")
+            } else if !session.isConnected, session.absence?.kind != .turnedOff,
+                      store.selected?.wakeTarget?.lastIPv4 != nil {
                 Button {
                     Task { await wake() }
                 } label: {
@@ -40,6 +50,7 @@ struct LinkActions: View {
             }
         }
         .animation(.snappy, value: session.isReplaced)
+        .animation(.snappy, value: session.absence)
         .animation(.snappy, value: wakeNote)
     }
 
@@ -49,7 +60,8 @@ struct LinkActions: View {
         switch await session.wakeMac() {
         case .sent:
             Haptics.shared.play(.detent)
-            wakeNote = "Sent. A sleeping Mac wakes only if Wake for network access is on."
+            let name = session.macName ?? "your Mac"
+            wakeNote = "Sent. If \(name) does not wake, open its lid or press a key. A Mac on battery, or with Wake for network access off, cannot wake this way."
         case .noAddress:
             wakeNote = "Connect once first, so Glasspad learns how to wake this Mac."
         case .failed:

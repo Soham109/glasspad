@@ -259,7 +259,7 @@ struct SettingsView: View {
 
     private func statusLine(for mac: PairedMac) -> String {
         if store.selected?.macID == mac.macID {
-            return session.state.statusText
+            return session.statusText
         }
         return "Paired " + mac.pairedAt.formatted(date: .abbreviated, time: .omitted)
     }
@@ -333,6 +333,8 @@ struct AdvancedSettings: View {
                 Text("Your Mac shows this iPhone by this name.")
             }
             .listRowBackground(palette.raisedColor)
+
+            BatteryExperimentSection()
 
             Section {
                 if settings.setupComplete, PairingStore.shared.selected != nil {

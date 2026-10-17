@@ -640,6 +640,11 @@ public final class GlasspadClient: @unchecked Sendable {
                 stopPathMonitor()
                 teardown()
                 setState(.failed(GlasspadService.replacedFailure))
+            case .bye(let reason) where reason == GlasspadService.sleepingReason || reason == GlasspadService.stoppedReason:
+                // The Mac is going to sleep, or Glasspad there stopped. Keep looking (it comes
+                // back by itself), and say why meanwhile; the next connect clears it.
+                setIssue(reason == GlasspadService.sleepingReason ? .macAsleep : .macTurnedOff)
+                delegateQueue.async { [weak self] in self?.delegate?.link(didReceive: msg) }
             default: delegateQueue.async { [weak self] in self?.delegate?.link(didReceive: msg) }
             }
         case nil:
@@ -899,10 +904,19 @@ public enum LinkIssue: Equatable, Sendable {
     /// network keeps devices apart (guest or hotel Wi-Fi, a VPN, or a firewall on the Mac).
     /// Peer-to-peer Wi-Fi has already been tried.
     case networkBlocksDevices
+    /// The Mac said it was going to sleep (`GlasspadService.sleepingReason`). Kept while the
+    /// client looks for it again; the next connect clears it.
+    case macAsleep
+    /// Glasspad on the Mac was paused or quit (`GlasspadService.stoppedReason`). Kept the same way.
+    case macTurnedOff
 
     /// A sentence for the phone to show.
     public var message: String {
         switch self {
+        case .macAsleep:
+            "Your Mac is asleep. Wake it, and Glasspad connects again."
+        case .macTurnedOff:
+            "Glasspad is off on your Mac. Turn it on from the menu bar on your Mac, or open Glasspad there."
         case .localNetworkDenied:
             "Glasspad is not allowed to use your local network. Turn on Local Network for Glasspad in Settings > Privacy & Security > Local Network."
         case .networkBlocksDevices:

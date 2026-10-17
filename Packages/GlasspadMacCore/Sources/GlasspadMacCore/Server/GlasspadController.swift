@@ -44,16 +44,20 @@ public final class GlasspadController: ObservableObject {
     private var reporter = MacStatusReporter()
     private var deniedWatch: AnyCancellable?
     private var axMonitor: AccessibilityMonitor
+    /// Sleep and screen lock, for the phone (a bye before sleep, `MacStatus.screenLocked`).
+    private let presence: MacPresence
     /// What the launch self-check found, before the user's choices are applied.
     private let detectedCapabilities: SynthCapabilities
     private let preferencesDefaults: UserDefaults
 
     /// `accessibilityCheck` reads the Accessibility permission (tests inject their own).
-    /// `preferences` holds the per-gesture choices (tests pass their own suite).
+    /// `preferences` holds the per-gesture choices (tests pass their own suite). `presence`
+    /// watches sleep and the screen lock (tests pass one with their own notification centers).
     public init(pairing: PairingStore = PairingStore(), macName: String = Host.current().localizedName ?? "Mac",
                 accessibilityCheck: @escaping @Sendable () -> Bool = { AXIsProcessTrusted() },
-                preferences: UserDefaults = .standard) {
+                preferences: UserDefaults = .standard, presence: MacPresence? = nil) {
         self.pairing = pairing
+        self.presence = presence ?? MacPresence()
         self.axMonitor = AccessibilityMonitor(check: accessibilityCheck)
         self.macName = macName
         self.preferencesDefaults = preferences
@@ -119,6 +123,11 @@ public final class GlasspadController: ObservableObject {
             MainActor.assumeIsolated { self?.sessionStarted() }
         }
         macros.start()
+        // Best effort: the bye may not make it out before the Mac sleeps. The phone's silence
+        // timeout covers that, it only cannot say why.
+        presence.onSleep = { [weak self] in self?.server.disconnect(reason: GlasspadService.sleepingReason) }
+        presence.onLockChange = { [weak self] _ in self?.reportStatus() }
+        presence.start()
         watcher.onChange = { [weak self] s in self?.settingsChanged(s) }
         watcher.start()
         do {
@@ -167,6 +176,7 @@ public final class GlasspadController: ObservableObject {
         statusTimer?.invalidate()
         statusTimer = nil
         watcher.stop()
+        presence.stop()
         pipeline.cancelAll()
         macros.stop()
         server.stop()
@@ -266,7 +276,7 @@ public final class GlasspadController: ObservableObject {
     public var macStatus: MacStatus {
         // `ModeRouter` reads `modesShown`, so the phone's layouts need not poll the Dock.
         MacStatus(accessibilityTrusted: accessibilityTrusted, automationMedia: automation, macName: macName,
-                  followsAllPanes: true)
+                  followsAllPanes: true, screenLocked: presence.screenLocked)
     }
 
     private func reportStatus(newSession: Bool = false) {

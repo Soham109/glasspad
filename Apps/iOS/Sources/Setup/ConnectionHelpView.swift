@@ -78,6 +78,9 @@ struct ConnectionHelpView: View {
                     Text("Status")
                 }
                 .accessibilityElement(children: .combine)
+                if session.absence?.kind == .forgotPhone {
+                    LinkActions().frame(maxWidth: .infinity)
+                }
                 if session.isConnected {
                     LabeledContent("Quality", value: LinkQuality(session.roundTrip)?.title ?? "Checking")
                     if session.linkPath == .peerToPeer {
@@ -97,7 +100,9 @@ struct ConnectionHelpView: View {
         } header: {
             Text("Mac")
         } footer: {
-            if !session.isConnected, session.linkIssue == .networkBlocksDevices {
+            if let absence = session.absence {
+                Text(absence.detail)
+            } else if !session.isConnected, session.linkIssue == .networkBlocksDevices {
                 Text(ConnectionWords.blockedNetwork)
             } else if !session.isConnected, probe.effectiveAccess == .denied {
                 Text(ConnectionWords.localNetworkOff)
@@ -109,7 +114,8 @@ struct ConnectionHelpView: View {
     }
 
     private var stateWords: String {
-        switch session.state {
+        if let absence = session.absence { return absence.title }
+        return switch session.state {
         case .failed where session.isReplaced: "In use by another iPhone"
         case .failed: "Could not connect"
         default: session.state.statusText

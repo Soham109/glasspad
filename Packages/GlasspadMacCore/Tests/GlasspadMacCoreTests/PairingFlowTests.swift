@@ -122,7 +122,9 @@ struct PairingFlowTests {
         final class Flag: @unchecked Sendable { var on = false }
         let flag = Flag()
         let c = GlasspadController(pairing: PairingStore(store: InMemorySecretStore()), macName: "Test Mac",
-                                   accessibilityCheck: { flag.on })
+                                   accessibilityCheck: { flag.on },
+                                   presence: MacPresence(workspace: NotificationCenter(), distributed: NotificationCenter(),
+                                                         initiallyLocked: false))
         #expect(!c.accessibilityTrusted)
         #expect(!c.macStatus.accessibilityTrusted)
         flag.on = true
@@ -132,7 +134,7 @@ struct PairingFlowTests {
         c.refreshAccessibility()
         #expect(!c.accessibilityTrusted)
         #expect(c.macStatus == MacStatus(accessibilityTrusted: false, automationMedia: c.automation, macName: "Test Mac",
-                                       followsAllPanes: true))
+                                       followsAllPanes: true, screenLocked: false))
     }
 
     /// Reliability H5: a gesture choice in Settings applies at once (no restart), is saved, and
