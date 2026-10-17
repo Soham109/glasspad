@@ -11,7 +11,8 @@ public enum HapticKind: String, Codable, Sendable {
 /// Messages on the sealed TCP control channel. JSON with a `"t"` discriminator:
 /// `{"t":"ping","id":1}`, `{"t":"settings","settings":{..}}`, `{"t":"haptic","kind":"click"}`,
 /// `{"t":"mode","mode":{..}}`, `{"t":"bye","reason":".."}`,
-/// `{"t":"macStatus","status":{"accessibilityTrusted":true,..}}`. An unknown `t` decodes as
+/// `{"t":"macStatus","status":{"accessibilityTrusted":true,..}}`,
+/// `{"t":"phoneStatus","status":{"batteryPercent":42,"charging":false}}`. An unknown `t` decodes as
 /// `.unknown(type:)`; a known `t` with missing or broken fields still throws.
 public enum ControlMessage: Codable, Equatable, Sendable {
     /// Mac -> phone each second; the transport answers it automatically.
@@ -31,6 +32,9 @@ public enum ControlMessage: Codable, Equatable, Sendable {
     /// Mac -> phone, right after the handshake and whenever a field changes: Accessibility and
     /// Automation state (see `MacStatus`). Added Oct 2026; builds without it ignore it.
     case macStatus(MacStatus)
+    /// Phone -> Mac, after connecting and whenever a field changes: the iPhone's battery (see
+    /// `PhoneStatus`). Added Oct 2026; a Mac without it reads `.unknown` and ignores it.
+    case phoneStatus(PhoneStatus)
     /// A message type this build does not know (sent by a newer build). Decodes instead of
     /// throwing so receivers can ignore it and keep the session; never sent on purpose.
     case unknown(type: String)
@@ -48,6 +52,7 @@ public enum ControlMessage: Codable, Equatable, Sendable {
         case "mode": self = .mode(try c.decode(ModeMessage.self, forKey: .mode))
         case "bye": self = .bye(reason: try c.decode(String.self, forKey: .reason))
         case "macStatus": self = .macStatus(try c.decode(MacStatus.self, forKey: .status))
+        case "phoneStatus": self = .phoneStatus(try c.decode(PhoneStatus.self, forKey: .status))
         default: self = .unknown(type: t)
         }
     }
@@ -62,6 +67,7 @@ public enum ControlMessage: Codable, Equatable, Sendable {
         case .mode(let m): try c.encode("mode", forKey: .t); try c.encode(m, forKey: .mode)
         case .bye(let r): try c.encode("bye", forKey: .t); try c.encode(r, forKey: .reason)
         case .macStatus(let s): try c.encode("macStatus", forKey: .t); try c.encode(s, forKey: .status)
+        case .phoneStatus(let s): try c.encode("phoneStatus", forKey: .t); try c.encode(s, forKey: .status)
         case .unknown(let t): try c.encode(t, forKey: .t)
         }
     }

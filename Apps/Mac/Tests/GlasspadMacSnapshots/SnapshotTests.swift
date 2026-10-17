@@ -46,6 +46,15 @@ final class SnapshotTests: XCTestCase {
         fair.connectedPhoneName = "Soham's iPhone"
         try shoot(PopoverView(), model: fair, width: w, name: "popover-fair-signal", chrome: .popover)
 
+        // The iPhone's battery at the end of its row: 42%, low, and charging.
+        for (percent, charging, name) in [(42, false, "42"), (15, false, "15"), (64, true, "charging")] {
+            let battery = Fixtures.model(macros)
+            battery.link = .connected(rttMs: 3.1)
+            battery.connectedPhoneName = "Soham's iPhone"
+            battery.phoneBattery = PhoneBattery(percent: percent, charging: charging)
+            try shoot(PopoverView(), model: battery, width: w, name: "popover-battery-\(name)", chrome: .popover)
+        }
+
         let setup = Fixtures.model(macros)
         setup.link = .searching
         setup.accessibilityTrusted = false
@@ -203,6 +212,12 @@ final class SnapshotTests: XCTestCase {
         empty.link = .searching
         empty.phones = []
         try shoot(IPhonePane(), model: empty, size: SettingsTab.iphone.size, name: "settings-iphone-empty", chrome: .window)
+
+        let battery = Fixtures.model(macros)
+        battery.link = .connected(rttMs: 3.1)
+        battery.connectedPhoneName = "Soham's iPhone"
+        battery.phoneBattery = PhoneBattery(percent: 42, charging: false)
+        try shoot(IPhonePane(), model: battery, size: SettingsTab.iphone.size, name: "settings-iphone-battery", chrome: .window)
 
         let pairing = Fixtures.model(macros)
         pairing.pairing = Fixtures.waiting

@@ -11,6 +11,8 @@ public final class GlasspadController: ObservableObject {
     @Published public private(set) var stats = LinkStats()
     @Published public private(set) var phones: [StoredPhone] = []
     @Published public private(set) var connectedPhoneName: String?
+    /// The connected iPhone's battery, once it reports one (`ControlMessage.phoneStatus`).
+    @Published public private(set) var phoneBattery: PhoneBattery?
     @Published public private(set) var capabilities: SynthCapabilities
     @Published public private(set) var settings: TrackpadSettings
     @Published public private(set) var accessibilityTrusted = false
@@ -284,6 +286,8 @@ public final class GlasspadController: ObservableObject {
         pipeline.cancelAll()
         modes.sessionEnded()
         connectedPhoneName = server.connectedPhone?.phoneName
+        // The new phone reports its own battery right after connecting.
+        phoneBattery = nil
         // With no phone the trackpad prefs are not polled, so read them before sending.
         watcher.refresh()
         server.send(.settings(settings))
@@ -302,6 +306,7 @@ public final class GlasspadController: ObservableObject {
             connectedPhoneName = server.connectedPhone?.phoneName
         } else {
             connectedPhoneName = nil
+            phoneBattery = nil
             reporter.sessionEnded()
             if wasConnected {
                 pipeline.cancelAll()
@@ -314,6 +319,7 @@ public final class GlasspadController: ObservableObject {
         switch message {
         case .mode(let m): modes.handle(m)
         case .settings(let fromPhone): phoneTuningChanged(fromPhone.tuning.clamped)
+        case .phoneStatus(let status): phoneBattery = status.battery
         default: break
         }
     }

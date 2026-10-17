@@ -17,6 +17,8 @@ final class AppModel: ObservableObject {
     @Published var stats = LinkStats()
     @Published var phones: [StoredPhone] = []
     @Published var connectedPhoneName: String?
+    /// The connected iPhone's battery, when it reports one.
+    @Published var phoneBattery: PhoneBattery?
     @Published var capabilities: SynthCapabilities
     @Published var settings: TrackpadSettings
     @Published var accessibilityTrusted = true
@@ -226,6 +228,7 @@ extension AppModel {
         controller.$stats.removeDuplicates().assign(to: &model.$stats)
         controller.$phones.removeDuplicates().assign(to: &model.$phones)
         controller.$connectedPhoneName.removeDuplicates().assign(to: &model.$connectedPhoneName)
+        controller.$phoneBattery.removeDuplicates().assign(to: &model.$phoneBattery)
         controller.$capabilities.removeDuplicates().assign(to: &model.$capabilities)
         controller.$settings.removeDuplicates().assign(to: &model.$settings)
         controller.$accessibilityTrusted.removeDuplicates().assign(to: &model.$accessibilityTrusted)

@@ -173,8 +173,13 @@ struct IPhonePane: View {
                 }
                 ForEach(model.phones) { phone in
                     LabeledContent {
-                        Button("Forget…") { confirmForget = phone }
-                            .accessibilityLabel("Forget \(phone.phoneName)")
+                        HStack(spacing: 10) {
+                            if isConnected(phone), let battery = model.phoneBattery {
+                                PhoneBatteryLabel(battery: battery)
+                            }
+                            Button("Forget…") { confirmForget = phone }
+                                .accessibilityLabel("Forget \(phone.phoneName)")
+                        }
                     } label: {
                         RowLabel(title: phone.phoneName, detail: detail(for: phone),
                                  symbol: "iphone", color: isConnected(phone) ? .green : .gray)

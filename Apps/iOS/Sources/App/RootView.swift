@@ -23,6 +23,7 @@ struct GlasspadApp: App {
             ScreenAwake.sceneActive = active
             ScreenAwake.update()
             MacSession.shared.setForeground(phase != .background)
+            BatteryReporter.shared.setForeground(phase != .background)
             // Inactive (Control Center, a notification pulled down) keeps the link: not paused.
             LiveActivityController.shared.sceneChanged(active: phase != .background)
         }
@@ -154,6 +155,7 @@ struct RootView: View {
             if session.isWarm {
                 WarmNotice()
             }
+            BatteryNotice()
         }
         // Every mode starts its content the same distance below the pill, so a switch is a
         // calm cross-fade with nothing jumping.

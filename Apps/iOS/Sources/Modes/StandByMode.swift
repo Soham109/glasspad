@@ -116,7 +116,7 @@ final class StandByMonitor {
     }
 
     private func start() {
-        UIDevice.current.isBatteryMonitoringEnabled = true
+        BatteryMonitoring.acquire()
         refresh()
         let center = NotificationCenter.default
         let names: [Notification.Name] = [UIDevice.batteryStateDidChangeNotification, UIDevice.batteryLevelDidChangeNotification,
@@ -131,7 +131,7 @@ final class StandByMonitor {
     private func stop() {
         observers.forEach(NotificationCenter.default.removeObserver)
         observers = []
-        UIDevice.current.isBatteryMonitoringEnabled = false
+        BatteryMonitoring.release()
     }
 
     private func refresh() {
