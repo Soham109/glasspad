@@ -7,6 +7,10 @@ struct GlasspadApp: App {
     @Environment(\.scenePhase) private var scenePhase
 
     init() {
+        // Connection events, on the phone (Library/Logs/Glasspad/activity.log in the app's container).
+        ActivityLog.shared.start()
+        ActivityLog.shared.record("app", ["side": "phone", "version": Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String,
+                                          "os": ProcessInfo.processInfo.operatingSystemVersionString])
         PhoneSettings.shared.moveHapticSwitches(into: TrackpadTuningStore.shared)
         #if DEBUG
         DebugLaunch.apply()

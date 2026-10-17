@@ -77,6 +77,8 @@ final class AppModel: ObservableObject {
         /// Reads the iPhone install's state into `phoneInstall`, off the main thread.
         var loadPhoneInstall: @MainActor () -> Void = {}
         var showRenewalLog: @MainActor () -> Void = {}
+        /// Opens ~/Library/Logs/Glasspad/activity.log (connections and media commands).
+        var showActivityLog: @MainActor () -> Void = {}
         /// Called when the popover or a Settings pane appears, to pick up outside changes.
         var refresh: @MainActor () -> Void = {}
         var quit: @MainActor () -> Void = {}
@@ -219,6 +221,15 @@ extension AppModel {
         }
         a.showRenewalLog = {
             let log = PhoneInstallStatus.Paths().log
+            if FileManager.default.fileExists(atPath: log.path) {
+                NSWorkspace.shared.open(log)
+            } else {
+                NSWorkspace.shared.open(log.deletingLastPathComponent())
+            }
+        }
+        a.showActivityLog = {
+            ActivityLog.shared.flush()
+            let log = ActivityLog.shared.fileURL ?? ActivityLog.defaultURL
             if FileManager.default.fileExists(atPath: log.path) {
                 NSWorkspace.shared.open(log)
             } else {

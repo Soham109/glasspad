@@ -14,6 +14,9 @@ struct AdapterStreamParser {
         case snapshot(NowPlayingSnapshot)
         /// The helper cannot use MediaRemote.
         case failed(String)
+        /// MediaRemote's answer to a `send` (true: it took the command; it does not say whether
+        /// the player acted on it).
+        case sent(command: Int32, ok: Bool)
     }
 
     private var payload: [String: Any]?
@@ -27,6 +30,9 @@ struct AdapterStreamParser {
         switch object["type"] as? String {
         case "error":
             return .failed(object["message"] as? String ?? "The now-playing helper failed")
+        case "sent":
+            guard let command = (object["command"] as? NSNumber)?.int32Value else { return nil }
+            return .sent(command: command, ok: object["ok"] as? Bool ?? false)
         case "data":
             break
         default:

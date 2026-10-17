@@ -58,7 +58,8 @@ final class MediaSwitches {
             isMuted: { [unowned self] in muted },
             setMuted: { [unowned self] m in muted = m; muteChanges += 1 },
             setBrightness: { [unowned self] v in brightness.append(v) },
-            selectOutput: { [unowned self] id in outputs.append(id) })
+            selectOutput: { [unowned self] id in outputs.append(id) },
+            remoteAnswersThisProcess: true)
     }
 }
 

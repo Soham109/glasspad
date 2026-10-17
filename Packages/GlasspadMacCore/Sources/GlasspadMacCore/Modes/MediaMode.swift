@@ -37,14 +37,24 @@ public final class MediaMode {
         var setMuted: (Bool) -> Void = { AudioOutput.setMuted($0) }
         var setBrightness: (Float) -> Void = { Brightness.set($0) }
         var selectOutput: (String) -> Void = { _ = MediaOutputs.select(uid: $0) }
+        /// Whether MediaRemote takes commands from this process. Since macOS 15.4 it ignores
+        /// processes outside Apple while still answering "sent", so the media key goes instead.
+        var remoteAnswersThisProcess: Bool = !MediaRemote.shared.needsAdapter
+        /// The Mac's frontmost app, for the activity log.
+        var frontmostApp: () -> String? = { NSWorkspace.shared.frontmostApplication?.bundleIdentifier }
     }
     var system = SystemControls()
+    /// Where commands and their routes are recorded (no titles, only app ids and results).
+    var activityLog = ActivityLog.shared
 
     private var active = false
     private var adapterSnapshot: NowPlayingSnapshot?
     private var adapterReportedNothingSince: Date?
     private var inProcessSnapshot: NowPlayingSnapshot?
     private var scriptSnapshot: NowPlayingSnapshot?
+    /// The app MediaRemote last named as now playing (nil: none, or never heard). Commands sent
+    /// without MediaRemote go to a scripted player only when it is that app, or it plays.
+    private(set) var lastNowPlayingSource: String?
     /// The scriptable player last seen playing, so with Music and Spotify both open and both
     /// paused, commands go to the one the user was listening to.
     private(set) var lastPlayingPlayer: ScriptablePlayer?
@@ -80,7 +90,7 @@ public final class MediaMode {
 
     private func wireAdapter() {
         adapter.onEvent = { [weak self] event in self?.adapterEvent(event) }
-        adapter.onStatus = { [weak self] _ in self?.changed() }
+        adapter.onStatus = { [weak self] status in self?.adapterStatusChanged(status) }
     }
 
     // MARK: Lifecycle
@@ -105,6 +115,7 @@ public final class MediaMode {
             scriptSnapshot = nil
             inProcessSnapshot = nil
             adapterReportedNothingSince = nil
+            lastNowPlayingSource = nil
         }
     }
 
@@ -117,19 +128,64 @@ public final class MediaMode {
 
     // MARK: Commands
 
+    /// Tries, in order: MediaRemote through the helper (reaches whatever the Mac shows as now
+    /// playing, browsers included), AppleScript to Spotify or Music, MediaRemote in this process
+    /// (before macOS 15.4 only), then the media key. Each command and its route is logged.
     public func send(_ command: MediaCommand) {
         if command == .mute {
             toggleMute()
+            logCommand(command, route: "mute", ok: true)
             return
         }
         defer { refreshSoon() }
-        if let code = AdapterCommand.code(for: command), adapter.send(.send(code)) { return }
-        if let player = scriptTarget, scripts.isAllowed(player) {
-            Task { await scripts.perform(player.commandScript(command), on: player) }
+        if let code = AdapterCommand.code(for: command), adapter.send(.send(code)) {
+            logCommand(command, route: "adapter", ok: true)
             return
         }
-        if system.sendRemote(command) { return }
-        if let key = Self.mediaKey(for: command) { postMediaKey(key) }
+        if let player = commandScriptTarget {
+            Task {
+                let ok = await scripts.perform(player.commandScript(command), on: player)
+                self.logCommand(command, route: "appleScript", ok: ok)
+            }
+            return
+        }
+        if system.remoteAnswersThisProcess, system.sendRemote(command) {
+            logCommand(command, route: "remote", ok: true)
+            return
+        }
+        if let key = Self.mediaKey(for: command) {
+            postMediaKey(key)
+            logCommand(command, route: "mediaKey", ok: true)
+        }
+    }
+
+    /// The scripted player a play, pause or skip goes to when the helper cannot take it: the
+    /// player shown, if allowed, and only when it plays or MediaRemote did not name another app.
+    /// A paused Spotify left showing after a browser played (the helper stopped) is not the
+    /// target: "play/pause" would start Spotify instead of pausing the video.
+    var commandScriptTarget: ScriptablePlayer? {
+        guard let player = scriptTarget, scripts.isAllowed(player) else { return nil }
+        if current?.isPlaying == true { return player }
+        if let other = lastNowPlayingSource, other != player.bundleID { return nil }
+        return player
+    }
+
+    private func logCommand(_ command: MediaCommand, route: String, ok: Bool) {
+        let shown = current
+        activityLog.record("media", [
+            "cmd": command.rawValue, "route": route, "ok": ok ? "true" : "false",
+            "np": shown?.sourceBundleID, "playing": shown.map { $0.isPlaying ? "true" : "false" },
+            "mr": lastNowPlayingSource, "front": system.frontmostApp(), "helper": Self.logName(adapter.status),
+        ])
+    }
+
+    nonisolated static func logName(_ status: NowPlayingAdapter.Status) -> String {
+        switch status {
+        case .stopped: "stopped"
+        case .starting: "starting"
+        case .running: "running"
+        case .unavailable: "unavailable"
+        }
     }
 
     public func control(_ control: MediaControl) {
@@ -269,13 +325,36 @@ public final class MediaMode {
     func adapterEvent(_ event: AdapterStreamParser.Event) {
         switch event {
         case .snapshot(let s):
+            if s.sourceBundleID != lastNowPlayingSource {
+                activityLog.record("media", ["event": "nowPlaying", "app": s.sourceBundleID])
+            }
             adapterSnapshot = s
             adapterReportedNothingSince = nil
+            lastNowPlayingSource = s.sourceBundleID
         case .nothing:
+            if lastNowPlayingSource != nil { activityLog.record("media", ["event": "nowPlaying", "app": "none"]) }
             adapterSnapshot = nil
+            lastNowPlayingSource = nil
             if adapterReportedNothingSince == nil { adapterReportedNothingSince = Date() }
-        case .failed:
+        case .failed(let why):
+            activityLog.record("media", ["event": "helperFailed", "reason": why])
             adapterSnapshot = nil
+        case .sent(let code, let ok):
+            activityLog.record("media", ["event": "sent", "command": String(code), "ok": ok ? "true" : "false"])
+            return
+        }
+        changed()
+    }
+
+    /// The helper started, stopped or gave up. What it last said is only true while it runs:
+    /// a snapshot kept after it stopped showed a song long gone and hid the fallbacks.
+    func adapterStatusChanged(_ status: NowPlayingAdapter.Status) {
+        var fields: KeyValuePairs<String, String?> = ["event": "helper", "status": Self.logName(status)]
+        if case .unavailable(let why) = status { fields = ["event": "helper", "status": "unavailable", "reason": why] }
+        activityLog.record("media", fields)
+        if status != .running {
+            adapterSnapshot = nil
+            adapterReportedNothingSince = nil
         }
         changed()
     }
@@ -298,7 +377,10 @@ public final class MediaMode {
         Task { [weak self] in
             guard let self else { return }
             var inProcess: NowPlayingSnapshot?
-            if askInProcess { inProcess = await self.remote.snapshot() }
+            if askInProcess {
+                inProcess = await self.remote.snapshot()
+                if let id = inProcess?.sourceBundleID { self.lastNowPlayingSource = id }
+            }
             var polled: [(ScriptablePlayer, NowPlayingSnapshot?)] = []
             for target in targets {
                 polled.append((target, await self.scripts.poll(target, now: now)))

@@ -475,6 +475,7 @@ public final class GlasspadServer: @unchecked Sendable {
 
     private func reject(_ s: Session, _ reason: String) {
         GPLog.log("server: reject \(reason)")
+        ActivityLog.shared.record("link", ["side": "mac", "event": "reject", "reason": reason])
         guard let json = try? JSONEncoder().encode(HandshakeReject(reason: reason)) else {
             return s.channel.close("rejected: \(reason)")
         }
@@ -661,6 +662,7 @@ public final class GlasspadServer: @unchecked Sendable {
         }
         guard changed else { return }
         GPLog.log("server state -> \(new)")
+        ActivityLog.shared.record("link", ["side": "mac", "state": new.logName, "reason": new.failureReason])
         delegateQueue.async { [weak self] in self?.delegate?.link(didChangeState: new) }
     }
 }
