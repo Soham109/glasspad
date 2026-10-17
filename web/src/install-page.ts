@@ -11,3 +11,11 @@ import { initReveals } from "./sections";
 initNav();
 initInstall();
 initReveals();
+
+// A link to a closed section (#troubleshooting, #uninstall) opens it.
+function openTarget() {
+  const el = location.hash && document.getElementById(decodeURIComponent(location.hash.slice(1)));
+  if (el instanceof HTMLDetailsElement) { el.open = true; el.scrollIntoView(); }
+}
+openTarget();
+addEventListener("hashchange", openTarget);
