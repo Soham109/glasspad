@@ -121,7 +121,7 @@ import Testing
 
 @Suite struct TalkKeepAwakeTests {
     let talk = KeepAwakeInputs(sceneActive: true, enabled: true, screenNeedsIt: true,
-                               coveredBySheet: false, connected: true, idle: 3_600, presenting: true)
+                               coveredBySheet: false, connected: true, idle: 1_200, presenting: true)
 
     @Test func aTalkKeepsTheScreenOnPastTheLimit() {
         #expect(PowerPolicy().keepsScreenAwake(talk))
@@ -129,11 +129,19 @@ import Testing
         #expect(PowerPolicy(heat: .serious).keepsScreenAwake(talk))
     }
 
+    @Test func aTalkLeftAloneForHalfAnHourLetsGo() {
+        var s = talk; s.idle = PowerPolicy.talkIdleLimit - 1
+        #expect(PowerPolicy().keepsScreenAwake(s))
+        s.idle = PowerPolicy.talkIdleLimit
+        #expect(!PowerPolicy().keepsScreenAwake(s))
+        #expect(PowerPolicy().idleLimit(presenting: true) == PowerPolicy.talkIdleLimit)
+    }
+
     @Test func criticalHeatStillLetsGo() {
         #expect(!PowerPolicy(heat: .critical).keepsScreenAwake(talk))
         var s = talk; s.idle = 59
         #expect(PowerPolicy(heat: .critical).keepsScreenAwake(s))
-        #expect(!PowerPolicy(heat: .critical).ignoresIdleLimit(presenting: true))
+        #expect(PowerPolicy(heat: .critical).idleLimit(presenting: true) == PowerPolicy(heat: .critical).keepAwakeLimit)
     }
 
     @Test func notPresentingIsUnchanged() {
@@ -141,7 +149,7 @@ import Testing
         #expect(!PowerPolicy().keepsScreenAwake(s))
         s.idle = 599
         #expect(PowerPolicy().keepsScreenAwake(s))
-        #expect(!PowerPolicy().ignoresIdleLimit(presenting: false))
+        #expect(PowerPolicy().idleLimit(presenting: false) == PowerPolicy().keepAwakeLimit)
         // The default, for callers that do not know about talks.
         #expect(!KeepAwakeInputs(sceneActive: true, enabled: true, screenNeedsIt: true,
                                  coveredBySheet: false, connected: true, idle: 0).presenting)

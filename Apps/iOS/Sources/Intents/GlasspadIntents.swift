@@ -16,12 +16,11 @@ struct OpenMissionControlIntent: AppIntent {
             // The Mission Control button's way (through the Dock), so the Mac says whether it opened.
             let id = UUID()
             session.send(.remoteSystem(id: id, action: .missionControl))
-            outcome = await awaitAnswer(timeout: .seconds(2.5)) { session.deckOutcomes[id] }
-            // No answer: a Mac from before Remote, which drops that message. Control + Up Arrow
-            // is the macOS shortcut for Mission Control.
-            if outcome == nil { session.send(.keysKeystroke(Keystroke(key: .special(.up), modifiers: .control))) }
+            // No second try without an answer: on a slow Mac it would close what the first opened.
+            outcome = await awaitAnswer(timeout: .seconds(6)) { session.deckOutcomes[id] }
         }
-        if let outcome, !outcome.ok {
+        guard let outcome else { return .result(dialog: "Sent to your Mac.") }
+        if !outcome.ok {
             throw IntentProblem(Self.sentence(outcome.message ?? "Mission Control did not open"))
         }
         return .result(dialog: "Mission Control is open.")

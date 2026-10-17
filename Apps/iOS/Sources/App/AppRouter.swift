@@ -272,10 +272,9 @@ final class AppRouter {
         dimTimer = nil
         guard dimWatching else { return }
         let wait = IdleDeadline.next(idle: idleTime, dimDelay: PhoneSettings.shared.dimDelay, dimmed: isDimmed,
-                                     // During a talk leaving it alone does not let go; only dimming is ahead.
-                                     holdingAwake: UIApplication.shared.isIdleTimerDisabled
-                                        && !PowerMonitor.shared.policy.ignoresIdleLimit(presenting: ScreenAwake.presenting),
-                                     keepAwakeLimit: PowerMonitor.shared.policy.keepAwakeLimit,
+                                     holdingAwake: UIApplication.shared.isIdleTimerDisabled,
+                                     // During a talk the limit is longer (PowerPolicy.talkIdleLimit).
+                                     keepAwakeLimit: PowerMonitor.shared.policy.idleLimit(presenting: ScreenAwake.presenting),
                                      blocked: idleCheckBlocked)
         guard let wait else { return }
         let timer = Timer(timeInterval: wait, repeats: false) { _ in
@@ -298,7 +297,7 @@ final class AppRouter {
         let delay = PhoneSettings.shared.dimDelay
         if !isDimmed, delay > 0, idle >= delay { isDimmed = true }
         // Left alone long enough: let the phone lock on its own Auto-Lock.
-        if UIApplication.shared.isIdleTimerDisabled, idle >= PowerMonitor.shared.policy.keepAwakeLimit {
+        if UIApplication.shared.isIdleTimerDisabled, idle >= PowerMonitor.shared.policy.idleLimit(presenting: ScreenAwake.presenting) {
             ScreenAwake.update()
         }
     }

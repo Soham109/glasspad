@@ -6,8 +6,8 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ### Added
 
-- **Themes:** 39 in all, including Grain (Grain, Grain Dark, Risograph, Film) and Tinted themes where everything takes one colour.
-- **Present:** a laser pointer on the slides' display, a talk clock with a tap at 5 and 1 minute left, and the screen stays on during a talk.
+- **Themes:** 39 in all, including Grain (Grain, Grain Dark, Risograph, Film) and Tinted themes where everything takes one color.
+- **Present:** a laser pointer on the slides' display, a talk clock with a tap at 5 and 1 minute left, and the screen stays on during a talk (until it is left alone for 30 minutes).
 - **Lock Screen controls:** the Live Activity shows Remote's Back 10, Play or Pause and Forward 10 with what is playing, or Present's Back, Next and the running timer.
 - **Siri and Shortcuts:** Open Glasspad Mode and Open Glasspad Layout. Mission Control from Siri works and says what happened.
 - **Mode menu:** swipe the pill sideways to flip back to the previous mode or layout.
@@ -22,7 +22,10 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 - The connection to the Mac recovers faster. Taps wait briefly for a quick reconnect, and the phone says why the Mac is away: asleep, Glasspad off, locked, or this iPhone forgotten.
 - Displays and Arrange are calmer, with less text.
-- iPhone installs are optimised builds, lighter on battery.
+- Clipboard moved out of the mode menu. It opens from the end of Keyboard's shortcut row, or from the Library.
+- The Live Activity shows Remote, Media and Present controls instead of the trackpad's connection status.
+- Siri's Open Mission Control waits for the Mac's answer and never sends a second try that could close it again.
+- iPhone installs are optimized builds, lighter on battery.
 
 ### Fixed
 

@@ -76,13 +76,17 @@ public struct PowerPolicy: Equatable, Sendable {
     /// and only until the user has left it alone for `keepAwakeLimit`, except during a talk.
     public func keepsScreenAwake(_ s: KeepAwakeInputs) -> Bool {
         s.sceneActive && s.enabled && s.screenNeedsIt && !s.coveredBySheet && s.connected
-            && (s.idle < keepAwakeLimit || ignoresIdleLimit(presenting: s.presenting))
+            && s.idle < idleLimit(presenting: s.presenting)
     }
 
-    /// A talk is on (Present's timer runs with Present on screen): a speaker does not touch the
-    /// phone for minutes, so leaving it alone does not let it lock. Not at critical heat.
-    public func ignoresIdleLimit(presenting: Bool) -> Bool {
-        presenting && heat != .critical
+    /// During a talk (Present's timer runs with Present on screen) a speaker leaves the phone
+    /// alone for minutes, so the limit is `talkIdleLimit`: long enough for any slide, short
+    /// enough that a timer left running does not hold the screen on for hours.
+    public static let talkIdleLimit: TimeInterval = 30 * 60
+
+    /// How long the screen may be left alone before the phone may lock. Not stretched at critical heat.
+    public func idleLimit(presenting: Bool) -> TimeInterval {
+        presenting && heat != .critical ? max(keepAwakeLimit, Self.talkIdleLimit) : keepAwakeLimit
     }
 }
 
