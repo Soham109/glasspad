@@ -165,7 +165,7 @@ struct DeckButtonEditor: View {
                             let t = ActionCategory.template(for: button.action)
                             let newer = !button.action.isSupported
                             LibraryGlyph(symbol: t?.symbol ?? (newer ? DeckButton.newerSymbol : "terminal"), color: Color(hexString: t?.color) ?? .gray)
-                            Text(t?.title ?? (newer ? "Newer Action" : "Shell Script")).foregroundStyle(palette.inkColor)
+                            Text(t?.title ?? (newer ? "Newer Action" : "Shell Command")).foregroundStyle(palette.inkColor)
                             Spacer()
                             Text("Change").foregroundStyle(palette.inkSoftColor)
                             Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(palette.inkSoftColor)
@@ -388,7 +388,7 @@ private struct ActionOptions: View {
             Text("Save, then tap the folder and add buttons inside it.")
                 .font(.footnote).foregroundStyle(palette.inkSoftColor)
         case .shellScript:
-            Text("Shell scripts are set up and allowed on the Mac only.")
+            Text("Shell commands are set up and allowed on the Mac only.")
                 .font(.footnote).foregroundStyle(palette.inkSoftColor)
         case .unsupported:
             Text(DeckAction.updateToUse).font(.footnote).foregroundStyle(palette.inkSoftColor)

@@ -76,7 +76,7 @@ targets:
         NSBonjourServices: [_glasspad._tcp]
         NSCameraUsageDescription: Glasspad uses the camera only to scan the pairing code your Mac shows.
         NSCalendarsFullAccessUsageDescription: Glasspad shows your next events on its Calendar screen. It only reads them and never changes them.
-        NSPhotoLibraryAddUsageDescription: Glasspad saves screenshots that a Deck button takes on your Mac to Photos, only when you set the button up to.
+        NSPhotoLibraryAddUsageDescription: Glasspad saves a screenshot from your Mac to Photos, only for a button you set up to do that.
         NSSupportsLiveActivities: true
         CFBundleURLTypes:
           - CFBundleURLName: com.soham109.glasspad.ios

@@ -18,7 +18,7 @@ enum ConnectionWords {
         return reason
     }
 
-    @MainActor static var blockedNetwork: String { "\(MacSession.shared.macName ?? "Your Mac") was found, but this network does not let devices talk to each other. Guest, hotel and office Wi-Fi often do this, and so can a VPN on this iPhone or a firewall on the Mac. Try your home Wi-Fi, or turn the VPN off." }
+    @MainActor static var blockedNetwork: String { "\(MacSession.shared.macName ?? "Your Mac") was found, but this network keeps devices apart. Guest, hotel and office Wi-Fi often do, and so can a VPN or a firewall. Try your home Wi-Fi, or turn off the VPN." }
 
     static let localNetworkOff = "iOS is blocking Glasspad from your Wi-Fi. In Settings, open Glasspad and turn on Local Network."
 }
@@ -186,7 +186,7 @@ struct ConnectionHelpView: View {
     private var checklistSection: some View {
         Section {
             HelpRow(symbol: "wifi", title: "Same Wi-Fi",
-                    detail: "Your iPhone and Mac need to be on the same Wi-Fi network. Mobile data does not reach the Mac.")
+                    detail: "Your iPhone and Mac need to be on the same Wi-Fi network. Cellular data does not reach the Mac.")
             HelpRow(symbol: "network", title: "Local Network Permission",
                     detail: "In Settings, open Glasspad and turn on Local Network. If it is off, Glasspad cannot see your Mac.")
             HelpRow(symbol: "building.2", title: "Guest or Office Wi-Fi",

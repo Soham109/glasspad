@@ -93,7 +93,7 @@ enum AppMode: String, CaseIterable, Identifiable, Sendable {
     var toolHint: String {
         switch self {
         case .present: "Opens the slide remote full screen"
-        case .remote: "Opens a remote for films and music, full screen"
+        case .remote: "Opens a remote for movies and music, full screen"
         case .displays: "Shows your Mac's displays and windows, full screen"
         default: "Copies between this iPhone and your Mac"
         }

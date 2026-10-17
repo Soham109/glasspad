@@ -53,7 +53,7 @@ struct TrackpadLockScreenWidget: Widget {
                 .containerBackground(for: .widget) { Color.clear }
         }
         .configurationDisplayName("Trackpad")
-        .description("Open Glasspad on the trackpad.")
+        .description("Opens Glasspad on Trackpad.")
         .supportedFamilies([.accessoryCircular, .accessoryRectangular, .accessoryInline])
     }
 }
@@ -70,13 +70,13 @@ private struct LockScreenView: View {
                     .widgetAccentable()
                 VStack(alignment: .leading, spacing: 1) {
                     Text("Glasspad").font(.headline).widgetAccentable()
-                    Text("Open trackpad").font(.caption)
+                    Text("Open Trackpad").font(.caption)
                 }
                 Spacer(minLength: 0)
             }
             .accessibilityElement(children: .combine)
         case .accessoryInline:
-            Label("Glasspad trackpad", systemImage: "hand.point.up.left.fill")
+            Label("Glasspad Trackpad", systemImage: "hand.point.up.left.fill")
         default:
             ZStack {
                 AccessoryWidgetBackground()
@@ -84,7 +84,7 @@ private struct LockScreenView: View {
                     .font(.system(size: 22, weight: .semibold))
                     .widgetAccentable()
             }
-            .accessibilityLabel("Open Glasspad trackpad")
+            .accessibilityLabel("Open Glasspad Trackpad")
         }
     }
 }
@@ -128,14 +128,45 @@ struct ControlsLiveActivity: Widget {
                 CompactState(controls: controls, isStale: context.isStale)
             }
         }
+        // Apple Watch Smart Stack and CarPlay show the Lock Screen view at the small size.
+        .supplementalActivityFamilies([.small])
     }
 }
 
 private struct LiveLockScreenView: View {
     let controls: LiveControls
     let isStale: Bool
+    @Environment(\.activityFamily) private var family
 
     var body: some View {
+        if family == .small {
+            small
+        } else {
+            medium
+        }
+    }
+
+    /// Apple Watch and CarPlay: the same parts, smaller, and the buttons without words.
+    private var small: some View {
+        VStack(spacing: 6) {
+            HStack(spacing: 6) {
+                KindIcon(kind: controls.kind)
+                    .font(.caption)
+                Text(controls.remote?.title ?? "Presenting")
+                    .font(.caption.weight(.semibold))
+                    .lineLimit(1)
+                Spacer(minLength: 2)
+                if let present = controls.present {
+                    LiveClock(present: present, isStale: isStale)
+                        .font(.caption.weight(.semibold).monospacedDigit())
+                }
+            }
+            LiveButtons(controls: controls, size: 30, compact: true)
+        }
+        .padding(8)
+    }
+
+    private var medium: some View {
         VStack(spacing: 12) {
             HStack(spacing: 12) {
                 KindIcon(kind: controls.kind)
@@ -203,9 +234,11 @@ private struct KindIcon: View {
 private struct LiveButtons: View {
     let controls: LiveControls
     let size: CGFloat
+    /// Small sizes (Apple Watch, CarPlay): Present's buttons drop their words and share the width.
+    var compact = false
 
     var body: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: compact ? 6 : 10) {
             if let remote = controls.remote {
                 if remote.hasBack {
                     LiveButton(intent: LiveSkipBackIntent(), symbol: remote.backSymbol,
@@ -219,10 +252,10 @@ private struct LiveButtons: View {
                 }
             } else {
                 LiveButton(intent: LivePreviousSlideIntent(), symbol: "chevron.left", label: "Previous slide",
-                           size: size, title: "Back")
-                    .frame(width: 112)
+                           size: size, title: compact ? nil : "Back")
+                    .frame(width: compact ? nil : 112)
                 LiveButton(intent: LiveNextSlideIntent(), symbol: "chevron.right", label: "Next slide",
-                           size: size, prominent: true, title: "Next")
+                           size: size, prominent: true, title: compact ? nil : "Next")
             }
         }
     }
@@ -288,13 +321,39 @@ private struct CompactState: View {
     let isStale: Bool
 
     var body: some View {
+        #if compiler(>=6.4)
+        if #available(iOS 27.0, *) {
+            DynamicIslandWidth { limited in content(limited: limited) }
+        } else {
+            content(limited: false)
+        }
+        #else
+        content(limited: false)
+        #endif
+    }
+
+    /// `limited`: iOS 27 shows the compact and minimal Dynamic Island in landscape too, where it
+    /// cannot grow wider, so the timer gets less room there and shrinks to fit.
+    @ViewBuilder private func content(limited: Bool) -> some View {
         if let present = controls.present {
             LiveClock(present: present, isStale: isStale)
                 .font(.caption.weight(.semibold).monospacedDigit())
-                .frame(maxWidth: 52)
+                .minimumScaleFactor(limited ? 0.7 : 1)
+                .frame(maxWidth: limited ? 40 : 52)
         } else if let remote = controls.remote {
             Image(systemName: remote.isPlaying ? "pause.fill" : "play.fill")
                 .accessibilityLabel(remote.isPlaying ? "Playing" : "Paused")
         }
     }
 }
+
+#if compiler(>=6.4)
+/// Reads whether the Dynamic Island is held to its narrow width (landscape on iOS 27).
+@available(iOS 27.0, *)
+private struct DynamicIslandWidth<Content: View>: View {
+    @Environment(\.isDynamicIslandLimitedInWidth) private var limited
+    @ViewBuilder let content: (Bool) -> Content
+
+    var body: some View { content(limited) }
+}
+#endif

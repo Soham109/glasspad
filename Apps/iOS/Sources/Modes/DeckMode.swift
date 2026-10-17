@@ -29,7 +29,7 @@ extension DeckAction {
         case .runMacro: "Runs a macro on your Mac"
         case .keystroke: "Presses a key combination on your Mac"
         case .typeText: "Types text on your Mac"
-        case .shellScript: "Runs a script on your Mac"
+        case .shellScript: "Runs a shell command on your Mac"
         case .screenshot: "Takes a screenshot on your Mac"
         case .screenRecording: "Starts or stops a screen recording on your Mac"
         case .system(let s): s.spokenHint

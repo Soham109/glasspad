@@ -230,7 +230,7 @@ struct ActionsMode: View {
                 settings.seenTips.insert(Self.tidyTipID)
             }
         } message: {
-            Text("Pinned goes back to six everyday Mac controls. Mac controls, apps and macros stay in the Library, ready to pin again. Folders and buttons you made yourself are deleted.")
+            Text("Pinned goes back to six everyday Mac controls. Folders and buttons you made are deleted; everything else stays in the Library.")
         }
         .confirmationDialog(confirming.map { "\($0.title)?" } ?? "", isPresented: .init(get: { confirming != nil },
                                                                                         set: { if !$0 { confirming = nil } }),

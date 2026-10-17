@@ -94,18 +94,18 @@ import Testing
         q[1].minimumWidth = 800
         let quarters = await arranger(screens).arrange(q, .quarters, in: v, gap: 8, displayName: "Built-in Retina Display")
         #expect(quarters == .tooBigForQuarters(["Safari", "Notes"], display: "Built-in Retina Display"))
-        #expect(quarters?.message == "Safari and Notes can't both fit in quarters on Built-in Retina Display. Try Left & Right.")
+        #expect(quarters?.message == "Safari and Notes cannot both fit in quarters on Built-in Retina Display. Try Left & Right.")
         #expect(WindowFailure.tooBigForQuarters(["Xcode"], display: "Studio Display").message
-                == "Xcode can't be made small enough for a quarter of Studio Display. Try Left & Right.")
+                == "Xcode cannot be made small enough for a quarter of Studio Display. Try Left & Right.")
         #expect(WindowFailure.tooBigForQuarters(["Xcode", "Logic Pro", "Final Cut Pro"], display: "Studio Display").message
-                == "Xcode, Logic Pro and Final Cut Pro can't all fit in quarters on Studio Display. Try Left & Right.")
+                == "Xcode, Logic Pro and Final Cut Pro cannot all fit in quarters on Studio Display. Try Left & Right.")
         let t = windows(2, on: screens)
         t[0].minimumHeight = 500
         t[1].minimumHeight = 500
         let stacked = await arranger(screens).arrange(t, .topAndBottom, in: v, gap: 8, displayName: "Built-in Retina Display")
         #expect(stacked == .bothTooTall("Safari", "Notes", display: "Built-in Retina Display"))
-        #expect(stacked?.message == "Safari and Notes can't both fit on Built-in Retina Display, one above the other. Try Left & Right.")
-        #expect(WindowFailure.tooTall("Xcode").message == "Xcode can't be made short enough for Top & Bottom. Try Left & Right.")
+        #expect(stacked?.message == "Safari and Notes cannot both fit on Built-in Retina Display, one above the other. Try Left & Right.")
+        #expect(WindowFailure.tooTall("Xcode").message == "Xcode cannot be made short enough for Top & Bottom. Try Left & Right.")
         // Right & Left names the windows by side, as Left & Right does.
         let r = windows(2, on: screens)
         r[0].minimumWidth = 820
@@ -177,7 +177,7 @@ import Testing
         history.remember(7, CGRect(x: 2000, y: -300, width: 800, height: 600))
         let failure = await arranger([Self.laptop], history: history).returnToPreviousSize(w)
         #expect(failure == .previousDisplayGone && history.previous(7) == nil)
-        #expect(failure?.message == "This window's previous place is on a display that isn't connected.")
+        #expect(failure?.message == "This window's previous place is on a display that is not connected.")
     }
 
     @Test func theHistoryKeepsTheNewestWindows() {
@@ -269,7 +269,7 @@ import Testing
         steps.picks = false
         let failure = await FullScreenSplit(steps: steps, arranger: arranger(screens)).fullScreenSplit(left: ws[0], right: ws[1])
         #expect(failure == .splitViewUnfinished)
-        #expect(failure?.message == "Couldn't finish Split View. Pick the second window on your Mac.")
+        #expect(failure?.message == "Could not finish Split View. Pick the second window on your Mac.")
         // The first window came back out of full screen rather than waiting alone.
         #expect(ws[0].log.contains("exit full screen") && !ws[0].isFullScreen)
         // An app without Full-Screen Tile: nothing changed.
@@ -279,7 +279,7 @@ import Testing
         #expect(await FullScreenSplit(steps: none, arranger: arranger(screens)).fullScreenSplit(left: other[0], right: other[1])
                 == .noSplitView("Safari"))
         #expect(none.log == ["left Safari"])
-        #expect(WindowFailure.noSplitView("Safari").message == "Safari can't tile this window in full screen. Try Left & Right.")
+        #expect(WindowFailure.noSplitView("Safari").message == "Safari cannot tile this window in full screen. Try Left & Right.")
     }
 }
 

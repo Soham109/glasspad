@@ -160,11 +160,11 @@ public final class MacroPlayer: Sendable {
                 guard (0...maxWaitMs).contains(ms) else { throw bad("Wait must be 0 to \(maxWaitMs) ms.") }
                 total += 1
             case .waitForApp(let id, let t):
-                guard !id.isEmpty else { throw bad("Missing bundle id.") }
+                guard !id.isEmpty else { throw bad("Choose an app.") }
                 guard (1...maxWaitMs).contains(t) else { throw bad("Timeout must be 1 to \(maxWaitMs) ms.") }
                 total += 1
             case .openApp(let id):
-                guard !id.isEmpty else { throw bad("Missing bundle id.") }
+                guard !id.isEmpty else { throw bad("Choose an app.") }
                 total += 1
             case .click(_, _, let n, _):
                 guard (1...3).contains(n) else { throw bad("Click count must be 1, 2 or 3.") }

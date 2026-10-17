@@ -296,7 +296,7 @@ struct AdvancedSettings: View {
                     Label("Start In", systemImage: "arrow.forward.square")
                 }
             } footer: {
-                Text("Start In is the mode Glasspad shows when you open it. Left-Handed moves the big buttons in Keyboard and Present to the left.")
+                Text("Start In is the mode Glasspad opens in. Left-Handed moves Present's big buttons to the left.")
             }
             .listRowBackground(palette.raisedColor)
 
@@ -378,7 +378,7 @@ struct AboutSettings: View {
                     }
                 }
             } footer: {
-                Text("Glasspad is free and open source. It talks only to your paired Mac, encrypted with a key only the two of them share. No accounts, no servers, no tracking.")
+                Text("Free and open source. Encrypted between your iPhone and Mac. No account, no tracking. Website buttons fetch their site's logo, and the Mac may download album artwork for the song playing.")
             }
             .listRowBackground(palette.raisedColor)
             if let until = expiry.date {

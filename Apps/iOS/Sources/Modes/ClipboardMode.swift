@@ -194,7 +194,7 @@ enum ClipboardPushStatus: Equatable {
     /// The Mac's reason, or the phone's when it never got there.
     case refused(String)
 
-    static let noConfirmation = "Your Mac did not confirm it got this. Check the Mac clipboard. If Glasspad on your Mac is an older version, update it so this iPhone can tell."
+    static let noConfirmation = "Your Mac did not confirm it. Check its clipboard, or update Glasspad on the Mac."
     static let noAnswer = "Your Mac did not answer. Try again."
 }
 

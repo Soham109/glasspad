@@ -56,8 +56,8 @@ struct MacrosMode: View {
                 } else {
                     QuietMessage(symbol: "wand.and.stars",
                                  title: showAll ? "No macros yet" : "Nothing for this app",
-                                 detail: showAll ? "Tap Record and do something on your Mac, or build one in the Glasspad menu on the Mac."
-                                                 : "Switch to All, or add macros to this app's profile on your Mac.")
+                                 detail: showAll ? "Tap Record and do the steps on your Mac, or build one in Glasspad Settings > Macros on the Mac."
+                                                 : "Switch to All, or add macros to this app's set in Glasspad Settings > Macros on your Mac.")
                         .frame(minHeight: 260)
                 }
             }
