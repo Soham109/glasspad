@@ -98,6 +98,7 @@ expect_code 0
 expect_call "sudo -n $T/Xcode.app/Contents/Developer/usr/bin/xcodebuild -license accept"
 expect_out "did not match its published checksum"
 expect_call "brew install xcodegen"
+expect_call "curl --proto =https --tlsv1.2 -fsSL"
 expect_out "XcodeGen 2.46.0"
 expect_out "Team TEAMAAAAAA"
 expect_call "install-mac.sh team=TEAMAAAAAA identity=1949B7C39DBCC06E7F1A9D06EB3DF2273A7F0BD7"
@@ -320,6 +321,59 @@ age 150; refresh
 expect_out "iPhone not reachable"
 expect_call "osascript"
 expect_status notReachable
+
+# Installing a fixed release: an upstream with a tagged commit and a newer one after it.
+PINNED="$ROOT/up pinned"
+git clone -q "$UP" "$PINNED"
+git -C "$PINNED" tag v9.9.9
+echo "# newer" >> "$PINNED/scripts/install-phone.sh"
+git -C "$PINNED" -c user.name=t -c user.email=t@t commit -qam newer
+NEWER="$(git -C "$PINNED" rev-parse HEAD)"
+
+new_case "pinned release"
+run_installer GLASSPAD_REPO_URL="$PINNED" GLASSPAD_SKIP_PHONE=1 GLASSPAD_REF=v9.9.9
+expect_code 0
+expect_out "(v9.9.9, ${REV:0:7})"
+if [ "$(git -C "$DEST" rev-parse HEAD)" = "$REV" ]; then pass "built the tagged commit"; else bad "HEAD is not the tag"; fi
+run_installer GLASSPAD_REPO_URL="$PINNED" GLASSPAD_SKIP_PHONE=1
+expect_code 0
+expect_out "on a fixed release"
+if [ "$(git -C "$DEST" rev-parse HEAD)" = "$REV" ]; then pass "stays on the tag without GLASSPAD_REF"; else bad "moved off the tag"; fi
+run_installer GLASSPAD_REPO_URL="$PINNED" GLASSPAD_SKIP_PHONE=1 GLASSPAD_REF="${NEWER:0:12}"
+expect_code 0
+if [ "$(git -C "$DEST" rev-parse HEAD)" = "$NEWER" ]; then pass "moves to another commit"; else bad "did not move to the commit"; fi
+run_installer GLASSPAD_REPO_URL="$PINNED" GLASSPAD_SKIP_PHONE=1 GLASSPAD_REF=v0.0.0-missing
+expect_code 1
+expect_out "There is no tag or commit named v0.0.0-missing"
+
+new_case "unsafe source"
+run_installer GLASSPAD_REPO_URL=http://example.com/glasspad.git
+expect_code 1
+expect_out "must start with https://"
+run_installer GLASSPAD_REPO_URL=git://example.com/glasspad.git
+expect_code 1
+expect_out "must start with https://"
+run_installer GLASSPAD_REF=--upload-pack=touch
+expect_code 1
+expect_out "is not a tag or commit name"
+reject_call "xcodebuild"
+if [ -e "$DEST" ]; then bad "made the folder"; else pass "made nothing"; fi
+
+# A download cut off partway must do nothing at all: everything sits inside main(), which only
+# runs from the last line.
+new_case "half download"
+HALF="$ROOT/half.sh"
+# shellcheck disable=SC2016
+for cut in 200 $(( $(wc -c < "$REPO/install.sh") / 2 )) $(( $(wc -c < "$REPO/install.sh") - 12 )); do
+  head -c "$cut" "$REPO/install.sh" > "$HALF"
+  OUT="$(env PATH="$STUB/bin:/usr/bin:/bin:/usr/sbin:/sbin" GLASSPAD_XCODE="$T/Xcode.app" GLASSPAD_HOME="$DEST" \
+    GLASSPAD_REPO_URL="$UP" GLASSPAD_NONINTERACTIVE=1 bash -c 'bash < "$1"' _ "$HALF" 2>&1)"
+  if [ -s "$STUB/calls" ] || [ -e "$DEST" ] || [ -e "$HOME/Library" ]; then
+    bad "the first $cut bytes ran something"
+  else
+    pass "the first $cut bytes ran nothing"
+  fi
+done
 
 echo "== $PASS passed, $FAIL failed"
 [ "$FAIL" = 0 ]
