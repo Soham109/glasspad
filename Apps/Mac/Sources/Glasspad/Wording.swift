@@ -47,7 +47,7 @@ enum PairingCopy {
 /// The first-run window (SetupViews.swift).
 enum WelcomeCopy {
     static let helloTitle = "Welcome to Glasspad"
-    static let helloDetail = "A control surface for your Mac, on your iPhone."
+    static let helloDetail = "Your Mac, at your fingertips."
     static let permissionsTitle = "Let Your iPhone Control This Mac"
     static let permissionsDetail = "macOS asks you once. Glasspad only acts on what you do on your iPhone."
     static let permissionsFooter = "In System Settings, turn on Glasspad. This step finishes by itself."
@@ -60,6 +60,51 @@ enum WelcomeCopy {
     static let later = "Later"
     static let done = "Done"
     static let allSet = "You're All Set"
+}
+
+// MARK: - iPhone app renewal
+
+/// Settings > iPhone, "iPhone App": the install that scripts/install-phone.sh made and the
+/// hourly renewal that keeps it working past the free account's 7 days.
+enum RenewalCopy {
+    static let section = "iPhone App"
+    static let showLog = "Show Log"
+    /// A free account's install stops opening this long after it was made.
+    static let lifetime: TimeInterval = 7 * 86_400
+
+    /// The row's first line: how it stands, or what went wrong.
+    static func title(_ s: PhoneInstallStatus) -> String {
+        switch s.lastCheck?.result {
+        case .notReachable: "Could not renew: the iPhone was not on this Wi-Fi."
+        case .failed: "Could not renew: the install did not finish."
+        default: s.renewsByItself ? "Installed \(day(s.installedAt)). Renews by itself."
+            : "Installed \(day(s.installedAt)). Works until \(day(s.installedAt + lifetime))."
+        }
+    }
+
+    /// The second line: what to do, what it is waiting for, and when it last looked.
+    static func detail(_ s: PhoneInstallStatus, now: Date = Date()) -> String? {
+        guard s.renewsByItself else { return "Renew by running scripts/setup-autorefresh.sh once." }
+        guard let check = s.lastCheck else { return nil }
+        let checked = "Last checked \(time(check.checkedAt, now: now))."
+        switch check.result {
+        case .notReachable, .failed: return "Works until \(day(s.installedAt + lifetime)). \(checked)"
+        case .waitingInUse: return "Waiting until Glasspad is not in use on the iPhone. \(checked)"
+        case .renewed, .tooEarly: return checked
+        }
+    }
+
+    /// "Oct 16".
+    static func day(_ date: Date) -> String {
+        date.formatted(.dateTime.month(.abbreviated).day())
+    }
+
+    /// "10:42 AM" today, "Oct 15, 10:42 AM" before.
+    static func time(_ date: Date, now: Date) -> String {
+        Calendar.current.isDate(date, inSameDayAs: now)
+            ? date.formatted(date: .omitted, time: .shortened)
+            : date.formatted(.dateTime.month(.abbreviated).day().hour().minute())
+    }
 }
 
 // MARK: - Permissions

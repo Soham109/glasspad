@@ -224,6 +224,13 @@ struct ModeSwitcher: View {
             if session.macNeedsAccessibility {
                 MacPermissionBanner(compact: true)
             }
+            if let line = InstallExpiry.shared.lastDayLine() {
+                Text(line)
+                    .font(.footnote)
+                    .foregroundStyle(palette.inkSoftColor)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
             tileGrid(modes) { mode in
                 let current = mode == router.mode && router.layoutID == nil
                 Button {

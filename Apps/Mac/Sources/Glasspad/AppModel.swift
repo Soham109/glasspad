@@ -41,10 +41,13 @@ final class AppModel: ObservableObject {
     @Published var clipboardRefusal: String?
     /// The user's per-gesture choices (Trackpad > If a Gesture Stops Working).
     @Published var gesturePreferences = GesturePreferences()
+    /// The iPhone install and its renewal (Settings > iPhone). Nil when none was recorded.
+    @Published var phoneInstall: PhoneInstallStatus?
 
     let macName: String
     let macros: MacroCoordinator
     let actions: Actions
+    private var watchers: [AnyCancellable] = []
 
     /// Everything a button can do. Plain closures so the harness can pass no-ops.
     struct Actions {
@@ -71,6 +74,9 @@ final class AppModel: ObservableObject {
         var openConsole: @MainActor () -> Void = {}
         var openTrackpadSettings: @MainActor () -> Void = {}
         var openLoginItems: @MainActor () -> Void = {}
+        /// Reads the iPhone install's state into `phoneInstall`, off the main thread.
+        var loadPhoneInstall: @MainActor () -> Void = {}
+        var showRenewalLog: @MainActor () -> Void = {}
         /// Called when the popover or a Settings pane appears, to pick up outside changes.
         var refresh: @MainActor () -> Void = {}
         var quit: @MainActor () -> Void = {}
@@ -205,6 +211,20 @@ extension AppModel {
         a.setGesturePreference = { controller.setGesturePreference($0, for: $1) }
         a.openTrackpadSettings = { SystemSettings.openTrackpad() }
         a.openLoginItems = { SystemSettings.openLoginItems() }
+        a.loadPhoneInstall = {
+            Task.detached(priority: .utility) {
+                let status = PhoneInstallStatus.load()
+                await MainActor.run { if ref.model?.phoneInstall != status { ref.model?.phoneInstall = status } }
+            }
+        }
+        a.showRenewalLog = {
+            let log = PhoneInstallStatus.Paths().log
+            if FileManager.default.fileExists(atPath: log.path) {
+                NSWorkspace.shared.open(log)
+            } else {
+                NSWorkspace.shared.open(log.deletingLastPathComponent())
+            }
+        }
         a.refresh = {
             controller.refreshAccessibility()
             controller.refreshAutomation()
@@ -239,7 +259,22 @@ extension AppModel {
         controller.$gesturePreferences.removeDuplicates().assign(to: &model.$gesturePreferences)
         hider.$published.removeDuplicates().assign(to: &model.$dock)
         media.$deniedApps.removeDuplicates().assign(to: &model.$automationDenied)
+        model.recordPhoneSessions(controller)
         return model
+    }
+
+    /// Keeps phone-session.json in step with the link, so the renewal script can tell an app
+    /// that is only suspended on the iPhone from one in use. Small writes, kept off the main thread.
+    private func recordPhoneSessions(_ controller: GlasspadController) {
+        let file = PhoneSessionFile()
+        let queue = DispatchQueue(label: "glasspad.phone-session", qos: .utility)
+        watchers.append(controller.$linkState.map(\.isConnected).removeDuplicates().sink { active in
+            queue.async { file.record(active: active) }
+        })
+        // Quitting ends any session; written before the app goes so it is not left marked active.
+        watchers.append(NotificationCenter.default.publisher(for: NSApplication.willTerminateNotification).sink { _ in
+            queue.sync { file.record(active: false) }
+        })
     }
 }
 
