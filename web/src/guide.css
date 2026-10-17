@@ -1,8 +1,11 @@
 /* ---------- Guide: short, scannable, one picture per thing ---------- */
 .g { padding-bottom: 40px; }
-.g-hero { padding-top: clamp(120px, 14vw, 176px); padding-bottom: clamp(24px, 4vw, 48px); }
+.g-hero { padding-top: clamp(128px, 15vw, 184px); padding-bottom: clamp(24px, 4vw, 48px); text-align: center; }
 .g-hero h1 { margin: 0; font-size: clamp(48px, 8vw, 96px); font-weight: 700; letter-spacing: -0.045em; line-height: 1; }
-.g-hero .lede { margin: 16px 0 0; }
+.g-hero .lede { margin: 16px auto 0; }
+.g-toc { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; max-width: 760px; margin: 32px auto 0; }
+.g-toc a { display: inline-flex; align-items: center; height: 38px; padding: 0 16px; border-radius: 999px; box-shadow: inset 0 0 0 1px var(--line-2); font-size: 15px; font-weight: 550; color: var(--ink); text-decoration: none; transition: background-color 200ms; }
+.g-toc a:hover { background: rgba(26, 26, 26, 0.05); }
 .g-sec { padding-top: clamp(56px, 7vw, 96px); padding-bottom: 0; scroll-margin-top: 72px; }
 .g-sec h2 { max-width: none; margin: 0 0 clamp(24px, 3vw, 36px); font-size: clamp(30px, 3.6vw, 44px); letter-spacing: -0.035em; line-height: 1.1; padding-top: clamp(24px, 3vw, 32px); border-top: 1px solid var(--line); }
 .g h3 { margin: 0 0 8px; font-size: 21px; font-weight: 650; letter-spacing: -0.02em; display: flex; align-items: center; gap: 10px; }
@@ -18,8 +21,11 @@
 .g-steps { margin: 0 0 clamp(40px, 5vw, 64px); padding: 0; list-style: none; counter-reset: s; display: grid; grid-template-columns: minmax(0, 1fr); gap: 22px; max-width: 760px; }
 .g-steps li { padding-left: 44px; counter-increment: s; }
 .g-steps li::before { content: counter(s); left: 0; top: 0; width: 28px; height: 28px; display: grid; place-items: center; border-radius: 50%; background: var(--ink); color: var(--paper); font-size: 14px; font-weight: 600; }
+.g-start { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: clamp(32px, 5vw, 72px); align-items: start; }
+.g-start .g-steps { margin-bottom: 0; }
+.g-row.g-side { grid-template-columns: minmax(0, 170px) minmax(0, 1fr); gap: 28px; align-items: center; }
 .g-cmd { position: relative; margin: 12px 0 8px; padding: 18px 120px 18px 20px; border-radius: 16px; background: var(--graphite); color: var(--on-dark); overflow-x: auto; }
-.g-cmd code { white-space: nowrap; font-size: 14px; }
+.g-cmd code { font-size: 14px; line-height: 1.6; overflow-wrap: anywhere; }
 .g-cmd .copy { top: 50%; transform: translateY(-50%); }
 .g-cmd .copy:active { transform: translateY(-50%) scale(0.94); }
 .g-more { display: block; font-size: 15px; }
@@ -41,11 +47,13 @@
 .g-help dd, .g .faq dd { margin: 0; padding: 18px 0; color: var(--ink-2); border-top: 1px solid var(--line); }
 
 @media (max-width: 980px) {
+  .g-start { grid-template-columns: minmax(0, 1fr); }
   .g-grid, .g-grid.three { grid-template-columns: 1fr; }
   .g-grid.three .g-card { grid-template-columns: minmax(0, 200px) minmax(0, 1fr); align-items: center; }
   .g-card.wide, .g-row.land { grid-template-columns: 1fr; }
 }
 @media (max-width: 600px) {
+  .g-row.g-side { grid-template-columns: minmax(0, 1fr); }
   .g-card, .g-grid.three .g-card, .g-row { grid-template-columns: 1fr; }
   .g-card .g-fig, .g-row .g-fig { max-width: 220px; margin: 0 auto; }
   .g-card.wide .g-fig, .g-row.land .g-fig { max-width: none; }

@@ -1,7 +1,7 @@
 import { clamp, lerp, minJerk, reducedMotion, nextFrame, sleep } from "./spring";
 import { APPS, appIcon } from "./apps";
 import { glyph } from "./glyphs";
-import { Scene, Cancel, tl } from "./kit";
+import { Scene, Cancel, tl, phone, loopInView } from "./kit";
 import { menuBar } from "./scenes";
 
 /* Recreations of the iPhone app's own screens (Apps/iOS/Sources/Modes), drawn in iPhone points. */
@@ -317,4 +317,16 @@ export function initModes() {
     if (!visible) { token++; } else if (current >= 0) { const c = current; current = -1; show(c); }
   }).observe(device);
   show(0); fit(); onScroll();
+}
+
+/** One mode on its own (the Features pages): the phone beside a small Mac, looping while on screen. */
+export function mountMode(root: HTMLElement, key: string) {
+  const m = MODES.find(x => x.key === key);
+  if (!m) return;
+  root.innerHTML = `<div class="pgm-phone">${phone("portrait", "light", `<div class="ms on">${m.phone()}</div>`)}</div>
+    <div class="pgm-mac"><div class="mini-mac"><div class="mm-display"><div class="mm-layer on">${m.mac()}</div></div></div><div class="pgm-foot"></div></div>`;
+  const screen = root.querySelector<HTMLElement>(".ip-screen")!, ms = root.querySelector<HTMLElement>(".ms")!;
+  const fit = () => { const w = screen.clientWidth; if (w) ms.querySelectorAll<HTMLElement>(".pt").forEach(pt => { pt.style.transform = `scale(${w / 402})`; }); };
+  new ResizeObserver(fit).observe(screen); fit();
+  loopInView(root, ms, root.querySelector<HTMLElement>(".mm-layer")!, s => m.run(s));
 }

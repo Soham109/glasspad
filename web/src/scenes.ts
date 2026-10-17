@@ -318,3 +318,29 @@ export function initScenes() {
   document.addEventListener("visibilitychange", () => { if (!document.hidden && visible) { token++; run(cur, token); } });
 }
 
+
+/** One room on its own (the Features pages): drawn fresh for each pass, looping while on screen. */
+export function mountRoom(root: HTMLElement, key: string) {
+  const room = SCENES.find(c => c.key === key);
+  if (!room) return;
+  const draw = () => {
+    root.innerHTML = room.html();
+    const el = root.firstElementChild as HTMLElement;
+    el.classList.add("on"); el.setAttribute("aria-hidden", "true"); fitAll(el);
+    return el;
+  };
+  draw();
+  if (reduce) return;
+  let token = 0, visible = false;
+  const go = async (t: number) => {
+    for (;;) {
+      const el = draw();
+      const s = new Scene(el.querySelector<HTMLElement>(".ip-screen")!, el, () => t === token && visible && !document.hidden);
+      try { await s.wait(400); await room.run(s); } catch { s.clear(); return; }
+      s.clear();
+    }
+  };
+  const start = () => { token++; if (visible && !document.hidden) go(token); };
+  new IntersectionObserver(([e]) => { if (e.isIntersecting === visible) return; visible = e.isIntersecting; start(); }, { threshold: 0.3 }).observe(root);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) start(); });
+}

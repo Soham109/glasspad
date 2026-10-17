@@ -187,15 +187,15 @@ export function initInstall() {
     });
   });
 
-  // footer wordmark spans the full width
+  // footer wordmark (a drawn logotype, aria-hidden) spans the full width
   const mark = document.getElementById("footMark");
   if (mark) {
     const box = mark.parentElement!;
     let last = 0;
     const fit = () => {
       const cs = getComputedStyle(box); const avail = box.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight) - 2; if (!avail || avail === last) return; last = avail;
-      box.style.fontSize = "100px"; const w = mark.getBoundingClientRect().width;
-      box.style.fontSize = `${(100 * avail / w).toFixed(2)}px`;
+      const text = mark.querySelector("text")!, w = text.getComputedTextLength() / parseFloat(getComputedStyle(text).fontSize);
+      if (w) box.style.fontSize = `${(avail / w).toFixed(2)}px`;
     };
     new ResizeObserver(fit).observe(mark.parentElement!);
     document.fonts?.ready.then(fit);
