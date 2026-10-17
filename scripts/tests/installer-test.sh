@@ -233,33 +233,93 @@ expect_code 1
 expect_out "is not a copy of Glasspad"
 
 # The renewal job itself.
+LOG() { printf '%s' "$HOME/Library/Logs/Glasspad/refresh.log"; }
+STATUS() { printf '%s' "$HOME/Library/Application Support/Glasspad/refresh-status.json"; }
+SESSION() { printf '%s' "$HOME/Library/Application Support/Glasspad/phone-session.json"; }
+age() { sed -i '' "s/^GLASSPAD_INSTALLED_AT=.*/GLASSPAD_INSTALLED_AT=$(( $(date +%s) - $1*3600 ))/" "$(STATE_FILE)"; }
+# refresh: one run of the renewal job; OUT is its log, fresh calls and log for each run.
+refresh() {
+  : > "$STUB/calls"; : > "$(LOG)"; rm -f "$(STATUS)"
+  env PATH="$STUB/bin:/usr/bin:/bin" bash "$DEST/scripts/refresh-phone.sh" "$@"
+  OUT="$(cat "$(LOG)")"
+}
+# expect_status RESULT: the outcome the Mac app reads, a fresh check time and the install time.
+expect_status() {
+  local got at now; now="$(date +%s)"
+  got="$(plutil -extract result raw -o - "$(STATUS)" 2>/dev/null)"
+  at="$(plutil -extract checkedAt raw -o - "$(STATUS)" 2>/dev/null)"
+  if [ "$got" = "$1" ] && [ -n "$at" ] && [ $(( now - at )) -lt 60 ] \
+     && [ "$(plutil -extract installedAt raw -o - "$(STATUS)")" = "$( set +u; . "$(STATE_FILE)"; echo "$GLASSPAD_INSTALLED_AT")" ]; then
+    pass "status $1"; else bad "status \"$got\" at \"$at\", wanted $1"; fi
+}
+# session ACTIVE MINUTES_AGO [FILE_HOURS_OLD]: what the Mac app last wrote about the phone.
+session() {
+  if [ "$1" = true ]; then printf '{"active":true}\n' > "$(SESSION)"
+  else printf '{"active":false,"endedAt":%s}\n' "$(( $(date +%s) - $2*60 ))" > "$(SESSION)"; fi
+  [ -n "${3:-}" ] && touch -t "$(date -v-"$3"H +%Y%m%d%H%M.%S)" "$(SESSION)"
+  return 0
+}
+
 new_case "refresh"
 run_installer >/dev/null
-: > "$STUB/calls"
-env PATH="$STUB/bin:/usr/bin:/bin" bash "$DEST/scripts/refresh-phone.sh"
+refresh
 reject_call "device install"
-sed -i '' "s/^GLASSPAD_INSTALLED_AT=.*/GLASSPAD_INSTALLED_AT=$(( $(date +%s) - 6*86400 ))/" "$(STATE_FILE)"
-OUT="$(env PATH="$STUB/bin:/usr/bin:/bin" bash "$DEST/scripts/refresh-phone.sh"; cat "$HOME/Library/Logs/Glasspad/refresh.log")"
+expect_status tooEarly
+age 144
+refresh
 expect_out "renewing ${REV:0:7}"
 expect_call "xcrun devicectl device install app --device 00008000-0000000000000001"
+expect_call "osascript -e display notification \"Renewed on your iPhone"
+expect_status renewed
+installed="$( set +u; . "$(STATE_FILE)"; echo "$GLASSPAD_INSTALLED_AT")"
+if [ $(( $(date +%s) - installed )) -lt 60 ]; then pass "install time moved on"; else bad "install time $installed"; fi
+
 CASE="refresh while app open"
-age() { sed -i '' "s/^GLASSPAD_INSTALLED_AT=.*/GLASSPAD_INSTALLED_AT=$(( $(date +%s) - $1*3600 ))/" "$(STATE_FILE)"; }
-touch "$STUB/app_running"; : > "$STUB/calls"; : > "$HOME/Library/Logs/Glasspad/refresh.log"; age 125
-OUT="$(env PATH="$STUB/bin:/usr/bin:/bin" bash "$DEST/scripts/refresh-phone.sh"; cat "$HOME/Library/Logs/Glasspad/refresh.log")"
-expect_out "Glasspad is open on the iPhone (install is 5 days old); will retry next hour"
+touch "$STUB/app_running"
+age 125; refresh
+expect_out "Glasspad is in use on the iPhone (install is 5 days old); will retry next hour"
 reject_call "device install"
-: > "$STUB/calls"; : > "$HOME/Library/Logs/Glasspad/refresh.log"; age 150
-OUT="$(env PATH="$STUB/bin:/usr/bin:/bin" bash "$DEST/scripts/refresh-phone.sh"; cat "$HOME/Library/Logs/Glasspad/refresh.log")"
+expect_status waitingInUse
+age 125; session false 31; refresh
+expect_out "not in use for 30 minutes; renewing"
+expect_call "device install app"
+reject_call "Renewing Glasspad on your iPhone now"
+expect_status renewed
+age 125; session false 10; refresh
+expect_out "will retry next hour"
+reject_call "device install"
+age 125; session true; refresh
+expect_out "will retry next hour"
+reject_call "device install"
+expect_status waitingInUse
+age 125; session true 0 3; refresh   # left active by a Mac app that is no longer running
+expect_out "will retry next hour"
+reject_call "device install"
+age 125; printf 'not json' > "$(SESSION)"; refresh
+reject_call "device install"
+age 150; session true; refresh
 expect_out "renewing anyway"
 expect_call "osascript -e display notification \"Renewing Glasspad on your iPhone now"
 expect_call "device install app"
-rm "$STUB/app_running"
+expect_status renewed
+age 125; session true; refresh --now
+expect_call "device install app"
+rm "$STUB/app_running" "$(SESSION)"
+
+CASE="refresh fails"
+touch "$STUB/install_fails"
+age 125; refresh
+expect_out "renewal failed"
+expect_call "osascript -e display notification \"Could not renew on your iPhone"
+expect_status failed
+rm "$STUB/install_fails"
+
 CASE="refresh phone away"
-: > "$STUB/reachable"; : > "$STUB/calls"
-age 150
-OUT="$(env PATH="$STUB/bin:/usr/bin:/bin" bash "$DEST/scripts/refresh-phone.sh"; cat "$HOME/Library/Logs/Glasspad/refresh.log")"
+: > "$STUB/reachable"
+age 150; refresh
 expect_out "iPhone not reachable"
 expect_call "osascript"
+expect_status notReachable
 
 echo "== $PASS passed, $FAIL failed"
 [ "$FAIL" = 0 ]
