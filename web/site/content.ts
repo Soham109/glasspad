@@ -120,10 +120,37 @@ export const FEATURES: [string, string][] = [
 
 export const FILM = {
   id: "6AArTWOADGc",
-  name: "Introducing Glasspad",
-  description: "A one minute film of Glasspad: an iPhone as a trackpad, keyboard, media remote and control surface for a Mac.",
+  /** the title on YouTube */
+  name: "Use Your iPhone as a Mac Trackpad (Free, Open Source) | Glasspad",
+  description: "Glasspad turns your iPhone into a wireless trackpad, keyboard and remote for your Mac. Free, open source (MIT), no account, no cloud.",
   uploadDate: "2026-10-15T18:05:20-07:00",
   duration: "PT1M4S",
+  /** chapters as in the YouTube description: [start in seconds, name] */
+  chapters: [
+    [0, "Your iPhone as a Mac trackpad"],
+    [13, "Click with haptics and swipe between Spaces"],
+    [26, "Your Mac's trackpad settings, mode menu and Dock"],
+    [39, "Actions for the app in front, and media"],
+    [50, "Private: no account, no cloud, encrypted"],
+  ] as [number, string][],
+  /** the spoken words, from the film's English captions */
+  transcript: [
+    "Your Mac is over there.",
+    "Your phone is right here.",
+    "Glasspad turns it into a trackpad.",
+    "Slide a finger, and the pointer glides, in step with your display.",
+    "Tap, and you feel the click.",
+    "Swipe three fingers, and your Spaces move with your hand.",
+    "It follows your Mac's own trackpad settings, so it already feels like yours.",
+    "Tap the top for everything else.",
+    "Open Word without getting up.",
+    "Actions follow the app in front.",
+    "Switch to Safari, and the buttons switch with you.",
+    "Play Spotify on your Mac, and scrub it from your phone.",
+    "No account. No cloud.",
+    "Every touch is encrypted, and stays on your Wi-Fi.",
+    "Glasspad is free and open source.",
+  ],
 };
 
 export const LINKS: [string, string, string][] = [
