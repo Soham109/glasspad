@@ -238,7 +238,7 @@ jobs:
           codesign --verify --strict --verbose=2 "$app"
           lipo -archs "$app/Contents/MacOS/Glasspad"
           ditto -c -k --keepParent "$app" build/Glasspad-mac-adhoc.zip
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: Glasspad-mac-${{ github.sha }}
           path: build/Glasspad-mac-adhoc.zip
@@ -289,7 +289,7 @@ jobs:
       - name: Lighthouse
         run: npx --yes @lhci/cli@0.15.1 autorun --config=scripts/release/lighthouserc.json
       - if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: lighthouse-${{ github.sha }}
           path: .lighthouseci
