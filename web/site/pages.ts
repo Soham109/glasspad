@@ -44,6 +44,10 @@ export interface Page {
   ogTitle?: string;
   /** FAQ list from content.ts shown on this page (home and guide; feature pages keep theirs in features.ts) */
   faq?: string;
+  /** kept out of search results, the sitemap and llms.txt (the 404 page) */
+  noindex?: boolean;
+  /** this page's own social card, a 1200 x 630 PNG in public/ ("/og/press.png"); the site card when unset */
+  ogImage?: string;
 }
 
 export const pages: Page[] = [
@@ -98,6 +102,30 @@ export const pages: Page[] = [
     summary: "Terms of use: MIT license, no warranty, not affiliated with Apple or other companies named.",
   },
 
+  {
+    path: "/support", file: "support.html", crumb: "Support", lastmod: "2026-10-17", ogType: "website",
+    title: "Glasspad Support: help, troubleshooting and contact",
+    description: "Get help with Glasspad: the guide, install troubleshooting, the 7 day renewal, reporting a bug on GitHub, and email for anything else.",
+    summary: "Where to get help: the guide, install troubleshooting, renewal, GitHub issues for bugs and ideas, and email.",
+  },
+  {
+    path: "/changelog", file: "changelog.html", crumb: "Changelog", lastmod: "2026-10-17", ogType: "website",
+    title: "Glasspad Changelog: what is new in each release",
+    description: "Every Glasspad release for iPhone and Mac, newest first: what was added, changed and fixed. Also as an Atom feed and on GitHub Releases.",
+    summary: "Every release, newest first, built from CHANGELOG.md, with an Atom feed at /changelog.xml.",
+  },
+  {
+    path: "/press", file: "press.html", crumb: "Press kit", lastmod: "2026-10-17", ogType: "website",
+    title: "Glasspad Press Kit: descriptions, facts, icon and screenshots",
+    description: "Everything to write about Glasspad: one line and long descriptions, the facts, the app icon, real app screenshots in one download, and how to reach the developer.",
+    summary: "Press kit: descriptions, facts, app icon, real screenshots as files or one zip, logo use and press contact.",
+  },
+  {
+    path: "/accessibility", file: "accessibility.html", crumb: "Accessibility", lastmod: "2026-10-17", ogType: "website",
+    title: "Glasspad Accessibility: VoiceOver, Reduce Motion and more",
+    description: "What the Glasspad apps and this website support for accessibility today, such as VoiceOver, Reduce Motion, larger text and contrast, what is not there yet, and how to tell me.",
+    summary: "Accessibility statement: what the apps and site support (VoiceOver, Reduce Motion, Dynamic Type, contrast), known gaps, and contact.",
+  },
   // Features, in nav order
   {
     path: "/use/iphone-as-mac-trackpad", file: "use/iphone-as-mac-trackpad.html", group: "feature", icon: "trackpad",
@@ -217,6 +245,12 @@ export const pages: Page[] = [
     ogTitle: "Glasspad vs Universal Control",
     description: "Universal Control does not work with iPhone. Here is what it does, how it differs from iPhone Mirroring, and how to control a Mac from an iPhone.",
     summary: "Universal Control does not work with iPhone: what it does, how it differs from iPhone Mirroring, and how to control a Mac from an iPhone.",
+  },
+  {
+    path: "/404", file: "404.html", lastmod: "2026-10-17", noindex: true,
+    title: "Page not found | Glasspad",
+    description: "This page does not exist. Go to the Glasspad home page, the install steps, the guide or support.",
+    summary: "Page not found.",
   },
 ];
 

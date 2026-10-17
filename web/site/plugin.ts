@@ -15,6 +15,7 @@ import { DEFINITION, FAQS, HOWTO, NEEDS, FEATURES, FILM, INSTALL, LINKS } from "
 import { themesLine } from "../src/themes";
 import { nav, footer, body, pageFaq, pageImage } from "./render";
 import { CONTENT, SHOTS, type Shot } from "./features";
+import { changelogHtml, changelogFeed, icons, pressKit, notFound } from "./extras";
 
 const NAME = "Glasspad";
 const TAGLINE = "A control surface for your Mac, on your iPhone.";
@@ -162,10 +163,11 @@ function image(p: Page) {
 function head(p: Page): string {
   const u = url(p);
   const og = p.ogTitle ?? p.title;
+  const card = p.ogImage ? { ...OG, url: SITE + p.ogImage } : OG;
   return [
     `<title>${esc(p.title)}</title>`,
     `<meta name="description" content="${esc(p.description)}">`,
-    `<link rel="canonical" href="${u}">`,
+    ...(p.noindex ? [] : [`<link rel="canonical" href="${u}">`]),
     `<meta name="theme-color" content="#F2F1EE">`,
     `<link rel="icon" href="/favicon.ico" sizes="48x48">`,
     `<link rel="icon" href="/icon.svg" type="image/svg+xml">`,
@@ -173,7 +175,8 @@ function head(p: Page): string {
     `<link rel="manifest" href="/site.webmanifest">`,
     `<link rel="alternate" type="text/plain" href="/llms.txt" title="llms.txt">`,
     `<link rel="alternate" type="text/plain" href="/llms-full.txt" title="llms-full.txt">`,
-    `<meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">`,
+    `<link rel="alternate" type="application/atom+xml" href="/changelog.xml" title="Glasspad releases">`,
+    `<meta name="robots" content="${p.noindex ? "noindex, follow" : "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"}">`,
     `<meta name="author" content="${AUTHOR}">`,
     `<meta property="og:type" content="${p.ogType ?? "website"}">`,
     `<meta property="og:site_name" content="${NAME}">`,
@@ -181,7 +184,7 @@ function head(p: Page): string {
     `<meta property="og:url" content="${u}">`,
     `<meta property="og:title" content="${esc(og)}">`,
     `<meta property="og:description" content="${esc(p.description)}">`,
-    `<meta property="og:image" content="${OG.url}">`,
+    `<meta property="og:image" content="${card.url}">`,
     `<meta property="og:image:type" content="image/png">`,
     `<meta property="og:image:width" content="${OG.width}">`,
     `<meta property="og:image:height" content="${OG.height}">`,
@@ -197,7 +200,7 @@ function head(p: Page): string {
     `<meta name="twitter:card" content="summary_large_image">`,
     `<meta name="twitter:title" content="${esc(og)}">`,
     `<meta name="twitter:description" content="${esc(p.description)}">`,
-    `<meta name="twitter:image" content="${OG.url}">`,
+    `<meta name="twitter:image" content="${card.url}">`,
     `<meta name="twitter:image:alt" content="${esc(OG.alt)}">`,
     `<script type="application/ld+json">${json(schema(p))}</script>`,
   ].join("\n");
@@ -238,7 +241,7 @@ const sitemapVideo = (p: Page): string => p !== pages[0] ? "" : `
     </video:video>`;
 
 function sitemap(): string {
-  const rows = pages.map(p => {
+  const rows = pages.filter(p => !p.noindex).map(p => {
     const images = sitemapImages(p).map(i => `\n    <image:image><image:loc>${i}</image:loc></image:image>`).join("");
     return `  <url>\n    <loc>${url(p)}</loc>\n    <lastmod>${p.lastmod}</lastmod>${images}${sitemapVideo(p)}\n  </url>`;
   });
@@ -259,7 +262,7 @@ const facts = () => [
 function pageList(): string[] {
   const line = (p: Page) => `- [${p.crumb ?? "Home"}](${url(p)}): ${p.summary}`;
   return [
-    "## Pages", "", ...pages.filter(p => !p.group).map(line), "",
+    "## Pages", "", ...pages.filter(p => !p.group && !p.noindex).map(line), "",
     "## Feature pages", "", ...pages.filter(p => p.group === "feature").map(line), "",
     "## Comparison pages", "", ...pages.filter(p => p.group === "compare").map(line), "",
   ];
@@ -367,10 +370,12 @@ function llmsFull(root: string): string {
 
 export function site(): Plugin {
   let pub = "", root = "";
-  const FILES: Record<string, [string, () => string]> = {
+  const FILES: Record<string, [string, () => string | Buffer]> = {
     "sitemap.xml": ["application/xml", sitemap],
     "llms.txt": ["text/plain; charset=utf-8", llms],
     "llms-full.txt": ["text/plain; charset=utf-8", () => llmsFull(root)],
+    "changelog.xml": ["application/atom+xml; charset=utf-8", () => changelogFeed(root)],
+    "press/glasspad-press-kit.zip": ["application/zip", () => pressKit(root, [...intro(), `Press kit: ${SITE}/press`, `Contact: hello@sohamaggarwal.com`, ""].join("\n"))],
   };
   return {
     name: "glasspad-site",
@@ -390,9 +395,14 @@ export function site(): Plugin {
         html = html.replace("<!--site:nav-->", nav(p)).replace("<!--site:footer-->", footer(p));
       }
       if (p.faq) html = html.replace("<!--site:faq-->", faq(p));
+      if (html.includes("<!--site:changelog-->")) html = html.replace("<!--site:changelog-->", changelogHtml(root));
+      html = icons(html);
       // the theme line as guide.ts writes it, so it is in the page without JavaScript
       html = html.replace(/(<li data-themes>)[^<]*(<\/li>)/, `$1Settings, then Theme. ${themesLine()} System follows your iPhone.$2`);
       return pictures(html, pub);
+    },
+    configurePreviewServer(server) {
+      return () => { server.middlewares.use(notFound(join(server.config.root, server.config.build.outDir))); };
     },
     configureServer(server) {
       server.middlewares.use((req, res, next) => {

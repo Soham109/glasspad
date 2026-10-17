@@ -1,0 +1,81 @@
+/* Support, Changelog, Press kit, Accessibility and 404. They reuse the pg classes in site.css;
+   these are the few parts those pages add: a two column table, the release list, and the press
+   kit's description cards, icon tiles and screenshot grid. */
+
+.pg-text .pg-hero + .px-first { padding-top: clamp(8px, 2vw, 24px); }
+.px-last { padding-bottom: clamp(80px, 10vw, 128px); }
+.px-note { max-width: 720px; margin: 28px auto 0; text-align: center; font-size: 15.5px; line-height: 1.55; color: var(--ink-2); }
+.px-lede { max-width: 40em; margin: -16px auto 32px; text-align: center; font-size: 17px; line-height: 1.55; color: var(--ink-2); text-wrap: pretty; }
+.px-last .px-lede { margin-bottom: 0; }
+.px-note a, .px-lede a, .px-table a, .px-links a, .px-quote a { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
+.px-links { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 12px; margin-top: 22px; font-size: 15px; color: var(--ink-2); }
+
+/* A plain two column table: a label, then one line. */
+.px-table { width: 100%; max-width: 860px; margin: 0 auto; border-collapse: collapse; font-size: 16px; line-height: 1.5; }
+.px-table thead th { padding: 0 16px 12px 0; border-bottom: 1px solid var(--line-2); text-align: left; font-size: 14px; font-weight: 600; color: var(--ink-2); }
+.px-table tbody th { width: 34%; padding: 16px 20px 16px 0; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; font-weight: 600; }
+.px-table td { padding: 16px 0; border-bottom: 1px solid var(--line); vertical-align: top; color: var(--ink-2); }
+.px-facts tbody th { width: 26%; }
+.px-marks td { position: relative; padding-left: 36px; }
+.px-marks td .cmp-mk { position: absolute; left: 0; top: 16px; }
+@media (max-width: 600px) {
+  .px-table thead { display: none; }
+  .px-table tr { display: block; padding: 14px 0; border-bottom: 1px solid var(--line); }
+  .px-table tbody th, .px-table td { display: block; width: auto; padding: 0; border: 0; }
+  .px-table td { margin-top: 4px; }
+  .px-marks td { padding-left: 34px; }
+  .px-marks td .cmp-mk { top: 0; }
+}
+
+/* Changelog */
+.cl { max-width: 860px; }
+.cl-rel { display: block; margin-bottom: 16px; padding: clamp(22px, 3vw, 32px); border-radius: var(--radius); background: var(--card); box-shadow: 0 0 0 1px var(--line); }
+.cl-head { display: flex; align-items: center; gap: 12px; list-style: none; }
+details.cl-rel > summary { cursor: pointer; }
+.cl-head::-webkit-details-marker { display: none; }
+.cl-head h2 { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px; margin: 0; font-size: 24px; font-weight: 650; letter-spacing: -0.025em; }
+.cl-head time { font-size: 15px; font-weight: 500; letter-spacing: 0; color: var(--ink-2); }
+.cl-latest { align-self: center; padding: 3px 10px; border-radius: 99px; background: var(--ink); color: var(--paper); font-size: 12.5px; font-weight: 600; letter-spacing: 0; }
+.cl-n { margin-left: auto; font-size: 14px; color: var(--ink-2); white-space: nowrap; }
+details[open] .pg-faq-chev { transform: rotate(180deg); }
+details.cl-rel[open] > summary { margin-bottom: 4px; }
+.cl-intro { margin-top: 14px; color: var(--ink-2); font-size: 16px; }
+.cl-group { margin-top: 22px; }
+.cl-group h3 { margin: 0 0 8px; }
+.cl-tag { display: inline-block; padding: 3px 10px; border-radius: 8px; background: rgba(26, 26, 26, 0.06); font-size: 13px; font-weight: 650; letter-spacing: 0.01em; }
+.cl-added { background: #DDEFE0; color: #1B5E2A; }
+.cl-fixed { background: #E2E8F5; color: #1F3F7A; }
+.cl-removed { background: #F5DEDB; color: #8E2118; }
+.cl-group ul { margin: 0; padding-left: 20px; display: grid; gap: 7px; }
+.cl-group li { font-size: 16px; line-height: 1.55; color: var(--ink-2); }
+.cl-group li b { color: var(--ink); font-weight: 600; }
+.cl-group code { font-family: var(--mono); font-size: 0.9em; }
+.cl-more { margin-top: 20px; font-size: 14.5px; }
+.cl-more a { color: var(--ink); text-underline-offset: 3px; }
+
+/* Press kit */
+.px-say { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 20px; max-width: 1000px; margin: 0 auto; }
+.px-card { padding: clamp(22px, 3vw, 32px); border-radius: var(--radius); background: var(--card); box-shadow: 0 0 0 1px var(--line); }
+.px-quote { font-size: 17px; line-height: 1.6; }
+.px-say .px-card:first-child .px-quote { font-size: clamp(19px, 1.8vw, 22px); line-height: 1.4; font-weight: 600; letter-spacing: -0.015em; }
+.px-assets { display: flex; flex-wrap: wrap; justify-content: center; gap: 20px; margin: 0; padding: 0; list-style: none; }
+.px-assets li { display: flex; flex-direction: column; align-items: center; gap: 8px; width: 260px; padding: 28px 24px 24px; border-radius: var(--radius); background: var(--card); box-shadow: 0 0 0 1px var(--line); text-align: center; }
+.px-assets li.alt { background: var(--tile); }
+.px-assets img { width: 128px; height: 128px; margin-bottom: 10px; border-radius: 22.5%; }
+.px-assets b { font-size: 17px; font-weight: 650; }
+.px-assets span { display: flex; gap: 14px; font-size: 14.5px; }
+.px-assets a { color: inherit; text-underline-offset: 3px; }
+.px-shots { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 20px; margin: 0; padding: 0; list-style: none; }
+.px-shots li.land { grid-column: span 2; }
+.px-shots a { display: flex; flex-direction: column; height: 100%; padding: 20px 20px 16px; border-radius: var(--radius); background: var(--tile); text-decoration: none; transition: box-shadow 240ms ease; }
+.px-shots a:hover { box-shadow: 0 0 0 1px var(--line-2), 0 18px 40px -24px rgba(20, 20, 20, 0.3); }
+.px-shots img { flex: 1; width: 100%; height: auto; max-height: 360px; object-fit: contain; }
+.px-shots span { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 2px 8px; margin-top: 14px; font-size: 15px; font-weight: 600; }
+.px-shots small { font-size: 13px; font-weight: 500; color: var(--ink-2); }
+@media (max-width: 860px) {
+  .px-say { grid-template-columns: minmax(0, 1fr); }
+  .px-shots { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 600px) {
+  .px-assets li { width: 100%; }
+}
