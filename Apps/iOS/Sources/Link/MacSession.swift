@@ -68,6 +68,9 @@ final class MacSession {
     private(set) var deckImageNotice: DeckFailure?
     private(set) var media: MediaState?
     private(set) var mediaReceivedAt: Date?
+    /// What each key types on the Mac's keyboard layout (`keysLayout`), for Keyboard. US until
+    /// a Mac says otherwise; kept across launches so the right letters show at once.
+    private(set) var keyboardLetters: KeyboardLetters = .us
     private(set) var deckButtons: [DeckButton]?
     private(set) var deckPending: Set<UUID> = []
     private(set) var deckOutcomes: [UUID: DeckOutcome] = [:]
@@ -116,6 +119,7 @@ final class MacSession {
     private static let macroCacheKey = "macrosCache"
     private static let deckLayoutCacheKey = "deckLayoutCache"
     private static let dockListCacheKey = "dockListCache"
+    private static let keyboardLettersKey = "keyboardLetters"
 
     private init() {
         if let data = UserDefaults.standard.data(forKey: Self.settingsKey),
@@ -137,6 +141,10 @@ final class MacSession {
         }
         if let data = UserDefaults.standard.data(forKey: Self.dockListCacheKey) {
             dockApps = (try? JSONDecoder().decode([DockApp].self, from: data)) ?? []
+        }
+        if let data = UserDefaults.standard.data(forKey: Self.keyboardLettersKey),
+           let saved = try? JSONDecoder().decode(KeyboardLetters.self, from: data) {
+            keyboardLetters = saved
         }
         bridge.session = self
         PowerMonitor.shared.onChange { [weak self] in self?.powerChanged($0) }
@@ -630,6 +638,12 @@ final class MacSession {
             Haptics.shared.play(content == nil ? .error : .snap)
         case .macro(let macro):
             received(macro)
+        case .keysLayout(let letters):
+            guard letters != keyboardLetters else { return }
+            keyboardLetters = letters
+            if let data = try? JSONEncoder().encode(letters) {
+                UserDefaults.standard.set(data, forKey: Self.keyboardLettersKey)
+            }
         case .displaysState, .displaysResult:
             DisplaysStore.shared.receive(message)
         default:

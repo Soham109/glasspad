@@ -166,7 +166,7 @@ struct SettingsView: View {
             Text("Modes")
         } footer: {
             if AppMode.visible.contains(.keys) {
-                Text("The shortcut row puts Copy, Paste, Undo and more above the arrow keys.")
+                Text("The shortcut row puts Copy, Paste, Undo and more above the keys.")
             }
         }
         .listRowBackground(palette.raisedColor)

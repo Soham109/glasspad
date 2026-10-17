@@ -72,6 +72,7 @@ extension ModeMessage {
         case "macDockSet": self = .macDockSet(try f.value(MacDockState.self, "state", unlabeled: true))
         case "keysText": self = .keysText(try f.value(String.self, "text", unlabeled: true))
         case "keysKeystroke": self = .keysKeystroke(try f.value(Keystroke.self, "keystroke", unlabeled: true))
+        case "keysLayout": self = .keysLayout(try f.value(KeyboardLetters.self, "layout"))
         case "mediaRequest": self = .mediaRequest
         case "mediaState": self = .mediaState(try f.value(MediaState.self, "state", unlabeled: true))
         case "mediaCommand": self = .mediaCommand(try f.value(MediaCommand.self, "command", unlabeled: true))
@@ -158,6 +159,7 @@ extension ModeMessage {
             try put(destination, "destination")
         case .keysText(let text): try put(text, "text")
         case .keysKeystroke(let k): try put(k, "keystroke")
+        case .keysLayout(let l): try put(l, "layout")
         case .mediaState(let s): try put(s, "state")
         case .mediaCommand(let cmd): try put(cmd, "command")
         case .mediaSetVolume(let v), .mediaSetBrightness(let v): try put(v, "value")
@@ -229,6 +231,7 @@ extension ModeMessage {
         case .deckImage: "deckImage"
         case .keysText: "keysText"
         case .keysKeystroke: "keysKeystroke"
+        case .keysLayout: "keysLayout"
         case .mediaRequest: "mediaRequest"
         case .mediaState: "mediaState"
         case .mediaCommand: "mediaCommand"

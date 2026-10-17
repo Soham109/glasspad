@@ -80,6 +80,17 @@ let azerty = KeyLayout(
         #expect(KeysMode.keyStroke(for: Keystroke(key: .special(.f5)), layout: azerty)?.keyCode == 96)
     }
 
+    /// The phone's keyboard draws the Mac's letters: each position with what it types.
+    @Test func lettersFollowTheLayoutKeyByKey() {
+        let letters = azerty.letters
+        #expect(letters.cap(12) == KeyCap("a", "A"))      // US Q position
+        #expect(letters.cap(0) == KeyCap("q", "Q"))
+        #expect(letters.cap(18) == KeyCap("&", "1"))
+        #expect(letters.cap(46) == KeyCap(",", "?"))
+        #expect(letters.cap(37) == KeyCap("l", "L"))      // not in the map: US
+        #expect(KeyLayout.ansi.letters == KeyboardLetters.us)
+    }
+
     @Test func keysModePostsTheActiveLayoutsKey() {
         let poster = CapturingEventPoster()
         KeysMode(poster: poster, source: nil, layout: { azerty }).press(Keystroke(key: .character("a"), modifiers: [.command]))
