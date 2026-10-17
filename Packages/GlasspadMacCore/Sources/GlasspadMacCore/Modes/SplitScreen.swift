@@ -40,23 +40,23 @@ public enum WindowFailure: Error, Equatable, Sendable {
         case .oneScreen: "Only one display is connected"
         case .closed: "That window has closed."
         case .fullScreen(let app): "\(app) would not leave full screen. Try again in a moment."
-        case .refused(let app): "\(app) won't let Glasspad move its window. Try again, or drag it into place."
-        case .tooWide(let app): "\(app) can't be resized that small. Try a wider display."
+        case .refused(let app): "\(app) will not let Glasspad move its window. Try again, or drag it into place."
+        case .tooWide(let app): "\(app) cannot be resized that small. Try a wider display."
         case .bothTooWide(let a, let b, let display):
-            "\(a == b ? "These \(a) windows" : "\(a) and \(b)") can't both fit on \(display). Try a wider display."
-        case .tooTall(let app): "\(app) can't be made short enough for Top & Bottom. Try Left & Right."
+            "\(a == b ? "These \(a) windows" : "\(a) and \(b)") cannot both fit on \(display). Try a wider display."
+        case .tooTall(let app): "\(app) cannot be made short enough for Top & Bottom. Try Left & Right."
         case .bothTooTall(let a, let b, let display):
-            "\(a == b ? "These \(a) windows" : "\(a) and \(b)") can't both fit on \(display), one above the other. Try Left & Right."
+            "\(a == b ? "These \(a) windows" : "\(a) and \(b)") cannot both fit on \(display), one above the other. Try Left & Right."
         case .tooBigForQuarters(let apps, let display):
             switch apps.count {
-            case 0, 1: "\(apps.first ?? "This window") can't be made small enough for a quarter of \(display). Try Left & Right."
-            case 2: "\(apps[0]) and \(apps[1]) can't both fit in quarters on \(display). Try Left & Right."
-            default: "\(apps.dropLast().joined(separator: ", ")) and \(apps[apps.count - 1]) can't all fit in quarters on \(display). Try Left & Right."
+            case 0, 1: "\(apps.first ?? "This window") cannot be made small enough for a quarter of \(display). Try Left & Right."
+            case 2: "\(apps[0]) and \(apps[1]) cannot both fit in quarters on \(display). Try Left & Right."
+            default: "\(apps.dropLast().joined(separator: ", ")) and \(apps[apps.count - 1]) cannot all fit in quarters on \(display). Try Left & Right."
             }
         case .noPreviousSize: "This window has no previous size to return to."
-        case .previousDisplayGone: "This window's previous place is on a display that isn't connected."
-        case .noSplitView(let app): "\(app) can't tile this window in full screen. Try Left & Right."
-        case .splitViewUnfinished: "Couldn't finish Split View. Pick the second window on your Mac."
+        case .previousDisplayGone: "This window's previous place is on a display that is not connected."
+        case .noSplitView(let app): "\(app) cannot tile this window in full screen. Try Left & Right."
+        case .splitViewUnfinished: "Could not finish Split View. Pick the second window on your Mac."
         }
     }
 }

@@ -34,7 +34,7 @@ public enum MacroError: Error, Equatable, Sendable, CustomStringConvertible {
             "This macro has shell or AppleScript steps. Turn on \"Allow scripts\" for it first."
         case .invalidStep(let p, let r): "Step \(p.map { String($0 + 1) }.joined(separator: ".")): \(r)"
         case .noFrontWindow: "No frontmost window to position the pointer against."
-        case .appNotFound(let id): "No app with bundle id \(id) is installed."
+        case .appNotFound(let id): "That app is not on this Mac."
         case .invalidURL(let u): "Not a valid URL: \(u)"
         case .fileNotFound(let p): "No file at \(p)"
         case .timedOutWaitingForApp(let id): "Timed out waiting for \(id) to come to the front."
@@ -50,8 +50,8 @@ public enum MacroError: Error, Equatable, Sendable, CustomStringConvertible {
         case .notRecording: "Not recording."
         case .busy: "Another macro is running."
         case .macroNotFound(let id): "No macro with id \(id)."
-        case .hotkeyUnavailable(let k): "The hotkey \(k) is taken by another app."
-        case .outputFailed(let m): "Could not post the event: \(m)"
+        case .hotkeyUnavailable(let k): "Another app already uses \(k)."
+        case .outputFailed(let m): "Could not press keys or click: \(m)"
         case .macControlFailed(let m): m
         }
     }

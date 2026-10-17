@@ -85,8 +85,8 @@ public struct DeckConfig: Codable, Equatable, Sendable {
         func b(_ t: String, _ s: String, _ a: DeckAction, _ c: String) -> DeckButton { DeckButton(title: t, symbol: s, action: a, color: c) }
         return [
             b("Screenshot", "camera.viewfinder", .screenshot(DeckScreenshot(area: .fullScreen)), "#0A84FF"),
-            b("Window Shot", "macwindow", .screenshot(DeckScreenshot(area: .frontWindow)), "#0A84FF"),
-            b("Area Shot", "rectangle.dashed", .screenshot(DeckScreenshot(area: .selection)), "#0A84FF"),
+            b("Window Screenshot", "macwindow", .screenshot(DeckScreenshot(area: .frontWindow)), "#0A84FF"),
+            b("Area Screenshot", "rectangle.dashed", .screenshot(DeckScreenshot(area: .selection)), "#0A84FF"),
             b("Record", "record.circle", .screenRecording, "#FF453A"),
             b("Lock", "lock.fill", .system(.lockScreen), "#8E8E93"),
             b("Sleep Display", "display", .system(.sleepDisplay), "#30B0C7"),
@@ -151,7 +151,7 @@ public struct DeckConfig: Codable, Equatable, Sendable {
     public static let starterButtons: [DeckButton] = [
         DeckButton(title: "Screenshot", symbol: "camera.viewfinder", action: .screenshot(DeckScreenshot(area: .fullScreen)),
                    color: "#0A84FF"),
-        DeckButton(title: "Window Shot", symbol: "macwindow", action: .screenshot(DeckScreenshot(area: .frontWindow)),
+        DeckButton(title: "Window Screenshot", symbol: "macwindow", action: .screenshot(DeckScreenshot(area: .frontWindow)),
                    color: "#5E5CE6"),
         DeckButton(title: "Lock", symbol: "lock.fill", action: .system(.lockScreen), color: "#8E8E93"),
         DeckButton(title: "Play / Pause", symbol: "playpause.fill", action: .system(.playPause), color: "#FF375F"),
@@ -216,7 +216,7 @@ public enum DeckEditError: Error, Equatable, Sendable {
 
     public var message: String {
         switch self {
-        case .shellFromPhone: "Shell script buttons can only be added on the Mac."
+        case .shellFromPhone: "Shell command buttons can only be added on the Mac."
         case .tooLarge: "Too many buttons to save."
         case .newerThanMac: "One of these buttons needs a newer Glasspad on your Mac. Update it, then try again."
         }
@@ -379,7 +379,7 @@ public final class DeckMode {
             return [.deckResult(id: id, ok: false, message: "Button not found")]
         }
         if button.needsConfirmation && !confirmed {
-            return [.deckResult(id: id, ok: false, message: "Confirm on the phone first.")]
+            return [.deckResult(id: id, ok: false, message: "Confirm on your iPhone first.")]
         }
         GPLog.log("deck: run \(button.title) \(Self.logLabel(button.action))")
         let outcome = await perform(button.action)
@@ -453,7 +453,7 @@ public final class DeckMode {
         case .setAudioOutput(let name):
             return env.setAudioOutput(name: name) ? .done : .fail("No sound output named \u{201C}\(name)\u{201D} is connected")
         case .folder:
-            return .fail("Folders open on the phone")
+            return .fail("Folders open on your iPhone")
         case .unsupported:
             return .fail(Self.updateToUse)
         }
@@ -631,7 +631,7 @@ public final class DeckMode {
         case .appExpose:
             if env.showDockView(.appExpose) { return .done }
             let launch = Self.missionControlLaunch("2")
-            return await tool(launch.path, launch.arguments, "Could not show App Exposé")
+            return await tool(launch.path, launch.arguments, "Could not show App Windows")
         case .launchpad:
             // macOS 26 replaced Launchpad with the Apps launcher; older Macs still have Launchpad.
             if await env.openApp(bundleID: "com.apple.apps.launcher") { return .done }

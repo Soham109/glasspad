@@ -96,7 +96,7 @@ struct LayoutEditor: View {
             EditorCanvas(layout: $layout, landscape: verticalSize == .compact)
                 .frame(height: max(160, height))
                 .frame(maxWidth: .infinity)
-            Text("Tap a pane to change it. Drag the line to resize, or double tap it to even out. To remove a pane, tap its minus button or drag the line off the edge.")
+            Text("Tap a pane to change it. Drag the line to resize, double tap it to even out, or drag it off the edge to remove a pane.")
                 .font(.footnote)
                 .foregroundStyle(palette.inkSoftColor)
                 .multilineTextAlignment(.center)

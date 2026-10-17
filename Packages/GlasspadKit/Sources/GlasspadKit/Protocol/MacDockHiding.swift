@@ -24,5 +24,5 @@ public enum MacDockHiding: String, CaseIterable, Sendable {
     }
 
     /// Under the choice, on both apps.
-    public static let footer = "While Connected hides it only while your iPhone is connected. Your Dock comes back as it was when you choose Never or quit Glasspad on your Mac."
+    public static let footer = "While Connected hides it only while your iPhone is connected. Never, or quitting Glasspad, brings it back."
 }

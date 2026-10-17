@@ -138,7 +138,7 @@ public final class ModeRouter {
         case .dockAppAction(let id, let action):
             let ok = dock.perform(action, bundleID: id)
             if !ok {
-                send(.dockOpenResult(bundleID: id, ok: false, message: "\(action == .revealInFinder ? "Could not find" : "Not running:") \(id)"))
+                send(.dockOpenResult(bundleID: id, ok: false, message: action == .revealInFinder ? "Could not find that app." : "That app is not open."))
             }
             scheduleDockPush()
         case .dockCatalogRequest: send(.dockCatalog(apps: dock.catalog()))

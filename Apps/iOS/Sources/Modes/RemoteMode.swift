@@ -212,7 +212,7 @@ private struct RemoteScreen: View {
         case (.music, _, let app?), (.appleMusic, _, let app?): return [state?.artist, app].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " · ")
         case (_, _, let app?) where store.playback.hasTrack: return app
         case (_, let name?, _): return name
-        default: return "Play a film or a song on your Mac."
+        default: return "Play a movie or a song on your Mac."
         }
     }
 

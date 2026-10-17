@@ -440,7 +440,7 @@ import Testing
     @Test func destructiveButtonsNeedConfirmation() async throws {
         let trash = DeckButton(title: "Trash", symbol: "trash", action: .system(.emptyTrash))
         let (d, env) = try deck([trash])
-        #expect(await d.run(id: trash.id) == [.deckResult(id: trash.id, ok: false, message: "Confirm on the phone first.")])
+        #expect(await d.run(id: trash.id) == [.deckResult(id: trash.id, ok: false, message: "Confirm on your iPhone first.")])
         #expect(env.runs.isEmpty)
         #expect(await d.run(id: trash.id, confirmed: true) == [.deckResult(id: trash.id, ok: true, message: nil)])
         #expect(env.runs.count == 1)

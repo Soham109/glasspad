@@ -48,7 +48,7 @@
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Glasspad finds your paired Mac on this Wi-Fi network and sends your touches to it.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>Glasspad saves screenshots that a Deck button takes on your Mac to Photos, only when you set the button up to.</string>
+	<string>Glasspad saves a screenshot from your Mac to Photos, only for a button you set up to do that.</string>
 	<key>NSSupportsLiveActivities</key>
 	<true/>
 	<key>UIApplicationSceneManifest</key>

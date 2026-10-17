@@ -220,9 +220,9 @@ final class FakeWindow: MovableWindow {
         b.minimumWidth = 820
         let failure = await arranger(screens).split(left: a, right: b, in: Self.laptop.visible, gap: 8, displayName: "Built-in Retina Display")
         #expect(failure == .bothTooWide("Xcode", "Logic Pro", display: "Built-in Retina Display"))
-        #expect(failure?.message == "Xcode and Logic Pro can't both fit on Built-in Retina Display. Try a wider display.")
+        #expect(failure?.message == "Xcode and Logic Pro cannot both fit on Built-in Retina Display. Try a wider display.")
         #expect(WindowFailure.bothTooWide("Safari", "Safari", display: "Studio Display").message
-                == "These Safari windows can't both fit on Studio Display. Try a wider display.")
+                == "These Safari windows cannot both fit on Studio Display. Try a wider display.")
     }
 
     @Test func aWindowWiderThanTheDisplayCanBeSaysTryAWiderDisplay() async {
@@ -232,7 +232,7 @@ final class FakeWindow: MovableWindow {
         b.minimumWidth = 1500
         let failure = await arranger(screens).split(left: a, right: b, in: Self.laptop.visible, gap: 8, displayName: "Built-in Retina Display")
         #expect(failure == .tooWide("Notes"))
-        #expect(failure?.message == "Notes can't be resized that small. Try a wider display.")
+        #expect(failure?.message == "Notes cannot be resized that small. Try a wider display.")
     }
 
     @Test func aFixedWidthWindowCountsOnceItIsInPlace() async {
@@ -263,7 +263,7 @@ final class FakeWindow: MovableWindow {
         b.refuses = true
         let refused = await arranger(screens).split(left: a, right: b, in: Self.laptop.visible, gap: 8, displayName: "Built-in Retina Display")
         #expect(refused == .refused("Finder"))
-        #expect(refused?.message == "Finder won't let Glasspad move its window. Try again, or drag it into place.")
+        #expect(refused?.message == "Finder will not let Glasspad move its window. Try again, or drag it into place.")
         b.refuses = false
         b.closed = true
         #expect(await arranger(screens).split(left: a, right: b, in: Self.laptop.visible, gap: 8, displayName: "") == .closed)

@@ -441,7 +441,7 @@ struct FrontAppButtonsSheet: View {
                     Button("New Button for \(appName)", systemImage: "plus") { onAdd() }
                         .disabled(!session.isConnected)
                 } footer: {
-                    Text("Buttons made here belong to \(appName) and only show while it is in front on your Mac. Macros come from the app's macro profile on the Mac.")
+                    Text("Buttons made here belong to \(appName) and only show while it is in front on your Mac. Its macros come from the app's set in Glasspad Settings > Macros on the Mac.")
                 }
                 .listRowBackground(palette.raisedColor)
             }

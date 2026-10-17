@@ -271,7 +271,7 @@ struct ModeDetailSettings: View {
         if !settings.dockArrangement.order.isEmpty || !settings.dockArrangement.hidden.isEmpty {
             Section {
                 if !settings.dockArrangement.order.isEmpty {
-                    Button("Use the Mac's Order") { settings.dockArrangement.order = [] }
+                    Button("Use Mac Order") { settings.dockArrangement.order = [] }
                 }
                 if !settings.dockArrangement.hidden.isEmpty {
                     Button("Show \(settings.dockArrangement.hidden.count) Hidden \(settings.dockArrangement.hidden.count == 1 ? "App" : "Apps")") {

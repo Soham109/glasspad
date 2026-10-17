@@ -256,7 +256,7 @@ struct GlasspadShortcuts: AppShortcutsProvider {
                     shortTitle: "Mission Control", systemImageName: "rectangle.3.group")
         AppShortcut(intent: PlayPauseMacIntent(),
                     phrases: ["Play or pause my Mac with \(.applicationName)", "\(.applicationName) play pause"],
-                    shortTitle: "Play/Pause Mac", systemImageName: "playpause")
+                    shortTitle: "Play or Pause Mac", systemImageName: "playpause")
         AppShortcut(intent: SendClipboardToMacIntent(),
                     phrases: ["Send clipboard to Mac with \(.applicationName)", "\(.applicationName) send clipboard"],
                     shortTitle: "Send Clipboard", systemImageName: "doc.on.clipboard")

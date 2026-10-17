@@ -112,12 +112,12 @@ enum RenewalCopy {
 enum PermissionCopy {
     static let accessibilityTitle = "Accessibility"
     static let accessibilityDetail = "Lets your iPhone move the pointer, click, scroll and type."
-    static let accessibilityHint = "Opens Privacy and Security, Accessibility in System Settings"
+    static let accessibilityHint = "Opens Privacy & Security, Accessibility in System Settings"
     static let required = "Required"
 
     static let mediaTitle = "Spotify and Music"
     static let optional = "Optional"
-    static let mediaHint = "Opens Privacy and Security, Automation in System Settings"
+    static let mediaHint = "Opens Privacy & Security, Automation in System Settings"
 
     static func mediaDetail(_ state: AutomationState, denied: [String]) -> String {
         switch state {
@@ -140,7 +140,7 @@ enum PermissionCopy {
 /// Settings > Trackpad, "If a gesture stops working", and the Diagnostics list.
 enum GestureCopy {
     static let sectionTitle = "If a Gesture Stops Working"
-    static let footer = "Glasspad sends gestures the way a real trackpad does. If one stops working, for example after a macOS update, choose Keyboard shortcut for it. Changes apply right away."
+    static let footer = "If a gesture stops working after a macOS update, choose Keyboard shortcut for it."
 
     /// The choice as the picker shows it.
     static func choice(_ p: GesturePreference) -> String {

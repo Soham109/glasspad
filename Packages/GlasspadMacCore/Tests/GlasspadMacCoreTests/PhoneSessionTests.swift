@@ -382,7 +382,7 @@ func isCase(_ m: ModeMessage, _ tag: String) -> Bool { m.tag == tag }
         #expect(await s.result(.deckRun(id: inner.id), id: inner.id)?.ok == true)
         #expect(s.env.typed.last == "inside")
         let f = await s.result(.deckRun(id: folder.id), id: folder.id)
-        #expect(f?.ok == false && f?.message == "Folders open on the phone")
+        #expect(f?.ok == false && f?.message == "Folders open on your iPhone")
 
         // A recording starts, then stops on the second tap.
         let rec = DeckButton(title: "Record", symbol: "record.circle", action: .screenRecording)
@@ -454,7 +454,7 @@ func isCase(_ m: ModeMessage, _ tag: String) -> Bool { m.tag == tag }
             if action.needsConfirmation {
                 let runs = s.env.runs.count
                 let refused = await s.result(.deckRun(id: button.id), id: button.id)
-                #expect(refused?.ok == false && refused?.message == "Confirm on the phone first.", "\(action)")
+                #expect(refused?.ok == false && refused?.message == "Confirm on your iPhone first.", "\(action)")
                 #expect(s.env.runs.count == runs, "\(action) ran without confirmation")
                 let confirmed = await s.result(.deckRunConfirmed(id: button.id), id: button.id)
                 #expect(confirmed?.ok == true, "\(action): \(confirmed?.message ?? "no answer")")
