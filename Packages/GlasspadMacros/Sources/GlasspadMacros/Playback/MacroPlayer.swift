@@ -296,16 +296,18 @@ public final class MacroPlayer: Sendable {
 
         let work = Task<Void, Error> {
             try await Self.expandAsync(macro.steps, path: []) { step, path in
-                try Task.checkCancellation()
+                // Mark the step as current before checking, so a stop lands on the step not yet run.
                 let done = state.update { s -> Int in s.current = path; return s.completed }
+                try Task.checkCancellation()
                 progress(MacroProgress(macroID: macro.id, completedSteps: done, totalSteps: total,
                                        currentPath: path, currentSummary: step.summary))
                 let action = try self.resolve(step, path: path, speed: speed)
                 if let text = try await self.perform(action), !text.isEmpty {
                     state.update { $0.outputs.append(StepOutput(path: path, text: text)) }
                 }
-                try Task.checkCancellation()
+                // The step ran, so it counts even when a stop arrives right after.
                 state.update { $0.completed += 1 }
+                try Task.checkCancellation()
             }
         }
         workBox.set(work)
