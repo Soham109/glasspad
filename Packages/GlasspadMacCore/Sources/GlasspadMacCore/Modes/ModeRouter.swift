@@ -74,6 +74,13 @@ public final class ModeRouter {
         if observeWorkspace { startWorkspaceObservers() }
         displays = DisplaysMode(backend: LiveDisplays())
         wireDisplays()
+        keys.onLayoutChange = { [weak self] in MainActor.assumeIsolated { self?.keyLayoutChanged() } }
+    }
+
+    /// The user switched the Mac's keyboard layout: the phone's keyboard follows while shown.
+    private func keyLayoutChanged() {
+        guard phoneModes.contains(.keys) else { return }
+        send(.keysLayout(keys.letters()))
     }
 
     /// Displays answers through `send` and sends icons from the Dock's cache.
@@ -94,6 +101,7 @@ public final class ModeRouter {
         self.present = present
         self.macDock = macDock
         self.deckEnvironment = nil
+        keys.onLayoutChange = { [weak self] in MainActor.assumeIsolated { self?.keyLayoutChanged() } }
         macDock.onChange = { [weak self] state in self?.send(.macDockState(state)) }
         media.onChange = { [weak self] in self?.pushMedia() }
     }
@@ -104,13 +112,16 @@ public final class ModeRouter {
         case .modeSelected(let mode):
             phoneMode = mode
             phoneModes = [mode]
+            if mode == .keys { send(.keysLayout(keys.letters())) }
             if mode != .present { present.setLaser(on: false) }
             if mode == .media || mode == .remote { startMediaUpdates() } else { stopMediaUpdates() }
             if mode == .macros { macros?.handle(.listMacros) }
             if mode == .dock || mode == .deck || mode == .remote { send(.frontmostApp(bundleID: dock.workspace.frontmostBundleID())) }
         case .modesShown(let modes):
             let before = wantsFrontmost
+            let hadKeys = phoneModes.contains(.keys)
             phoneModes = Set(modes).union(phoneMode.map { [$0] } ?? [])
+            if phoneModes.contains(.keys) && !hadKeys { send(.keysLayout(keys.letters())) }
             if wantsFrontmost && !before { send(.frontmostApp(bundleID: dock.workspace.frontmostBundleID())) }
         case .dockRequest:
             sendDockList(dock.currentList())
@@ -200,7 +211,7 @@ public final class ModeRouter {
         case .displayCommand(let id, let command): displays?.handle(id: id, command: command)
         case .macro(let m): macros?.handle(m)
         // Mac -> phone messages: ignore if echoed back.
-        case .dockList, .mediaState, .deckButtons, .deckResult, .clipboardContent, .dockOpenResult,
+        case .keysLayout, .dockList, .mediaState, .deckButtons, .deckResult, .clipboardContent, .dockOpenResult,
              .clipboardPushResult, .clipboardPullRefused, .dockCatalog,
              .dockIcons, .frontmostApp, .macDockState, .deckLayout, .deckSaveResult, .deckCatalog, .deckImage,
              .displaysState, .displaysResult:

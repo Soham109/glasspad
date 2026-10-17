@@ -26,9 +26,17 @@ public final class KeysMode {
     /// Follows the Mac's keyboard layout and input method.
     public static func live(poster: EventPoster) -> KeysMode {
         let layout = LiveKeyLayout()
-        return KeysMode(poster: poster, layout: { layout.current() },
-                        inputMethods: InputMethodGuard(sources: LiveInputSources()))
+        let mode = KeysMode(poster: poster, layout: { layout.current() },
+                            inputMethods: InputMethodGuard(sources: LiveInputSources()))
+        layout.onChange = { [weak mode] in mode?.onLayoutChange() }
+        return mode
     }
+
+    /// Called after the user switches the Mac's keyboard layout (the router tells the phone).
+    public var onLayoutChange: () -> Void = {}
+
+    /// What each key types on the Mac's layout, for the phone's keyboard.
+    public func letters() -> KeyboardLetters { layout().letters }
 
     /// Puts back an input method switched away from for typing (session end, quit).
     public func restoreInputMethod() { inputMethods?.restore() }

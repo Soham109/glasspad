@@ -392,6 +392,10 @@ public enum ModeMessage: Codable, Equatable, Sendable {
     case keysText(String)
     /// Phone -> Mac: press one key with modifiers (arrows, esc, tab, cmd shortcuts).
     case keysKeystroke(Keystroke)
+    /// Mac -> phone, when Keyboard comes on screen and when the Mac's keyboard layout changes:
+    /// what each key types there, so the phone's keyboard shows the same letters. Added Oct
+    /// 2026: an older phone drops it and keeps US letters; an older Mac never sends it.
+    case keysLayout(KeyboardLetters)
 
     // Media
     /// Phone -> Mac: send the current `mediaState` and keep sending on changes while Media is shown.

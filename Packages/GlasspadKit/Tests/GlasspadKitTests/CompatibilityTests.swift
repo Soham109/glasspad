@@ -37,7 +37,7 @@ import Testing
                 .dockCatalog(apps: [app]), .dockIconRequest(bundleIDs: ["a.b"]), .dockIcons(apps: [app]),
                 .frontmostApp(bundleID: nil), .frontmostApp(bundleID: "com.apple.TV"), .macDockState(state), .macDockSet(state)]
         all += DockAppAction.allCases.map { .dockAppAction(bundleID: "com.apple.Safari", action: $0) }
-        all += [.keysText("héllo 👋\n")]
+        all += [.keysText("héllo 👋\n"), .keysLayout(.us)]
         all += SpecialKey.allCases.map { .keysKeystroke(Keystroke(key: .special($0), modifiers: [.command, .shift, .option, .control, .function])) }
         all += [.mediaRequest, .mediaState(MediaState(title: "Song", isPlaying: true, duration: 200, elapsed: 3, volume: 0.5,
                                                       playbackRate: 1, sourceBundleID: "com.spotify.client", shuffle: true,
@@ -75,7 +75,7 @@ import Testing
         switch m {
         case .modeSelected, .modesShown, .dockRequest, .dockList, .dockOpen, .dockSync, .dockAppAction, .dockOpenResult,
              .dockCatalogRequest, .dockCatalog, .dockIconRequest, .dockIcons, .frontmostApp, .macDockState, .macDockSet,
-             .keysText, .keysKeystroke, .mediaRequest, .mediaState, .mediaCommand, .mediaSetVolume, .mediaSetBrightness,
+             .keysText, .keysKeystroke, .keysLayout, .mediaRequest, .mediaState, .mediaCommand, .mediaSetVolume, .mediaSetBrightness,
              .mediaControl, .deckRequest, .deckButtons, .deckRun, .deckResult, .deckLayout, .deckSave, .deckSaveResult,
              .deckRunConfirmed, .deckCatalogRequest, .deckCatalog, .deckImage, .clipboardPush, .clipboardPull,
              .clipboardContent, .clipboardPushResult, .clipboardPullRefused, .presentNext, .presentPrevious, .presentLaser,
@@ -87,7 +87,7 @@ import Testing
 
     @Test func everyMessageAndPayloadRoundTripsOnTheWire() throws {
         let all = Self.everyMessage
-        #expect(Set(all.map(Self.covered)).count == 50)      // every case at least once
+        #expect(Set(all.map(Self.covered)).count == 51)      // every case at least once
         for m in all {
             let data = try ControlMessage.mode(m).jsonData()
             #expect(try ControlMessage.from(jsonData: data) == .mode(m), "\(m.tag)")

@@ -312,7 +312,9 @@ private struct WarmNotice: View {
 ///   -GPFilm <trackpad|menu|actions|media>  play a scripted scene for the demo film (DemoScript.swift)
 ///   -GPSetup / -GPSetupTest / -GPSetupReset  open the setup checklist, start its trackpad test, or mark it unfinished
 ///   -GPSettingsPage <connection|setup>  open Settings on that page
-///   -GPKeysFn / -GPKeysLock             Keyboard with the function row, or with Command locked and Shift latched
+///   -GPKeysFn / -GPKeysLock             Keyboard with fn on (the F-keys), or with Command locked and Shift latched
+///   -GPKeysSymbols / -GPKeysSystem      Keyboard on its numbers page, or with the iPhone keyboard up
+///   -GPKeysHold <key id> / -GPKeysEcho <text>  a key held down with its pop, or text already typed
 enum DebugLaunch {
     @MainActor static func apply() {
         let args = ProcessInfo.processInfo.arguments
@@ -360,8 +362,12 @@ enum DebugLaunch {
             SetupGuide.shared.debugSet(active: true, travel: travel, passed: travel >= SetupGuide.travelNeeded)
         }
         if args.contains("-GPSetupReset") { PhoneSettings.shared.setupComplete = false }
-        if args.contains("-GPKeysFn") { PhoneSettings.shared.keysShowsFunctionRow = true }
+        if args.contains("-GPKeysFn") { demoKeysFn = true }
         if args.contains("-GPKeysLock") { demoKeysLock = true }
+        if args.contains("-GPKeysSymbols") { demoKeysSymbols = true }
+        if args.contains("-GPKeysSystem") { demoKeysSystem = true }
+        demoKeysHold = value("-GPKeysHold")
+        demoKeysEcho = value("-GPKeysEcho")
         if let page = value("-GPSettingsPage") {
             settingsPage = page
             AppRouter.shared.showSettings = true
@@ -402,5 +408,10 @@ enum DebugLaunch {
     @MainActor static var settingsPage: String?
     /// Keyboard opens with Command locked and Shift latched.
     @MainActor static var demoKeysLock = false
+    @MainActor static var demoKeysFn = false
+    @MainActor static var demoKeysSymbols = false
+    @MainActor static var demoKeysSystem = false
+    @MainActor static var demoKeysHold: String?
+    @MainActor static var demoKeysEcho: String?
 }
 #endif

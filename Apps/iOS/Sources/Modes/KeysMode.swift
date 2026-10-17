@@ -2,270 +2,253 @@ import SwiftUI
 import UIKit
 import GlasspadKit
 
-/// Type on the phone, it appears on the Mac as you type. Dictation works because the text
-/// is read from the field after iOS has inserted it, whichever way it got there.
+/// Type on the phone, it appears on the Mac as you type.
 ///
-/// Modifiers are sticky, like macOS Sticky Keys: tap once for the next key, twice to lock.
-/// Arrows and delete repeat while held. The fn key swaps the shortcut row for F1 to F12,
-/// brightness and volume.
+/// Glasspad draws its own keyboard, a Mac keyboard with the Mac's own letters
+/// (`MacSession.keyboardLetters`), sized to whatever it is in: the whole screen or one pane of
+/// a layout, never anything outside it (`KeyboardPlan`). Sideways on the whole screen it is a
+/// full Mac keyboard. The globe key on the strip above puts the iPhone keyboard up instead, for
+/// dictation, emoji and other languages; the text is read from a hidden field after iOS has
+/// inserted it, whichever way it got there. In a layout, the pane then has the room above the
+/// iPhone keyboard to itself until it goes down (LayoutScreen).
+///
+/// Modifiers work like the iPad's: tap once for the next key, twice to lock, or hold one while
+/// pressing keys. fn turns the top row into F1 to F12 and the arrows into Home, End, Page Up
+/// and Page Down.
 struct KeysMode: View {
     @Environment(\.palette) private var palette
-    @Environment(\.verticalSizeClass) private var verticalSize
     @Environment(\.modeTopClearance) private var topClearance
+    @Environment(\.inLayoutPane) private var inLayoutPane
     @Bindable var settings = PhoneSettings.shared
     var session = MacSession.shared
-    var media = MediaStore.shared
     private var accent: Color { AppMode.keys.accent(palette) }
 
-    @State private var sticky = StickyModifiers()
-    /// The modifiers a held, repeating key started with (repeats keep them).
+    @State private var keyboard = KeyboardController()
+    /// The modifiers a held, repeating key of the iPhone keyboard's row started with.
     @State private var heldModifiers: KeyModifiers = []
-    @State private var echo = ""
-    @State private var focusToken = 0
-    /// Volume and brightness already asked for but not yet confirmed by the Mac.
-    @State private var sentVolume: Double?
-    @State private var sentBrightness: Double?
-
-    private var compact: Bool { verticalSize == .compact }
-    private var showsFunctionRow: Bool { settings.keysShowsFunctionRow }
 
     var body: some View {
-        Group {
-            if compact {
-                // Sideways the system keyboard takes most of the height: one line of echo,
-                // then every key in one row, then the shortcuts (or the function keys).
-                VStack(spacing: 6) {
-                    Spacer(minLength: 0)
-                    echoLine
-                    HStack(spacing: 6) {
-                        if settings.leftHanded {
-                            arrowRow
-                            editKeys
-                            modifierKeys
-                        } else {
-                            modifierKeys
-                            editKeys
-                            arrowRow
-                        }
-                    }
-                    .frame(height: 44)
-                    if showsFunctionRow { functionRow(height: 40) } else if settings.keysShowsShortcuts { shortcutRow(height: 40) }
+        GeometryReader { geo in
+            let top = topClearance ?? 64
+            // On the whole screen with the pill along the bottom, the keys stay clear of it.
+            let bottom: CGFloat = !inLayoutPane && settings.pillPosition == .bottom && !keyboard.usesSystemKeyboard ? 48 : 0
+            let room = CGSize(width: max(0, geo.size.width - KeyboardPlan.edge * 2),
+                              height: max(0, geo.size.height - top - bottom))
+            VStack(spacing: 0) {
+                Spacer(minLength: top)
+                if keyboard.usesSystemKeyboard {
+                    systemKeyboardAccessory(room)
+                } else {
+                    glasspadKeyboard(KeyboardPlan.make(width: room.width, height: room.height), room: room)
                 }
-                .padding(.horizontal, 16)
-                .padding(.bottom, 6)
-            } else {
-                VStack(spacing: 8) {
-                    Spacer(minLength: topClearance ?? 64)
-                    echoArea
-                    HStack(spacing: 6) { modifierKeys }
-                        .frame(height: 50)
-                    if showsFunctionRow { functionRow(height: 46) } else if settings.keysShowsShortcuts { shortcutRow(height: 46) }
-                    navigationBlock
-                }
-                .padding(.horizontal, 12)
-                .padding(.bottom, 8)
+                Color.clear.frame(height: bottom)
             }
+            .padding(.horizontal, KeyboardPlan.edge)
+            .frame(width: geo.size.width, height: geo.size.height)
         }
         // Keys are drawn like keyboard keys; past this size the labels no longer fit a key.
         .dynamicTypeSize(...DynamicTypeSize.xLarge)
         .background {
-            // The real input field sits under everything; it owns the keyboard.
-            StreamingTextField(sticky: $sticky, echo: $echo, focusToken: focusToken,
-                               active: session.isConnected) { output in
-                send(output)
+            // The iPhone keyboard's hidden field. It is first responder only while the person
+            // has asked for the iPhone keyboard, so nothing grabs the keyboard on its own.
+            StreamingTextField(keyboard: keyboard, active: session.isConnected && keyboard.usesSystemKeyboard) { output in
+                switch output {
+                case .text(let text): session.send(.keysText(text))
+                case .keystroke(let stroke): session.send(.keysKeystroke(stroke))
+                }
             }
             .frame(width: 1, height: 1)
             .opacity(0.01)
             .accessibilityHidden(true)
         }
-        .contentShape(Rectangle())
-        .onTapGesture { focusToken += 1 }
         .overlay {
             if !session.isConnected { ModeOfflineMessage(mode: .keys).background(SurfaceBackground()) }
         }
         .onAppear {
-            if showsFunctionRow { requestLevels() }
+            keyboard.send = { session.send($0) }
+            keyboard.letters = { session.keyboardLetters }
             #if DEBUG
-            if DebugLaunch.demoKeysLock {
-                sticky.tap(.command, at: 0)
-                sticky.tap(.command, at: 0.1)
-                sticky.tap(.shift, at: 5)
-            }
+            applyDebugLaunch()
             #endif
         }
-        .onChange(of: showsFunctionRow) { _, on in if on { requestLevels() } }
+        .onDisappear { keyboard.reset() }
         .onChange(of: session.isConnected) { _, connected in
-            if !connected { sticky.clear() } else if showsFunctionRow { requestLevels() }
+            if !connected {
+                keyboard.reset()
+                keyboard.usesSystemKeyboard = false
+            }
         }
-        .onChange(of: media.state?.volume) { sentVolume = nil }
-        .onChange(of: media.state?.brightness) { sentBrightness = nil }
+    }
+
+    // MARK: Glasspad keyboard
+
+    @ViewBuilder
+    private func glasspadKeyboard(_ plan: KeyboardPlan, room: CGSize) -> some View {
+        if plan.echoHeight > 0 {
+            echoArea(height: plan.echoHeight)
+        } else {
+            Spacer(minLength: 0)
+        }
+        switch plan.fit {
+        case .tooSmall:
+            HStack(spacing: 10) {
+                Text("Make this pane taller to type here")
+                    .font(.footnote)
+                    .foregroundStyle(palette.inkSoftColor)
+                    .lineLimit(2)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.leading, 8)
+                systemKeyboardButton
+            }
+            .frame(height: plan.stripHeight)
+            Spacer(minLength: 0)
+        case .full, .short:
+            strip(plan)
+                .frame(height: plan.stripHeight)
+                .zIndex(0)
+            MacKeyboardKeys(style: plan.style, size: CGSize(width: room.width, height: plan.keysHeight),
+                            keyboard: keyboard, letters: session.keyboardLetters)
+                .frame(height: plan.keysHeight)
+                // The key pop may rise over the strip.
+                .zIndex(1)
+            Color.clear.frame(height: KeyboardPlan.edge)
+        }
+    }
+
+    /// Above the keys: esc on the wide keyboard (the Mac's is on the F-key row), the shortcuts,
+    /// and the iPhone keyboard key. A short pane says what a taller one would add instead.
+    private func strip(_ plan: KeyboardPlan) -> some View {
+        HStack(spacing: 6) {
+            if plan.style == .wide {
+                stripKey("esc", name: "Escape") { press(.escape) }
+            }
+            if plan.fit == .short {
+                Text("Make this pane taller for every key")
+                    .font(.footnote)
+                    .foregroundStyle(palette.inkSoftColor)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.leading, 4)
+            } else if settings.keysShowsShortcuts {
+                shortcutChips
+            } else {
+                Spacer(minLength: 0)
+            }
+            systemKeyboardButton
+        }
+        .padding(.bottom, KeyboardPlan.gap)
+    }
+
+    /// The globe: the iPhone keyboard, for dictation, emoji and other languages. On the iPhone
+    /// keyboard's row it brings the Mac keys back.
+    private var systemKeyboardButton: some View {
+        stripIcon(keyboard.usesSystemKeyboard ? "keyboard" : "globe",
+                  name: keyboard.usesSystemKeyboard ? "Glasspad Keyboard" : "iPhone Keyboard",
+                  hint: keyboard.usesSystemKeyboard ? "Shows the Mac keys again."
+                                                    : "For dictation, emoji and other languages.") {
+            withAnimation(.snappy(duration: 0.25)) {
+                keyboard.reset()
+                keyboard.usesSystemKeyboard.toggle()
+            }
+        }
+    }
+
+    // MARK: iPhone keyboard
+
+    /// What sits above the iPhone keyboard: the typed text when there is room, the shortcuts,
+    /// and one row of the Mac keys it lacks.
+    @ViewBuilder
+    private func systemKeyboardAccessory(_ room: CGSize) -> some View {
+        let rows = KeyboardPlan.stripHeightValue + KeyboardPlan.minPitch + KeyboardPlan.edge
+        if room.height - rows >= KeyboardPlan.minEcho {
+            echoArea(height: room.height - rows)
+        } else {
+            Spacer(minLength: 0)
+        }
+        HStack(spacing: 6) {
+            if settings.keysShowsShortcuts { shortcutChips } else { Spacer(minLength: 0) }
+            systemKeyboardButton
+        }
+        .padding(.bottom, KeyboardPlan.gap)
+        .frame(height: KeyboardPlan.stripHeightValue)
+        HStack(spacing: KeyboardPlan.gap) {
+            modifierToggles
+            key("esc", .escape, "Escape")
+            key("tab", .tab, "Tab")
+            key("delete.left", .delete, "Delete", symbol: true, repeats: true)
+            key("arrowtriangle.left.fill", .left, "Left arrow", symbol: true, repeats: true)
+            key("arrowtriangle.up.fill", .up, "Up arrow", symbol: true, repeats: true)
+            key("arrowtriangle.down.fill", .down, "Down arrow", symbol: true, repeats: true)
+            key("arrowtriangle.right.fill", .right, "Right arrow", symbol: true, repeats: true)
+        }
+        .frame(height: KeyboardPlan.minPitch - KeyboardPlan.gap)
+        Color.clear.frame(height: KeyboardPlan.gap + KeyboardPlan.edge)
+    }
+
+    /// Control, Option, Command and Shift for the iPhone keyboard: tap for the next key, twice
+    /// to lock.
+    @ViewBuilder private var modifierToggles: some View {
+        ForEach([KeyModifiers.control, .option, .command, .shift], id: \.rawValue) { m in
+            let state = keyboard.modifiers.state(of: m)
+            let on = state != .off
+            Button {
+                keyboard.activate(.modifier(m))
+            } label: {
+                Text(Self.sign(m))
+                    .font(.system(size: 17))
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .overlay(alignment: .topLeading) {
+                        if state == .locked {
+                            Circle().fill(palette.tint(accent)).frame(width: 5, height: 5).padding(5)
+                        }
+                    }
+            }
+            .buttonStyle(KeyCapStyle(accent: on && state != .locked ? accent : nil, cornerRadius: 7))
+            .accessibilityLabel(Self.name(m))
+            .accessibilityValue(state == .locked ? "Locked" : on ? "On for the next key" : "Off")
+            .accessibilityHint("Tap for the next key. Tap twice to lock.")
+        }
     }
 
     // MARK: Pieces
 
     private var hint: String {
-        let active = sticky.active
-        if active.isEmpty { return "Typing goes straight to your Mac" }
-        let locked = sticky.locked
-        if locked == active { return "Locked: \(locked.symbols)" }
+        let active = keyboard.modifiers.active
+        if active.isEmpty { return keyboard.modifiers.capsLock ? "Caps Lock is on" : "Typing goes straight to your Mac" }
+        let locked = keyboard.modifiers.sticky.locked
+        if locked == active { return "Locked: \(active.symbols)" }
         return "Next key: \(active.symbols)"
     }
 
-    private var echoArea: some View {
-        VStack(spacing: 6) {
-            Text(echo.isEmpty ? "Start typing" : echo)
-                .font(.title2)
-                .foregroundStyle(echo.isEmpty ? palette.inkSoftColor : palette.inkColor)
-                .lineLimit(3)
+    /// The last things typed, and what the modifiers will do.
+    private func echoArea(height: CGFloat) -> some View {
+        let roomy = height >= 120
+        let quiet = keyboard.modifiers.isEmpty && !keyboard.modifiers.capsLock
+        return VStack(spacing: 6) {
+            Spacer(minLength: 0)
+            Text(keyboard.echo.isEmpty ? "Start typing" : keyboard.echo)
+                .font(roomy ? .title2 : .body)
+                .foregroundStyle(keyboard.echo.isEmpty ? palette.inkSoftColor : palette.inkColor)
+                .lineLimit(roomy ? 3 : 1)
                 .truncationMode(.head)
                 .multilineTextAlignment(.center)
-                .frame(maxWidth: .infinity, minHeight: 60)
+                .frame(maxWidth: .infinity)
                 .contentTransition(.opacity)
-                .animation(.snappy, value: echo.isEmpty)
+                .animation(.snappy, value: keyboard.echo.isEmpty)
             Text(hint)
-                .font(.footnote.weight(sticky.isEmpty ? .regular : .semibold))
-                .foregroundStyle(sticky.isEmpty ? palette.inkSoftColor : accent)
+                .font(.footnote.weight(quiet ? .regular : .semibold))
+                .foregroundStyle(quiet ? palette.inkSoftColor : palette.tint(accent))
+                .lineLimit(1)
                 .contentTransition(.numericText())
+            Spacer(minLength: 0)
         }
-        .frame(maxHeight: .infinity)
+        .padding(.horizontal, 12)
+        .frame(height: height)
         .accessibilityElement(children: .combine)
     }
 
-    private var echoLine: some View {
-        HStack(spacing: 10) {
-            Text(echo.isEmpty ? "Start typing" : echo)
-                .font(.body)
-                .foregroundStyle(echo.isEmpty ? palette.inkSoftColor : palette.inkColor)
-                .lineLimit(1)
-                .truncationMode(.head)
-                .frame(maxWidth: .infinity, alignment: .leading)
-            Text(hint)
-                .font(.footnote.weight(sticky.isEmpty ? .regular : .semibold))
-                .foregroundStyle(sticky.isEmpty ? palette.inkSoftColor : accent)
-                .lineLimit(1)
-                .contentTransition(.numericText())
-        }
-        .accessibilityElement(children: .combine)
-    }
-
-    /// Portrait: esc and tab over a wide delete, and the arrows as an inverted T, the way they
-    /// sit on a Mac keyboard. Five equal columns, two rows.
-    private var navigationBlock: some View {
-        Grid(horizontalSpacing: 6, verticalSpacing: 6) {
-            GridRow {
-                if settings.leftHanded {
-                    Color.clear.gridCellUnsizedAxes([.horizontal, .vertical])
-                    key("arrow.up", .up, "Up arrow", symbol: true, repeats: true)
-                    Color.clear.gridCellUnsizedAxes([.horizontal, .vertical])
-                    key("esc", .escape, "Escape")
-                    key("tab", .tab, "Tab")
-                } else {
-                    key("esc", .escape, "Escape")
-                    key("tab", .tab, "Tab")
-                    Color.clear.gridCellUnsizedAxes([.horizontal, .vertical])
-                    key("arrow.up", .up, "Up arrow", symbol: true, repeats: true)
-                    Color.clear.gridCellUnsizedAxes([.horizontal, .vertical])
-                }
-            }
-            GridRow {
-                if settings.leftHanded {
-                    key("arrow.left", .left, "Left arrow", symbol: true, repeats: true)
-                    key("arrow.down", .down, "Down arrow", symbol: true, repeats: true)
-                    key("arrow.right", .right, "Right arrow", symbol: true, repeats: true)
-                    key("delete.left", .delete, "Delete", symbol: true, repeats: true).gridCellColumns(2)
-                } else {
-                    key("delete.left", .delete, "Delete", symbol: true, repeats: true).gridCellColumns(2)
-                    key("arrow.left", .left, "Left arrow", symbol: true, repeats: true)
-                    key("arrow.down", .down, "Down arrow", symbol: true, repeats: true)
-                    key("arrow.right", .right, "Right arrow", symbol: true, repeats: true)
-                }
-            }
-        }
-        .frame(height: 98)
-    }
-
-    @ViewBuilder private var editKeys: some View {
-        key("esc", .escape, "Escape")
-        key("tab", .tab, "Tab")
-        key("delete.left", .delete, "Delete", symbol: true, repeats: true)
-    }
-
-    @ViewBuilder private var arrowRow: some View {
-        key("arrow.left", .left, "Left arrow", symbol: true, repeats: true)
-        key("arrow.up", .up, "Up arrow", symbol: true, repeats: true)
-        key("arrow.down", .down, "Down arrow", symbol: true, repeats: true)
-        key("arrow.right", .right, "Right arrow", symbol: true, repeats: true)
-    }
-
-    @ViewBuilder private var modifierKeys: some View {
-        ForEach(ModifierKey.allCases) { key in
-            let state = sticky.state(of: key.flag)
-            let on = state != .off
-            Button {
-                Haptics.shared.tap()
-                withAnimation(.snappy(duration: 0.2)) {
-                    sticky.tap(key.flag, at: ProcessInfo.processInfo.systemUptime)
-                }
-                focusToken += 1
-            } label: {
-                Group {
-                    if compact {
-                        HStack(spacing: 3) {
-                            Text(key.symbol).font(.body.weight(.medium))
-                            if state == .locked { Image(systemName: "lock.fill").font(.caption2) }
-                        }
-                    } else {
-                        VStack(spacing: 1) {
-                            Text(key.symbol).font(.body.weight(.medium))
-                            if state == .locked {
-                                Image(systemName: "lock.fill").font(.caption2)
-                                    .foregroundStyle(Color.white.opacity(0.9))
-                            } else {
-                                Text(key.name.lowercased()).font(.caption2)
-                                    .foregroundStyle(on ? Color.white.opacity(0.85) : palette.inkSoftColor)
-                            }
-                        }
-                    }
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            }
-            .buttonStyle(KeyCapStyle(accent: on ? accent : nil))
-            .accessibilityLabel(key.name)
-            .accessibilityValue(state == .locked ? "Locked" : on ? "Next key" : "Off")
-            .accessibilityHint("Tap for the next key. Tap twice to lock.")
-            .accessibilityAddTraits(on ? .isSelected : [])
-        }
-        fnKey
-    }
-
-    /// Shows or hides the function keys, like holding fn on a Touch Bar Mac.
-    private var fnKey: some View {
-        Button {
-            Haptics.shared.tap()
-            withAnimation(.snappy(duration: 0.2)) { settings.keysShowsFunctionRow.toggle() }
-            focusToken += 1
-        } label: {
-            Group {
-                if compact {
-                    Text("fn").font(.body.weight(.medium))
-                } else {
-                    VStack(spacing: 1) {
-                        Text("fn").font(.body.weight(.medium))
-                        Text("F1 to F12").font(.caption2)
-                            .foregroundStyle(showsFunctionRow ? palette.solidColor.opacity(0.8) : palette.inkSoftColor)
-                    }
-                }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        }
-        // On, it is filled with the ink and lettered in the surface colour, which reads in every theme.
-        .buttonStyle(KeyCapStyle(prominent: showsFunctionRow))
-        .accessibilityLabel("Function keys")
-        .accessibilityValue(showsFunctionRow ? "Shown" : "Hidden")
-        .accessibilityHint("Shows F1 to F12, brightness and volume in place of the shortcuts.")
-    }
-
-    private func shortcutRow(height: CGFloat) -> some View {
+    private var shortcutChips: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 6) {
                 ForEach(Shortcut.common) { shortcut in
@@ -273,115 +256,96 @@ struct KeysMode: View {
                         Haptics.shared.tap()
                         session.send(.keysKeystroke(shortcut.keystroke))
                     } label: {
-                        HStack(spacing: 6) {
+                        HStack(spacing: 5) {
                             Text(shortcut.name).font(.subheadline.weight(.medium))
-                            Text(shortcut.label).font(.caption).foregroundStyle(palette.inkSoftColor)
+                            Text(shortcut.label).font(.footnote).foregroundStyle(palette.inkSoftColor)
                         }
-                        .padding(.horizontal, 12)
-                        .frame(height: height)
+                        .padding(.horizontal, 10)
+                        .frame(maxHeight: .infinity)
                     }
-                    .buttonStyle(KeyCapStyle())
-                    .accessibilityLabel("\(shortcut.name), \(shortcut.spoken)")
+                    .buttonStyle(KeyCapStyle(cornerRadius: 9))
+                    .accessibilityLabel(shortcut.name)
+                    .accessibilityHint(shortcut.spoken)
                 }
             }
         }
-        // Scrolls edge to edge, but starts and ends in line with the keys.
-        .contentMargins(.horizontal, compact ? 16 : 12, for: .scrollContent)
-        .padding(.horizontal, compact ? -16 : -12)
-        .frame(height: height)
+        .mask(LinearGradient(stops: [.init(color: .black, location: 0.9), .init(color: .clear, location: 1)],
+                             startPoint: .leading, endPoint: .trailing))
     }
 
-    // MARK: Function row
-
-    private static let functionKeys: [SpecialKey] = [.f1, .f2, .f3, .f4, .f5, .f6, .f7, .f8, .f9, .f10, .f11, .f12]
-
-    /// F1 to F12, then the Mac's brightness and volume (the same controls Media uses). esc is
-    /// already on screen.
-    private func functionRow(height: CGFloat) -> some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 6) {
-                ForEach(Array(Self.functionKeys.enumerated()), id: \.offset) { index, special in
-                    key("F\(index + 1)", special, "F\(index + 1)").frame(width: 46, height: height)
-                }
-                Rectangle().fill(palette.lineColor).frame(width: 1, height: height * 0.6).padding(.horizontal, 4)
-                    .accessibilityHidden(true)
-                levelKey("sun.min", "Brightness down", enabled: media.state?.brightness != nil, height: height) { stepBrightness(-1) }
-                levelKey("sun.max", "Brightness up", enabled: media.state?.brightness != nil, height: height) { stepBrightness(1) }
-                levelKey("speaker.slash", "Mute", enabled: true, repeats: false, height: height) {
-                    session.send(.mediaCommand(.mute))
-                }
-                levelKey("speaker.wave.1", "Volume down", enabled: media.state?.volume != nil, height: height) { stepVolume(-1) }
-                levelKey("speaker.wave.3", "Volume up", enabled: media.state?.volume != nil, height: height) { stepVolume(1) }
-            }
+    private func stripKey(_ label: String, name: String, _ action: @escaping () -> Void) -> some View {
+        Button {
+            Haptics.shared.tap()
+            action()
+        } label: {
+            Text(label).font(.system(size: 15)).frame(width: 52).frame(maxHeight: .infinity)
         }
-        .contentMargins(.horizontal, compact ? 16 : 12, for: .scrollContent)
-        .padding(.horizontal, compact ? -16 : -12)
-        .frame(height: height)
-        .transition(.opacity)
+        .buttonStyle(KeyCapStyle(cornerRadius: 9))
+        .accessibilityLabel(name)
     }
 
-    private func levelKey(_ symbol: String, _ name: String, enabled: Bool, repeats: Bool = true,
-                          height: CGFloat, _ action: @escaping () -> Void) -> some View {
-        RepeatingKey(name: name, repeats: repeats, action: { _ in action() }) {
-            Image(systemName: symbol).font(.body.weight(.medium))
+    private func stripIcon(_ symbol: String, name: String, hint: String, _ action: @escaping () -> Void) -> some View {
+        Button {
+            Haptics.shared.tap()
+            action()
+        } label: {
+            Image(systemName: symbol).font(.system(size: 17)).frame(width: 48).frame(maxHeight: .infinity)
         }
-        .frame(width: 48, height: height)
-        .disabled(!enabled)
+        .buttonStyle(KeyCapStyle(cornerRadius: 9))
+        .accessibilityLabel(name)
+        .accessibilityHint(hint)
     }
-
-    /// One macOS volume or brightness step is a sixteenth.
-    private static let levelStep = 1.0 / 16
-
-    private func stepVolume(_ direction: Double) {
-        guard let base = sentVolume ?? media.state?.volume else { return }
-        let next = Self.stepped(base, direction)
-        sentVolume = next
-        session.send(.mediaSetVolume(next))
-    }
-
-    private func stepBrightness(_ direction: Double) {
-        guard let base = sentBrightness ?? media.state?.brightness else { return }
-        let next = Self.stepped(base, direction)
-        sentBrightness = next
-        session.send(.mediaSetBrightness(next))
-    }
-
-    /// The next sixteenth up or down, snapping a value between steps to the grid first.
-    static func stepped(_ value: Double, _ direction: Double) -> Double {
-        let steps = value / levelStep
-        let next = direction > 0 ? (steps + 0.001).rounded(.down) + 1 : (steps - 0.001).rounded(.up) - 1
-        return min(1, max(0, next * levelStep))
-    }
-
-    /// Volume and brightness come with the Mac's media state.
-    private func requestLevels() {
-        guard session.isConnected, media.state?.volume == nil else { return }
-        session.send(.mediaRequest)
-    }
-
-    // MARK: Keys
 
     @ViewBuilder
     private func key(_ label: String, _ special: SpecialKey, _ name: String, symbol: Bool = false, repeats: Bool = false) -> some View {
         RepeatingKey(name: name, repeats: repeats, action: { isRepeat in press(special, isRepeat: isRepeat) }) {
-            if symbol { Image(systemName: label).font(.body.weight(.medium)) } else { Text(label).font(.callout).lineLimit(1).minimumScaleFactor(0.6) }
+            if symbol {
+                Image(systemName: label).font(.system(size: 13))
+            } else {
+                Text(label).font(.system(size: 15)).lineLimit(1).minimumScaleFactor(0.6)
+            }
         }
     }
 
-    /// The first press takes the sticky modifiers; repeats of a held key keep the same ones.
-    private func press(_ special: SpecialKey, isRepeat: Bool) {
+    /// The first press takes the modifiers; repeats of a held key keep the same ones.
+    private func press(_ special: SpecialKey, isRepeat: Bool = false) {
         if !isRepeat {
-            withAnimation(.snappy) { heldModifiers = sticky.consume() }
+            withAnimation(.snappy(duration: 0.15)) { heldModifiers = keyboard.modifiers.consume() }
         }
-        session.send(.keysKeystroke(Keystroke(key: .special(special), modifiers: heldModifiers)))
+        if let message = KeyboardOutput.message(for: .special(special), modifiers: heldModifiers, capsLock: false,
+                                                letters: session.keyboardLetters) {
+            session.send(message)
+        }
     }
 
-    private func send(_ output: StreamingTextField.Output) {
-        switch output {
-        case .text(let text): session.send(.keysText(text))
-        case .keystroke(let stroke): session.send(.keysKeystroke(stroke))
+    static func sign(_ m: KeyModifiers) -> String {
+        m == .command ? "⌘" : m == .option ? "⌥" : m == .control ? "⌃" : "⇧"
+    }
+
+    static func name(_ m: KeyModifiers) -> String {
+        m == .command ? "Command" : m == .option ? "Option" : m == .control ? "Control" : "Shift"
+    }
+
+    #if DEBUG
+    private func applyDebugLaunch() {
+        let k = keyboard
+        if DebugLaunch.demoKeysLock {
+            k.modifiers.down(.command); k.modifiers.up(.command, at: 0)
+            k.modifiers.down(.command); k.modifiers.up(.command, at: 0.1)
+            k.modifiers.down(.shift); k.modifiers.up(.shift, at: 5)
+        }
+        if DebugLaunch.demoKeysFn { k.modifiers.down(.function); k.modifiers.up(.function, at: 0) }
+        if DebugLaunch.demoKeysSymbols { k.symbols = true }
+        if let id = DebugLaunch.demoKeysHold { k.debugHold(id) }
+        if let text = DebugLaunch.demoKeysEcho { k.echo = text }
+        if DebugLaunch.demoKeysSystem {
+            Task { @MainActor in
+                try? await Task.sleep(for: .seconds(1))
+                k.usesSystemKeyboard = true
+            }
         }
     }
+    #endif
 }
 
 /// A flat keycap that presses once on touch down and, when `repeats`, again and again while
@@ -403,7 +367,7 @@ private struct RepeatingKey<Label: View>: View {
     @GestureState private var touching = false
 
     var body: some View {
-        let shape = RoundedRectangle(cornerRadius: 12, style: .continuous)
+        let shape = RoundedRectangle(cornerRadius: 7, style: .continuous)
         label
             .foregroundStyle(palette.inkColor)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -451,37 +415,7 @@ private struct RepeatingKey<Label: View>: View {
     }
 }
 
-// MARK: - Modifiers and shortcuts
-
-private enum ModifierKey: CaseIterable, Identifiable {
-    // Left to right as on a Mac keyboard, with Shift last.
-    case control, option, command, shift
-    var id: Self { self }
-    var flag: KeyModifiers {
-        switch self {
-        case .command: .command
-        case .option: .option
-        case .control: .control
-        case .shift: .shift
-        }
-    }
-    var symbol: String {
-        switch self {
-        case .command: "⌘"
-        case .option: "⌥"
-        case .control: "⌃"
-        case .shift: "⇧"
-        }
-    }
-    var name: String {
-        switch self {
-        case .command: "Command"
-        case .option: "Option"
-        case .control: "Control"
-        case .shift: "Shift"
-        }
-    }
-}
+// MARK: - Shortcuts
 
 extension KeyModifiers {
     /// "⌃⌥⇧⌘" in the order macOS menus use.
@@ -497,31 +431,41 @@ extension KeyModifiers {
 
 private struct Shortcut: Identifiable {
     let name: String
-    let character: String
+    let key: Key
     var modifiers: KeyModifiers = .command
     var id: String { name }
-    var keystroke: Keystroke { Keystroke(key: .character(character), modifiers: modifiers) }
-    var label: String { modifiers.symbols + character.uppercased() }
+    var keystroke: Keystroke { Keystroke(key: key, modifiers: modifiers) }
+    /// "⌘C", "⌘Space", the way macOS menus write them.
+    var label: String {
+        switch key {
+        case .character(let c): modifiers.symbols + c.uppercased()
+        case .special(.space): modifiers.symbols + "Space"
+        case .special(.tab): modifiers.symbols + "Tab"
+        case .special(let s): modifiers.symbols + s.rawValue
+        }
+    }
     var spoken: String {
         var parts: [String] = []
         if modifiers.contains(.control) { parts.append("Control") }
         if modifiers.contains(.option) { parts.append("Option") }
         if modifiers.contains(.shift) { parts.append("Shift") }
         if modifiers.contains(.command) { parts.append("Command") }
-        return (parts + [character.uppercased()]).joined(separator: " ")
+        switch key {
+        case .character(let c): parts.append(c.uppercased())
+        case .special(.space): parts.append("Space")
+        case .special(.tab): parts.append("Tab")
+        case .special(let s): parts.append(s.rawValue)
+        }
+        return parts.joined(separator: " ")
     }
 
     static let common: [Shortcut] = [
-        Shortcut(name: "Copy", character: "c"),
-        Shortcut(name: "Paste", character: "v"),
-        Shortcut(name: "Cut", character: "x"),
-        Shortcut(name: "Undo", character: "z"),
-        Shortcut(name: "Redo", character: "z", modifiers: [.command, .shift]),
-        Shortcut(name: "All", character: "a"),
-        Shortcut(name: "Find", character: "f"),
-        Shortcut(name: "Save", character: "s"),
-        Shortcut(name: "New tab", character: "t"),
-        Shortcut(name: "Close", character: "w"),
+        Shortcut(name: "Copy", key: .character("c")),
+        Shortcut(name: "Paste", key: .character("v")),
+        Shortcut(name: "Undo", key: .character("z")),
+        Shortcut(name: "Find", key: .character("f")),
+        Shortcut(name: "Spotlight", key: .special(.space)),
+        Shortcut(name: "Switch Apps", key: .special(.tab)),
     ]
 }
 
@@ -533,11 +477,11 @@ private struct Shortcut: Identifiable {
 struct StreamingTextField: UIViewRepresentable {
     enum Output { case text(String), keystroke(Keystroke) }
 
-    @Binding var sticky: StickyModifiers
-    @Binding var echo: String
-    var focusToken: Int
-    /// False while there is no Mac to type to: the keyboard goes away.
-    var active: Bool = true
+    /// Its modifiers and typed text are the Glasspad keyboard's.
+    var keyboard: KeyboardController
+    /// The iPhone keyboard is wanted and there is a Mac to type to. When it turns false the
+    /// keyboard goes down; when the keyboard goes down any other way, Glasspad's comes back.
+    var active: Bool
     var onOutput: (Output) -> Void
 
     func makeCoordinator() -> Coordinator { Coordinator(self) }
@@ -560,13 +504,11 @@ struct StreamingTextField: UIViewRepresentable {
 
     func updateUIView(_ uiView: StreamingTextView, context: Context) {
         context.coordinator.parent = self
-        let tokenChanged = context.coordinator.lastFocusToken != focusToken
         let becameActive = active && !context.coordinator.wasActive
-        context.coordinator.lastFocusToken = focusToken
         context.coordinator.wasActive = active
         if !active {
             if uiView.isFirstResponder { uiView.resignFirstResponder() }
-        } else if (tokenChanged || becameActive) && !uiView.isFirstResponder {
+        } else if becameActive && !uiView.isFirstResponder {
             uiView.becomeFirstResponder()
         }
     }
@@ -578,8 +520,7 @@ struct StreamingTextField: UIViewRepresentable {
     @MainActor
     final class Coordinator: NSObject, UITextViewDelegate {
         var parent: StreamingTextField
-        var lastFocusToken = 0
-        var wasActive = true
+        var wasActive = false
         private var sent = ""
 
         init(_ parent: StreamingTextField) { self.parent = parent }
@@ -590,11 +531,11 @@ struct StreamingTextField: UIViewRepresentable {
                 emit(.keystroke(Keystroke(key: .special(.returnKey), modifiers: takeModifiers())))
                 textView.text = ""
                 sent = ""
-                parent.echo = ""
+                parent.keyboard.echo = ""
                 return false
             }
             // With a modifier armed, a single typed character becomes a shortcut, not text.
-            if !parent.sticky.isEmpty, text.count == 1, range.length == 0 {
+            if !parent.keyboard.modifiers.isEmpty, text.count == 1, range.length == 0 {
                 emit(.keystroke(Keystroke(key: .character(text.lowercased()), modifiers: takeModifiers())))
                 return false
             }
@@ -611,7 +552,7 @@ struct StreamingTextField: UIViewRepresentable {
             let added = String(now.dropFirst(common.count))
             if !added.isEmpty { emit(.text(added)) }
             sent = now
-            parent.echo = now
+            parent.keyboard.echo = now
             // Keep the buffer short; the Mac already has the text.
             if now.count > 200 {
                 textView.text = ""
@@ -632,13 +573,17 @@ struct StreamingTextField: UIViewRepresentable {
             emit(.keystroke(Keystroke(key: .special(.delete), modifiers: takeModifiers())))
         }
 
-        /// The sticky modifiers for this key; latched ones let go, locked ones stay.
+        /// The keyboard went down some other way (the mode menu, another app's keyboard):
+        /// Glasspad's own keyboard comes back, so nothing is left waiting for it.
+        func textViewDidEndEditing(_ textView: UITextView) {
+            guard parent.keyboard.usesSystemKeyboard else { return }
+            withAnimation(.snappy(duration: 0.25)) { parent.keyboard.usesSystemKeyboard = false }
+        }
+
+        /// The modifiers for this key; latched ones let go, locked ones stay.
         private func takeModifiers() -> KeyModifiers {
-            var s = parent.sticky
-            guard !s.isEmpty else { return [] }
-            let m = s.consume()
-            parent.sticky = s
-            return m
+            guard !parent.keyboard.modifiers.isEmpty else { return [] }
+            return parent.keyboard.modifiers.consume()
         }
 
         private func emit(_ output: Output) { parent.onOutput(output) }

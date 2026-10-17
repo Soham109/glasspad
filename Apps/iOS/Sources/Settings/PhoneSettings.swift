@@ -141,8 +141,6 @@ final class PhoneSettings {
         didSet { if let d = try? JSONEncoder().encode(dockArrangement) { defaults.set(d, forKey: Key.dockArrangement) } }
     }
     var keysShowsShortcuts: Bool { didSet { defaults.set(keysShowsShortcuts, forKey: Key.keysShowsShortcuts) } }
-    /// Keyboard shows F1 to F12, brightness and volume in place of the shortcut row.
-    var keysShowsFunctionRow: Bool { didSet { defaults.set(keysShowsFunctionRow, forKey: Key.keysShowsFunctionRow) } }
     /// The first-run checklist was finished; it never opens by itself again.
     var setupComplete: Bool { didSet { defaults.set(setupComplete, forKey: Key.setupComplete) } }
     var presentStartsTimer: Bool { didSet { defaults.set(presentStartsTimer, forKey: Key.presentStartsTimer) } }
@@ -191,7 +189,7 @@ final class PhoneSettings {
         static let launchMode = "launchMode", dockDensity = "dockDensity"
         static let dockShowsNames = "dockShowsNames", dockShowsRecent = "dockShowsRecent"
         static let dockArrangement = "dockArrangement", keysShowsShortcuts = "keysShowsShortcuts"
-        static let keysShowsFunctionRow = "keysShowsFunctionRow", setupComplete = "setupComplete"
+        static let setupComplete = "setupComplete"
         static let presentStartsTimer = "presentStartsTimer"
         static let deckShowsTitles = "deckShowsTitles"
         static let deckTileScale = "deckTileScale", modeList = "modeList", seenTips = "seenTips"
@@ -222,7 +220,6 @@ final class PhoneSettings {
         dockArrangement = defaults.data(forKey: Key.dockArrangement)
             .flatMap { try? JSONDecoder().decode(DockArrangement.self, from: $0) } ?? DockArrangement()
         keysShowsShortcuts = bool(Key.keysShowsShortcuts, true)
-        keysShowsFunctionRow = bool(Key.keysShowsFunctionRow, false)
         setupComplete = bool(Key.setupComplete, false)
         presentStartsTimer = bool(Key.presentStartsTimer, true)
         deckShowsTitles = bool(Key.deckShowsTitles, true)
