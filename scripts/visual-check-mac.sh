@@ -35,7 +35,7 @@ GLASSPAD_SNAPSHOTS=1 GLASSPAD_SNAPSHOT_DIR="$SHOTS" swift test --package-path Ap
 rm -rf "$SHOTS/frames"
 find "$SHOTS" -mindepth 2 -name '*.png' -exec mv {} "$SHOTS/" \; 2>/dev/null || true
 find "$SHOTS" -mindepth 1 -type d -exec rm -rf {} + 2>/dev/null || true
-echo "== $(ls "$SHOTS" | grep -c '\.png$') pictures in $SHOTS"
+echo "== $(find "$SHOTS" -maxdepth 1 -name '*.png' | wc -l | tr -d ' ') pictures in $SHOTS"
 if [ "$RECORD" = 1 ]; then
   echo "baseline recorded in $BASELINE"
   exit 0

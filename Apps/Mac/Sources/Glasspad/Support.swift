@@ -118,15 +118,6 @@ extension AppModel {
         case .failed: return ""
         }
     }
-
-    var statusTint: Color {
-        if isPaused { return .secondary }
-        switch link {
-        case .connected: return .green
-        case .failed: return .orange
-        default: return .secondary
-        }
-    }
 }
 
 extension SynthMode {
@@ -146,11 +137,6 @@ extension SynthMode {
         case .unavailable: "This Mac does not support it."
         }
     }
-}
-
-func formatMilliseconds(_ ms: Double?) -> String {
-    guard let ms else { return "Not measured yet" }
-    return ms < 10 ? String(format: "%.1f ms", ms) : String(format: "%.0f ms", ms)
 }
 
 // MARK: - Launch at login

@@ -508,6 +508,7 @@ final class MacSession {
     /// Wakes when the oldest held tap runs out, only while something is held.
     private func scheduleOutboxExpiry() {
         outboxExpiry?.cancel()
+        // swift-format-ignore: NoAssignmentInExpressions
         guard let at = outbox.nextExpiry else { return outboxExpiry = nil }
         outboxExpiry = Task { @MainActor in
             try? await Task.sleep(for: .seconds(max(0.05, at - ProcessInfo.processInfo.systemUptime)))

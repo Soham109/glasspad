@@ -302,28 +302,6 @@ struct Jiggle: ViewModifier {
     }
 }
 
-/// A small section heading inside a page.
-struct ActionSectionHeader: View {
-    @Environment(\.palette) private var palette
-    let title: String
-    var detail: String? = nil
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(title)
-                .font(.headline)
-                .foregroundStyle(palette.inkColor)
-            if let detail {
-                Text(detail)
-                    .font(.footnote)
-                    .foregroundStyle(palette.inkSoftColor)
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .accessibilityAddTraits(.isHeader)
-    }
-}
-
 extension DeckButton {
     /// The tile colour, or the Actions accent.
     var tint: Color { Color(hexString: color) ?? Color(uiColor: .systemOrange) }
