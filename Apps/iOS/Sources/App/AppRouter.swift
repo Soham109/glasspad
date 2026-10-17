@@ -208,7 +208,9 @@ final class AppRouter {
         dimTimer = nil
         guard dimWatching else { return }
         let wait = IdleDeadline.next(idle: idleTime, dimDelay: PhoneSettings.shared.dimDelay, dimmed: isDimmed,
-                                     holdingAwake: UIApplication.shared.isIdleTimerDisabled,
+                                     // During a talk leaving it alone does not let go; only dimming is ahead.
+                                     holdingAwake: UIApplication.shared.isIdleTimerDisabled
+                                        && !PowerMonitor.shared.policy.ignoresIdleLimit(presenting: ScreenAwake.presenting),
                                      keepAwakeLimit: PowerMonitor.shared.policy.keepAwakeLimit,
                                      blocked: idleCheckBlocked)
         guard let wait else { return }
@@ -253,6 +255,12 @@ enum ScreenAwake {
     /// Held on except that nobody touched it for too long; the next touch holds it on again.
     private(set) static var releasedForIdle = false
 
+    /// A talk is on: Present's timer runs and Present is on screen.
+    static var presenting: Bool {
+        let router = AppRouter.shared
+        return PresentClock.shared.isRunning && (router.screenModes.contains(.present) || router.showPresenter)
+    }
+
     static func update() {
         let router = AppRouter.shared
         let settings = PhoneSettings.shared
@@ -262,7 +270,7 @@ enum ScreenAwake {
             screenNeedsIt: router.dims,
             coveredBySheet: router.showSettings || router.showPairing || router.showClipboard || router.showSetup
                 || router.showLayouts || router.layoutDraft != nil,
-            connected: true, idle: 0)
+            connected: true, idle: 0, presenting: presenting)
         // Dimming runs whenever the screen would be held on apart from the link and idle time,
         // so a dimmed screen stays dimmed until a touch or until the phone locks.
         let dims = policy.keepsScreenAwake(inputs)

@@ -20,22 +20,50 @@ public final class PresentMode {
     public func previous() { keys.press(KeyStroke(.left)) }
 
     public func setLaser(on: Bool) {
-        if on { laserStarted = true }
+        if on {
+            laserStarted = true
+            // A display unplugged since it was picked: back to the main one until the new answer.
+            if let picked = pickedScreen, !NSScreen.screens.contains(where: { $0.frame == picked }) { pickedScreen = nil }
+            findLaserScreen()
+        }
         guard drawsOverlay else { return laserLog.append((on, nil)) }
         if on {
-            if overlay == nil { overlay = LaserOverlay() }
-            overlay?.show()
+            if overlay == nil { overlay = LaserOverlay(frame: laserScreen) }
+            overlay?.show(on: laserScreen)
         } else {
             overlay?.hide()
         }
     }
 
-    /// Normalized 0...1 across the main display, origin top left.
+    /// Normalized 0...1 across the display the slides are on, origin top left.
     public func moveLaser(x: Double, y: Double) {
         if !laserStarted { setLaser(on: true) }
-        let point = Self.screenPoint(x: x, y: y, screen: NSScreen.screens.first?.frame ?? .zero)
+        let point = Self.screenPoint(x: x, y: y, screen: laserScreen)
         guard drawsOverlay else { return laserLog.append((true, point)) }
         overlay?.move(to: point)
+    }
+
+    /// The display the dot is drawn on (AppKit frame): the last one picked, the main one at first.
+    private var pickedScreen: CGRect?
+    private var laserScreen: CGRect { pickedScreen ?? NSScreen.screens.first?.frame ?? .zero }
+    private var pickGeneration = 0
+
+    /// Looks up which display the front app's slides are on, off the main thread, and moves the
+    /// overlay there when the answer comes. Until then the dot stays where it was last.
+    private func findLaserScreen() {
+        guard drawsOverlay, let pid = NSWorkspace.shared.frontmostApplication?.processIdentifier else { return }
+        pickGeneration += 1
+        let generation = pickGeneration
+        Task.detached(priority: .userInitiated) {
+            let frame = LaserScreen.read(pid: pid)
+            await MainActor.run { [weak self] in
+                guard let self, generation == self.pickGeneration, !frame.isEmpty else { return }
+                // A display that is gone by now (unplugged meanwhile) keeps the old choice.
+                guard NSScreen.screens.contains(where: { $0.frame == frame }) else { return }
+                self.pickedScreen = frame
+                self.overlay?.moveWindow(to: frame)
+            }
+        }
     }
 
     /// Converts normalized top-left coordinates to AppKit (bottom-left origin) screen points.
@@ -50,8 +78,8 @@ final class LaserOverlay {
     private let window: NSPanel
     private let dot = LaserDotView()
 
-    init() {
-        let frame = NSScreen.screens.first?.frame ?? NSRect(x: 0, y: 0, width: 800, height: 600)
+    init(frame: NSRect) {
+        let frame = frame.isEmpty ? NSRect(x: 0, y: 0, width: 800, height: 600) : frame
         window = NSPanel(contentRect: frame, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: true)
         window.isOpaque = false
         window.backgroundColor = .clear
@@ -67,9 +95,16 @@ final class LaserOverlay {
         dot.isHidden = true
     }
 
-    func show() {
-        if let frame = NSScreen.screens.first?.frame { window.setFrame(frame, display: false) }
+    func show(on frame: NSRect) {
+        if !frame.isEmpty, window.frame != frame { window.setFrame(frame, display: false) }
         window.orderFrontRegardless()
+    }
+
+    /// Moves to another display, keeping the dot hidden until the next position arrives there.
+    func moveWindow(to frame: NSRect) {
+        guard window.frame != frame else { return }
+        dot.isHidden = true
+        window.setFrame(frame, display: false)
     }
 
     func hide() {
@@ -82,7 +117,7 @@ final class LaserOverlay {
         let size = LaserDotView.diameter + LaserDotView.glow * 2
         dot.frame = NSRect(x: local.x - size / 2, y: local.y - size / 2, width: size, height: size)
         dot.isHidden = false
-        if !window.isVisible { show() }
+        if !window.isVisible { window.orderFrontRegardless() }
     }
 }
 
