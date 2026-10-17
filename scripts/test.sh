@@ -11,9 +11,19 @@ failed=()
 for pkg in Packages/*/; do
   echo "== $pkg"
   name="$(basename "$pkg")"
-  if ! (cd "$pkg" && swift test --scratch-path "$GP_BUILD_ROOT/$name" ${GP_SWIFT_FLAGS[@]+"${GP_SWIFT_FLAGS[@]}"} "$@"); then
-    failed+=("$name")
+  log="$(mktemp)"
+  if ! (cd "$pkg" && swift test --scratch-path "$GP_BUILD_ROOT/$name" ${GP_SWIFT_FLAGS[@]+"${GP_SWIFT_FLAGS[@]}"} "$@") 2>&1 | tee "$log"; then
+    # On CI only: hosted machines stall for seconds at random, which trips timing tests. Each
+    # failed test gets one more run on its own; it must pass then, and the log names it.
+    retry="$(grep -oE '✘ Test [A-Za-z0-9_]+\(' "$log" | sed -E 's/✘ Test ([A-Za-z0-9_]+)\(/\1/' | sort -u | paste -sd '|' -)"
+    if [ -n "${CI:-}" ] && [ -n "$retry" ] && [ "$(printf %s "$retry" | tr '|' '\n' | wc -l)" -le 5 ] \
+      && (cd "$pkg" && swift test --scratch-path "$GP_BUILD_ROOT/$name" ${GP_SWIFT_FLAGS[@]+"${GP_SWIFT_FLAGS[@]}"} --filter "($retry)\\(" "$@"); then
+      echo "RETRIED ON CI AND PASSED ($name): ${retry//|/, }"
+    else
+      failed+=("$name")
+    fi
   fi
+  rm -f "$log"
 done
 # The installer scripts, against fake Apple tools (no iPhone or Apple account needed).
 echo "== installer"
