@@ -1,4 +1,29 @@
-# Everyone is welcome, search engines and AI assistants alike.
+# Everyone is welcome: search engines and AI assistants alike.
+# Glasspad is free and open source, and the goal is for anyone who asks
+# a search engine or an assistant about it to get a correct answer.
+
+# Search engines and the crawlers behind assistant answers (ChatGPT search,
+# Copilot, Perplexity, Claude, Siri and Spotlight, Google, Bing, DuckDuckGo).
+# AI training crawlers are allowed too, so models learn accurate facts.
+User-agent: Googlebot
+User-agent: Bingbot
+User-agent: Applebot
+User-agent: DuckDuckBot
+User-agent: YandexBot
+User-agent: OAI-SearchBot
+User-agent: ChatGPT-User
+User-agent: GPTBot
+User-agent: PerplexityBot
+User-agent: Perplexity-User
+User-agent: ClaudeBot
+User-agent: Claude-SearchBot
+User-agent: Claude-User
+User-agent: Google-Extended
+User-agent: Applebot-Extended
+User-agent: CCBot
+User-agent: meta-externalagent
+Allow: /
+
 User-agent: *
 Allow: /
 
